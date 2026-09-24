@@ -998,3 +998,252 @@ function setupSupabaseAuthListener() {
   }
 
   window.__gotradexAuthListener =
+
+/* =========================================================
+   GOTRADEX STABILITY REPAIR LAYER
+   ========================================================= */
+(function () {
+  const symbols = ["BTCUSDT","ETHUSDT","XAUUSD","EURUSD","GBPUSD"];
+
+  symbols.forEach((symbol) => {
+    const item = DEMO_MARKETS.find((m) => m && m.symbol === symbol);
+    if (!item) return;
+    item.change = Number(item.change ?? item.change30d ?? 0);
+    Object.defineProperty(DEMO_MARKETS, symbol, {
+      value: item, enumerable: false, configurable: true, writable: true
+    });
+  });
+
+  state.markets = (state.markets && !Array.isArray(state.markets)) ? state.markets : {};
+  state.activeSignal = state.activeSignal || null;
+  state.portfolio = {
+    balance: 10000, equity: 10000, profit: 0, floatingProfit: 0,
+    trades: [], openPositions: [], ...(state.portfolio || {})
+  };
+  state.bot = {
+    enabled: false, symbol: "BTCUSDT", timeframe: "1H",
+    risk: "1", minConfidence: "70", maxDrawdown: 10, ...(state.bot || {})
+  };
+  state.settings = {
+    notifySignals: true, notifyBot: true, notifyMarket: true,
+    telegramChatId: "", telegramBotToken: "", whatsappPhone: "",
+    whatsappApiKey: "", latenodeWebhook: "", ...(state.settings || {})
+  };
+
+  const escapeHtml = (v) => String(v ?? "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+  window.escapeHtml = escapeHtml;
+
+  function toast(message, type = "success") {
+    if (!message) return;
+    const box = $("toast-container") || $("toast");
+    if (!box) return console.log("GoTradeX:", message);
+    if (box.id === "toast-container") {
+      const el = document.createElement("div");
+      el.className = "toast " + type;
+      el.textContent = String(message);
+      box.appendChild(el);
+      requestAnimationFrame(() => el.classList.add("show"));
+      setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(),300); }, 3000);
+    } else {
+      box.textContent = String(message);
+      box.classList.add("show");
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => box.classList.remove("show"), 3500);
+    }
+  }
+  showToast = toast;
+  window.showToast = toast;
+
+  function saveStable() {
+    try {
+      localStorage.setItem("gotradex_state", JSON.stringify({
+        portfolio: state.portfolio, bot: state.bot, settings: state.settings,
+        activeSymbol: state.activeSymbol, timeframe: state.timeframe,
+        user: state.user, signals: state.signals,
+        activeSignal: state.activeSignal, lastSignal: state.lastSignal
+      }));
+    } catch (e) { console.warn("Could not save GoTradeX state:", e); }
+  }
+
+  function loadStable() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("gotradex_state") || "null");
+      if (saved?.portfolio) state.portfolio = {...state.portfolio,...saved.portfolio};
+      if (saved?.bot) state.bot = {...state.bot,...saved.bot};
+      if (saved?.settings) state.settings = {...state.settings,...saved.settings};
+      if (saved?.activeSymbol) state.activeSymbol = saved.activeSymbol;
+      if (saved?.timeframe) state.timeframe = saved.timeframe;
+      if (saved?.user) state.user = saved.user;
+      if (Array.isArray(saved?.signals)) state.signals = saved.signals;
+      if (saved?.activeSignal) state.activeSignal = saved.activeSignal;
+      if (saved?.lastSignal) state.lastSignal = saved.lastSignal;
+      const bot = localStorage.getItem("gotradex_bot_enabled");
+      if (bot === "true") state.bot.enabled = true;
+      if (bot === "false") state.bot.enabled = false;
+    } catch (e) { console.warn("GoTradeX local state warning:", e); }
+    state.portfolio.trades = Array.isArray(state.portfolio.trades) ? state.portfolio.trades : [];
+    state.portfolio.openPositions = Array.isArray(state.portfolio.openPositions) ? state.portfolio.openPositions : [];
+    state.signals = Array.isArray(state.signals) ? state.signals : [];
+  }
+  loadLocalState = loadStable;
+  restoreLocalState = loadStable;
+  saveState = saveStable;
+  persist = saveStable;
+
+  function botStatus() {
+    const active = !!state.bot?.enabled;
+    const d = $("dashboard-bot-status"); if (d) { d.textContent = active ? "ACTIVE":"OFF"; d.classList.toggle("active",active); d.classList.toggle("inactive",!active); }
+    const r = $("robot-page-status"); if (r) r.textContent = active ? "ONLINE":"OFFLINE";
+    const l = $("bot-power-label"); if (l) l.textContent = active ? "Stop AutoBot":"Start AutoBot";
+    const s = $("bot-stat-status"); if (s) s.textContent = active ? "Running":"Stopped";
+    const sy = $("bot-stat-symbol"); if (sy) sy.textContent = state.bot?.symbol || state.activeSymbol || "BTCUSDT";
+    const tr = $("bot-stat-trades"); if (tr) tr.textContent = String(state.portfolio?.trades?.length || 0);
+    [["bot-symbol",state.bot?.symbol],["bot-timeframe",state.bot?.timeframe],["bot-risk",state.bot?.risk],["bot-min-confidence",state.bot?.minConfidence]]
+      .forEach(([id,v]) => { const el=$(id); if(el && v) el.value=v; });
+  }
+  updateBotStatus = botStatus;
+
+  async function refreshStable() {
+    state.loadingMarkets = true; renderMarkets();
+    const results = await Promise.all(symbols.map(fetchOneMarket));
+    results.forEach((m) => { if (m?.symbol) state.markets[m.symbol] = m; });
+    state.loadingMarkets = false; renderMarkets();
+    if (state.markets[state.activeSymbol]) updateDashboardMarket(state.markets[state.activeSymbol]);
+  }
+  refreshMarkets = refreshStable;
+  window.refreshMarkets = refreshStable;
+
+  function sectionStable(section) {
+    const name = String(section || "dashboard").replace(/-section$/,"");
+    document.querySelectorAll(".nav-item").forEach((b)=>b.classList.toggle("active",b.dataset.section===name));
+    document.querySelectorAll(".app-section").forEach((el)=>{
+      const active = el.id === name + "-section";
+      el.classList.toggle("active",active); el.style.display=active ? "block":"none";
+    });
+    if (name==="markets") renderMarkets();
+    if (name==="signals") renderSignals(state.activeSignal);
+    if (name==="portfolio") renderPortfolio();
+    if (name==="robot") botStatus();
+  }
+  openSection = sectionStable; window.openSection = sectionStable;
+
+  bindNavigation = function () {
+    document.querySelectorAll(".nav-item").forEach((b)=>{
+      if (b.dataset.navigationBound==="true") return;
+      b.dataset.navigationBound="true";
+      b.addEventListener("click",()=>sectionStable(b.dataset.section));
+    });
+  };
+
+  bindSearch = function () {
+    const input = $("global-market-search") || $("asset-search");
+    if (!input || input.dataset.searchBound==="true") return;
+    input.dataset.searchBound="true";
+    input.addEventListener("input",(e)=>renderMarkets(e.target.value));
+  };
+
+  function appStable() {
+    const app=getAppRoot(), overlay=getAuthOverlay();
+    const hidden=!!(app?.classList.contains("hidden") || app?.style.display==="none");
+    setHidden(overlay,true); setHidden(app,false);
+    updateDashboardUser(); botStatus(); renderAll();
+    if (hidden || !marketRefreshTimer) {
+      refreshStable().catch((e)=>console.warn("Market refresh warning:",e));
+      if (state.activeSymbol) loadCandles(state.activeSymbol,state.timeframe);
+      startMarketRefresh();
+    }
+  }
+  openApp=appStable; openMainApp=appStable; window.openApp=appStable; window.openMainApp=appStable;
+
+  togglePassword = function () {
+    const input=$("auth-password"), eye=$("password-eye"); if(!input) return;
+    const show=input.type==="text"; input.type=show?"password":"text";
+    if(eye){eye.classList.toggle("fa-eye",show);eye.classList.toggle("fa-eye-slash",!show);}
+  };
+
+  changePassword = async function () {
+    const client=initSupabaseClient();
+    if(!client || !state.isLoggedIn) return toast("Please log in first.","error");
+    const p=window.prompt("Enter your new password (minimum 6 characters):");
+    if(p===null) return; if(p.length<6) return toast("Password must be at least 6 characters.","error");
+    const c=window.prompt("Confirm your new password:");
+    if(c!==p) return toast("Passwords do not match.","error");
+    const {error}=await client.auth.updateUser({password:p});
+    if(error) return toast(error.message || "Could not change password.","error");
+    toast("Password changed successfully.");
+  };
+
+  saveAccountSettings = function(){ return saveProfileSettings(); };
+  saveBotSettings = function(){
+    state.bot={...state.bot,
+      symbol:$("bot-symbol")?.value || state.bot.symbol,
+      timeframe:$("bot-timeframe")?.value || state.bot.timeframe,
+      risk:$("bot-risk")?.value || state.bot.risk,
+      minConfidence:$("bot-min-confidence")?.value || state.bot.minConfidence
+    };
+    state.activeSymbol=state.bot.symbol; state.timeframe=state.bot.timeframe;
+    saveStable(); botStatus(); toast("AutoBot settings saved.");
+  };
+
+  runAIAnalysis = async function(){
+    if(!state.activeSymbol) state.activeSymbol="BTCUSDT";
+    await loadCandles(state.activeSymbol,state.timeframe);
+    sectionStable("signals");
+  };
+
+  clearSignalHistory = function(){
+    state.signals=[]; state.activeSignal=null; state.lastSignal=null;
+    saveStable(); renderSignals(null); toast("Signal history cleared.");
+  };
+
+  showNotifications = function(){
+    const panel=$("notification-panel"); if(!panel) return;
+    panel.style.display=panel.style.display==="block"?"none":"block";
+    const list=$("notification-list"); if(!list) return;
+    const rows=Array.isArray(state.signals)?state.signals.slice(-10).reverse():[];
+    list.innerHTML=rows.length
+      ? rows.map((s)=>'<div class="notification-item"><strong>'+escapeHtml(s.symbol||"Market")+'</strong><span>'+escapeHtml(s.direction||"Signal")+'</span></div>').join("")
+      : '<div class="empty-state">No notifications yet.</div>';
+  };
+  closeNotifications = function(){const p=$("notification-panel");if(p)p.style.display="none";};
+  showRules = function(){openModal("Rules & Regulations","<p>GoTradeX is a paper-trading dashboard and does not place real broker orders.</p><p>Market data may be live or demo fallback data. Signals are analytical outputs, not financial advice.</p>");};
+  showHelp = function(){openModal("Help & Support","<p><strong>Dashboard:</strong> paper balance and markets.</p><p><strong>Markets:</strong> select an asset for its chart.</p><p><strong>AI Signals:</strong> run analysis and review signals.</p><p><strong>AutoBot:</strong> paper-trading automation only.</p><p><strong>Settings:</strong> profile, notifications and Latenode webhook.</p>");};
+  clearLocalData = function(){
+    if(!window.confirm("Clear saved GoTradeX paper-trading data and settings? Your Supabase account will not be deleted.")) return;
+    ["gotradex_state","gotradex_settings","gotradex_bot_enabled","gotradex_profile"].forEach((k)=>localStorage.removeItem(k));
+    state.portfolio={balance:10000,equity:10000,profit:0,floatingProfit:0,trades:[],openPositions:[]};
+    state.bot={enabled:false,symbol:"BTCUSDT",timeframe:"1H",risk:"1",minConfidence:"70",maxDrawdown:10};
+    state.signals=[]; state.activeSignal=null; state.lastSignal=null;
+    state.settings={notifySignals:true,notifyBot:true,notifyMarket:true,telegramChatId:"",telegramBotToken:"",whatsappPhone:"",whatsappApiKey:"",latenodeWebhook:""};
+    botStatus(); renderAll(); toast("Local GoTradeX data cleared.");
+  };
+  testLatenodeWebhook = async function(){
+    saveNotificationSettings();
+    const url=String(state.settings?.latenodeWebhook||"").trim();
+    if(!url) return toast("Enter a Latenode webhook URL first.","warning");
+    try {
+      const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:"GoTradeX",type:"test",message:"GoTradeX webhook test",timestamp:new Date().toISOString()})});
+      if(!response.ok) throw new Error("Webhook returned "+response.status);
+      toast("Latenode webhook test succeeded.");
+    } catch(e) { console.error(e); toast("Webhook test failed. Check the URL and CORS settings.","error"); }
+  };
+
+  Object.assign(window,{
+    togglePassword,changePassword,saveAccountSettings,saveBotSettings,runAIAnalysis,
+    clearSignalHistory,showNotifications,closeNotifications,showRules,showHelp,
+    clearLocalData,testLatenodeWebhook,logoutAccount:logout
+  });
+
+  init = function(){
+    console.log("GoTradeX initializing...");
+    loadStable(); restoreNotificationSettings(); bindNavigation(); bindSearch(); bindTimeframes(); setupSupabaseAuthListener();
+    restoreSupabaseSession().then((restored)=>{
+      if(restored || state.isLoggedIn) appStable();
+      else { setHidden(getAppRoot(),true); setHidden(getAuthOverlay(),false); showLoginPage(); }
+      updateDashboardUser(); botStatus(); renderAll();
+      console.log("GoTradeX initialized.",APP_VERSION);
+    }).catch((e)=>{console.warn("GoTradeX startup warning:",e);setHidden(getAppRoot(),true);setHidden(getAuthOverlay(),false);showLoginPage();});
+  };
+})();
