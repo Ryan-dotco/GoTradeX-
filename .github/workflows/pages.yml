@@ -27,6 +27,31 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Apply GoTradeX loader safety fix
+        run: |
+          cat >> script.js <<'EOF'
+
+          /* GitHub Pages runtime safety: never leave the startup loader blocking the app. */
+          (() => {
+            const hideLoader = () => {
+              const loader = document.getElementById("app-loader");
+              if (!loader) return;
+              loader.style.opacity = "0";
+              loader.style.visibility = "hidden";
+              loader.style.pointerEvents = "none";
+              setTimeout(() => loader.remove(), 400);
+            };
+
+            if (document.readyState === "loading") {
+              document.addEventListener("DOMContentLoaded", hideLoader, { once: true });
+            } else {
+              hideLoader();
+            }
+
+            setTimeout(hideLoader, 2500);
+          })();
+          EOF
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
