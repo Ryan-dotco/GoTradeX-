@@ -65,6 +65,8 @@ const state = {
 
   adminRefreshTimer: null,
 
+  adminNotificationChannel: null,
+
   liveRefreshTimer: null,
 
   settings: {
@@ -3083,9 +3085,55 @@ async function loadAdminReports() {
   }
 }
 
+function subscribeToAdminNotifications() {
+  if (!state.supabase || !state.user || !state.isAdmin) return;
+
+  if (state.adminNotificationChannel) {
+    state.supabase.removeChannel(state.adminNotificationChannel);
+  }
+
+  state.adminNotificationChannel = state.supabase
+    .channel("admin-support-notifications")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "support_messages"
+      },
+      payload => {
+        const message = payload?.new;
+        if (!message) return;
+
+        if (message.sender === "user") {
+          const isCurrentConversation =
+            state.adminSelectedUser?.id === message.user_id;
+
+          if (state.currentPage === "admin-support") {
+            loadAdminUsers();
+            if (isCurrentConversation) {
+              openAdminConversation(message.user_id);
+            }
+          }
+
+          showToast(
+            "New support message received.",
+            "success"
+          );
+        }
+      }
+    )
+    .subscribe((status, error) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn("Admin notification realtime error:", error || status);
+      }
+    });
+}
+
 async function initializeAdminSupport() {
   if (!state.isAdmin) return;
   await Promise.all([loadAdminUsers(), loadAdminReports()]);
+  subscribeToAdminNotifications();
   clearInterval(state.adminRefreshTimer);
   state.adminRefreshTimer = setInterval(async () => {
     if (state.currentPage !== "admin-support") return;
@@ -3506,6 +3554,16 @@ async function logout() {
       throw error;
     }
 
+
+    if (state.adminNotificationChannel && state.supabase) {
+      state.supabase.removeChannel(state.adminNotificationChannel);
+      state.adminNotificationChannel = null;
+    }
+
+    clearInterval(state.adminRefreshTimer);
+    state.adminRefreshTimer = null;
+    state.isAdmin = false;
+    state.adminSelectedUser = null;
 
     state.user = null;
     state.profile = null;
