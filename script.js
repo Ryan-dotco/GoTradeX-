@@ -5,6 +5,22 @@
 
 const APP_VERSION = "1.0.0";
 
+function togglePassword() {
+  const input = document.getElementById("auth-password");
+  const eye = document.getElementById("password-eye");
+
+  if (!input) return;
+
+  const showPassword = input.type === "password";
+  input.type = showPassword ? "text" : "password";
+
+  if (eye) {
+    eye.classList.toggle("fa-eye", !showPassword);
+    eye.classList.toggle("fa-eye-slash", showPassword);
+  }
+}
+
+
 const GOTRADEX_CONFIG = window.GOTRADEX_CONFIG || {};
 
 let supabaseClient = null;
