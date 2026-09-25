@@ -55,7 +55,27 @@ const state = {
 
   robotRunning: false,
 
-  robotRisk: "moderate",
+  robotRisk: "conservative",
+
+  maxDrawdown: 10,
+
+  mt5AccountId: "",
+
+  robotStatus: {
+    connected: false,
+    running: false,
+    balance: 0,
+    equity: 0,
+    dailyPL: 0,
+    openTrades: 0,
+    lastHeartbeat: null,
+    lastError: ""
+  },
+
+  lastQueuedSignalKey: "",
+  lastQueuedAt: 0,
+
+  robotStatusTimer: null,
 
   supportChannel: null,
 
@@ -2234,6 +2254,11 @@ function updateSignalFromMarket() {
 
   renderSignals();
 
+  queueRobotSignal({
+    symbol: "BTCUSDT",
+    ...signal
+  });
+
 }
 
 
@@ -2427,88 +2452,342 @@ function setRobotRisk(risk) {
 }
 
 
-function startRobot() {
+function renderRobotStatus() {
 
-  state.robotRunning =
-    true;
+  const running =
+    state.robotRunning === true;
 
+  const connected =
+    state.robotStatus.connected === true;
 
   if ($("robotStatusValue")) {
-
-    $("robotStatusValue")
-      .textContent =
-      "Running";
-
+    $("robotStatusValue").textContent =
+      running ? "Running" : "Stopped";
   }
-
 
   if ($("robotLabel")) {
-
     $("robotLabel").textContent =
-      "RUNNING";
-
+      running ? "RUNNING" : (connected ? "CONNECTED" : "STOPPED");
   }
-
 
   if ($("robotIndicator")) {
-
-    $("robotIndicator")
-      .style.background =
-      "var(--green)";
-
+    $("robotIndicator").style.background =
+      running
+        ? "var(--green)"
+        : connected
+          ? "var(--yellow)"
+          : "var(--red)";
   }
 
+  if ($("brokerStatus")) {
+    $("brokerStatus").textContent =
+      connected ? "Exness MT5 Connected" : "Not Connected";
+  }
 
-  $("startRobotButton")
-    ?.classList.add("hidden");
+  if ($("robotAccountStatus")) {
+    $("robotAccountStatus").textContent =
+      state.mt5AccountId || "Not Set";
+  }
 
-  $("stopRobotButton")
-    ?.classList.remove("hidden");
+  if ($("robotOpenTrades")) {
+    $("robotOpenTrades").textContent =
+      String(state.robotStatus.openTrades || 0);
+  }
+
+  if ($("robotDailyPL")) {
+    $("robotDailyPL").textContent =
+      formatMoney(state.robotStatus.dailyPL || 0);
+  }
+
+  if ($("startRobotButton")) {
+    $("startRobotButton").classList.toggle("hidden", running);
+  }
+
+  if ($("stopRobotButton")) {
+    $("stopRobotButton").classList.toggle("hidden", !running);
+  }
+
+  setRobotRisk(state.robotRisk);
+}
 
 
-  showToast(
-    "Robot started. Broker execution remains locked until a broker/API connection is configured.",
-    "success"
-  );
+async function loadRobotState() {
+
+  if (!state.supabase || !state.user) {
+    return;
+  }
+
+  try {
+    const { data: control, error: controlError } =
+      await state.supabase
+        .from("gotradex_bot_control")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .maybeSingle();
+
+    if (controlError) throw controlError;
+
+    if (control) {
+      state.robotRunning = Boolean(control.running);
+      state.robotRisk = control.risk || "conservative";
+      state.maxDrawdown = Number(control.max_drawdown) || 10;
+      state.mt5AccountId =
+        control.mt5_account_id
+          ? String(control.mt5_account_id)
+          : "";
+
+      if ($("mt5AccountId")) {
+        $("mt5AccountId").value = state.mt5AccountId;
+      }
+    }
+
+    const { data: status, error: statusError } =
+      await state.supabase
+        .from("gotradex_bot_status")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .maybeSingle();
+
+    if (statusError) throw statusError;
+
+    if (status) {
+      state.robotStatus = {
+        connected: Boolean(status.connected),
+        running: Boolean(status.running),
+        balance: Number(status.balance) || 0,
+        equity: Number(status.equity) || 0,
+        dailyPL: Number(status.daily_pl) || 0,
+        openTrades: Number(status.open_trades) || 0,
+        lastHeartbeat: status.last_heartbeat || null,
+        lastError: status.last_error || ""
+      };
+    }
+
+    renderRobotStatus();
+
+  } catch (error) {
+    console.warn("Robot state load warning:", error);
+  }
+}
+
+
+async function refreshRobotStatus() {
+
+  if (!state.supabase || !state.user) {
+    return;
+  }
+
+  try {
+    const { data: status, error } =
+      await state.supabase
+        .from("gotradex_bot_status")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .maybeSingle();
+
+    if (error) throw error;
+
+    if (status) {
+      state.robotStatus = {
+        connected: Boolean(status.connected),
+        running: Boolean(status.running),
+        balance: Number(status.balance) || 0,
+        equity: Number(status.equity) || 0,
+        dailyPL: Number(status.daily_pl) || 0,
+        openTrades: Number(status.open_trades) || 0,
+        lastHeartbeat: status.last_heartbeat || null,
+        lastError: status.last_error || ""
+      };
+    }
+
+    renderRobotStatus();
+
+  } catch (error) {
+    console.warn("Robot status refresh warning:", error);
+  }
+}
+
+
+function startRobotStatusRefresh() {
+
+  clearInterval(state.robotStatusTimer);
+
+  state.robotStatusTimer =
+    setInterval(refreshRobotStatus, 5000);
+}
+
+
+async function saveRobotControl(running) {
+
+  if (!state.supabase || !state.user) {
+    throw new Error("Trading account session is not available.");
+  }
+
+  const accountId =
+    Number($("mt5AccountId")?.value || state.mt5AccountId);
+
+  if (!Number.isInteger(accountId) || accountId <= 0) {
+    throw new Error("Enter your Exness MT5 Account ID first.");
+  }
+
+  state.mt5AccountId = String(accountId);
+
+  const payload = {
+    user_id: state.user.id,
+    broker: "Exness MT5",
+    mode: "LIVE",
+    running,
+    risk: state.robotRisk,
+    max_drawdown: state.maxDrawdown,
+    mt5_account_id: accountId,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } =
+    await state.supabase
+      .from("gotradex_bot_control")
+      .upsert(payload, { onConflict: "user_id" });
+
+  if (error) throw error;
+}
+
+
+async function startRobot() {
+
+  try {
+
+    await saveRobotControl(true);
+
+    state.robotRunning = true;
+    state.lastQueuedSignalKey = "";
+    state.lastQueuedAt = 0;
+
+    renderRobotStatus();
+
+    showToast(
+      "AutoBot started. Exness MT5 will continue running through the MT5/VPS bridge.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error("Start robot error:", error);
+
+    showToast(
+      error.message || "Unable to start the robot.",
+      "error"
+    );
+
+  }
 
 }
 
 
-function stopRobot() {
+async function stopRobot() {
 
-  state.robotRunning =
-    false;
+  try {
 
+    await saveRobotControl(false);
 
-  if ($("robotStatusValue")) {
+    state.robotRunning = false;
 
-    $("robotStatusValue")
-      .textContent =
-      "Stopped";
+    renderRobotStatus();
+
+    showToast(
+      "AutoBot stopped. No new trades will be submitted.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error("Stop robot error:", error);
+
+    showToast(
+      error.message || "Unable to stop the robot.",
+      "error"
+    );
 
   }
 
+}
 
-  if ($("robotLabel")) {
 
-    $("robotLabel").textContent =
-      "STOPPED";
+async function queueRobotSignal(signal) {
 
+  if (!state.robotRunning || !state.user) {
+    return;
   }
 
+  const accountId =
+    Number(state.mt5AccountId);
 
-  $("startRobotButton")
-    ?.classList.remove("hidden");
+  if (!Number.isInteger(accountId) || accountId <= 0) {
+    return;
+  }
 
-  $("stopRobotButton")
-    ?.classList.add("hidden");
+  if (!signal || !["BUY", "SELL"].includes(signal.direction)) {
+    return;
+  }
 
+  if (Number(signal.confidence) < 70) {
+    return;
+  }
+
+  const brokerSymbol =
+    signal.symbol === "BTCUSDT"
+      ? "BTCUSD"
+      : signal.symbol;
+
+  const now = Date.now();
+  const key =
+    [
+      brokerSymbol,
+      signal.direction,
+      Number(signal.entry).toFixed(2),
+      Number(signal.stop).toFixed(2),
+      Number(signal.target).toFixed(2)
+    ].join(":");
+
+  if (
+    key === state.lastQueuedSignalKey &&
+    now - state.lastQueuedAt < 300000
+  ) {
+    return;
+  }
+
+  const { error } =
+    await state.supabase
+      .from("gotradex_trade_commands")
+      .insert({
+        user_id: state.user.id,
+        mt5_account_id: accountId,
+        symbol: brokerSymbol,
+        direction: signal.direction,
+        entry: signal.entry,
+        stop_loss: signal.stop,
+        take_profit: signal.target,
+        confidence: signal.confidence,
+        risk: state.robotRisk
+      });
+
+  if (error) {
+    console.error("Robot signal queue error:", error);
+    return;
+  }
+
+  state.lastQueuedSignalKey = key;
+  state.lastQueuedAt = now;
 
   showToast(
-    "Robot stopped.",
+    "AutoBot queued " +
+      signal.direction +
+      " " +
+      brokerSymbol +
+      " (" +
+      signal.confidence +
+      "% confidence).",
     "success"
   );
-
 }
 
 
@@ -3221,6 +3500,10 @@ async function initializeLiveApp() {
   updateAffiliates();
 
   subscribeToSupportChat();
+
+  await loadRobotState();
+
+  startRobotStatusRefresh();
 
   await loadLiveMarkets();
 
