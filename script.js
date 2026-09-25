@@ -2494,6 +2494,7 @@ async function loadRobotState() {
     }
 
     renderRobotStatus();
+    updatePortfolio();
 
   } catch (error) {
     console.warn("Robot state load warning:", error);
@@ -2558,6 +2559,7 @@ async function refreshRobotStatus() {
     }
 
     renderRobotStatus();
+    updatePortfolio();
 
   } catch (error) {
     console.warn("Robot status refresh warning:", error);
@@ -2769,40 +2771,92 @@ async function queueRobotSignal(signal) {
    PORTFOLIO
    ========================================================= */
 
+function isBrokerStatusFresh() {
+
+  const heartbeat =
+    state.robotStatus.lastHeartbeat
+      ? new Date(state.robotStatus.lastHeartbeat).getTime()
+      : 0;
+
+  return (
+    state.robotStatus.connected === true &&
+    Number.isFinite(heartbeat) &&
+    Date.now() - heartbeat <= 30000
+  );
+
+}
+
+
 function updatePortfolio() {
 
-  const balance = Number(state.robotStatus.balance) || 0;
-  const equity = Number(state.robotStatus.equity) || 0;
-  const dailyPL = Number(state.robotStatus.dailyPL) || 0;
-  const hasBrokerStatus = Boolean(state.robotStatus.lastHeartbeat);
+  const fresh =
+    isBrokerStatusFresh();
 
-  const available = hasBrokerStatus ? equity : 0;
-  const invested = hasBrokerStatus
-    ? Math.max(0, balance - equity)
-    : 0;
+  const balance =
+    fresh
+      ? Number(state.robotStatus.balance) || 0
+      : 0;
+
+  const equity =
+    fresh
+      ? Number(state.robotStatus.equity) || 0
+      : 0;
+
+  const dailyPL =
+    fresh
+      ? Number(state.robotStatus.dailyPL) || 0
+      : 0;
+
+  const openTrades =
+    fresh
+      ? Number(state.robotStatus.openTrades) || 0
+      : 0;
+
+  const invested =
+    fresh
+      ? Math.max(0, balance - equity)
+      : 0;
 
   if ($("balanceValue")) {
-    $("balanceValue").textContent = formatMoney(balance);
+    $("balanceValue").textContent =
+      formatMoney(balance);
   }
 
   if ($("dailyProfitValue")) {
-    $("dailyProfitValue").textContent = formatMoney(dailyPL);
+    $("dailyProfitValue").textContent =
+      formatMoney(dailyPL);
   }
 
   if ($("portfolioBalance")) {
-    $("portfolioBalance").textContent = formatMoney(balance);
+    $("portfolioBalance").textContent =
+      formatMoney(balance);
   }
 
   if ($("portfolioAvailable")) {
-    $("portfolioAvailable").textContent = formatMoney(available);
+    $("portfolioAvailable").textContent =
+      formatMoney(equity);
   }
 
   if ($("portfolioInvested")) {
-    $("portfolioInvested").textContent = formatMoney(invested);
+    $("portfolioInvested").textContent =
+      formatMoney(invested);
   }
 
   if ($("portfolioProfit")) {
-    $("portfolioProfit").textContent = formatMoney(dailyPL);
+    $("portfolioProfit").textContent =
+      formatMoney(dailyPL);
+  }
+
+  const positionsEmpty =
+    $("positionsEmpty");
+
+  if (positionsEmpty) {
+    positionsEmpty.textContent =
+      fresh
+        ? openTrades > 0
+          ? openTrades + " open trade" + (openTrades === 1 ? "" : "s") + " reported by AvaTrade MT5. Detailed position data will appear when the bridge provides position details."
+          : "No open trades reported by AvaTrade MT5."
+        : "Waiting for a fresh AvaTrade MT5 connection.";
   }
 
 }
