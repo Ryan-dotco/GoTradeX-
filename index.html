@@ -464,6 +464,17 @@
         </button>
 
 
+
+        <button
+          id="adminSupportNav"
+          type="button"
+          class="nav-item hidden"
+          data-page="admin-support"
+        >
+          <span>🛡</span>
+          <span>Admin Support</span>
+        </button>
+
         <button
           type="button"
           class="nav-item"
@@ -1409,6 +1420,90 @@
 
           </form>
 
+        </div>
+
+      </section>
+
+
+
+      <!-- =================================================
+           ADMIN SUPPORT
+           ================================================= -->
+
+      <section id="page-admin-support" class="app-page">
+
+        <div class="section-header">
+          <div>
+            <h2>Admin Support</h2>
+            <p>Support inbox and user moderation.</p>
+          </div>
+          <div class="live-pill">
+            <span class="status-dot"></span>
+            ADMIN
+          </div>
+        </div>
+
+        <div class="admin-layout">
+
+          <div class="panel admin-users-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Users</h3>
+                <span>Select a user to view their support conversation.</span>
+              </div>
+              <button id="adminRefreshUsers" type="button" class="small-button">Refresh</button>
+            </div>
+
+            <input id="adminUserSearch" class="admin-search" type="search"
+              placeholder="Search name or email..." autocomplete="off">
+
+            <div id="adminUsersList" class="admin-users-list">
+              <div class="empty-state">Loading users...</div>
+            </div>
+          </div>
+
+          <div class="panel admin-conversation-panel">
+            <div class="panel-header">
+              <div>
+                <h3 id="adminConversationTitle">Select a user</h3>
+                <span id="adminConversationSubtitle">Support conversation</span>
+              </div>
+              <div id="adminUserStatus" class="admin-status-badge">—</div>
+            </div>
+
+            <div id="adminModerationBar" class="admin-moderation-bar hidden">
+              <button type="button" class="small-button" data-admin-action="warning">Warn</button>
+              <button type="button" class="small-button" data-admin-action="suspend">Suspend</button>
+              <button type="button" class="small-button" data-admin-action="ban">Ban</button>
+              <button type="button" class="small-button" data-admin-action="unban">Unban</button>
+              <button type="button" class="small-button" data-admin-action="unsuspend">Unsuspend</button>
+              <button type="button" class="small-button" data-admin-action="note">Add Note</button>
+            </div>
+
+            <div id="adminConversationMessages" class="admin-conversation-messages">
+              <div class="empty-state">Select a user to open the conversation.</div>
+            </div>
+
+            <form id="adminReplyForm" class="admin-reply-form hidden">
+              <input id="adminReplyInput" type="text" maxlength="4000"
+                placeholder="Reply to this user..." autocomplete="off">
+              <button type="submit" class="primary-button">Reply</button>
+            </form>
+          </div>
+
+        </div>
+
+        <div class="panel admin-reports-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Reports</h3>
+              <span>User safety reports requiring review.</span>
+            </div>
+            <button id="adminRefreshReports" type="button" class="small-button">Refresh</button>
+          </div>
+          <div id="adminReportsList" class="admin-reports-list">
+            <div class="empty-state">Loading reports...</div>
+          </div>
         </div>
 
       </section>
