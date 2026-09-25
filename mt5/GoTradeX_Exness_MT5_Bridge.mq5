@@ -1,6 +1,6 @@
 #property strict
 #property version   "1.0"
-#property description "GoTradeX Exness MT5 bridge"
+#property description "GoTradeX AvaTrade MT5 bridge"
 
 #include <Trade/Trade.mqh>
 
@@ -314,7 +314,7 @@ int OnInit()
 {
    if(MT5AccountID<=0)
    {
-      Print("Set MT5AccountID to your Exness MT5 login number.");
+      Print("Set MT5AccountID to your AvaTrade MT5 login number.");
       return INIT_PARAMETERS_INCORRECT;
    }
 
@@ -332,7 +332,7 @@ int OnInit()
 
    EventSetTimer(MathMax(2,PollSeconds));
    SendStatus("");
-   Print("GoTradeX Exness MT5 Bridge started. Account=",MT5AccountID);
+   Print("GoTradeX AvaTrade MT5 Bridge started. Account=",MT5AccountID);
    return INIT_SUCCEEDED;
 }
 
