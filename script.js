@@ -2481,7 +2481,7 @@ function renderRobotStatus() {
 
   if ($("brokerStatus")) {
     $("brokerStatus").textContent =
-      connected ? "Exness MT5 Connected" : "Not Connected";
+      connected ? "AvaTrade MT5 Connected" : "Not Connected";
   }
 
   if ($("robotAccountStatus")) {
@@ -2654,14 +2654,14 @@ async function saveRobotControl(running) {
     Number($("mt5AccountId")?.value || state.mt5AccountId);
 
   if (!Number.isInteger(accountId) || accountId <= 0) {
-    throw new Error("Enter your Exness MT5 Account ID first.");
+    throw new Error("Enter your AvaTrade MT5 Account ID first.");
   }
 
   state.mt5AccountId = String(accountId);
 
   const payload = {
     user_id: state.user.id,
-    broker: "Exness MT5",
+    broker: "AvaTrade MT5",
     mode: "LIVE",
     running,
     risk: state.robotRisk,
@@ -2692,7 +2692,7 @@ async function startRobot() {
     renderRobotStatus();
 
     showToast(
-      "AutoBot started. Exness MT5 will continue running through the MT5/VPS bridge.",
+      "AutoBot started. AvaTrade MT5 will continue running through the MT5/VPS bridge.",
       "success"
     );
 
