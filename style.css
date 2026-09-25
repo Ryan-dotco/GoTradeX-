@@ -1861,6 +1861,63 @@ select {
 }
 
 /* =========================================================
+   USER REPORTING
+   ========================================================= */
+
+#reportUserForm textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+}
+
+.admin-report-row {
+  align-items: flex-start;
+}
+
+.admin-report-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-report-main strong,
+.admin-report-main p,
+.admin-report-main small,
+.admin-report-people {
+  display: block;
+}
+
+.admin-report-people {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-report-main p {
+  margin: 7px 0 0;
+}
+
+.admin-report-main small {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.admin-report-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+}
+
+.admin-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+
+/* =========================================================
    ADMIN SUPPORT
    ========================================================= */
 
