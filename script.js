@@ -59,6 +59,12 @@ const state = {
 
   supportChannel: null,
 
+  isAdmin: false,
+
+  adminSelectedUser: null,
+
+  adminRefreshTimer: null,
+
   liveRefreshTimer: null,
 
   settings: {
@@ -1216,6 +1222,11 @@ const pageTitles = {
   settings: [
     "Settings",
     "Manage your GoTradeX account."
+  ],
+
+  adminSupport: [
+    "Admin Support",
+    "Support inbox and user moderation."
   ]
 
 };
@@ -1288,6 +1299,10 @@ function showPage(page) {
 
   if (page === "support") {
     loadSupportMessages();
+  }
+
+  if (page === "admin-support") {
+    initializeAdminSupport();
   }
 
 }
@@ -2878,6 +2893,209 @@ function subscribeToSupportChat() {
 
 
 /* =========================================================
+   ADMIN SUPPORT
+   ========================================================= */
+
+let adminUsersCache = [];
+
+async function adminFunction(action, payload = {}) {
+  if (!state.supabase || !state.user || !state.isAdmin) {
+    throw new Error("Admin access required.");
+  }
+  const { data, error } = await state.supabase.functions.invoke("admin-support", {
+    body: { action, ...payload }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data || {};
+}
+
+async function checkAdminAccess() {
+  state.isAdmin = false;
+  const nav = $("adminSupportNav");
+  if (nav) nav.classList.add("hidden");
+  if (!state.supabase || !state.user) return false;
+  try {
+    const { data, error } = await state.supabase.from("admin_users")
+      .select("user_id").eq("user_id", state.user.id).maybeSingle();
+    if (error) throw error;
+    state.isAdmin = Boolean(data);
+    if (nav && state.isAdmin) nav.classList.remove("hidden");
+  } catch (error) {
+    console.warn("Admin access check failed:", error);
+  }
+  return state.isAdmin;
+}
+
+function renderAdminUsers(users) {
+  const container = $("adminUsersList");
+  if (!container) return;
+  const search = ($("adminUserSearch")?.value || "").trim().toLowerCase();
+  const filtered = users.filter(user => {
+    const name = String(user.full_name || "").toLowerCase();
+    const email = String(user.email || "").toLowerCase();
+    return !search || name.includes(search) || email.includes(search);
+  });
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-state">No users found.</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(user => {
+    const status = user.moderation?.status || "active";
+    const selected = state.adminSelectedUser?.id === user.id ? " selected" : "";
+    return '<button type="button" class="admin-user-row' + selected + '" data-admin-user-id="' +
+      escapeHTML(user.id) + '">' +
+      '<span class="admin-user-avatar">' + escapeHTML(initials(user.full_name || user.email || "U")) + '</span>' +
+      '<span class="admin-user-main"><strong>' + escapeHTML(user.full_name || "Unnamed user") + '</strong>' +
+      '<small>' + escapeHTML(user.email || "") + '</small></span>' +
+      '<span class="admin-user-status ' + escapeHTML(status) + '">' + escapeHTML(status) + '</span></button>';
+  }).join("");
+  container.querySelectorAll("[data-admin-user-id]").forEach(button => {
+    button.addEventListener("click", () => openAdminConversation(button.dataset.adminUserId));
+  });
+}
+
+async function loadAdminUsers() {
+  const container = $("adminUsersList");
+  if (container) container.innerHTML = '<div class="empty-state">Loading users...</div>';
+  try {
+    const data = await adminFunction("list_users");
+    adminUsersCache = data.users || [];
+    renderAdminUsers(adminUsersCache);
+  } catch (error) {
+    console.error("Admin users error:", error);
+    if (container) container.innerHTML = '<div class="empty-state">Unable to load users.</div>';
+  }
+}
+
+function renderAdminConversation(messages) {
+  const container = $("adminConversationMessages");
+  if (!container) return;
+  if (!messages.length) {
+    container.innerHTML = '<div class="empty-state">No messages in this conversation.</div>';
+    return;
+  }
+  container.innerHTML = messages.map(message => {
+    const side = message.sender === "support" ? "admin-chat-bubble support" : "admin-chat-bubble user";
+    return '<div class="' + side + '"><div>' + escapeHTML(message.message) + '</div>' +
+      '<small>' + new Date(message.created_at).toLocaleString() + '</small></div>';
+  }).join("");
+  container.scrollTop = container.scrollHeight;
+}
+
+async function openAdminConversation(userId) {
+  const user = adminUsersCache.find(item => item.id === userId);
+  if (!user) return;
+  state.adminSelectedUser = user;
+  renderAdminUsers(adminUsersCache);
+  if ($("adminConversationTitle")) $("adminConversationTitle").textContent = user.full_name || user.email || "User";
+  if ($("adminConversationSubtitle")) $("adminConversationSubtitle").textContent = user.email || "Support conversation";
+  if ($("adminUserStatus")) $("adminUserStatus").textContent = user.moderation?.status || "active";
+  $("adminModerationBar")?.classList.remove("hidden");
+  $("adminReplyForm")?.classList.remove("hidden");
+  const container = $("adminConversationMessages");
+  if (container) container.innerHTML = '<div class="empty-state">Loading conversation...</div>';
+  try {
+    const data = await adminFunction("get_conversation", { user_id: user.id });
+    renderAdminConversation(data.messages || []);
+  } catch (error) {
+    console.error("Admin conversation error:", error);
+    if (container) container.innerHTML = '<div class="empty-state">Unable to load conversation.</div>';
+  }
+}
+
+async function sendAdminReply(event) {
+  event.preventDefault();
+  if (!state.adminSelectedUser) return;
+  const input = $("adminReplyInput");
+  const message = input?.value.trim();
+  if (!message) return;
+  input.value = "";
+  try {
+    await adminFunction("reply", { user_id: state.adminSelectedUser.id, message });
+    await openAdminConversation(state.adminSelectedUser.id);
+    showToast("Reply sent.", "success");
+  } catch (error) {
+    console.error("Admin reply error:", error);
+    showToast(error.message || "Reply could not be sent.", "error");
+  }
+}
+
+async function performAdminModeration(action) {
+  if (!state.adminSelectedUser) { showToast("Select a user first.", "error"); return; }
+  let reason = window.prompt("Reason for this action:");
+  if (reason === null) return;
+  reason = reason.trim();
+  if (!reason) { showToast("A reason is required.", "error"); return; }
+  let suspensionHours = null;
+  if (action === "suspend") {
+    const entered = window.prompt("Suspension duration in hours:", "24");
+    if (entered === null) return;
+    suspensionHours = Number(entered);
+    if (!Number.isFinite(suspensionHours) || suspensionHours < 1) {
+      showToast("Enter a valid number of hours.", "error"); return;
+    }
+  }
+  let notes = "";
+  if (action === "note") notes = window.prompt("Admin note:") || "";
+  try {
+    const result = await adminFunction("moderate", {
+      user_id: state.adminSelectedUser.id,
+      moderation_action: action,
+      reason,
+      notes,
+      suspension_hours: suspensionHours
+    });
+    const updated = adminUsersCache.find(user => user.id === state.adminSelectedUser.id);
+    if (updated) {
+      updated.moderation = result.moderation || {
+        status: action === "ban" ? "banned" : action === "warning" ? "warned" : "active"
+      };
+      state.adminSelectedUser = updated;
+    }
+    renderAdminUsers(adminUsersCache);
+    if ($("adminUserStatus")) $("adminUserStatus").textContent = state.adminSelectedUser.moderation?.status || "active";
+    showToast("Moderation action recorded.", "success");
+  } catch (error) {
+    console.error("Admin moderation error:", error);
+    showToast(error.message || "Moderation action failed.", "error");
+  }
+}
+
+async function loadAdminReports() {
+  const container = $("adminReportsList");
+  if (!container) return;
+  try {
+    const data = await adminFunction("list_reports");
+    const reports = data.reports || [];
+    if (!reports.length) {
+      container.innerHTML = '<div class="empty-state">No reports yet.</div>';
+      return;
+    }
+    container.innerHTML = reports.map(report =>
+      '<div class="admin-report-row"><div><strong>' + escapeHTML(report.category) + '</strong>' +
+      '<p>' + escapeHTML(report.details || "No details provided.") + '</p></div>' +
+      '<span class="admin-user-status">' + escapeHTML(report.status) + '</span></div>'
+    ).join("");
+  } catch (error) {
+    console.error("Admin reports error:", error);
+    container.innerHTML = '<div class="empty-state">Unable to load reports.</div>';
+  }
+}
+
+async function initializeAdminSupport() {
+  if (!state.isAdmin) return;
+  await Promise.all([loadAdminUsers(), loadAdminReports()]);
+  clearInterval(state.adminRefreshTimer);
+  state.adminRefreshTimer = setInterval(async () => {
+    if (state.currentPage !== "admin-support") return;
+    await loadAdminUsers();
+    await loadAdminReports();
+    if (state.adminSelectedUser) await openAdminConversation(state.adminSelectedUser.id);
+  }, 5000);
+}
+
+/* =========================================================
    SETTINGS
    ========================================================= */
 
@@ -3219,6 +3437,8 @@ async function initializeLiveApp() {
   updatePortfolio();
 
   updateAffiliates();
+
+  await checkAdminAccess();
 
   subscribeToSupportChat();
 
@@ -3572,6 +3792,43 @@ function bindEvents() {
       "submit",
       sendChatMessage
     );
+
+  $("adminReplyForm")
+    ?.addEventListener(
+      "submit",
+      sendAdminReply
+    );
+
+  $("adminRefreshUsers")
+    ?.addEventListener(
+      "click",
+      loadAdminUsers
+    );
+
+  $("adminRefreshReports")
+    ?.addEventListener(
+      "click",
+      loadAdminReports
+    );
+
+  $("adminUserSearch")
+    ?.addEventListener(
+      "input",
+      () => renderAdminUsers(adminUsersCache)
+    );
+
+  document
+    .querySelectorAll("[data-admin-action]")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => performAdminModeration(
+          button.dataset.adminAction
+        )
+      );
+
+    });
 
 
   $("profileForm")
