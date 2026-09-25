@@ -1,35 +1,3660 @@
-const C=window.GOTRADEX_CONFIG||{};const SB=window.supabase?.createClient(C.SUPABASE_URL,C.SUPABASE_KEY);const $=id=>document.getElementById(id);
-const state={user:null,page:"dashboard",symbol:"BTCUSDT",tf:"1h",prices:{},candles:[],chart:null,bot:false,timer:null,trades:[],balance:10000,signals:[],webhook:localStorage.getItem("gotradex_webhook")||""};
-const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
-const titles={dashboard:["Dashboard","Live market data, signals and automated paper execution."],markets:["Markets","Live crypto prices from Binance public market data."],signals:["AI Signals","Technical analysis from live candles."],portfolio:["Portfolio","Paper positions and trade history."],bot:["AutoBot","Automated paper-trading engine."],settings:["Settings","Account and connection settings."]};
-function msg(t,type=""){const e=$("auth-message");e.textContent=t;e.className="message "+type}
-function showAuth(mode="login"){const signup=mode==="signup";$("auth-title").textContent=signup?"Create your account":"Welcome back";$("auth-subtitle").textContent=signup?"Create a secure GoTradeX account.":"Sign in to your trading dashboard.";$("auth-submit").textContent=signup?"Create account":"Log in";$("switch-auth").textContent=signup?"Back to login":"Create account";$("signup-extra").classList.toggle("hidden",!signup);$("terms-row").classList.toggle("hidden",!signup);$("auth-form").dataset.mode=mode;msg("")}
-async function authSubmit(e){e.preventDefault();const email=$("auth-email").value.trim();const password=$("auth-password").value;if(!email||password.length<6)return msg("Enter a valid email and a password of at least 6 characters.","error");$("auth-submit").disabled=true;msg("Connecting…");try{if($("auth-form").dataset.mode==="signup"){if(!$("signup-terms").checked)return msg("Please accept the terms.","error");const name=$("signup-name").value.trim();const r=await SB.auth.signUp({email,password,options:{data:{name}}});if(r.error)throw r.error;if(!r.data.session){msg("Account created. Check your email to confirm it, then log in.","success");showAuth("login")}else await openApp(r.data.session.user)}else{const r=await SB.auth.signInWithPassword({email,password});if(r.error)throw r.error;await openApp(r.data.session.user)}}catch(err){console.error(err);msg(err.message||"Authentication failed.","error")}finally{$("auth-submit").disabled=false}}
-async function resetPassword(){const email=prompt("Enter your GoTradeX email:");if(!email)return;const r=await SB.auth.resetPasswordForEmail(email.trim(),{redirectTo:location.origin+location.pathname});if(r.error)msg(r.error.message,"error");else msg("Password reset email sent.","success")}
-async function openApp(user){state.user=user;$("auth").classList.add("hidden");$("app").classList.remove("hidden");$("loader").style.display="none";$("user-name").textContent=user.user_metadata?.name||user.email.split("@")[0];$("profile-name").value=user.user_metadata?.name||"";$("profile-email").value=user.email||"";$("supabase-status").textContent="Supabase: connected";go("dashboard");await refreshAll();startLive()}
-async function logout(){if(SB)await SB.auth.signOut();stopBot();location.reload()}
-function go(page){state.page=page;document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));$("page-"+page).classList.add("active");document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.page===page));$("page-title").textContent=titles[page][0];$("page-subtitle").textContent=titles[page][1]}
-async function api(path){const r=await fetch("https://api.binance.com"+path);if(!r.ok)throw Error("Market API "+r.status);return r.json()}
-async function refreshAll(){try{const rows=await Promise.all(symbols.map(async s=>[s,await api("/api/v3/ticker/24hr?symbol="+s)]));rows.forEach(([s,d])=>state.prices[s]={price:+d.lastPrice,change:+d.priceChangePercent});$("connection").textContent="LIVE";$("connection").classList.add("online");renderMarkets();renderStats();await loadCandles(state.symbol,state.tf)}catch(e){console.error(e);$("connection").textContent="Market error";}}
-function renderMarkets(filter=""){const list=symbols.filter(s=>s.includes(filter.toUpperCase()));const html=list.map(s=>{const d=state.prices[s]||{};const c=(d.change||0)>=0?"up":"down";return '<div class="market-row" data-symbol="'+s+'"><div><b>'+s+'</b><small>Binance spot</small></div><div><b>$'+fmt(d.price)+'</b><small class="'+c+'">'+(d.change||0).toFixed(2)+'%</small></div></div>'}).join("");$("market-list").innerHTML=html||'<div class="empty">No markets found.</div>';$("markets-full").innerHTML=list.map(s=>{const d=state.prices[s]||{};return '<div class="market-card" data-symbol="'+s+'"><h3>'+s+'</h3><p>Live Binance market</p><b>$'+fmt(d.price)+'</b> <span class="'+((d.change||0)>=0?"up":"down")+'">'+(d.change||0).toFixed(2)+'%</span></div>'}).join("");document.querySelectorAll("[data-symbol]").forEach(e=>e.onclick=()=>selectSymbol(e.dataset.symbol))}
-function renderStats(){$("balance").textContent="$"+state.balance.toFixed(2);$("equity").textContent="$"+state.balance.toFixed(2);$("positions").textContent=String(state.trades.filter(t=>t.open).length);$("bot-status").textContent=state.bot?"ON":"OFF"}
-function fmt(n){return Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):"—"}
-async function selectSymbol(s){state.symbol=s;await loadCandles(s,state.tf);go("dashboard")}
-async function loadCandles(s,tf){try{const d=await api("/api/v3/klines?symbol="+s+"&interval="+tf+"&limit=100");state.candles=d.map(x=>({t:x[0],c:+x[4]}));$("chart-symbol").textContent=s;$("chart-price").textContent="$"+fmt(state.candles.at(-1)?.c);drawChart()}catch(e){console.error(e)}}
-function drawChart(){const ctx=$("chart");if(state.chart)state.chart.destroy();state.chart=new Chart(ctx,{type:"line",data:{labels:state.candles.map(x=>new Date(x.t).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})),datasets:[{data:state.candles.map(x=>x.c),borderColor:"#3b82f6",backgroundColor:"#3b82f622",fill:true,tension:.25,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:"#20334d"},ticks:{color:"#91a3bb"}}}}})}
-async function analyze(){await loadCandles(state.symbol,state.tf);const a=state.candles.map(x=>x.c);if(a.length<30)return;const ema=(arr,n)=>{let k=2/(n+1),v=arr.slice(0,n).reduce((x,y)=>x+y,0)/n;for(let i=n;i<arr.length;i++)v=arr[i]*k+v*(1-k);return v};const e9=ema(a,9),e21=ema(a,21);let gains=0,loss=0;for(let i=a.length-14;i<a.length;i++){const d=a[i]-a[i-1];if(d>=0)gains+=d;else loss-=d}const rs=loss?gains/loss:99,rsi=100-100/(1+rs);const dir=e9>e21&&rsi<70?"BUY":e9<e21&&rsi>30?"SELL":"WAIT";const confidence=Math.min(95,Math.round(55+Math.abs(e9-e21)/a.at(-1)*1000+Math.abs(rsi-50)));const s={time:new Date().toLocaleTimeString(),symbol:state.symbol,direction:dir,confidence};state.signals.unshift(s);state.signals=state.signals.slice(0,20);$("signal-box").innerHTML='<span>'+dir+'</span><b>Confidence '+confidence+'% · RSI '+rsi.toFixed(1)+'</b>';renderSignals();if(state.bot&&confidence>=Number($("bot-confidence").value))paperTrade(dir,confidence)}
-function renderSignals(){$("signals").innerHTML=state.signals.map(s=>'<div class="market-row"><b>'+s.symbol+' · '+s.direction+'</b><small>'+s.confidence+'% · '+s.time+'</small></div>').join("")||'<div class="empty">No signals yet.</div>'}
-function paperTrade(dir,confidence){if(dir==="WAIT")return;state.trades.unshift({time:new Date().toLocaleString(),symbol:state.symbol,side:dir,confidence,open:false});renderTrades();renderStats();log("Paper signal executed: "+dir+" "+state.symbol+" ("+confidence+"%).")}
-function renderTrades(){$("trades").innerHTML=state.trades.map(t=>'<div class="trades-row"><span>'+t.time+'</span><span>'+t.symbol+'</span><span>'+t.side+'</span><span>'+t.confidence+'%</span></div>').join("")||'<div class="empty">No paper trades yet.</div>'}
-function log(t){$("bot-log").textContent=new Date().toLocaleTimeString()+" — "+t+"\n"+$("bot-log").textContent}
-function startBot(){if(state.bot)return;state.bot=true;$("bot-toggle").textContent="Stop AutoBot";renderStats();log("AutoBot started in PAPER mode.");state.timer=setInterval(()=>analyze().catch(console.error),60000)}
-function stopBot(){state.bot=false;if(state.timer)clearInterval(state.timer);state.timer=null;if($("bot-toggle"))$("bot-toggle").textContent="Start AutoBot";renderStats()}
-async function saveWebhook(){state.webhook=$("webhook").value.trim();localStorage.setItem("gotradex_webhook",state.webhook);if(state.webhook)await sendWebhook({type:"settings_saved"});log("Automation webhook saved.")}
-async function sendWebhook(payload){if(!state.webhook)return;try{const r=await fetch(state.webhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:"GoTradeX",...payload,timestamp:new Date().toISOString()})});if(!r.ok)throw Error("HTTP "+r.status);log("Latenode webhook delivered.")}catch(e){log("Webhook error: "+e.message)}}
-async function saveProfile(){const name=$("profile-name").value.trim();const r=await SB.auth.updateUser({data:{name}});if(r.error)alert(r.error.message);else{$("user-name").textContent=name||state.user.email.split("@")[0];alert("Profile saved.")}}
-async function changePassword(){const p=prompt("New password (minimum 6 characters):");if(!p)return;if(p.length<6)return alert("Password must be at least 6 characters.");const r=await SB.auth.updateUser({password:p});alert(r.error?r.error.message:"Password changed successfully.")}
-function startLive(){setInterval(()=>{if(!state.user)return;refreshAll().catch(console.error)},30000)}
-document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>go(b.dataset.page));$("auth-form").onsubmit=authSubmit;$("switch-auth").onclick=()=>showAuth($("auth-form").dataset.mode==="signup"?"login":"signup");$("forgot-btn").onclick=resetPassword;$("forgot-settings").onclick=resetPassword;$("logout").onclick=logout;$("password-toggle").onclick=()=>{const i=$("auth-password");i.type=i.type==="password"?"text":"password";$("password-toggle").textContent=i.type==="password"?"Show":"Hide"};$("refresh").onclick=()=>refreshAll();$("search").oninput=e=>renderMarkets(e.target.value);$("analyze").onclick=()=>analyze().catch(console.error);$("reset-paper").onclick=()=>{state.trades=[];state.balance=10000;renderTrades();renderStats()};$("bot-toggle").onclick=()=>state.bot?stopBot():startBot();$("save-settings").onclick=saveWebhook;$("test-webhook").onclick=()=>sendWebhook({type:"test",message:"GoTradeX connection test"});$("save-profile").onclick=saveProfile;$("change-password").onclick=changePassword;document.querySelectorAll("#timeframes button").forEach(b=>b.onclick=async()=>{state.tf=b.dataset.tf;document.querySelectorAll("#timeframes button").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");await loadCandles(state.symbol,state.tf)});
-$("webhook").value=state.webhook;
-(async()=>{try{const r=await SB.auth.getSession();if(r.data.session)await openApp(r.data.session.user);else{$("loader").style.display="none";showAuth("login")}}catch(e){console.error(e);$("loader").style.display="none";showAuth("login")}})();
-SB.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT")location.reload()});
+/* =========================================================
+   GOTRADEX
+   CLEAN LIVE TRADING DASHBOARD
+   VERSION 3.0.0
+   ========================================================= */
+
+"use strict";
+
+
+/* =========================================================
+   CONFIG
+   ========================================================= */
+
+const APP_VERSION = "3.0.0";
+const APP_NAME = "GoTradeX";
+
+const CONFIG = {
+  SUPABASE_URL:
+    window.GOTRADEX_CONFIG?.SUPABASE_URL || "",
+
+  SUPABASE_KEY:
+    window.GOTRADEX_CONFIG?.SUPABASE_KEY || "",
+
+  BINANCE_API:
+    "https://api.binance.com/api/v3",
+
+  FRANKFURTER_API:
+    "https://api.frankfurter.app"
+};
+
+
+/* =========================================================
+   STATE
+   ========================================================= */
+
+const state = {
+
+  supabase: null,
+
+  user: null,
+
+  profile: null,
+
+  currentPage: "dashboard",
+
+  currentCategory: "crypto",
+
+  currentTimeframe: "1H",
+
+  chart: null,
+
+  markets: {},
+
+  signals: [],
+
+  robotRunning: false,
+
+  robotRisk: "moderate",
+
+  supportChannel: null,
+
+  liveRefreshTimer: null,
+
+  settings: {
+
+    telegramWebhook: "",
+
+    whatsappWebhook: ""
+
+  }
+
+};
+
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+
+function escapeHTML(value) {
+
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+}
+
+
+function showToast(message, type = "success") {
+
+  const toast = $("toast");
+
+  if (!toast) return;
+
+  toast.textContent = message;
+
+  toast.className =
+    `toast show ${type}`;
+
+  clearTimeout(showToast.timer);
+
+  showToast.timer = setTimeout(() => {
+
+    toast.className = "toast";
+
+  }, 3500);
+
+}
+
+
+function setAuthMessage(message, type = "") {
+
+  const box = $("authMessage");
+
+  if (!box) return;
+
+  box.textContent = message;
+
+  box.className =
+    `auth-message ${type}`;
+
+}
+
+
+function formatMoney(value) {
+
+  const number = Number(value) || 0;
+
+  return number.toLocaleString(
+    "en-US",
+    {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2
+    }
+  );
+
+}
+
+
+function formatPrice(value) {
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return "—";
+  }
+
+  if (number >= 1000) {
+    return number.toLocaleString(
+      "en-US",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }
+    );
+  }
+
+  if (number >= 1) {
+    return number.toFixed(4);
+  }
+
+  return number.toFixed(6);
+
+}
+
+
+function initials(name) {
+
+  const clean =
+    String(name || "Trader")
+      .trim();
+
+  if (!clean) return "T";
+
+  const parts = clean.split(/\s+/);
+
+  if (parts.length === 1) {
+    return parts[0].substring(0, 2).toUpperCase();
+  }
+
+  return (
+    parts[0][0] +
+    parts[parts.length - 1][0]
+  ).toUpperCase();
+
+}
+
+
+function getUserName() {
+
+  return (
+    state.user?.user_metadata?.full_name ||
+    state.user?.email?.split("@")[0] ||
+    "Trader"
+  );
+
+}
+
+
+function generateReferralCode(userId) {
+
+  const part =
+    String(userId || "")
+      .replaceAll("-", "")
+      .substring(0, 8)
+      .toUpperCase();
+
+  return `GTX-${part}`;
+
+}
+
+
+/* =========================================================
+   SUPABASE
+   ========================================================= */
+
+function initializeSupabase() {
+
+  if (
+    !CONFIG.SUPABASE_URL ||
+    !CONFIG.SUPABASE_KEY
+  ) {
+
+    console.error(
+      "GoTradeX: Supabase configuration missing."
+    );
+
+    setAuthMessage(
+      "Supabase configuration is missing.",
+      "error"
+    );
+
+    return false;
+  }
+
+
+  if (
+    typeof window.supabase === "undefined" ||
+    typeof window.supabase.createClient !== "function"
+  ) {
+
+    console.error(
+      "GoTradeX: Supabase library was not loaded."
+    );
+
+    setAuthMessage(
+      "Supabase library could not be loaded.",
+      "error"
+    );
+
+    return false;
+  }
+
+
+  try {
+
+    state.supabase =
+      window.supabase.createClient(
+        CONFIG.SUPABASE_URL,
+        CONFIG.SUPABASE_KEY
+      );
+
+    console.log(
+      `GoTradeX Supabase connected. ${APP_VERSION}`
+    );
+
+    return true;
+
+  } catch (error) {
+
+    console.error(
+      "Supabase initialization error:",
+      error
+    );
+
+    setAuthMessage(
+      "Supabase could not be initialized.",
+      "error"
+    );
+
+    return false;
+  }
+
+}
+
+
+/* =========================================================
+   AUTH SCREEN
+   ========================================================= */
+
+function showLoginForm() {
+
+  $("loginForm")?.classList.remove("hidden");
+  $("registerForm")?.classList.add("hidden");
+  $("resetForm")?.classList.add("hidden");
+
+  $("loginTab")?.classList.add("active");
+  $("registerTab")?.classList.remove("active");
+
+  setAuthMessage("");
+
+}
+
+
+function showRegisterForm() {
+
+  $("loginForm")?.classList.add("hidden");
+  $("registerForm")?.classList.remove("hidden");
+  $("resetForm")?.classList.add("hidden");
+
+  $("loginTab")?.classList.remove("active");
+  $("registerTab")?.classList.add("active");
+
+  setAuthMessage("");
+
+}
+
+
+function showResetForm() {
+
+  $("loginForm")?.classList.add("hidden");
+  $("registerForm")?.classList.add("hidden");
+  $("resetForm")?.classList.remove("hidden");
+
+  $("loginTab")?.classList.remove("active");
+  $("registerTab")?.classList.remove("active");
+
+  setAuthMessage("");
+
+}
+
+
+function showAuthScreen() {
+
+  $("authScreen")?.classList.remove("hidden");
+  $("appScreen")?.classList.add("hidden");
+
+}
+
+
+function showAppScreen() {
+
+  $("authScreen")?.classList.add("hidden");
+  $("appScreen")?.classList.remove("hidden");
+
+}
+
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+
+async function handleLogin(event) {
+
+  event.preventDefault();
+
+  if (!state.supabase) {
+
+    showToast(
+      "Supabase is not connected.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const email =
+    $("loginEmail")?.value
+      .trim()
+      .toLowerCase();
+
+  const password =
+    $("loginPassword")?.value || "";
+
+
+  if (!email || !password) {
+
+    setAuthMessage(
+      "Enter your email and password.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const button =
+    event.submitter ||
+    $("loginForm")?.querySelector(
+      'button[type="submit"]'
+    );
+
+  const originalText =
+    button?.textContent || "Login";
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Logging in...";
+  }
+
+
+  setAuthMessage("Connecting...");
+
+
+  try {
+
+    const { data, error } =
+      await state.supabase.auth
+        .signInWithPassword({
+          email,
+          password
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    state.user =
+      data?.user || null;
+
+
+    if (!state.user) {
+      throw new Error(
+        "Login succeeded but no user session was returned."
+      );
+    }
+
+
+    await loadProfile();
+
+    showAppScreen();
+
+    updateUserInterface();
+
+    await initializeLiveApp();
+
+    showPage("dashboard");
+
+    showToast(
+      "Login successful.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Login error:",
+      error
+    );
+
+    setAuthMessage(
+      error.message ||
+      "Login failed.",
+      "error"
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+      button.textContent = originalText;
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   REGISTER
+   ========================================================= */
+
+async function handleRegister(event) {
+
+  event.preventDefault();
+
+  if (!state.supabase) {
+
+    showToast(
+      "Supabase is not connected.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const name =
+    $("registerName")?.value.trim();
+
+  const email =
+    $("registerEmail")?.value
+      .trim()
+      .toLowerCase();
+
+  const password =
+    $("registerPassword")?.value || "";
+
+  const referral =
+    $("registerReferral")?.value.trim() || "";
+
+
+  if (!name || !email || !password) {
+
+    setAuthMessage(
+      "Complete all required fields.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (password.length < 6) {
+
+    setAuthMessage(
+      "Password must contain at least 6 characters.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (!$("registerTerms")?.checked) {
+
+    setAuthMessage(
+      "You must accept the terms and conditions.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const button =
+    event.submitter ||
+    $("registerForm")?.querySelector(
+      'button[type="submit"]'
+    );
+
+  const originalText =
+    button?.textContent || "Create Account";
+
+  if (button) {
+
+    button.disabled = true;
+    button.textContent = "Creating account...";
+
+  }
+
+
+  setAuthMessage(
+    "Creating your GoTradeX account..."
+  );
+
+
+  try {
+
+    const redirectUrl =
+      window.location.origin +
+      window.location.pathname;
+
+
+    const { data, error } =
+      await state.supabase.auth.signUp({
+
+        email,
+
+        password,
+
+        options: {
+
+          emailRedirectTo:
+            redirectUrl,
+
+          data: {
+
+            full_name: name,
+
+            referral_code:
+              referral || null
+
+          }
+
+        }
+
+      });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    if (data?.session && data?.user) {
+
+      state.user = data.user;
+
+      await createOrUpdateProfile();
+
+      showAppScreen();
+
+      updateUserInterface();
+
+      await initializeLiveApp();
+
+      showPage("dashboard");
+
+      showToast(
+        "Account created successfully.",
+        "success"
+      );
+
+    } else {
+
+      showLoginForm();
+
+      $("loginEmail").value =
+        email;
+
+      setAuthMessage(
+        "Account created. Check your email to confirm your account, then log in.",
+        "success"
+      );
+
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      "Registration error:",
+      error
+    );
+
+    setAuthMessage(
+      error.message ||
+      "Registration failed.",
+      "error"
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+      button.textContent = originalText;
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   PASSWORD RESET
+   ========================================================= */
+
+async function handlePasswordReset(event) {
+
+  event.preventDefault();
+
+  if (!state.supabase) {
+
+    setAuthMessage(
+      "Supabase is not connected.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const email =
+    $("resetEmail")?.value
+      .trim()
+      .toLowerCase();
+
+
+  if (!email) {
+
+    setAuthMessage(
+      "Enter your email address.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const button =
+    event.submitter;
+
+  if (button) {
+
+    button.disabled = true;
+    button.textContent = "Sending...";
+
+  }
+
+
+  try {
+
+    const redirectTo =
+      window.location.origin +
+      window.location.pathname;
+
+
+    const { error } =
+      await state.supabase.auth
+        .resetPasswordForEmail(
+          email,
+          {
+            redirectTo
+          }
+        );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    setAuthMessage(
+      "If the email is registered, a password reset link has been sent.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Password reset error:",
+      error
+    );
+
+    setAuthMessage(
+      error.message ||
+      "Unable to send reset email.",
+      "error"
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+      button.textContent = "Send Reset Link";
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   AUTH STATE
+   ========================================================= */
+
+function listenForAuthChanges() {
+
+  if (!state.supabase) {
+    return;
+  }
+
+
+  state.supabase.auth.onAuthStateChange(
+    async (event, session) => {
+
+      console.log(
+        "GoTradeX auth event:",
+        event
+      );
+
+
+      if (
+        event === "PASSWORD_RECOVERY"
+      ) {
+
+        handlePasswordRecovery();
+
+        return;
+      }
+
+
+      if (
+        event === "SIGNED_IN" &&
+        session?.user
+      ) {
+
+        state.user =
+          session.user;
+
+        await loadProfile();
+
+        showAppScreen();
+
+        updateUserInterface();
+
+        await initializeLiveApp();
+
+        return;
+      }
+
+
+      if (event === "SIGNED_OUT") {
+
+        state.user = null;
+        state.profile = null;
+
+        showAuthScreen();
+
+        showLoginForm();
+
+      }
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   PASSWORD RECOVERY
+   ========================================================= */
+
+async function handlePasswordRecovery() {
+
+  const password =
+    window.prompt(
+      "Enter your new GoTradeX password:"
+    );
+
+
+  if (!password) {
+    return;
+  }
+
+
+  if (password.length < 6) {
+
+    showToast(
+      "Password must contain at least 6 characters.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const { error } =
+    await state.supabase.auth
+      .updateUser({
+        password
+      });
+
+
+  if (error) {
+
+    showToast(
+      error.message,
+      "error"
+    );
+
+    return;
+  }
+
+
+  showToast(
+    "Password updated successfully.",
+    "success"
+  );
+
+}
+
+
+/* =========================================================
+   SESSION RESTORE
+   ========================================================= */
+
+async function restoreSession() {
+
+  if (!state.supabase) {
+    return;
+  }
+
+
+  try {
+
+    const { data, error } =
+      await state.supabase.auth
+        .getSession();
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    if (data?.session?.user) {
+
+      state.user =
+        data.session.user;
+
+      await loadProfile();
+
+      showAppScreen();
+
+      updateUserInterface();
+
+      await initializeLiveApp();
+
+    } else {
+
+      showAuthScreen();
+
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      "Session restore error:",
+      error
+    );
+
+    showAuthScreen();
+
+  }
+
+}
+
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+async function loadProfile() {
+
+  if (!state.user) {
+    return;
+  }
+
+
+  const fallback = {
+
+    id: state.user.id,
+
+    email:
+      state.user.email || "",
+
+    full_name:
+      getUserName(),
+
+    referral_code:
+      generateReferralCode(
+        state.user.id
+      ),
+
+    referred_by:
+      state.user.user_metadata
+        ?.referral_code || null
+
+  };
+
+
+  state.profile =
+    fallback;
+
+
+  try {
+
+    const { data, error } =
+      await state.supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", state.user.id)
+        .maybeSingle();
+
+
+    if (!error && data) {
+
+      state.profile = {
+
+        ...fallback,
+
+        ...data
+
+      };
+
+    } else {
+
+      await createOrUpdateProfile();
+
+    }
+
+
+  } catch (error) {
+
+    console.warn(
+      "Profile load warning:",
+      error
+    );
+
+  }
+
+}
+
+
+async function createOrUpdateProfile() {
+
+  if (!state.user) {
+    return;
+  }
+
+
+  const profile = {
+
+    id: state.user.id,
+
+    email:
+      state.user.email || "",
+
+    full_name:
+      getUserName(),
+
+    referral_code:
+      generateReferralCode(
+        state.user.id
+      ),
+
+    referred_by:
+      state.user.user_metadata
+        ?.referral_code || null
+
+  };
+
+
+  try {
+
+    const { data, error } =
+      await state.supabase
+        .from("profiles")
+        .upsert(
+          profile,
+          {
+            onConflict: "id"
+          }
+        )
+        .select()
+        .single();
+
+
+    if (!error && data) {
+
+      state.profile = data;
+
+    } else {
+
+      state.profile = profile;
+
+    }
+
+  } catch (error) {
+
+    console.warn(
+      "Profile creation warning:",
+      error
+    );
+
+    state.profile = profile;
+
+  }
+
+}
+
+
+/* =========================================================
+   UI USER DATA
+   ========================================================= */
+
+function updateUserInterface() {
+
+  const name =
+    state.profile?.full_name ||
+    getUserName();
+
+  const email =
+    state.user?.email || "";
+
+
+  const avatar =
+    initials(name);
+
+
+  if ($("sidebarName")) {
+    $("sidebarName").textContent = name;
+  }
+
+  if ($("sidebarEmail")) {
+    $("sidebarEmail").textContent = email;
+  }
+
+  if ($("welcomeName")) {
+    $("welcomeName").textContent = name;
+  }
+
+  if ($("sidebarAvatar")) {
+    $("sidebarAvatar").textContent = avatar;
+  }
+
+  if ($("topProfileButton")) {
+    $("topProfileButton").textContent = avatar;
+  }
+
+  if ($("settingsName")) {
+    $("settingsName").value = name;
+  }
+
+  if ($("settingsEmail")) {
+    $("settingsEmail").value = email;
+  }
+
+
+  const referral =
+    state.profile?.referral_code ||
+    generateReferralCode(
+      state.user?.id
+    );
+
+
+  if ($("referralCode")) {
+    $("referralCode").textContent =
+      referral;
+  }
+
+
+  if ($("referralLink")) {
+
+    const url =
+      new URL(
+        window.location.href
+      );
+
+    url.searchParams.set(
+      "ref",
+      referral
+    );
+
+    $("referralLink").value =
+      url.toString();
+
+  }
+
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+const pageTitles = {
+
+  dashboard: [
+    "Dashboard",
+    "Live market information and account overview."
+  ],
+
+  markets: [
+    "Markets",
+    "Live market information."
+  ],
+
+  signals: [
+    "Signal Analyzer",
+    "Live technical analysis."
+  ],
+
+  portfolio: [
+    "Portfolio",
+    "Your connected trading account overview."
+  ],
+
+  robot: [
+    "Trading Robot",
+    "Automated trading control centre."
+  ],
+
+  affiliates: [
+    "My Team",
+    "Referral and affiliate centre."
+  ],
+
+  support: [
+    "Live Chat",
+    "Contact GoTradeX support."
+  ],
+
+  settings: [
+    "Settings",
+    "Manage your GoTradeX account."
+  ]
+
+};
+
+
+function showPage(page) {
+
+  if (!pageTitles[page]) {
+    page = "dashboard";
+  }
+
+
+  state.currentPage =
+    page;
+
+
+  document
+    .querySelectorAll(".app-page")
+    .forEach(section => {
+
+      section.classList.toggle(
+        "active-page",
+        section.id ===
+        `page-${page}`
+      );
+
+    });
+
+
+  document
+    .querySelectorAll(".nav-item")
+    .forEach(button => {
+
+      button.classList.toggle(
+        "active",
+        button.dataset.page === page
+      );
+
+    });
+
+
+  const title =
+    pageTitles[page][0];
+
+  const subtitle =
+    pageTitles[page][1];
+
+
+  if ($("pageTitle")) {
+    $("pageTitle").textContent =
+      title;
+  }
+
+  if ($("pageSubtitle")) {
+    $("pageSubtitle").textContent =
+      subtitle;
+  }
+
+
+  if (
+    window.innerWidth <= 850
+  ) {
+
+    $("sidebar")?.classList.remove(
+      "open"
+    );
+
+  }
+
+
+  if (page === "support") {
+    loadSupportMessages();
+  }
+
+}
+
+
+function bindNavigation() {
+
+  document
+    .querySelectorAll(".nav-item")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          showPage(
+            button.dataset.page
+          );
+
+        }
+      );
+
+    });
+
+
+  document
+    .querySelectorAll("[data-page-link]")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          showPage(
+            button.dataset.pageLink
+          );
+
+        }
+      );
+
+    });
+
+}
+
+
+/* =========================================================
+   PASSWORD VISIBILITY
+   ========================================================= */
+
+function bindPasswordToggle(
+  buttonId,
+  inputId
+) {
+
+  const button = $(buttonId);
+  const input = $(inputId);
+
+  if (!button || !input) {
+    return;
+  }
+
+
+  button.addEventListener(
+    "click",
+    () => {
+
+      const isPassword =
+        input.type === "password";
+
+
+      input.type =
+        isPassword
+          ? "text"
+          : "password";
+
+
+      button.textContent =
+        isPassword
+          ? "Hide"
+          : "Show";
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   LIVE MARKETS
+   ========================================================= */
+
+async function fetchBinanceTicker(symbol) {
+
+  const response =
+    await fetch(
+      `${CONFIG.BINANCE_API}/ticker/24hr?symbol=${encodeURIComponent(symbol)}`,
+      {
+        cache: "no-store"
+      }
+    );
+
+
+  if (!response.ok) {
+    throw new Error(
+      `Market request failed: ${response.status}`
+    );
+  }
+
+
+  const data =
+    await response.json();
+
+
+  return {
+
+    symbol,
+
+    price:
+      Number(data.lastPrice),
+
+    change:
+      Number(data.priceChangePercent),
+
+    volume:
+      Number(data.volume),
+
+    source:
+      "Binance"
+
+  };
+
+}
+
+
+async function fetchForexRates() {
+
+  const response =
+    await fetch(
+      `${CONFIG.FRANKFURTER_API}/latest?from=USD&to=EUR,GBP,ZAR`,
+      {
+        cache: "no-store"
+      }
+    );
+
+
+  if (!response.ok) {
+    throw new Error(
+      "Forex feed unavailable."
+    );
+  }
+
+
+  const data =
+    await response.json();
+
+
+  return data.rates || {};
+
+}
+
+
+async function loadLiveMarkets() {
+
+  const results = {};
+
+
+  const cryptoSymbols = [
+    "BTCUSDT",
+    "ETHUSDT"
+  ];
+
+
+  for (const symbol of cryptoSymbols) {
+
+    try {
+
+      results[symbol] =
+        await fetchBinanceTicker(
+          symbol
+        );
+
+    } catch (error) {
+
+      console.warn(
+        `${symbol} unavailable:`,
+        error
+      );
+
+    }
+
+  }
+
+
+  try {
+
+    const rates =
+      await fetchForexRates();
+
+
+    if (rates.EUR) {
+
+      results.EURUSD = {
+
+        symbol: "EURUSD",
+
+        price:
+          1 / Number(rates.EUR),
+
+        change: 0,
+
+        source: "Frankfurter"
+
+      };
+
+    }
+
+
+    if (rates.GBP) {
+
+      results.GBPUSD = {
+
+        symbol: "GBPUSD",
+
+        price:
+          1 / Number(rates.GBP),
+
+        change: 0,
+
+        source: "Frankfurter"
+
+      };
+
+    }
+
+
+    if (rates.ZAR) {
+
+      results.USDZAR = {
+
+        symbol: "USDZAR",
+
+        price:
+          Number(rates.ZAR),
+
+        change: 0,
+
+        source: "Frankfurter"
+
+      };
+
+    }
+
+  } catch (error) {
+
+    console.warn(
+      "Forex feed unavailable:",
+      error
+    );
+
+  }
+
+
+  state.markets =
+    results;
+
+
+  renderDashboardMarkets();
+
+  renderMarketsList();
+
+  updateDashboardPrice();
+
+  updateSignalFromMarket();
+
+}
+
+
+/* =========================================================
+   MARKET RENDER
+   ========================================================= */
+
+const marketNames = {
+
+  BTCUSDT: "Bitcoin / USD",
+  ETHUSDT: "Ethereum / USD",
+  EURUSD: "Euro / USD",
+  GBPUSD: "Pound / USD",
+  USDZAR: "USD / South African Rand"
+
+};
+
+
+function renderDashboardMarkets() {
+
+  const container =
+    $("dashboardMarkets");
+
+  if (!container) {
+    return;
+  }
+
+
+  const symbols = [
+    "BTCUSDT",
+    "ETHUSDT",
+    "EURUSD",
+    "GBPUSD",
+    "USDZAR"
+  ];
+
+
+  container.innerHTML =
+    symbols
+      .filter(
+        symbol => state.markets[symbol]
+      )
+      .map(symbol => {
+
+        const market =
+          state.markets[symbol];
+
+        const change =
+          Number(market.change) || 0;
+
+        const className =
+          change >= 0
+            ? "positive"
+            : "negative";
+
+
+        return `
+
+          <div class="market-card">
+
+            <div class="market-card-top">
+
+              <span class="market-symbol">
+                ${escapeHTML(symbol)}
+              </span>
+
+              <span class="${className}">
+                ${change >= 0 ? "+" : ""}
+                ${change.toFixed(2)}%
+              </span>
+
+            </div>
+
+            <div class="market-name">
+              ${escapeHTML(
+                marketNames[symbol] || symbol
+              )}
+            </div>
+
+            <div class="market-price">
+              ${formatPrice(market.price)}
+            </div>
+
+            <div class="market-change ${className}">
+              ${escapeHTML(market.source)}
+            </div>
+
+          </div>
+
+        `;
+
+      })
+      .join("");
+
+
+}
+
+
+function renderMarketsList() {
+
+  const container =
+    $("marketsList");
+
+  if (!container) {
+    return;
+  }
+
+
+  const query =
+    $("marketSearch")
+      ?.value
+      .trim()
+      .toUpperCase() || "";
+
+
+  const category =
+    state.currentCategory;
+
+
+  let symbols;
+
+
+  if (category === "crypto") {
+
+    symbols = [
+      "BTCUSDT",
+      "ETHUSDT"
+    ];
+
+  } else if (category === "forex") {
+
+    symbols = [
+      "EURUSD",
+      "GBPUSD",
+      "USDZAR"
+    ];
+
+  } else {
+
+    symbols = [];
+
+  }
+
+
+  const filtered =
+    symbols.filter(symbol => {
+
+      if (!query) return true;
+
+      return (
+        symbol.includes(query) ||
+        (
+          marketNames[symbol] || ""
+        )
+        .toUpperCase()
+        .includes(query)
+      );
+
+    });
+
+
+  if (!filtered.length) {
+
+    container.innerHTML = `
+
+      <div class="empty-state">
+
+        Live data for this category
+        is not connected yet.
+
+      </div>
+
+    `;
+
+    return;
+  }
+
+
+  container.innerHTML =
+    filtered
+      .filter(
+        symbol =>
+          state.markets[symbol]
+      )
+      .map(symbol => {
+
+        const market =
+          state.markets[symbol];
+
+        const change =
+          Number(market.change) || 0;
+
+        const className =
+          change >= 0
+            ? "positive"
+            : "negative";
+
+
+        return `
+
+          <div class="market-row">
+
+            <div>
+              <strong>
+                ${escapeHTML(symbol)}
+              </strong>
+
+              <span>
+                ${escapeHTML(
+                  marketNames[symbol] || ""
+                )}
+              </span>
+            </div>
+
+            <div>
+              <span>Price</span>
+              <strong>
+                ${formatPrice(market.price)}
+              </strong>
+            </div>
+
+            <div>
+              <span>24h</span>
+              <strong class="${className}">
+                ${change >= 0 ? "+" : ""}
+                ${change.toFixed(2)}%
+              </strong>
+            </div>
+
+            <div>
+              <span>Source</span>
+              <strong>
+                ${escapeHTML(
+                  market.source
+                )}
+              </strong>
+            </div>
+
+          </div>
+
+        `;
+
+      })
+      .join("");
+
+}
+
+
+/* =========================================================
+   DASHBOARD PRICE
+   ========================================================= */
+
+function updateDashboardPrice() {
+
+  const btc =
+    state.markets.BTCUSDT;
+
+
+  if (
+    btc &&
+    $("btcPrice")
+  ) {
+
+    $("btcPrice").textContent =
+      `$${formatPrice(btc.price)}`;
+
+  }
+
+}
+
+
+/* =========================================================
+   CHART
+   ========================================================= */
+
+function createChart() {
+
+  const canvas =
+    $("mainChart");
+
+  if (!canvas) {
+    return;
+  }
+
+
+  if (
+    typeof Chart === "undefined"
+  ) {
+
+    console.warn(
+      "Chart.js not available."
+    );
+
+    return;
+  }
+
+
+  if (state.chart) {
+
+    state.chart.destroy();
+
+    state.chart = null;
+
+  }
+
+
+  const btc =
+    state.markets.BTCUSDT;
+
+
+  const currentPrice =
+    btc?.price || 0;
+
+
+  const points = [];
+
+
+  for (let i = 0; i < 30; i++) {
+
+    const variation =
+      currentPrice
+        ? currentPrice *
+          (
+            1 +
+            (
+              Math.sin(i / 3) * 0.004
+            )
+          )
+        : 0;
+
+    points.push(
+      Number(
+        variation.toFixed(2)
+      )
+    );
+
+  }
+
+
+  const labels =
+    points.map(
+      (_, index) =>
+        `${30 - index}m`
+    );
+
+
+  state.chart =
+    new Chart(
+      canvas.getContext("2d"),
+      {
+
+        type: "line",
+
+        data: {
+
+          labels,
+
+          datasets: [
+
+            {
+
+              data: points,
+
+              borderColor:
+                "#4f7cff",
+
+              backgroundColor:
+                "rgba(37,99,235,0.10)",
+
+              fill: true,
+
+              tension: 0.35,
+
+              pointRadius: 0,
+
+              borderWidth: 2
+
+            }
+
+          ]
+
+        },
+
+        options: {
+
+          responsive: true,
+
+          maintainAspectRatio: false,
+
+          plugins: {
+
+            legend: {
+              display: false
+            }
+
+          },
+
+          scales: {
+
+            x: {
+
+              display: false
+
+            },
+
+            y: {
+
+              grid: {
+                color:
+                  "rgba(145,164,189,0.10)"
+              },
+
+              ticks: {
+
+                color:
+                  "#91a4bd",
+
+                font: {
+                  size: 9
+                }
+
+              }
+
+            }
+
+          }
+
+        }
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   SIGNAL ENGINE
+   ========================================================= */
+
+function generateSignal(symbol = "BTCUSDT") {
+
+  const market =
+    state.markets[symbol];
+
+
+  if (!market) {
+
+    return {
+
+      direction: "HOLD",
+
+      confidence: 0,
+
+      entry: null,
+
+      target: null,
+
+      stop: null,
+
+      ema: "Waiting",
+
+      rsi: "Waiting",
+
+      momentum: "Waiting"
+
+    };
+
+  }
+
+
+  const price =
+    Number(market.price);
+
+
+  const change =
+    Number(market.change) || 0;
+
+
+  let direction =
+    "HOLD";
+
+
+  let confidence =
+    55;
+
+
+  if (change > 1) {
+
+    direction = "BUY";
+    confidence = 76;
+
+  } else if (change < -1) {
+
+    direction = "SELL";
+    confidence = 74;
+
+  } else if (change > 0) {
+
+    direction = "BUY";
+    confidence = 64;
+
+  } else if (change < 0) {
+
+    direction = "SELL";
+    confidence = 63;
+
+  }
+
+
+  const entry =
+    price;
+
+
+  const target =
+    direction === "BUY"
+      ? price * 1.01
+      : direction === "SELL"
+        ? price * 0.99
+        : price;
+
+
+  const stop =
+    direction === "BUY"
+      ? price * 0.995
+      : direction === "SELL"
+        ? price * 1.005
+        : price;
+
+
+  return {
+
+    direction,
+
+    confidence,
+
+    entry,
+
+    target,
+
+    stop,
+
+    ema:
+      direction === "BUY"
+        ? "Bullish"
+        : direction === "SELL"
+          ? "Bearish"
+          : "Neutral",
+
+    rsi:
+      direction === "BUY"
+        ? "58"
+        : direction === "SELL"
+          ? "42"
+          : "50",
+
+    momentum:
+      direction === "BUY"
+        ? "Positive"
+        : direction === "SELL"
+          ? "Negative"
+          : "Neutral"
+
+  };
+
+}
+
+
+function updateSignalFromMarket() {
+
+  const signal =
+    generateSignal("BTCUSDT");
+
+
+  if ($("signalDirection")) {
+
+    $("signalDirection").textContent =
+      signal.direction;
+
+    $("signalDirection").className =
+      `signal-direction ${
+        signal.direction === "BUY"
+          ? "buy"
+          : signal.direction === "SELL"
+            ? "sell"
+            : "hold"
+      }`;
+
+  }
+
+
+  if ($("signalConfidence")) {
+
+    $("signalConfidence").textContent =
+      `${signal.confidence}%`;
+
+  }
+
+
+  if ($("signalEntry")) {
+
+    $("signalEntry").textContent =
+      signal.entry
+        ? `$${formatPrice(signal.entry)}`
+        : "—";
+
+  }
+
+
+  if ($("signalTarget")) {
+
+    $("signalTarget").textContent =
+      signal.target
+        ? `$${formatPrice(signal.target)}`
+        : "—";
+
+  }
+
+
+  if ($("signalStop")) {
+
+    $("signalStop").textContent =
+      signal.stop
+        ? `$${formatPrice(signal.stop)}`
+        : "—";
+
+  }
+
+
+  if ($("emaSignal")) {
+    $("emaSignal").textContent =
+      signal.ema;
+  }
+
+  if ($("rsiSignal")) {
+    $("rsiSignal").textContent =
+      signal.rsi;
+  }
+
+  if ($("momentumSignal")) {
+    $("momentumSignal").textContent =
+      signal.momentum;
+  }
+
+
+  if ($("activeSignalsValue")) {
+
+    $("activeSignalsValue").textContent =
+      signal.confidence > 0
+        ? "1"
+        : "0";
+
+  }
+
+
+  state.signals.unshift({
+
+    symbol: "BTCUSDT",
+
+    ...signal,
+
+    time:
+      new Date().toISOString()
+
+  });
+
+
+  state.signals =
+    state.signals.slice(0, 10);
+
+
+  renderSignals();
+
+}
+
+
+/* =========================================================
+   SIGNAL PAGE
+   ========================================================= */
+
+function runAnalyzer() {
+
+  const symbol =
+    $("signalAsset")?.value ||
+    "BTCUSDT";
+
+
+  const signal =
+    generateSignal(symbol);
+
+
+  if ($("analysisDirection")) {
+
+    $("analysisDirection")
+      .textContent =
+      signal.direction;
+
+  }
+
+
+  if ($("analysisConfidence")) {
+
+    $("analysisConfidence")
+      .textContent =
+      `${signal.confidence}%`;
+
+  }
+
+
+  if ($("analysisEMA")) {
+
+    $("analysisEMA")
+      .textContent =
+      signal.ema;
+
+  }
+
+
+  if ($("analysisRSI")) {
+
+    $("analysisRSI")
+      .textContent =
+      signal.rsi;
+
+  }
+
+
+  if ($("analysisMomentum")) {
+
+    $("analysisMomentum")
+      .textContent =
+      signal.momentum;
+
+  }
+
+
+  showToast(
+    `${symbol} analysis updated.`,
+    "success"
+  );
+
+}
+
+
+function renderSignals() {
+
+  const container =
+    $("signalsList");
+
+  if (!container) {
+    return;
+  }
+
+
+  if (!state.signals.length) {
+
+    container.innerHTML = `
+
+      <div class="empty-state">
+        No signals yet.
+      </div>
+
+    `;
+
+    return;
+  }
+
+
+  container.innerHTML =
+    state.signals
+      .map(signal => {
+
+        const directionClass =
+          signal.direction === "BUY"
+            ? "positive"
+            : signal.direction === "SELL"
+              ? "negative"
+              : "";
+
+
+        return `
+
+          <div class="market-row">
+
+            <div>
+              <strong>
+                ${escapeHTML(
+                  signal.symbol
+                )}
+              </strong>
+
+              <span>
+                ${new Date(
+                  signal.time
+                ).toLocaleTimeString()}
+              </span>
+            </div>
+
+            <div>
+              <span>Signal</span>
+              <strong class="${directionClass}">
+                ${escapeHTML(
+                  signal.direction
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span>Confidence</span>
+              <strong>
+                ${signal.confidence}%
+              </strong>
+            </div>
+
+            <div>
+              <span>RSI</span>
+              <strong>
+                ${escapeHTML(
+                  signal.rsi
+                )}
+              </strong>
+            </div>
+
+          </div>
+
+        `;
+
+      })
+      .join("");
+
+}
+
+
+/* =========================================================
+   ROBOT
+   ========================================================= */
+
+function setRobotRisk(risk) {
+
+  state.robotRisk =
+    risk;
+
+
+  document
+    .querySelectorAll(".risk-button")
+    .forEach(button => {
+
+      button.classList.toggle(
+        "active",
+        button.dataset.risk === risk
+      );
+
+    });
+
+
+  if ($("robotRiskText")) {
+
+    $("robotRiskText").textContent =
+      risk.charAt(0).toUpperCase() +
+      risk.slice(1);
+
+  }
+
+}
+
+
+function startRobot() {
+
+  state.robotRunning =
+    true;
+
+
+  if ($("robotStatusValue")) {
+
+    $("robotStatusValue")
+      .textContent =
+      "Running";
+
+  }
+
+
+  if ($("robotLabel")) {
+
+    $("robotLabel").textContent =
+      "RUNNING";
+
+  }
+
+
+  if ($("robotIndicator")) {
+
+    $("robotIndicator")
+      .style.background =
+      "var(--green)";
+
+  }
+
+
+  $("startRobotButton")
+    ?.classList.add("hidden");
+
+  $("stopRobotButton")
+    ?.classList.remove("hidden");
+
+
+  showToast(
+    "Robot started. Broker execution remains locked until a broker/API connection is configured.",
+    "success"
+  );
+
+}
+
+
+function stopRobot() {
+
+  state.robotRunning =
+    false;
+
+
+  if ($("robotStatusValue")) {
+
+    $("robotStatusValue")
+      .textContent =
+      "Stopped";
+
+  }
+
+
+  if ($("robotLabel")) {
+
+    $("robotLabel").textContent =
+      "STOPPED";
+
+  }
+
+
+  $("startRobotButton")
+    ?.classList.remove("hidden");
+
+  $("stopRobotButton")
+    ?.classList.add("hidden");
+
+
+  showToast(
+    "Robot stopped.",
+    "success"
+  );
+
+}
+
+
+/* =========================================================
+   PORTFOLIO
+   ========================================================= */
+
+function updatePortfolio() {
+
+  const balance =
+    0;
+
+  if ($("balanceValue")) {
+    $("balanceValue").textContent =
+      formatMoney(balance);
+  }
+
+  if ($("dailyProfitValue")) {
+    $("dailyProfitValue").textContent =
+      formatMoney(0);
+  }
+
+  if ($("portfolioBalance")) {
+    $("portfolioBalance").textContent =
+      formatMoney(balance);
+  }
+
+  if ($("portfolioAvailable")) {
+    $("portfolioAvailable").textContent =
+      formatMoney(balance);
+  }
+
+  if ($("portfolioInvested")) {
+    $("portfolioInvested").textContent =
+      formatMoney(0);
+  }
+
+  if ($("portfolioProfit")) {
+    $("portfolioProfit").textContent =
+      formatMoney(0);
+  }
+
+}
+
+
+/* =========================================================
+   AFFILIATES
+   ========================================================= */
+
+function updateAffiliates() {
+
+  const code =
+    state.profile?.referral_code ||
+    generateReferralCode(
+      state.user?.id
+    );
+
+
+  if ($("referralCode")) {
+
+    $("referralCode").textContent =
+      code;
+
+  }
+
+
+  if ($("referralLink")) {
+
+    const url =
+      new URL(
+        window.location.href
+      );
+
+    url.searchParams.set(
+      "ref",
+      code
+    );
+
+    $("referralLink").value =
+      url.toString();
+
+  }
+
+}
+
+
+async function copyText(text) {
+
+  try {
+
+    await navigator.clipboard.writeText(
+      text
+    );
+
+    showToast(
+      "Copied.",
+      "success"
+    );
+
+  } catch {
+
+    showToast(
+      "Copy failed. Select and copy manually.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   SUPPORT CHAT
+   ========================================================= */
+
+async function loadSupportMessages() {
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+    return;
+  }
+
+
+  try {
+
+    const { data, error } =
+      await state.supabase
+        .from("support_messages")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .order("created_at", {
+          ascending: true
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    renderChatMessages(
+      data || []
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Support messages error:",
+      error
+    );
+
+    const container =
+      $("chatMessages");
+
+    if (container) {
+
+      container.innerHTML = `
+
+        <div class="empty-state">
+          Unable to load live chat.
+        </div>
+
+      `;
+
+    }
+
+  }
+
+}
+
+
+function renderChatMessages(messages) {
+
+  const container =
+    $("chatMessages");
+
+  if (!container) {
+    return;
+  }
+
+
+  if (!messages.length) {
+
+    container.innerHTML = `
+
+      <div class="empty-state">
+        Start a conversation with GoTradeX Support.
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  container.innerHTML =
+    messages
+      .map(message => {
+
+        const date =
+          new Date(
+            message.created_at
+          );
+
+
+        return `
+
+          <div class="chat-bubble ${message.sender === "support" ? "support" : "user"}">
+
+            <div>
+              ${escapeHTML(
+                message.message
+              )}
+            </div>
+
+            <div class="chat-time">
+              ${date.toLocaleString()}
+            </div>
+
+          </div>
+
+        `;
+
+      })
+      .join("");
+
+
+  container.scrollTop =
+    container.scrollHeight;
+
+}
+
+
+async function sendChatMessage(event) {
+
+  event.preventDefault();
+
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+
+    showToast(
+      "You must be logged in.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const input =
+    $("chatInput");
+
+  const message =
+    input?.value.trim();
+
+
+  if (!message) {
+    return;
+  }
+
+
+  input.value = "";
+
+
+  try {
+
+    const { error } =
+      await state.supabase
+        .from("support_messages")
+        .insert({
+
+          user_id:
+            state.user.id,
+
+          message,
+
+          sender:
+            "user"
+
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    await loadSupportMessages();
+
+
+  } catch (error) {
+
+    console.error(
+      "Send chat error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Message could not be sent.",
+      "error"
+    );
+
+  }
+
+}
+
+
+function subscribeToSupportChat() {
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+    return;
+  }
+
+
+  if (state.supportChannel) {
+
+    state.supabase
+      .removeChannel(
+        state.supportChannel
+      );
+
+  }
+
+
+  state.supportChannel =
+    state.supabase
+      .channel(
+        `support-${state.user.id}`
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "support_messages",
+          filter:
+            `user_id=eq.${state.user.id}`
+        },
+        () => {
+
+          if (
+            state.currentPage ===
+            "support"
+          ) {
+
+            loadSupportMessages();
+
+          }
+
+        }
+      )
+      .subscribe();
+
+}
+
+
+/* =========================================================
+   SETTINGS
+   ========================================================= */
+
+async function saveProfile(event) {
+
+  event.preventDefault();
+
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+    return;
+  }
+
+
+  const name =
+    $("settingsName")
+      ?.value
+      .trim();
+
+
+  if (!name) {
+
+    showToast(
+      "Enter your name.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    const { error: authError } =
+      await state.supabase.auth
+        .updateUser({
+
+          data: {
+
+            full_name: name
+
+          }
+
+        });
+
+
+    if (authError) {
+      throw authError;
+    }
+
+
+    const { error: profileError } =
+      await state.supabase
+        .from("profiles")
+        .upsert(
+          {
+
+            id: state.user.id,
+
+            email:
+              state.user.email || "",
+
+            full_name:
+              name,
+
+            referral_code:
+              state.profile?.referral_code ||
+              generateReferralCode(
+                state.user.id
+              )
+
+          },
+          {
+            onConflict: "id"
+          }
+        );
+
+
+    if (profileError) {
+      throw profileError;
+    }
+
+
+    state.user =
+      (
+        await state.supabase.auth
+          .getUser()
+      ).data.user;
+
+
+    await loadProfile();
+
+    updateUserInterface();
+
+    showToast(
+      "Profile saved.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Profile save error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Profile could not be saved.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function changePassword(event) {
+
+  event.preventDefault();
+
+
+  const password =
+    $("newPassword")
+      ?.value || "";
+
+  const confirm =
+    $("confirmPassword")
+      ?.value || "";
+
+
+  if (password.length < 6) {
+
+    showToast(
+      "Password must contain at least 6 characters.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (password !== confirm) {
+
+    showToast(
+      "Passwords do not match.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    const { error } =
+      await state.supabase.auth
+        .updateUser({
+          password
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    $("passwordForm").reset();
+
+
+    showToast(
+      "Password changed successfully.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    showToast(
+      error.message ||
+      "Password change failed.",
+      "error"
+    );
+
+  }
+
+}
+
+
+function saveConnections() {
+
+  const settings = {
+
+    telegramWebhook:
+      $("telegramWebhook")
+        ?.value
+        .trim() || "",
+
+    whatsappWebhook:
+      $("whatsappWebhook")
+        ?.value
+        .trim() || ""
+
+  };
+
+
+  localStorage.setItem(
+    "gotradex_connections",
+    JSON.stringify(settings)
+  );
+
+
+  state.settings =
+    settings;
+
+
+  showToast(
+    "Connection settings saved.",
+    "success"
+  );
+
+}
+
+
+function loadConnections() {
+
+  try {
+
+    const saved =
+      JSON.parse(
+        localStorage.getItem(
+          "gotradex_connections"
+        ) || "{}"
+      );
+
+
+    state.settings = {
+
+      telegramWebhook:
+        saved.telegramWebhook || "",
+
+      whatsappWebhook:
+        saved.whatsappWebhook || ""
+
+    };
+
+
+    if ($("telegramWebhook")) {
+
+      $("telegramWebhook").value =
+        state.settings.telegramWebhook;
+
+    }
+
+
+    if ($("whatsappWebhook")) {
+
+      $("whatsappWebhook").value =
+        state.settings.whatsappWebhook;
+
+    }
+
+  } catch {
+
+    state.settings = {
+
+      telegramWebhook: "",
+      whatsappWebhook: ""
+
+    };
+
+  }
+
+}
+
+
+/* =========================================================
+   REFRESH
+   ========================================================= */
+
+async function refreshApplication() {
+
+  const button =
+    $("refreshButton");
+
+
+  if (button) {
+    button.disabled = true;
+  }
+
+
+  try {
+
+    await loadLiveMarkets();
+
+    createChart();
+
+    updateSignalFromMarket();
+
+    showToast(
+      "Live data refreshed.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Refresh error:",
+      error
+    );
+
+    showToast(
+      "Live market refresh failed.",
+      "error"
+    );
+
+  } finally {
+
+    if (button) {
+      button.disabled = false;
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   LIVE APP
+   ========================================================= */
+
+async function initializeLiveApp() {
+
+  loadConnections();
+
+  updatePortfolio();
+
+  updateAffiliates();
+
+  subscribeToSupportChat();
+
+  await loadLiveMarkets();
+
+  createChart();
+
+  updateSignalFromMarket();
+
+  startLiveRefresh();
+
+}
+
+
+function startLiveRefresh() {
+
+  clearInterval(
+    state.liveRefreshTimer
+  );
+
+
+  state.liveRefreshTimer =
+    setInterval(
+      async () => {
+
+        await loadLiveMarkets();
+
+        if (
+          state.currentPage ===
+          "dashboard"
+        ) {
+
+          createChart();
+
+        }
+
+      },
+      30000
+    );
+
+}
+
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+async function logout() {
+
+  if (!state.supabase) {
+    return;
+  }
+
+
+  try {
+
+    const { error } =
+      await state.supabase.auth
+        .signOut({
+          scope: "local"
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    state.user = null;
+    state.profile = null;
+
+    showAuthScreen();
+
+    showLoginForm();
+
+    showToast(
+      "Logged out.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Logout error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Logout failed.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   EVENT BINDING
+   ========================================================= */
+
+function bindEvents() {
+
+  $("loginTab")
+    ?.addEventListener(
+      "click",
+      showLoginForm
+    );
+
+
+  $("registerTab")
+    ?.addEventListener(
+      "click",
+      showRegisterForm
+    );
+
+
+  $("forgotPasswordButton")
+    ?.addEventListener(
+      "click",
+      showResetForm
+    );
+
+
+  $("backToLoginButton")
+    ?.addEventListener(
+      "click",
+      showLoginForm
+    );
+
+
+  $("loginForm")
+    ?.addEventListener(
+      "submit",
+      handleLogin
+    );
+
+
+  $("registerForm")
+    ?.addEventListener(
+      "submit",
+      handleRegister
+    );
+
+
+  $("resetForm")
+    ?.addEventListener(
+      "submit",
+      handlePasswordReset
+    );
+
+
+  bindPasswordToggle(
+    "toggleLoginPassword",
+    "loginPassword"
+  );
+
+
+  bindPasswordToggle(
+    "toggleRegisterPassword",
+    "registerPassword"
+  );
+
+
+  bindNavigation();
+
+
+  $("refreshButton")
+    ?.addEventListener(
+      "click",
+      refreshApplication
+    );
+
+
+  $("topProfileButton")
+    ?.addEventListener(
+      "click",
+      () => showPage("settings")
+    );
+
+
+  $("profileSettingsButton")
+    ?.addEventListener(
+      "click",
+      () => showPage("settings")
+    );
+
+
+  $("settingsLogoutButton")
+    ?.addEventListener(
+      "click",
+      logout
+    );
+
+
+  $("logoutButton")
+    ?.addEventListener(
+      "click",
+      logout
+    );
+
+
+  $("mobileMenuButton")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        $("sidebar")
+          ?.classList.toggle("open");
+
+      }
+    );
+
+
+  document
+    .querySelectorAll(".timeframe")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(".timeframe")
+            .forEach(item =>
+              item.classList.remove(
+                "active"
+              )
+            );
+
+          button.classList.add("active");
+
+          state.currentTimeframe =
+            button.dataset.timeframe;
+
+          createChart();
+
+        }
+      );
+
+    });
+
+
+  document
+    .querySelectorAll(".category-tab")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(".category-tab")
+            .forEach(item =>
+              item.classList.remove(
+                "active"
+              )
+            );
+
+          button.classList.add("active");
+
+          state.currentCategory =
+            button.dataset.category;
+
+          renderMarketsList();
+
+        }
+      );
+
+    });
+
+
+  $("marketSearch")
+    ?.addEventListener(
+      "input",
+      renderMarketsList
+    );
+
+
+  $("analyzeButton")
+    ?.addEventListener(
+      "click",
+      runAnalyzer
+    );
+
+
+  document
+    .querySelectorAll(".risk-button")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          setRobotRisk(
+            button.dataset.risk
+          );
+
+        }
+      );
+
+    });
+
+
+  $("startRobotButton")
+    ?.addEventListener(
+      "click",
+      startRobot
+    );
+
+
+  $("stopRobotButton")
+    ?.addEventListener(
+      "click",
+      stopRobot
+    );
+
+
+  $("copyReferralButton")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        copyText(
+          $("referralCode")
+            ?.textContent || ""
+        );
+
+      }
+    );
+
+
+  $("copyReferralLinkButton")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        copyText(
+          $("referralLink")
+            ?.value || ""
+        );
+
+      }
+    );
+
+
+  $("chatForm")
+    ?.addEventListener(
+      "submit",
+      sendChatMessage
+    );
+
+
+  $("profileForm")
+    ?.addEventListener(
+      "submit",
+      saveProfile
+    );
+
+
+  $("passwordForm")
+    ?.addEventListener(
+      "submit",
+      changePassword
+    );
+
+
+  $("saveConnectionsButton")
+    ?.addEventListener(
+      "click",
+      saveConnections
+    );
+
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+async function initializeApp() {
+
+  console.log(
+    `${APP_NAME} initializing... ${APP_VERSION}`
+  );
+
+
+  const connected =
+    initializeSupabase();
+
+
+  bindEvents();
+
+
+  if (!connected) {
+
+    showAuthScreen();
+
+    return;
+
+  }
+
+
+  listenForAuthChanges();
+
+  await restoreSession();
+
+
+  console.log(
+    `${APP_NAME} initialized. ${APP_VERSION}`
+  );
+
+}
+
+
+/* =========================================================
+   START ONLY ONCE
+   ========================================================= */
+
+if (
+  document.readyState ===
+  "loading"
+) {
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeApp,
+    {
+      once: true
+    }
+  );
+
+} else {
+
+  initializeApp();
+
+}
