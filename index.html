@@ -34,6 +34,24 @@
        ===================================================== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <script>
+    // Login-page fallback: keep the password visibility button working
+    // even if script.js has not finished loading yet.
+    window.togglePassword = function () {
+      const input = document.getElementById("auth-password");
+      const eye = document.getElementById("password-eye");
+      if (!input) return;
+
+      const showPassword = input.type === "password";
+      input.type = showPassword ? "text" : "password";
+
+      if (eye) {
+        eye.classList.toggle("fa-eye", !showPassword);
+        eye.classList.toggle("fa-eye-slash", showPassword);
+      }
+    };
+  </script>
+
   <!-- =====================================================
        GOTRADEX SUPABASE CONFIGURATION
        ===================================================== -->
