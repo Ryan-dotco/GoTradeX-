@@ -132,7 +132,7 @@
       </div>
 
 
-      <form id="auth-form" autocomplete="on">
+      <form id="auth-form" autocomplete="on" onsubmit="return window.__goTradeXAuthSubmit(event);">
 
         <input
           type="hidden"
@@ -413,10 +413,10 @@
              ================================================= -->
 
         <button
-          type="submit"
+          type="button"
           id="auth-submit-button"
           class="primary-button auth-submit"
-          onclick="return window.handleAuth(event);"
+          onclick="return window.__goTradeXAuthSubmit(event);"
         >
 
           <i class="fa-solid fa-right-to-bracket"></i>
@@ -471,7 +471,7 @@
 
         <button
           type="button"
-          onclick="switchAuth('signup')"
+          onclick="window.__goTradeXSwitchAuth('signup'); return false;"
           id="auth-switch-button"
         >
           Create Account
@@ -1179,7 +1179,8 @@
   <script src="script.js"></script>
 
   <script>
-    /* GoTradeX auth safety layer.
+    /* GoTradeX auth safety layer. This layer uses unique global names so the
+       main application script cannot accidentally replace the login handler. */
        This is intentionally independent of script.js so the login/register
        controls still work if SPCK serves a stale JavaScript copy. */
     (function () {
@@ -1337,8 +1338,8 @@
         return false;
       }
 
-      window.switchAuth = switchAuthSafe;
-      window.handleAuth = handleAuthSafe;
+      window.__goTradeXSwitchAuth = switchAuthSafe;
+      window.__goTradeXAuthSubmit = handleAuthSafe;
 
       function bindAuthSafe() {
         var form = byId("auth-form");
@@ -1354,8 +1355,10 @@
 
         var switchButton = byId("auth-switch-button");
         if (switchButton) {
-          switchButton.onclick = function () {
+          switchButton.onclick = function (event) {
+            if (event) event.preventDefault();
             switchAuthSafe("signup");
+            return false;
           };
         }
 
