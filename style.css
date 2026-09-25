@@ -997,3 +997,11 @@ img {
   text-align: center;
 
   font-size: 15px;
+
+
+/* =========================================================
+   VISIBILITY / AUTH FIX
+   ========================================================= */
+.hidden {
+  display: none !important;
+}
