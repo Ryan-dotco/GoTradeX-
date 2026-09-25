@@ -2895,6 +2895,77 @@ function subscribeToSupportChat() {
 
 
 /* =========================================================
+   USER REPORTING
+   ========================================================= */
+
+async function submitUserReport(event) {
+  event.preventDefault();
+
+  if (!state.supabase || !state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const email =
+    $("reportUserEmail")?.value.trim().toLowerCase() || "";
+
+  const category =
+    $("reportCategory")?.value || "";
+
+  const details =
+    $("reportDetails")?.value.trim() || "";
+
+  if (!email || !category || !details) {
+    showToast("Complete all report fields.", "error");
+    return;
+  }
+
+  const button = $("submitReportButton");
+  const originalText = button?.textContent || "Submit Report";
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Submitting...";
+  }
+
+  try {
+    const { data, error } =
+      await state.supabase.functions.invoke(
+        "submit-report",
+        {
+          body: {
+            reported_email: email,
+            category,
+            details
+          }
+        }
+      );
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    $("reportUserForm")?.reset();
+
+    showToast(
+      "Report submitted to GoTradeX Support.",
+      "success"
+    );
+  } catch (error) {
+    console.error("User report error:", error);
+    showToast(
+      error.message || "Report could not be submitted.",
+      "error"
+    );
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
+
+/* =========================================================
    ADMIN SUPPORT
    ========================================================= */
 
@@ -3067,21 +3138,102 @@ async function performAdminModeration(action) {
 async function loadAdminReports() {
   const container = $("adminReportsList");
   if (!container) return;
+
   try {
     const data = await adminFunction("list_reports");
     const reports = data.reports || [];
+
     if (!reports.length) {
       container.innerHTML = '<div class="empty-state">No reports yet.</div>';
       return;
     }
-    container.innerHTML = reports.map(report =>
-      '<div class="admin-report-row"><div><strong>' + escapeHTML(report.category) + '</strong>' +
-      '<p>' + escapeHTML(report.details || "No details provided.") + '</p></div>' +
-      '<span class="admin-user-status">' + escapeHTML(report.status) + '</span></div>'
-    ).join("");
+
+    container.innerHTML = reports.map(report => {
+      const reporterName =
+        report.reporter?.full_name ||
+        report.reporter?.email ||
+        "Unknown reporter";
+
+      const reportedName =
+        report.reported?.full_name ||
+        report.reported?.email ||
+        "Unknown user";
+
+      const statusClass =
+        "admin-user-status " + escapeHTML(report.status || "open");
+
+      const actions =
+        ["open", "reviewing"].includes(report.status)
+          ? '<div class="admin-report-actions">' +
+            '<button type="button" class="small-button" data-report-action="resolved" data-report-id="' +
+            escapeHTML(report.id) + '">Resolve</button>' +
+            '<button type="button" class="small-button" data-report-action="dismissed" data-report-id="' +
+            escapeHTML(report.id) + '">Dismiss</button>' +
+            '</div>'
+          : "";
+
+      return '<div class="admin-report-row">' +
+        '<div class="admin-report-main">' +
+        '<strong>' + escapeHTML(report.category || "other") + '</strong>' +
+        '<span class="admin-report-people">Reporter: ' + escapeHTML(reporterName) +
+        ' → Reported: ' + escapeHTML(reportedName) + '</span>' +
+        '<p>' + escapeHTML(report.details || "No details provided.") + '</p>' +
+        '<small>' + escapeHTML(new Date(report.created_at).toLocaleString()) + '</small>' +
+        '</div>' +
+        '<div class="admin-report-side">' +
+        '<span class="' + statusClass + '">' + escapeHTML(report.status || "open") + '</span>' +
+        actions +
+        '</div>' +
+        '</div>';
+    }).join("");
+
+    container.querySelectorAll("[data-report-action]").forEach(button => {
+      button.addEventListener("click", () =>
+        updateAdminReport(
+          Number(button.dataset.reportId),
+          button.dataset.reportAction
+        )
+      );
+    });
   } catch (error) {
     console.error("Admin reports error:", error);
     container.innerHTML = '<div class="empty-state">Unable to load reports.</div>';
+  }
+}
+
+async function updateAdminReport(reportId, status) {
+  if (!Number.isInteger(reportId)) return;
+
+  const notes =
+    window.prompt(
+      status === "resolved"
+        ? "Resolution note (optional):"
+        : "Dismissal note (optional):"
+    );
+
+  if (notes === null) return;
+
+  try {
+    await adminFunction("update_report", {
+      report_id: reportId,
+      status,
+      notes
+    });
+
+    await loadAdminReports();
+
+    showToast(
+      status === "resolved"
+        ? "Report resolved."
+        : "Report dismissed.",
+      "success"
+    );
+  } catch (error) {
+    console.error("Admin report update error:", error);
+    showToast(
+      error.message || "Report could not be updated.",
+      "error"
+    );
   }
 }
 
@@ -3849,6 +4001,12 @@ function bindEvents() {
     ?.addEventListener(
       "submit",
       sendChatMessage
+    );
+
+  $("reportUserForm")
+    ?.addEventListener(
+      "submit",
+      submitUserReport
     );
 
   $("adminReplyForm")
