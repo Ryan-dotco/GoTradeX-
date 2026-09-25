@@ -1681,6 +1681,83 @@
 
           <div class="panel">
 
+            <h3>Report a User</h3>
+
+            <p class="muted">
+              Report a GoTradeX user for a safety or rules violation.
+              Reports are reviewed by GoTradeX support.
+            </p>
+
+            <form id="reportUserForm">
+
+              <div class="field">
+
+                <label for="reportUserEmail">
+                  User email
+                </label>
+
+                <input
+                  id="reportUserEmail"
+                  type="email"
+                  placeholder="user@example.com"
+                  autocomplete="off"
+                  required
+                >
+
+              </div>
+
+              <div class="field">
+
+                <label for="reportCategory">
+                  Reason
+                </label>
+
+                <select id="reportCategory" required>
+                  <option value="">Select a reason</option>
+                  <option value="harassment">Harassment</option>
+                  <option value="spam">Spam</option>
+                  <option value="scam">Scam</option>
+                  <option value="fraud">Fraud</option>
+                  <option value="sexual_content">Sexual content</option>
+                  <option value="hate">Hate</option>
+                  <option value="threats">Threats</option>
+                  <option value="impersonation">Impersonation</option>
+                  <option value="other">Other</option>
+                </select>
+
+              </div>
+
+              <div class="field">
+
+                <label for="reportDetails">
+                  Details
+                </label>
+
+                <textarea
+                  id="reportDetails"
+                  maxlength="4000"
+                  rows="5"
+                  placeholder="Describe what happened..."
+                  required
+                ></textarea>
+
+              </div>
+
+              <button
+                id="submitReportButton"
+                type="submit"
+                class="primary-button"
+              >
+                Submit Report
+              </button>
+
+            </form>
+
+          </div>
+
+
+          <div class="panel">
+
             <h3>Account</h3>
 
             <div class="account-status">
