@@ -1471,34 +1471,51 @@ async function fetchForexRates() {
 
 async function loadLiveMarkets() {
 
-  const results = {};
+  const previous = {
+    ...state.markets
+  };
 
+  const results = {
+    ...previous
+  };
 
   const cryptoSymbols = [
     "BTCUSDT",
     "ETHUSDT"
   ];
 
+  const cryptoResults =
+    await Promise.all(
+      cryptoSymbols.map(async symbol => {
 
-  for (const symbol of cryptoSymbols) {
+        try {
 
-    try {
+          return await fetchBinanceTicker(
+            symbol
+          );
 
-      results[symbol] =
-        await fetchBinanceTicker(
-          symbol
-        );
+        } catch (error) {
 
-    } catch (error) {
+          console.warn(
+            `${symbol} unavailable:`,
+            error
+          );
 
-      console.warn(
-        `${symbol} unavailable:`,
-        error
-      );
+          return null;
 
-    }
+        }
 
-  }
+      })
+    );
+
+  cryptoResults
+    .filter(Boolean)
+    .forEach(market => {
+
+      results[market.symbol] =
+        market;
+
+    });
 
 
   try {
@@ -1506,17 +1523,31 @@ async function loadLiveMarkets() {
     const rates =
       await fetchForexRates();
 
+    const previousEUR =
+      previous.EURUSD?.price;
+
+    const previousGBP =
+      previous.GBPUSD?.price;
+
+    const previousZAR =
+      previous.USDZAR?.price;
+
 
     if (rates.EUR) {
+
+      const price =
+        1 / Number(rates.EUR);
 
       results.EURUSD = {
 
         symbol: "EURUSD",
 
-        price:
-          1 / Number(rates.EUR),
+        price,
 
-        change: 0,
+        change:
+          previousEUR
+            ? ((price - previousEUR) / previousEUR) * 100
+            : 0,
 
         source: "Frankfurter"
 
@@ -1527,14 +1558,19 @@ async function loadLiveMarkets() {
 
     if (rates.GBP) {
 
+      const price =
+        1 / Number(rates.GBP);
+
       results.GBPUSD = {
 
         symbol: "GBPUSD",
 
-        price:
-          1 / Number(rates.GBP),
+        price,
 
-        change: 0,
+        change:
+          previousGBP
+            ? ((price - previousGBP) / previousGBP) * 100
+            : 0,
 
         source: "Frankfurter"
 
@@ -1545,14 +1581,19 @@ async function loadLiveMarkets() {
 
     if (rates.ZAR) {
 
+      const price =
+        Number(rates.ZAR);
+
       results.USDZAR = {
 
         symbol: "USDZAR",
 
-        price:
-          Number(rates.ZAR),
+        price,
 
-        change: 0,
+        change:
+          previousZAR
+            ? ((price - previousZAR) / previousZAR) * 100
+            : 0,
 
         source: "Frankfurter"
 
@@ -1563,7 +1604,7 @@ async function loadLiveMarkets() {
   } catch (error) {
 
     console.warn(
-      "Forex feed unavailable:",
+      "Forex feed unavailable; keeping last known rates:",
       error
     );
 
@@ -1572,6 +1613,9 @@ async function loadLiveMarkets() {
 
   state.markets =
     results;
+
+  state.marketsUpdatedAt =
+    new Date().toISOString();
 
 
   renderDashboardMarkets();
@@ -1583,7 +1627,6 @@ async function loadLiveMarkets() {
   updateSignalFromMarket();
 
 }
-
 
 /* =========================================================
    MARKET RENDER
