@@ -2015,6 +2015,72 @@ async function createChart() {
    SIGNAL ENGINE
    ========================================================= */
 
+async function fetchSignalKlines(symbol) {
+  if (!["BTCUSDT", "ETHUSDT"].includes(symbol)) return [];
+  try { return await fetchBinanceKlines(symbol, "1h", 60); }
+  catch (error) { console.warn("Live signal candles unavailable:", error); return []; }
+}
+
+function calculateEMA(values, period) {
+  if (!values.length) return null;
+  const multiplier = 2 / (period + 1);
+  let ema = values[0];
+  for (let i = 1; i < values.length; i++) ema = (values[i] - ema) * multiplier + ema;
+  return ema;
+}
+
+function calculateRSI(values, period = 14) {
+  if (values.length <= period) return null;
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = values[i] - values[i - 1];
+    if (change >= 0) gains += change; else losses += Math.abs(change);
+  }
+  let averageGain = gains / period;
+  let averageLoss = losses / period;
+  for (let i = period + 1; i < values.length; i++) {
+    const change = values[i] - values[i - 1];
+    const gain = Math.max(change, 0);
+    const loss = Math.max(-change, 0);
+    averageGain = ((averageGain * (period - 1)) + gain) / period;
+    averageLoss = ((averageLoss * (period - 1)) + loss) / period;
+  }
+  if (averageLoss === 0) return 100;
+  const relativeStrength = averageGain / averageLoss;
+  return 100 - (100 / (1 + relativeStrength));
+}
+
+async function generateLiveSignal(symbol = "BTCUSDT") {
+  const fallback = generateSignal(symbol);
+  const candles = await fetchSignalKlines(symbol);
+  if (candles.length < 22) return fallback;
+  const closes = candles.map(c => Number(c.close)).filter(Number.isFinite);
+  if (closes.length < 22) return fallback;
+  const price = closes[closes.length - 1];
+  const ema9 = calculateEMA(closes.slice(-40), 9);
+  const ema21 = calculateEMA(closes.slice(-40), 21);
+  const rsiValue = calculateRSI(closes, 14);
+  const lookback = closes[Math.max(0, closes.length - 11)];
+  const momentumPercent = lookback ? ((price - lookback) / lookback) * 100 : 0;
+  let score = 0;
+  if (ema9 > ema21) score += 1; else if (ema9 < ema21) score -= 1;
+  if (rsiValue >= 55) score += 1; else if (rsiValue <= 45) score -= 1;
+  if (momentumPercent > 0.15) score += 1; else if (momentumPercent < -0.15) score -= 1;
+  let direction = "HOLD";
+  if (score >= 2) direction = "BUY"; else if (score <= -2) direction = "SELL";
+  let confidence = direction === "HOLD" ? 50 + Math.min(Math.round(Math.abs(momentumPercent) * 2), 10) : 55 + Math.abs(score) * 10;
+  confidence = Math.min(confidence, 85);
+  const entry = price;
+  const target = direction === "BUY" ? price * 1.01 : direction === "SELL" ? price * 0.99 : price;
+  const stop = direction === "BUY" ? price * 0.995 : direction === "SELL" ? price * 1.005 : price;
+  return {
+    direction, confidence, entry, target, stop,
+    ema: ema9 > ema21 ? "Bullish" : ema9 < ema21 ? "Bearish" : "Neutral",
+    rsi: rsiValue !== null ? rsiValue.toFixed(1) : "Waiting",
+    momentum: momentumPercent > 0.15 ? "Positive" : momentumPercent < -0.15 ? "Negative" : "Neutral"
+  };
+}
 function generateSignal(symbol = "BTCUSDT") {
 
   const market =
@@ -2143,186 +2209,56 @@ function generateSignal(symbol = "BTCUSDT") {
 }
 
 
-function updateSignalFromMarket() {
-
-  const signal =
-    generateSignal("BTCUSDT");
-
-
+async function updateSignalFromMarket() {
+  const symbol = "BTCUSDT";
+  const signal = await generateLiveSignal(symbol);
   if ($("signalDirection")) {
-
-    $("signalDirection").textContent =
-      signal.direction;
-
-    $("signalDirection").className =
-      `signal-direction ${
-        signal.direction === "BUY"
-          ? "buy"
-          : signal.direction === "SELL"
-            ? "sell"
-            : "hold"
-      }`;
-
+    $("signalDirection").textContent = signal.direction;
+    $("signalDirection").className = "signal-direction " + (signal.direction === "BUY" ? "buy" : signal.direction === "SELL" ? "sell" : "hold");
   }
-
-
-  if ($("signalConfidence")) {
-
-    $("signalConfidence").textContent =
-      `${signal.confidence}%`;
-
+  if ($("signalConfidence")) $("signalConfidence").textContent = signal.confidence + "%";
+  if ($("signalEntry")) $("signalEntry").textContent = signal.entry ? "$" + formatPrice(signal.entry) : "—";
+  if ($("signalTarget")) $("signalTarget").textContent = signal.target ? "$" + formatPrice(signal.target) : "—";
+  if ($("signalStop")) $("signalStop").textContent = signal.stop ? "$" + formatPrice(signal.stop) : "—";
+  if ($("emaSignal")) $("emaSignal").textContent = signal.ema;
+  if ($("rsiSignal")) $("rsiSignal").textContent = signal.rsi;
+  if ($("momentumSignal")) $("momentumSignal").textContent = signal.momentum;
+  if ($("activeSignalsValue")) $("activeSignalsValue").textContent = signal.confidence > 0 ? "1" : "0";
+  const now = new Date().toISOString();
+  const latest = state.signals[0];
+  if (!latest || latest.symbol !== symbol || latest.direction !== signal.direction || Date.now() - new Date(latest.time).getTime() > 60000) {
+    state.signals.unshift({ symbol, ...signal, time: now });
+    state.signals = state.signals.slice(0, 10);
+  } else {
+    state.signals[0] = { ...latest, ...signal, symbol, time: now };
   }
-
-
-  if ($("signalEntry")) {
-
-    $("signalEntry").textContent =
-      signal.entry
-        ? `$${formatPrice(signal.entry)}`
-        : "—";
-
-  }
-
-
-  if ($("signalTarget")) {
-
-    $("signalTarget").textContent =
-      signal.target
-        ? `$${formatPrice(signal.target)}`
-        : "—";
-
-  }
-
-
-  if ($("signalStop")) {
-
-    $("signalStop").textContent =
-      signal.stop
-        ? `$${formatPrice(signal.stop)}`
-        : "—";
-
-  }
-
-
-  if ($("emaSignal")) {
-    $("emaSignal").textContent =
-      signal.ema;
-  }
-
-  if ($("rsiSignal")) {
-    $("rsiSignal").textContent =
-      signal.rsi;
-  }
-
-  if ($("momentumSignal")) {
-    $("momentumSignal").textContent =
-      signal.momentum;
-  }
-
-
-  if ($("activeSignalsValue")) {
-
-    $("activeSignalsValue").textContent =
-      signal.confidence > 0
-        ? "1"
-        : "0";
-
-  }
-
-
-  state.signals.unshift({
-
-    symbol: "BTCUSDT",
-
-    ...signal,
-
-    time:
-      new Date().toISOString()
-
-  });
-
-
-  state.signals =
-    state.signals.slice(0, 10);
-
-
   renderSignals();
-
-  queueRobotSignal({
-    symbol: "BTCUSDT",
-    ...signal
-  });
-
+  await queueRobotSignal({ symbol, ...signal });
 }
-
 
 /* =========================================================
    SIGNAL PAGE
    ========================================================= */
 
-function runAnalyzer() {
-
-  const symbol =
-    $("signalAsset")?.value ||
-    "BTCUSDT";
-
-
-  const signal =
-    generateSignal(symbol);
-
-
-  if ($("analysisDirection")) {
-
-    $("analysisDirection")
-      .textContent =
-      signal.direction;
-
+async function runAnalyzer() {
+  const symbol = $("signalAsset")?.value || "BTCUSDT";
+  const button = $("analyzeButton");
+  if (button) { button.disabled = true; button.textContent = "Analyzing..."; }
+  try {
+    const signal = await generateLiveSignal(symbol);
+    if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
+    if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
+    if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
+    if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
+    if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
+    showToast(symbol + " live analysis updated.", "success");
+  } catch (error) {
+    console.error("Signal analyzer error:", error);
+    showToast("Signal analysis failed.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Analyze"; }
   }
-
-
-  if ($("analysisConfidence")) {
-
-    $("analysisConfidence")
-      .textContent =
-      `${signal.confidence}%`;
-
-  }
-
-
-  if ($("analysisEMA")) {
-
-    $("analysisEMA")
-      .textContent =
-      signal.ema;
-
-  }
-
-
-  if ($("analysisRSI")) {
-
-    $("analysisRSI")
-      .textContent =
-      signal.rsi;
-
-  }
-
-
-  if ($("analysisMomentum")) {
-
-    $("analysisMomentum")
-      .textContent =
-      signal.momentum;
-
-  }
-
-
-  showToast(
-    `${symbol} analysis updated.`,
-    "success"
-  );
-
 }
-
 
 function renderSignals() {
 
@@ -2736,6 +2672,23 @@ async function stopRobot() {
 async function queueRobotSignal(signal) {
 
   if (!state.robotRunning || !state.user) {
+    return;
+  }
+
+  const lastHeartbeat =
+    state.robotStatus.lastHeartbeat
+      ? new Date(state.robotStatus.lastHeartbeat).getTime()
+      : 0;
+
+  const heartbeatAge =
+    lastHeartbeat
+      ? Date.now() - lastHeartbeat
+      : Infinity;
+
+  if (
+    state.robotStatus.connected !== true ||
+    heartbeatAge > 30000
+  ) {
     return;
   }
 
@@ -3480,7 +3433,7 @@ async function refreshApplication() {
 
     updatePortfolio();
 
-    updateSignalFromMarket();
+    await updateSignalFromMarket();
 
     showToast(
       "Live data refreshed.",
