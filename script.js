@@ -387,6 +387,28 @@ function switchAuth(type) {
     );
   }
 
+  const signupContainer = $("signup-fields");
+  if (signupContainer) {
+    signupContainer.style.display = login ? "none" : "";
+  }
+
+  const submitLabel = $("auth-submit-label");
+  if (submitLabel) {
+    submitLabel.textContent = login ? "Log In" : "Create Account";
+  }
+
+  const submitButton = $("auth-submit-button");
+  if (submitButton) {
+    submitButton.title = login ? "Log in to GoTradeX" : "Create your GoTradeX account";
+  }
+
+  const subtitle = $("auth-subtitle");
+  if (subtitle) {
+    subtitle.textContent = login
+      ? "Sign in to continue to GoTradeX"
+      : "Create your account to continue to GoTradeX";
+  }
+
   const signupFields = [
     "signup-name",
     "signup-country",
