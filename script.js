@@ -194,7 +194,8 @@ function getAuthElement(...ids) {
 function setHidden(element, hidden) {
   if (!element) return;
 
-  element.classList.toggle("hidden", hidden);
+  element.classList.toggle("hidden", !!hidden);
+  element.style.display = hidden ? "none" : "";
 }
 
 
@@ -786,7 +787,9 @@ async function handleAuth(event) {
    PASSWORD RESET
    ========================================================= */
 
-async function resetPassword() {
+async function resetPassword(event) {
+  if (event) event.preventDefault();
+
   const client =
     initSupabaseClient();
 
@@ -3771,6 +3774,22 @@ console.log(
 
   init=function(){
     console.log("GoTradeX initializing...");
+
+    const authForm=$("auth-form");
+    if(authForm && authForm.dataset.authBound!=="true"){
+      authForm.dataset.authBound="true";
+      authForm.addEventListener("submit",(event)=>{handleAuth(event);});
+    }
+
+    const forgotForm=$("forgot-password-form");
+    if(forgotForm && forgotForm.dataset.resetBound!=="true"){
+      forgotForm.dataset.resetBound="true";
+      forgotForm.addEventListener("submit",(event)=>{resetPassword(event);});
+    }
+
+    const loader=$("app-loader");
+    if(loader) loader.style.display="none";
+
     loadStable();restoreNotificationSettings();bindNavigation();bindSearch();bindTimeframes();setupSupabaseAuthListener();
     restoreSupabaseSession().then((restored)=>{if(restored||state.isLoggedIn)appStable();else{setHidden(getAppRoot(),true);setHidden(getAuthOverlay(),false);showLoginPage();}updateDashboardUser();botStatus();renderAll();console.log("GoTradeX initialized.",APP_VERSION);})
       .catch((e)=>{console.warn("GoTradeX startup warning:",e);setHidden(getAppRoot(),true);setHidden(getAuthOverlay(),false);showLoginPage();});
