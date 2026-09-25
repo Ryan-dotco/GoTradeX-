@@ -1177,5 +1177,197 @@
   <div id="toast-container" class="toast-container"></div>
 
   <script src="script.js"></script>
+
+  <script>
+    /* GoTradeX auth safety layer.
+       This is intentionally independent of script.js so the login/register
+       controls still work if SPCK serves a stale JavaScript copy. */
+    (function () {
+      function byId(id) {
+        return document.getElementById(id);
+      }
+
+      function setHidden(el, hidden) {
+        if (!el) return;
+        el.classList.toggle("hidden", hidden);
+        el.style.display = hidden ? "none" : "";
+      }
+
+      function switchAuthSafe(type) {
+        var login = String(type || "login").toLowerCase() === "login";
+        var mode = byId("auth-mode");
+        if (mode) mode.value = login ? "login" : "signup";
+
+        var signup = byId("signup-fields");
+        if (signup) signup.style.display = login ? "none" : "";
+
+        var title = byId("auth-title");
+        if (title) title.textContent = login ? "Welcome Back" : "Create Account";
+
+        var subtitle = byId("auth-subtitle");
+        if (subtitle) subtitle.textContent = login
+          ? "Sign in to continue to GoTradeX"
+          : "Create your account to continue to GoTradeX";
+
+        var label = byId("auth-submit-label");
+        if (label) label.textContent = login ? "Log In" : "Create Account";
+
+        var icon = document.querySelector("#auth-submit-button i");
+        if (icon) icon.className = login
+          ? "fa-solid fa-right-to-bracket"
+          : "fa-solid fa-user-plus";
+
+        var name = byId("signup-name");
+        var country = byId("signup-country");
+        var age = byId("signup-age");
+        var gender = byId("signup-gender");
+        var looking = byId("signup-looking");
+        var terms = byId("signup-terms");
+        [name,country,age,gender,looking,terms].forEach(function (el) {
+          if (!el) return;
+          var group = el.closest(".form-group,.terms-row");
+          if (group) group.style.display = login ? "none" : "";
+        });
+
+        var error = byId("auth-error");
+        var success = byId("auth-success");
+        if (error) { error.textContent = ""; error.style.display = "none"; }
+        if (success) { success.textContent = ""; success.style.display = "none"; }
+      }
+
+      async function handleAuthSafe(event) {
+        if (event) event.preventDefault();
+
+        var emailEl = byId("auth-email");
+        var passwordEl = byId("auth-password");
+        var email = emailEl ? emailEl.value.trim().toLowerCase() : "";
+        var password = passwordEl ? passwordEl.value : "";
+        var registering = (byId("auth-mode") || {}).value === "signup";
+
+        var error = byId("auth-error");
+        var success = byId("auth-success");
+        function message(text, ok) {
+          if (error) {
+            error.textContent = ok ? "" : text;
+            error.style.display = ok ? "none" : "block";
+          }
+          if (success) {
+            success.textContent = ok ? text : "";
+            success.style.display = ok ? "block" : "none";
+          }
+        }
+
+        if (!email) return message("Please enter your email address.", false);
+        if (password.length < 6) return message("Password must be at least 6 characters.", false);
+
+        if (registering) {
+          var terms = byId("signup-terms");
+          if (terms && !terms.checked) return message("Please accept the terms and rules.", false);
+
+          var age = Number((byId("signup-age") || {}).value || 0);
+          if (age && age < 18) return message("You must be 18 or older.", false);
+        }
+
+        var submit = byId("auth-submit-button");
+        if (submit) submit.disabled = true;
+
+        try {
+          var cfg = window.GOTRADEX_CONFIG || {};
+          if (!window.supabase || typeof window.supabase.createClient !== "function") {
+            throw new Error("Supabase library is not loaded.");
+          }
+
+          var client = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+          var result;
+
+          if (registering) {
+            result = await client.auth.signUp({
+              email: email,
+              password: password,
+              options: {
+                data: {
+                  name: (byId("signup-name") || {}).value || email.split("@")[0],
+                  country: (byId("signup-country") || {}).value || "Worldwide",
+                  age: age || null,
+                  gender: (byId("signup-gender") || {}).value || "",
+                  looking_for: (byId("signup-looking") || {}).value || ""
+                }
+              }
+            });
+          } else {
+            result = await client.auth.signInWithPassword({
+              email: email,
+              password: password
+            });
+          }
+
+          if (result.error) throw result.error;
+
+          if (registering && !result.data.session) {
+            message("Account created. Check your email if confirmation is required, then log in.", true);
+            switchAuthSafe("login");
+            return;
+          }
+
+          message(registering ? "Account created successfully." : "Login successful.", true);
+
+          if (window.GoTradeX && typeof window.GoTradeX.restoreSupabaseSession === "function") {
+            await window.GoTradeX.restoreSupabaseSession();
+          } else if (window.openMainApp) {
+            window.openMainApp();
+          }
+
+          var overlay = byId("auth-overlay");
+          var app = byId("main-app");
+          if (overlay) {
+            overlay.classList.add("hidden");
+            overlay.style.display = "none";
+          }
+          if (app) {
+            app.classList.remove("hidden");
+            app.style.display = "";
+          }
+        } catch (err) {
+          console.error("GoTradeX authentication error:", err);
+          message(err && err.message ? err.message : "Authentication failed.", false);
+        } finally {
+          if (submit) submit.disabled = false;
+        }
+
+        return false;
+      }
+
+      window.switchAuth = switchAuthSafe;
+      window.handleAuth = handleAuthSafe;
+
+      function bindAuthSafe() {
+        var form = byId("auth-form");
+        if (form && form.dataset.safeAuthBound !== "true") {
+          form.dataset.safeAuthBound = "true";
+          form.addEventListener("submit", handleAuthSafe);
+        }
+
+        var button = byId("auth-submit-button");
+        if (button) {
+          button.onclick = handleAuthSafe;
+        }
+
+        var switchButton = byId("auth-switch-button");
+        if (switchButton) {
+          switchButton.onclick = function () {
+            switchAuthSafe("signup");
+          };
+        }
+
+        switchAuthSafe((byId("auth-mode") || {}).value || "login");
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", bindAuthSafe, { once: true });
+      } else {
+        bindAuthSafe();
+      }
+    })();
+  </script>
 </body>
 </html>
