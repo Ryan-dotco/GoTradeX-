@@ -1857,166 +1857,117 @@ function updateDashboardPrice() {
    CHART
    ========================================================= */
 
-function createChart() {
+async function fetchBinanceKlines(symbol, interval, limit = 60) {
 
-  const canvas =
-    $("mainChart");
-
-  if (!canvas) {
-    return;
-  }
-
-
-  if (
-    typeof Chart === "undefined"
-  ) {
-
-    console.warn(
-      "Chart.js not available."
+  const response =
+    await fetch(
+      `${CONFIG.BINANCE_API}/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`,
+      { cache: "no-store" }
     );
 
-    return;
+  if (!response.ok) {
+    throw new Error(`Chart request failed: ${response.status}`);
   }
 
+  const rows = await response.json();
 
-  if (state.chart) {
-
-    state.chart.destroy();
-
-    state.chart = null;
-
-  }
-
-
-  const btc =
-    state.markets.BTCUSDT;
-
-
-  const currentPrice =
-    btc?.price || 0;
-
-
-  const points = [];
-
-
-  for (let i = 0; i < 30; i++) {
-
-    const variation =
-      currentPrice
-        ? currentPrice *
-          (
-            1 +
-            (
-              Math.sin(i / 3) * 0.004
-            )
-          )
-        : 0;
-
-    points.push(
-      Number(
-        variation.toFixed(2)
-      )
-    );
-
-  }
-
-
-  const labels =
-    points.map(
-      (_, index) =>
-        `${30 - index}m`
-    );
-
-
-  state.chart =
-    new Chart(
-      canvas.getContext("2d"),
-      {
-
-        type: "line",
-
-        data: {
-
-          labels,
-
-          datasets: [
-
-            {
-
-              data: points,
-
-              borderColor:
-                "#4f7cff",
-
-              backgroundColor:
-                "rgba(37,99,235,0.10)",
-
-              fill: true,
-
-              tension: 0.35,
-
-              pointRadius: 0,
-
-              borderWidth: 2
-
-            }
-
-          ]
-
-        },
-
-        options: {
-
-          responsive: true,
-
-          maintainAspectRatio: false,
-
-          plugins: {
-
-            legend: {
-              display: false
-            }
-
-          },
-
-          scales: {
-
-            x: {
-
-              display: false
-
-            },
-
-            y: {
-
-              grid: {
-                color:
-                  "rgba(145,164,189,0.10)"
-              },
-
-              ticks: {
-
-                color:
-                  "#91a4bd",
-
-                font: {
-                  size: 9
-                }
-
-              }
-
-            }
-
-          }
-
-        }
-
-      }
-    );
+  return rows.map(row => ({
+    time: Number(row[0]),
+    close: Number(row[4])
+  }));
 
 }
 
+function chartIntervalForTimeframe(timeframe) {
+  const intervals = {
+    "1H": "1h",
+    "4H": "4h",
+    "1D": "1d",
+    "1W": "1w"
+  };
 
+  return intervals[timeframe] || "1h";
+}
+
+function createSyntheticChartPoints(currentPrice, count = 30) {
+  const points = [];
+
+  for (let i = 0; i < count; i++) {
+    const variation = currentPrice
+      ? currentPrice * (1 + Math.sin(i / 3) * 0.004)
+      : 0;
+
+    points.push({
+      time: Date.now() - ((count - i) * 3600000),
+      close: Number(variation.toFixed(2))
+    });
+  }
+
+  return points;
+}
+
+async function createChart() {
+
+  const canvas = $("mainChart");
+
+  if (!canvas || typeof Chart === "undefined") {
+    return;
+  }
+
+  if (state.chart) {
+    state.chart.destroy();
+    state.chart = null;
+  }
+
+  const currentPrice = state.markets.BTCUSDT?.price || 0;
+  const interval = chartIntervalForTimeframe(state.currentTimeframe);
+  let candles = [];
+
+  try {
+    candles = await fetchBinanceKlines("BTCUSDT", interval, 60);
+  } catch (error) {
+    console.warn("Live chart unavailable; using temporary fallback:", error);
+    candles = createSyntheticChartPoints(currentPrice);
+  }
+
+  const labels = candles.map(candle =>
+    new Date(candle.time).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    })
+  );
+
+  const points = candles.map(candle => candle.close);
+
+  state.chart = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: points,
+        borderColor: "#4f7cff",
+        backgroundColor: "rgba(37,99,235,0.10)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: "rgba(145,164,189,0.10)" },
+          ticks: { color: "#91a4bd", font: { size: 9 } }
+        }
+      }
+    }
+  });
+}
 /* =========================================================
    SIGNAL ENGINE
    ========================================================= */
@@ -2824,41 +2775,41 @@ async function queueRobotSignal(signal) {
 
 function updatePortfolio() {
 
-  const balance =
-    0;
+  const balance = Number(state.robotStatus.balance) || 0;
+  const equity = Number(state.robotStatus.equity) || 0;
+  const dailyPL = Number(state.robotStatus.dailyPL) || 0;
+  const hasBrokerStatus = Boolean(state.robotStatus.lastHeartbeat);
+
+  const available = hasBrokerStatus ? equity : 0;
+  const invested = hasBrokerStatus
+    ? Math.max(0, balance - equity)
+    : 0;
 
   if ($("balanceValue")) {
-    $("balanceValue").textContent =
-      formatMoney(balance);
+    $("balanceValue").textContent = formatMoney(balance);
   }
 
   if ($("dailyProfitValue")) {
-    $("dailyProfitValue").textContent =
-      formatMoney(0);
+    $("dailyProfitValue").textContent = formatMoney(dailyPL);
   }
 
   if ($("portfolioBalance")) {
-    $("portfolioBalance").textContent =
-      formatMoney(balance);
+    $("portfolioBalance").textContent = formatMoney(balance);
   }
 
   if ($("portfolioAvailable")) {
-    $("portfolioAvailable").textContent =
-      formatMoney(balance);
+    $("portfolioAvailable").textContent = formatMoney(available);
   }
 
   if ($("portfolioInvested")) {
-    $("portfolioInvested").textContent =
-      formatMoney(0);
+    $("portfolioInvested").textContent = formatMoney(invested);
   }
 
   if ($("portfolioProfit")) {
-    $("portfolioProfit").textContent =
-      formatMoney(0);
+    $("portfolioProfit").textContent = formatMoney(dailyPL);
   }
 
 }
-
 
 /* =========================================================
    AFFILIATES
@@ -3482,7 +3433,9 @@ async function refreshApplication() {
 
     await loadLiveMarkets();
 
-    createChart();
+    await createChart();
+
+    updatePortfolio();
 
     updateSignalFromMarket();
 
@@ -3534,7 +3487,9 @@ async function initializeLiveApp() {
 
   await loadLiveMarkets();
 
-  createChart();
+  await createChart();
+
+  updatePortfolio();
 
   updateSignalFromMarket();
 
@@ -3556,12 +3511,14 @@ function startLiveRefresh() {
 
         await loadLiveMarkets();
 
+        updatePortfolio();
+
         if (
           state.currentPage ===
           "dashboard"
         ) {
 
-          createChart();
+          await createChart();
 
         }
 
