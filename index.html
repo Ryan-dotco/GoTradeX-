@@ -1142,16 +1142,27 @@
             <h3>Robot Control</h3>
 
             <p class="muted">
-              The robot requires a supported broker/API connection
-              before it can submit real orders.
+              Exness MT5 automated trading bridge. The robot keeps
+              running through MT5/VPS after GoTradeX is closed.
             </p>
+
+            <div class="field">
+              <label for="mt5AccountId">Exness MT5 Account ID</label>
+              <input
+                id="mt5AccountId"
+                type="number"
+                inputmode="numeric"
+                min="1"
+                placeholder="Enter your MT5 login number"
+              >
+            </div>
 
 
             <div class="risk-options">
 
               <button
                 type="button"
-                class="risk-button"
+                class="risk-button active"
                 data-risk="conservative"
               >
                 Conservative
@@ -1159,7 +1170,7 @@
 
               <button
                 type="button"
-                class="risk-button active"
+                class="risk-button"
                 data-risk="moderate"
               >
                 Moderate
@@ -1223,7 +1234,7 @@
 
               <div>
                 <span>Risk</span>
-                <strong id="robotRiskText">Moderate</strong>
+                <strong id="robotRiskText">Conservative</strong>
               </div>
 
               <div>
@@ -1231,6 +1242,21 @@
                 <strong id="brokerStatus">
                   Not Connected
                 </strong>
+              </div>
+
+              <div>
+                <span>MT5 Account</span>
+                <strong id="robotAccountStatus">Not Set</strong>
+              </div>
+
+              <div>
+                <span>Open Trades</span>
+                <strong id="robotOpenTrades">0</strong>
+              </div>
+
+              <div>
+                <span>Today's P/L</span>
+                <strong id="robotDailyPL">$0.00</strong>
               </div>
 
             </div>
