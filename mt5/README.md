@@ -1,16 +1,16 @@
-# GoTradeX + Exness MT5 AutoBot
+# GoTradeX + AvaTrade MT5 AutoBot
 
 This folder contains the MT5 bridge used by GoTradeX.
 
 ## Architecture
 
-GoTradeX -> AI signal engine -> risk controls -> Supabase command queue -> MT5 Expert Advisor -> Exness MT5
+GoTradeX -> AI signal engine -> risk controls -> Supabase command queue -> MT5 Expert Advisor -> AvaTrade MT5
 
 The browser is only the control panel. MT5/VPS performs the continuous broker-side automation.
 
 ## Current protections
 
-- Broker: Exness MT5
+- Broker: AvaTrade MT5
 - Mode: LIVE control mode
 - Default risk: Conservative
 - Maximum drawdown: 10%
@@ -37,20 +37,20 @@ After setting the secret, put the same value into the EA's BotKey input in MetaT
 
 ## MT5 setup
 
-1. Open Exness MT5 desktop.
-2. Log into the Exness MT5 account.
-3. Open MetaEditor and compile: mt5/GoTradeX_Exness_MT5_Bridge.mq5
+1. Open AvaTrade MT5 desktop.
+2. Log into the AvaTrade MT5 account.
+3. Open MetaEditor and compile: mt5/GoTradeX_AvaTrade_MT5_Bridge.mq5
 4. In MT5, go to Tools -> Options -> Expert Advisors.
 5. Enable automated trading.
 6. Add this URL to Allow WebRequest for listed URL:
    https://glffecggusetzklmyukv.supabase.co
 7. Attach the GoTradeX EA to a chart.
-8. Set MT5AccountID to your Exness MT5 login number and BotKey to the secret created in Supabase.
+8. Set MT5AccountID to your AvaTrade MT5 login number and BotKey to the secret created in Supabase.
 9. Confirm the EA shows a running/connected status in its Experts log.
 
 ## VPS
 
-For continuous operation, move the MT5 terminal + EA to a VPS. Exness provides a VPS service for eligible clients and states that an EA can continue operating while the trader's own computer is off.
+For continuous operation, move the MT5 terminal + EA to a VPS. AvaTrade provides a VPS service for eligible clients and states that an EA can continue operating while the trader's own computer is off.
 
 ## Important
 
