@@ -2578,14 +2578,41 @@ async function refreshRobotStatus() {
   }
 
   try {
-    const { data: status, error } =
-      await state.supabase
+
+    const [
+      { data: control, error: controlError },
+      { data: status, error: statusError }
+    ] = await Promise.all([
+      state.supabase
+        .from("gotradex_bot_control")
+        .select("running,risk,max_drawdown,mt5_account_id")
+        .eq("user_id", state.user.id)
+        .maybeSingle(),
+
+      state.supabase
         .from("gotradex_bot_status")
         .select("*")
         .eq("user_id", state.user.id)
-        .maybeSingle();
+        .maybeSingle()
+    ]);
 
-    if (error) throw error;
+    if (controlError) throw controlError;
+    if (statusError) throw statusError;
+
+    if (control) {
+      state.robotRunning = Boolean(control.running);
+      state.robotRisk = control.risk || state.robotRisk;
+      state.maxDrawdown =
+        Number(control.max_drawdown) || state.maxDrawdown;
+      state.mt5AccountId =
+        control.mt5_account_id
+          ? String(control.mt5_account_id)
+          : state.mt5AccountId;
+
+      if ($("mt5AccountId")) {
+        $("mt5AccountId").value = state.mt5AccountId;
+      }
+    }
 
     if (status) {
       state.robotStatus = {
