@@ -1,83 +1,1636 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#08111f">
-<title>GoTradeX — Live Markets & AutoBot</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-window.GOTRADEX_CONFIG={
-  SUPABASE_URL:"https://glffecggusetzklmyukv.supabase.co",
-  SUPABASE_KEY:"sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5"
-};
-</script>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+
+  <title>GoTradeX | Live Trading Dashboard</title>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- GoTradeX configuration -->
+  <script>
+    window.GOTRADEX_CONFIG = {
+      SUPABASE_URL: "https://glffecggusetzklmyukv.supabase.co",
+      SUPABASE_KEY: "sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5"
+    };
+  </script>
+
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-<div id="loader" class="loader"><div><div class="brand-mark">GX</div><h2>GoTradeX</h2><p>Connecting securely…</p></div></div>
 
-<section id="auth" class="auth">
-  <div class="auth-card">
-    <div class="brand"><div class="brand-mark">GX</div><div><b>GoTradeX</b><span>Live Trading Dashboard</span></div></div>
-    <h1 id="auth-title">Welcome back</h1>
-    <p id="auth-subtitle">Sign in to your trading dashboard.</p>
-    <form id="auth-form">
-      <div id="signup-extra" class="hidden">
-        <label>Full name<input id="signup-name" type="text" autocomplete="name"></label>
+  <!-- =====================================================
+       TOAST
+       ===================================================== -->
+
+  <div id="toast" class="toast"></div>
+
+
+  <!-- =====================================================
+       AUTH SCREEN
+       ===================================================== -->
+
+  <section id="authScreen" class="auth-screen">
+
+    <div class="auth-card">
+
+      <div class="auth-brand">
+        <div class="brand-mark">GTX</div>
+
+        <div>
+          <h1>GoTradeX</h1>
+          <p>Live Trading Dashboard</p>
+        </div>
       </div>
-      <label>Email<input id="auth-email" type="email" autocomplete="email" required></label>
-      <label>Password<div class="password"><input id="auth-password" type="password" minlength="6" autocomplete="current-password" required><button id="password-toggle" type="button">Show</button></div></label>
-      <div id="terms-row" class="hidden check"><label><input id="signup-terms" type="checkbox"> I agree to the GoTradeX terms.</label></div>
-      <button id="auth-submit" class="btn primary" type="submit">Log in</button>
-      <div id="auth-message" class="message"></div>
-    </form>
-    <div class="auth-bottom"><button id="forgot-btn" class="link" type="button">Forgot password?</button><button id="switch-auth" class="link" type="button">Create account</button></div>
-  </div>
-</section>
 
-<div id="app" class="app hidden">
-  <aside class="sidebar">
-    <div class="brand side-brand"><div class="brand-mark">GX</div><div><b>GoTradeX</b><span>Live Markets</span></div></div>
-    <nav>
-      <button class="nav active" data-page="dashboard"><i class="fa-solid fa-chart-line"></i>Dashboard</button>
-      <button class="nav" data-page="markets"><i class="fa-solid fa-globe"></i>Markets</button>
-      <button class="nav" data-page="signals"><i class="fa-solid fa-bolt"></i>AI Signals</button>
-      <button class="nav" data-page="portfolio"><i class="fa-solid fa-wallet"></i>Portfolio</button>
-      <button class="nav" data-page="bot"><i class="fa-solid fa-robot"></i>AutoBot</button>
-      <button class="nav" data-page="settings"><i class="fa-solid fa-gear"></i>Settings</button>
-    </nav>
-    <button id="logout" class="logout"><i class="fa-solid fa-right-from-bracket"></i>Log out</button>
-  </aside>
-  <main>
-    <header><div><h1 id="page-title">Dashboard</h1><p id="page-subtitle">Live market data, signals and automated paper execution.</p></div><div class="header-actions"><span id="connection" class="status">Connecting</span><span id="user-name">Trader</span></div></header>
 
-    <section id="page-dashboard" class="page active">
-      <div class="grid stats">
-        <div class="card stat"><span>Paper Balance</span><strong id="balance">$10,000.00</strong></div>
-        <div class="card stat"><span>Equity</span><strong id="equity">$10,000.00</strong></div>
-        <div class="card stat"><span>Open Positions</span><strong id="positions">0</strong></div>
-        <div class="card stat"><span>Bot</span><strong id="bot-status">OFF</strong></div>
+      <div class="auth-tabs">
+
+        <button
+          id="loginTab"
+          type="button"
+          class="auth-tab active"
+        >
+          Login
+        </button>
+
+        <button
+          id="registerTab"
+          type="button"
+          class="auth-tab"
+        >
+          Register
+        </button>
+
       </div>
-      <div class="grid two">
-        <div class="card chart-card"><div class="card-head"><div><h2 id="chart-symbol">BTCUSDT</h2><span id="chart-price">—</span></div><div id="timeframes" class="chips"><button data-tf="1m">1m</button><button data-tf="5m">5m</button><button data-tf="15m">15m</button><button data-tf="1h" class="selected">1h</button></div></div><canvas id="chart"></canvas></div>
-        <div class="card"><div class="card-head"><h2>Live Markets</h2><button id="refresh" class="btn small">Refresh</button></div><div id="market-list"></div></div>
+
+
+      <!-- LOGIN -->
+
+      <form id="loginForm" class="auth-form">
+
+        <div class="field">
+
+          <label for="loginEmail">Email</label>
+
+          <input
+            id="loginEmail"
+            type="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+            required
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="loginPassword">Password</label>
+
+          <div class="password-field">
+
+            <input
+              id="loginPassword"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Your password"
+              required
+            >
+
+            <button
+              id="toggleLoginPassword"
+              type="button"
+              class="password-toggle"
+            >
+              Show
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <button
+          type="submit"
+          class="primary-button full-button"
+        >
+          Login
+        </button>
+
+
+        <button
+          id="forgotPasswordButton"
+          type="button"
+          class="text-button"
+        >
+          Forgot password?
+        </button>
+
+      </form>
+
+
+      <!-- REGISTER -->
+
+      <form
+        id="registerForm"
+        class="auth-form hidden"
+      >
+
+        <div class="field">
+
+          <label for="registerName">Full name</label>
+
+          <input
+            id="registerName"
+            type="text"
+            autocomplete="name"
+            placeholder="Your name"
+            required
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="registerEmail">Email</label>
+
+          <input
+            id="registerEmail"
+            type="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+            required
+          >
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="registerPassword">Password</label>
+
+          <div class="password-field">
+
+            <input
+              id="registerPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Minimum 6 characters"
+              minlength="6"
+              required
+            >
+
+            <button
+              id="toggleRegisterPassword"
+              type="button"
+              class="password-toggle"
+            >
+              Show
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="registerReferral">
+            Referral code
+            <span class="optional">Optional</span>
+          </label>
+
+          <input
+            id="registerReferral"
+            type="text"
+            placeholder="Referral code"
+          >
+
+        </div>
+
+
+        <label class="checkbox-row">
+
+          <input
+            id="registerTerms"
+            type="checkbox"
+            required
+          >
+
+          <span>
+            I agree to the GoTradeX terms and conditions.
+          </span>
+
+        </label>
+
+
+        <button
+          type="submit"
+          class="primary-button full-button"
+        >
+          Create Account
+        </button>
+
+      </form>
+
+
+      <!-- PASSWORD RESET -->
+
+      <form
+        id="resetForm"
+        class="auth-form hidden"
+      >
+
+        <div class="auth-heading">
+
+          <h2>Reset Password</h2>
+
+          <p>
+            Enter your email and we will send you a password reset link.
+          </p>
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="resetEmail">Email</label>
+
+          <input
+            id="resetEmail"
+            type="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+            required
+          >
+
+        </div>
+
+
+        <button
+          type="submit"
+          class="primary-button full-button"
+        >
+          Send Reset Link
+        </button>
+
+
+        <button
+          id="backToLoginButton"
+          type="button"
+          class="text-button"
+        >
+          Back to login
+        </button>
+
+      </form>
+
+
+      <div
+        id="authMessage"
+        class="auth-message"
+      ></div>
+
+
+      <div class="auth-footer">
+        GoTradeX © 2026
       </div>
-    </section>
 
-    <section id="page-markets" class="page"><div class="card"><div class="card-head"><h2>Markets</h2><input id="search" class="search" placeholder="Search symbol"></div><div id="markets-full" class="market-grid"></div></div></section>
+    </div>
 
-    <section id="page-signals" class="page"><div class="grid two"><div class="card"><h2>Signal Engine</h2><p>Uses live candles with EMA, RSI and momentum. Signals are informational and do not guarantee results.</p><button id="analyze" class="btn primary">Analyze selected market</button><div id="signal-box" class="signal-box"><span>WAITING</span><b>Run analysis</b></div></div><div class="card"><h2>Signal History</h2><div id="signals"></div></div></div></section>
+  </section>
 
-    <section id="page-portfolio" class="page"><div class="card"><div class="card-head"><h2>Paper Portfolio</h2><button id="reset-paper" class="btn small">Reset</button></div><div id="trades"></div></div></section>
 
-    <section id="page-bot" class="page"><div class="grid two"><div class="card"><h2>AutoBot</h2><p class="warning">This browser bot is paper-trading only. It never sends orders to a broker.</p><label>Symbol<select id="bot-symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>BNBUSDT</option><option>SOLUSDT</option><option>XRPUSDT</option></select></label><label>Timeframe<select id="bot-timeframe"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m">15 minutes</option><option value="1h">1 hour</option></select></label><label>Minimum confidence<input id="bot-confidence" type="number" min="50" max="99" value="70"></label><button id="bot-toggle" class="btn primary">Start AutoBot</button><div id="bot-log" class="log"></div></div><div class="card"><h2>Automation</h2><p>For Telegram notifications, use the Latenode webhook below. Bot tokens stay server-side in your automation platform rather than inside this public website.</p><label>Latenode webhook<input id="webhook" placeholder="https://..."></label><button id="save-settings" class="btn small">Save settings</button><button id="test-webhook" class="btn small">Send test</button></div></div></section>
+  <!-- =====================================================
+       MAIN APP
+       ===================================================== -->
 
-    <section id="page-settings" class="page"><div class="grid two"><div class="card"><h2>Account</h2><label>Name<input id="profile-name"></label><label>Email<input id="profile-email" disabled></label><button id="save-profile" class="btn primary">Save profile</button></div><div class="card"><h2>Security</h2><button id="change-password" class="btn small">Change password</button><button id="forgot-settings" class="btn small">Email password reset</button><h2>Connection</h2><p id="supabase-status">Supabase: checking…</p><p>GitHub Pages: deployment is handled from the repository workflow.</p></div></div></section>
-  </main>
-</div>
-<script src="script.js"></script>
+  <section
+    id="appScreen"
+    class="app-screen hidden"
+  >
+
+
+    <!-- ===================================================
+         SIDEBAR
+         =================================================== -->
+
+    <aside id="sidebar" class="sidebar">
+
+      <div class="sidebar-brand">
+
+        <div class="brand-mark small">GTX</div>
+
+        <div>
+          <strong>GoTradeX</strong>
+          <span>Live Trading</span>
+        </div>
+
+      </div>
+
+
+      <!-- PROFILE -->
+
+      <div class="sidebar-profile">
+
+        <div
+          id="sidebarAvatar"
+          class="profile-avatar"
+        >
+          T
+        </div>
+
+        <div class="profile-info">
+
+          <strong id="sidebarName">
+            Trader
+          </strong>
+
+          <span id="sidebarEmail">
+            —
+          </span>
+
+        </div>
+
+        <button
+          id="profileSettingsButton"
+          type="button"
+          class="icon-button"
+          title="Profile settings"
+        >
+          ⚙
+        </button>
+
+      </div>
+
+
+      <!-- LIVE STATUS -->
+
+      <div class="live-status">
+
+        <span class="status-dot"></span>
+
+        <div>
+          <strong>LIVE</strong>
+          <small>Connection active</small>
+        </div>
+
+      </div>
+
+
+      <!-- NAVIGATION -->
+
+      <nav class="sidebar-nav">
+
+        <button
+          type="button"
+          class="nav-item active"
+          data-page="dashboard"
+        >
+          <span>⌂</span>
+          <span>Dashboard</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="nav-item"
+          data-page="markets"
+        >
+          <span>◈</span>
+          <span>Markets</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="nav-item"
+          data-page="signals"
+        >
+          <span>⌁</span>
+          <span>Signal Analyzer</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="nav-item"
+          data-page="portfolio"
+        >
+          <span>▣</span>
+          <span>Portfolio</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="nav-item"
+          data-page="robot"
+        >
+          <span>⚡</span>
+          <span>Trading Robot</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="nav-item"
+          data-page="affiliates"
+        >
+          <span>♧</span>
+          <span>My Team</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="nav-item"
+          data-page="support"
+        >
+          <span>◉</span>
+          <span>Live Chat</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="nav-item"
+          data-page="settings"
+        >
+          <span>⚙</span>
+          <span>Settings</span>
+        </button>
+
+      </nav>
+
+
+      <div class="sidebar-bottom">
+
+        <div class="connection-box">
+
+          <span class="status-dot"></span>
+
+          <div>
+            <strong>System Online</strong>
+            <small>Supabase connected</small>
+          </div>
+
+        </div>
+
+
+        <button
+          id="logoutButton"
+          type="button"
+          class="logout-button"
+        >
+          ⇥ Logout
+        </button>
+
+      </div>
+
+    </aside>
+
+
+    <!-- ===================================================
+         MAIN AREA
+         =================================================== -->
+
+    <main class="main-area">
+
+
+      <!-- TOP BAR -->
+
+      <header class="topbar">
+
+        <button
+          id="mobileMenuButton"
+          type="button"
+          class="mobile-menu-button"
+        >
+          ☰
+        </button>
+
+
+        <div class="page-heading">
+
+          <h1 id="pageTitle">
+            Dashboard
+          </h1>
+
+          <p id="pageSubtitle">
+            Live market information and account overview.
+          </p>
+
+        </div>
+
+
+        <div class="topbar-actions">
+
+          <div class="live-pill">
+
+            <span class="status-dot"></span>
+
+            LIVE
+
+          </div>
+
+
+          <button
+            id="refreshButton"
+            type="button"
+            class="topbar-button"
+          >
+            ↻
+            <span>Refresh</span>
+          </button>
+
+
+          <button
+            id="topProfileButton"
+            type="button"
+            class="top-avatar"
+          >
+            T
+          </button>
+
+        </div>
+
+      </header>
+
+
+      <!-- =================================================
+           DASHBOARD
+           ================================================= -->
+
+      <section
+        id="page-dashboard"
+        class="app-page active-page"
+      >
+
+        <div class="welcome-row">
+
+          <div>
+
+            <h2>
+              Welcome back,
+              <span id="welcomeName">Trader</span>
+            </h2>
+
+            <p>
+              Your live trading command centre.
+            </p>
+
+          </div>
+
+          <div class="live-market-label">
+            ● LIVE DATA
+          </div>
+
+        </div>
+
+
+        <div class="stat-grid">
+
+          <div class="stat-card">
+
+            <div class="stat-icon">💰</div>
+
+            <div>
+              <span>Account Balance</span>
+              <strong id="balanceValue">$0.00</strong>
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-icon">↗</div>
+
+            <div>
+              <span>Daily P/L</span>
+              <strong id="dailyProfitValue">$0.00</strong>
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-icon">⚡</div>
+
+            <div>
+              <span>Robot Status</span>
+              <strong id="robotStatusValue">Stopped</strong>
+            </div>
+
+          </div>
+
+
+          <div class="stat-card">
+
+            <div class="stat-icon">⌁</div>
+
+            <div>
+              <span>Active Signals</span>
+              <strong id="activeSignalsValue">0</strong>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="dashboard-grid">
+
+
+          <div class="panel chart-panel">
+
+            <div class="panel-header">
+
+              <div>
+
+                <h3>BTC / USD</h3>
+
+                <span id="btcPrice">
+                  Loading live price...
+                </span>
+
+              </div>
+
+
+              <div class="timeframes">
+
+                <button
+                  type="button"
+                  class="timeframe active"
+                  data-timeframe="1H"
+                >
+                  1H
+                </button>
+
+                <button
+                  type="button"
+                  class="timeframe"
+                  data-timeframe="4H"
+                >
+                  4H
+                </button>
+
+                <button
+                  type="button"
+                  class="timeframe"
+                  data-timeframe="1D"
+                >
+                  1D
+                </button>
+
+                <button
+                  type="button"
+                  class="timeframe"
+                  data-timeframe="1W"
+                >
+                  1W
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <div class="chart-wrapper">
+
+              <canvas id="mainChart"></canvas>
+
+            </div>
+
+          </div>
+
+
+          <div class="panel signal-panel">
+
+            <div class="panel-header">
+
+              <div>
+
+                <h3>AI Signal</h3>
+
+                <span>
+                  Technical market analysis
+                </span>
+
+              </div>
+
+              <span class="signal-live">
+                LIVE
+              </span>
+
+            </div>
+
+
+            <div class="signal-main">
+
+              <div
+                id="signalDirection"
+                class="signal-direction hold"
+              >
+                HOLD
+              </div>
+
+              <div
+                id="signalConfidence"
+                class="signal-confidence"
+              >
+                0%
+              </div>
+
+            </div>
+
+
+            <div class="signal-levels">
+
+              <div>
+                <span>Entry</span>
+                <strong id="signalEntry">—</strong>
+              </div>
+
+              <div>
+                <span>Target</span>
+                <strong id="signalTarget">—</strong>
+              </div>
+
+              <div>
+                <span>Stop</span>
+                <strong id="signalStop">—</strong>
+              </div>
+
+            </div>
+
+
+            <div class="indicator-list">
+
+              <div>
+                <span>EMA 9 / 21</span>
+                <strong id="emaSignal">Waiting</strong>
+              </div>
+
+              <div>
+                <span>RSI</span>
+                <strong id="rsiSignal">Waiting</strong>
+              </div>
+
+              <div>
+                <span>Momentum</span>
+                <strong id="momentumSignal">Waiting</strong>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="panel">
+
+          <div class="panel-header">
+
+            <div>
+              <h3>Live Market Overview</h3>
+              <span>Connected market feeds</span>
+            </div>
+
+            <button
+              type="button"
+              class="small-button"
+              data-page-link="markets"
+            >
+              View All
+            </button>
+
+          </div>
+
+
+          <div
+            id="dashboardMarkets"
+            class="market-grid"
+          ></div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           MARKETS
+           ================================================= -->
+
+      <section
+        id="page-markets"
+        class="app-page"
+      >
+
+        <div class="section-header">
+
+          <div>
+            <h2>Markets</h2>
+            <p>Live market information.</p>
+          </div>
+
+          <div class="market-search">
+
+            <input
+              id="marketSearch"
+              type="search"
+              placeholder="Search BTCUSDT, EURUSD..."
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="category-tabs">
+
+          <button
+            class="category-tab active"
+            data-category="crypto"
+            type="button"
+          >
+            Crypto
+          </button>
+
+          <button
+            class="category-tab"
+            data-category="forex"
+            type="button"
+          >
+            Forex
+          </button>
+
+          <button
+            class="category-tab"
+            data-category="commodities"
+            type="button"
+          >
+            Commodities
+          </button>
+
+          <button
+            class="category-tab"
+            data-category="indices"
+            type="button"
+          >
+            Indices
+          </button>
+
+          <button
+            class="category-tab"
+            data-category="metals"
+            type="button"
+          >
+            Metals
+          </button>
+
+        </div>
+
+
+        <div
+          id="marketsList"
+          class="markets-list"
+        ></div>
+
+      </section>
+
+
+      <!-- =================================================
+           SIGNALS
+           ================================================= -->
+
+      <section
+        id="page-signals"
+        class="app-page"
+      >
+
+        <div class="section-header">
+
+          <div>
+            <h2>Signal Analyzer</h2>
+            <p>Live technical analysis.</p>
+          </div>
+
+        </div>
+
+
+        <div class="analyzer-grid">
+
+          <div class="panel analyzer-control">
+
+            <h3>Analyze Asset</h3>
+
+            <div class="field">
+
+              <label for="signalAsset">
+                Asset
+              </label>
+
+              <select id="signalAsset">
+
+                <option value="BTCUSDT">BTCUSDT</option>
+                <option value="ETHUSDT">ETHUSDT</option>
+                <option value="EURUSD">EURUSD</option>
+                <option value="GBPUSD">GBPUSD</option>
+
+              </select>
+
+            </div>
+
+
+            <button
+              id="analyzeButton"
+              type="button"
+              class="primary-button full-button"
+            >
+              Analyze Live Market
+            </button>
+
+          </div>
+
+
+          <div class="panel analyzer-result">
+
+            <div class="analysis-badge">
+              LIVE ANALYSIS
+            </div>
+
+            <h2 id="analysisDirection">
+              HOLD
+            </h2>
+
+            <div
+              id="analysisConfidence"
+              class="big-confidence"
+            >
+              0%
+            </div>
+
+            <div class="analysis-grid">
+
+              <div>
+                <span>EMA</span>
+                <strong id="analysisEMA">—</strong>
+              </div>
+
+              <div>
+                <span>RSI</span>
+                <strong id="analysisRSI">—</strong>
+              </div>
+
+              <div>
+                <span>Momentum</span>
+                <strong id="analysisMomentum">—</strong>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="panel">
+
+          <div class="panel-header">
+
+            <div>
+              <h3>Recent Signals</h3>
+              <span>Latest analysis generated by GoTradeX.</span>
+            </div>
+
+          </div>
+
+          <div id="signalsList"></div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           PORTFOLIO
+           ================================================= -->
+
+      <section
+        id="page-portfolio"
+        class="app-page"
+      >
+
+        <div class="section-header">
+
+          <div>
+            <h2>Portfolio</h2>
+            <p>Your connected trading account overview.</p>
+          </div>
+
+        </div>
+
+
+        <div class="portfolio-grid">
+
+          <div class="portfolio-card">
+
+            <span>Total Balance</span>
+            <strong id="portfolioBalance">$0.00</strong>
+
+          </div>
+
+          <div class="portfolio-card">
+
+            <span>Available</span>
+            <strong id="portfolioAvailable">$0.00</strong>
+
+          </div>
+
+          <div class="portfolio-card">
+
+            <span>Invested</span>
+            <strong id="portfolioInvested">$0.00</strong>
+
+          </div>
+
+          <div class="portfolio-card">
+
+            <span>Profit / Loss</span>
+            <strong id="portfolioProfit">$0.00</strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="panel">
+
+          <div class="panel-header">
+
+            <div>
+              <h3>Positions</h3>
+              <span>Live broker positions appear here when connected.</span>
+            </div>
+
+          </div>
+
+          <div
+            id="positionsEmpty"
+            class="empty-state"
+          >
+            No broker positions connected.
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           ROBOT
+           ================================================= -->
+
+      <section
+        id="page-robot"
+        class="app-page"
+      >
+
+        <div class="section-header">
+
+          <div>
+            <h2>Trading Robot</h2>
+            <p>Automated trading control centre.</p>
+          </div>
+
+          <div class="robot-status">
+
+            <span
+              id="robotIndicator"
+              class="status-dot"
+            ></span>
+
+            <span id="robotLabel">
+              STOPPED
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <div class="robot-grid">
+
+          <div class="panel">
+
+            <h3>Robot Control</h3>
+
+            <p class="muted">
+              The robot requires a supported broker/API connection
+              before it can submit real orders.
+            </p>
+
+
+            <div class="risk-options">
+
+              <button
+                type="button"
+                class="risk-button"
+                data-risk="conservative"
+              >
+                Conservative
+              </button>
+
+              <button
+                type="button"
+                class="risk-button active"
+                data-risk="moderate"
+              >
+                Moderate
+              </button>
+
+              <button
+                type="button"
+                class="risk-button"
+                data-risk="aggressive"
+              >
+                Aggressive
+              </button>
+
+            </div>
+
+
+            <div class="robot-limit">
+
+              <span>Maximum drawdown</span>
+
+              <strong>10%</strong>
+
+            </div>
+
+
+            <button
+              id="startRobotButton"
+              type="button"
+              class="primary-button full-button"
+            >
+              Start Robot
+            </button>
+
+
+            <button
+              id="stopRobotButton"
+              type="button"
+              class="danger-button full-button hidden"
+            >
+              Stop Robot
+            </button>
+
+          </div>
+
+
+          <div class="panel">
+
+            <h3>Robot Information</h3>
+
+            <div class="info-list">
+
+              <div>
+                <span>Mode</span>
+                <strong>LIVE</strong>
+              </div>
+
+              <div>
+                <span>Strategy</span>
+                <strong>AI Technical</strong>
+              </div>
+
+              <div>
+                <span>Risk</span>
+                <strong id="robotRiskText">Moderate</strong>
+              </div>
+
+              <div>
+                <span>Broker</span>
+                <strong id="brokerStatus">
+                  Not Connected
+                </strong>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           AFFILIATES
+           ================================================= -->
+
+      <section
+        id="page-affiliates"
+        class="app-page"
+      >
+
+        <div class="section-header">
+
+          <div>
+            <h2>My Team</h2>
+            <p>Referral and affiliate centre.</p>
+          </div>
+
+        </div>
+
+
+        <div class="affiliate-grid">
+
+          <div class="affiliate-card">
+
+            <span>Your Referral Code</span>
+
+            <strong id="referralCode">
+              —
+            </strong>
+
+            <button
+              id="copyReferralButton"
+              type="button"
+              class="small-button"
+            >
+              Copy
+            </button>
+
+          </div>
+
+
+          <div class="affiliate-card">
+
+            <span>Level 1</span>
+            <strong id="level1Count">0</strong>
+
+          </div>
+
+
+          <div class="affiliate-card">
+
+            <span>Level 2</span>
+            <strong id="level2Count">0</strong>
+
+          </div>
+
+
+          <div class="affiliate-card">
+
+            <span>Referral Earnings</span>
+            <strong id="affiliateEarnings">$0.00</strong>
+
+          </div>
+
+        </div>
+
+
+        <div class="panel">
+
+          <h3>Your Referral Link</h3>
+
+          <div class="referral-box">
+
+            <input
+              id="referralLink"
+              type="text"
+              readonly
+            >
+
+            <button
+              id="copyReferralLinkButton"
+              type="button"
+              class="primary-button"
+            >
+              Copy Link
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           SUPPORT / LIVE CHAT
+           ================================================= -->
+
+      <section
+        id="page-support"
+        class="app-page"
+      >
+
+        <div class="section-header">
+
+          <div>
+            <h2>Live Chat</h2>
+            <p>Contact GoTradeX support.</p>
+          </div>
+
+          <div class="live-pill">
+            <span class="status-dot"></span>
+            LIVE
+          </div>
+
+        </div>
+
+
+        <div class="chat-panel">
+
+          <div class="chat-header">
+
+            <div class="support-avatar">
+              GTX
+            </div>
+
+            <div>
+
+              <strong>GoTradeX Support</strong>
+
+              <span>
+                Online support channel
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="chatMessages"
+            class="chat-messages"
+          ></div>
+
+
+          <form
+            id="chatForm"
+            class="chat-input-area"
+          >
+
+            <input
+              id="chatInput"
+              type="text"
+              maxlength="4000"
+              placeholder="Type your message..."
+              autocomplete="off"
+              required
+            >
+
+            <button
+              type="submit"
+              class="primary-button"
+            >
+              Send
+            </button>
+
+          </form>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           SETTINGS
+           ================================================= -->
+
+      <section
+        id="page-settings"
+        class="app-page"
+      >
+
+        <div class="section-header">
+
+          <div>
+            <h2>Settings</h2>
+            <p>Manage your GoTradeX account.</p>
+          </div>
+
+        </div>
+
+
+        <div class="settings-grid">
+
+
+          <div class="panel">
+
+            <h3>Profile</h3>
+
+            <form id="profileForm">
+
+              <div class="field">
+
+                <label for="settingsName">
+                  Full name
+                </label>
+
+                <input
+                  id="settingsName"
+                  type="text"
+                >
+
+              </div>
+
+
+              <div class="field">
+
+                <label for="settingsEmail">
+                  Email
+                </label>
+
+                <input
+                  id="settingsEmail"
+                  type="email"
+                  readonly
+                >
+
+              </div>
+
+
+              <button
+                type="submit"
+                class="primary-button"
+              >
+                Save Profile
+              </button>
+
+            </form>
+
+          </div>
+
+
+          <div class="panel">
+
+            <h3>Change Password</h3>
+
+            <form id="passwordForm">
+
+              <div class="field">
+
+                <label for="newPassword">
+                  New password
+                </label>
+
+                <input
+                  id="newPassword"
+                  type="password"
+                  minlength="6"
+                  required
+                >
+
+              </div>
+
+
+              <div class="field">
+
+                <label for="confirmPassword">
+                  Confirm password
+                </label>
+
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  minlength="6"
+                  required
+                >
+
+              </div>
+
+
+              <button
+                type="submit"
+                class="primary-button"
+              >
+                Change Password
+              </button>
+
+            </form>
+
+          </div>
+
+
+          <div class="panel">
+
+            <h3>Signal Connections</h3>
+
+            <p class="muted">
+              Connect your server-side webhook when the automation
+              backend is ready.
+            </p>
+
+
+            <div class="field">
+
+              <label for="telegramWebhook">
+                Telegram Webhook URL
+              </label>
+
+              <input
+                id="telegramWebhook"
+                type="url"
+                placeholder="https://..."
+              >
+
+            </div>
+
+
+            <div class="field">
+
+              <label for="whatsappWebhook">
+                WhatsApp Webhook URL
+              </label>
+
+              <input
+                id="whatsappWebhook"
+                type="url"
+                placeholder="https://..."
+              >
+
+            </div>
+
+
+            <button
+              id="saveConnectionsButton"
+              type="button"
+              class="primary-button"
+            >
+              Save Connections
+            </button>
+
+          </div>
+
+
+          <div class="panel">
+
+            <h3>Account</h3>
+
+            <div class="account-status">
+
+              <span>Authentication</span>
+
+              <strong class="success-text">
+                Connected
+              </strong>
+
+            </div>
+
+
+            <div class="account-status">
+
+              <span>Supabase</span>
+
+              <strong class="success-text">
+                Connected
+              </strong>
+
+            </div>
+
+
+            <button
+              id="settingsLogoutButton"
+              type="button"
+              class="danger-button"
+            >
+              Logout
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+  </section>
+
+
+  <!-- JavaScript MUST load last -->
+  <script src="script.js"></script>
+
 </body>
 </html>
