@@ -1979,6 +1979,54 @@ function renderRobotStatus() {
       formatMoney(state.robotStatus.dailyPL || 0);
   }
 
+  const heartbeatTime =
+    state.robotStatus.lastHeartbeat
+      ? new Date(state.robotStatus.lastHeartbeat)
+      : null;
+
+  const heartbeatAge =
+    heartbeatTime && !Number.isNaN(heartbeatTime.getTime())
+      ? Date.now() - heartbeatTime.getTime()
+      : Infinity;
+
+  const fresh =
+    connected &&
+    heartbeatAge <= 30000;
+
+  if ($("robotConnectionHealth")) {
+    $("robotConnectionHealth").textContent =
+      fresh
+        ? "Ready"
+        : connected
+          ? "Stale"
+          : "Waiting";
+    $("robotConnectionHealth").className =
+      fresh
+        ? "robot-health-good"
+        : connected
+          ? "robot-health-warn"
+          : "robot-health-bad";
+  }
+
+  if ($("robotHeartbeat")) {
+    $("robotHeartbeat").textContent =
+      heartbeatTime && !Number.isNaN(heartbeatTime.getTime())
+        ? heartbeatTime.toLocaleTimeString()
+        : "No heartbeat";
+  }
+
+  if ($("robotErrorMessage")) {
+    $("robotErrorMessage").textContent =
+      state.robotStatus.lastError ||
+      (
+        fresh
+          ? "MT5/VPS bridge is connected and reporting normally."
+          : connected
+            ? "MT5/VPS is connected, but the heartbeat is stale."
+            : "Waiting for MT5/VPS connection."
+      );
+  }
+
   if ($("startRobotButton")) {
     $("startRobotButton").classList.toggle("hidden", running);
   }
