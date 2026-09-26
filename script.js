@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.8";
+const APP_VERSION = "3.0.9";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -4743,6 +4743,33 @@ function bindEvents() {
       "input",
       () => renderAdminTradePreview()
     );
+
+  document
+    .querySelectorAll("[data-admin-section-target]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.getAttribute("data-admin-section-target");
+        if (!target) return;
+
+        document
+          .querySelectorAll("[data-admin-section-target]")
+          .forEach((item) => item.classList.remove("active"));
+
+        document
+          .querySelectorAll("[data-admin-section]")
+          .forEach((section) => {
+            section.classList.toggle(
+              "active",
+              section.getAttribute("data-admin-section") === target
+            );
+          });
+
+        button.classList.add("active");
+
+        const adminPage = document.getElementById("page-admin");
+        adminPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
 
   $("requestWithdrawalButton")
     ?.addEventListener(
