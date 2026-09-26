@@ -4184,6 +4184,15 @@ async function renderAdminTradePreview(wallets = null, total = null) {
   `;
 }
 
+async function placeAdminTrade(direction) {
+  if (!["buy", "sell"].includes(direction)) return;
+
+  const directionSelect = $("adminTradeDirection");
+  if (directionSelect) directionSelect.value = direction;
+
+  await startAdminPaperTrade();
+}
+
 async function startAdminPaperTrade() {
   if (!state.isAdmin || !state.supabase) {
     adminTradeMessage("Admin access is required.", "error");
@@ -4890,6 +4899,18 @@ function bindEvents() {
     ?.addEventListener(
       "click",
       startAdminPaperTrade
+    );
+
+  $("adminBuyTradeButton")
+    ?.addEventListener(
+      "click",
+      () => placeAdminTrade("buy")
+    );
+
+  $("adminSellTradeButton")
+    ?.addEventListener(
+      "click",
+      () => placeAdminTrade("sell")
     );
 
   $("adminCloseTradeButton")
