@@ -1089,6 +1089,10 @@ async function loadAdminAccess() {
       );
     }
 
+    if (state.isAdmin) {
+      await loadAdminFinanceSettings();
+    }
+
     if ($("adminAccessStatus")) {
       $("adminAccessStatus").textContent =
         state.isAdmin
@@ -3298,6 +3302,161 @@ function startLiveRefresh() {
 
 
 /* =========================================================
+   ADMIN FINANCE
+   ========================================================= */
+
+async function loadAdminFinanceSettings() {
+
+  if (
+    !state.isAdmin ||
+    !state.supabase
+  ) {
+    return;
+  }
+
+  try {
+
+    const { data, error } =
+      await state.supabase
+        .from("gotradex_platform_finance")
+        .select("*")
+        .eq("id", true)
+        .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return;
+    }
+
+    const allocation =
+      Number(data.trade_allocation_amount) || 0;
+
+    const input =
+      $("adminTradeAllocation");
+
+    if (input) {
+      input.value =
+        allocation.toFixed(2);
+    }
+
+    if ($("adminTradeAllocationStatus")) {
+      $("adminTradeAllocationStatus").textContent =
+        formatMoney(allocation);
+    }
+
+    if ($("adminTotalFunded")) {
+      $("adminTotalFunded").textContent =
+        formatMoney(0);
+    }
+
+    if ($("adminAllocatedCapital")) {
+      $("adminAllocatedCapital").textContent =
+        formatMoney(0);
+    }
+
+    if ($("adminAvailableCapital")) {
+      $("adminAvailableCapital").textContent =
+        formatMoney(0);
+    }
+
+  } catch (error) {
+
+    console.warn(
+      "Admin finance settings load failed:",
+      error
+    );
+
+    showToast(
+      "Finance settings could not be loaded.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function saveAdminFinanceSettings() {
+
+  if (
+    !state.isAdmin ||
+    !state.supabase
+  ) {
+    showToast(
+      "Admin access is required.",
+      "error"
+    );
+    return;
+  }
+
+  const input =
+    $("adminTradeAllocation");
+
+  const allocation =
+    Number(input?.value);
+
+  if (
+    !Number.isFinite(allocation) ||
+    allocation < 0
+  ) {
+    showToast(
+      "Enter a valid trading allocation.",
+      "error"
+    );
+    return;
+  }
+
+  try {
+
+    const { error } =
+      await state.supabase
+        .from("gotradex_platform_finance")
+        .update({
+          trade_allocation_amount:
+            allocation,
+          updated_at:
+            new Date().toISOString(),
+          updated_by:
+            state.user.id
+        })
+        .eq("id", true);
+
+    if (error) {
+      throw error;
+    }
+
+    if ($("adminTradeAllocationStatus")) {
+      $("adminTradeAllocationStatus").textContent =
+        formatMoney(allocation);
+    }
+
+    showToast(
+      "Finance settings saved.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Admin finance save error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Finance settings could not be saved.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
    LOGOUT
    ========================================================= */
 
@@ -3630,6 +3789,13 @@ function bindEvents() {
     ?.addEventListener(
       "click",
       saveConnections
+    );
+
+
+  $("saveAdminFinanceButton")
+    ?.addEventListener(
+      "click",
+      saveAdminFinanceSettings
     );
 
 }
