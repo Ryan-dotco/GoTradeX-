@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.9";
+const APP_VERSION = "3.0.12";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -4384,6 +4384,141 @@ async function closeAdminPaperTrade() {
 
 
 /* =========================================================
+   ADMIN USER ACCOUNT LIFECYCLE
+   ========================================================= */
+
+function formatAdminLifecycleDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString();
+}
+
+function adminUserStatusLabel(status) {
+  const value = String(status || "unfunded").toLowerCase();
+  return value === "active"
+    ? "Active"
+    : value === "funded"
+      ? "Funded"
+      : value === "unfunded"
+        ? "Unfunded"
+        : value === "archived"
+          ? "Archived"
+          : value === "suspended"
+            ? "Suspended"
+            : value;
+}
+
+async function loadAdminUsers() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  const list = $("adminUsersList");
+  const statusBox = $("adminUsersLifecycleStatus");
+
+  if (statusBox) statusBox.textContent = "Loading account lifecycle...";
+
+  try {
+    const { data, error } = await state.supabase.rpc(
+      "gotradex_admin_list_users"
+    );
+
+    if (error) throw error;
+
+    const users = data || [];
+    const fundedCount = users.filter(user =>
+      ["funded", "active"].includes(String(user.status || "").toLowerCase())
+    ).length;
+    const unfundedCount = users.filter(user =>
+      String(user.status || "").toLowerCase() === "unfunded"
+    ).length;
+    const archivedCount = users.filter(user =>
+      String(user.status || "").toLowerCase() === "archived"
+    ).length;
+
+    if ($("adminUsersTotal")) $("adminUsersTotal").textContent = String(users.length);
+    if ($("adminUsersFunded")) $("adminUsersFunded").textContent = String(fundedCount);
+    if ($("adminUsersUnfunded")) $("adminUsersUnfunded").textContent = String(unfundedCount);
+    if ($("adminUsersArchived")) $("adminUsersArchived").textContent = String(archivedCount);
+
+    if (!list) return;
+
+    if (!users.length) {
+      list.className = "admin-users-list empty-state";
+      list.textContent = "No accounts found.";
+      if (statusBox) statusBox.textContent = "No account records found.";
+      return;
+    }
+
+    list.className = "admin-users-list";
+    list.innerHTML = `
+      <div class="table-wrapper">
+        <table class="admin-users-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Status</th>
+              <th>Capital</th>
+              <th>Registered</th>
+              <th>Funding Deadline</th>
+              <th>Funded</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(user => {
+              const status = String(user.status || "unfunded").toLowerCase();
+              const deadline = user.funding_deadline_at
+                ? new Date(user.funding_deadline_at)
+                : null;
+              const expired = status === "unfunded" &&
+                deadline &&
+                !Number.isNaN(deadline.getTime()) &&
+                deadline.getTime() < Date.now();
+
+              return `
+                <tr>
+                  <td>
+                    <span class="admin-user-name">${escapeHTML(user.full_name || "Unnamed user")}</span>
+                    <span class="admin-user-email">${escapeHTML(user.email || "No email")}</span>
+                  </td>
+                  <td>
+                    <span class="admin-user-status ${escapeHTML(status)}">${escapeHTML(adminUserStatusLabel(status))}</span>
+                  </td>
+                  <td>${formatMoney(Number(user.capital_balance) || 0)}</td>
+                  <td>${formatAdminLifecycleDate(user.registered_at)}</td>
+                  <td>
+                    <span class="admin-user-deadline${expired ? " expired" : ""}">
+                      ${status === "unfunded"
+                        ? (expired ? "Deadline passed" : formatAdminLifecycleDate(user.funding_deadline_at))
+                        : "—"}
+                    </span>
+                  </td>
+                  <td>${formatAdminLifecycleDate(user.funded_at)}</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    if (statusBox) {
+      statusBox.textContent =
+        "Account lifecycle loaded. Funded/active accounts are sorted first; unfunded accounts are sorted by their funding deadline.";
+    }
+  } catch (error) {
+    console.error("Admin user lifecycle load error:", error);
+    if (list) {
+      list.className = "admin-users-list empty-state";
+      list.textContent = "Unable to load account lifecycle.";
+    }
+    if (statusBox) {
+      statusBox.textContent = error.message || "Account lifecycle could not be loaded.";
+    }
+  }
+}
+
+
+/* =========================================================
    LOGOUT
    ========================================================= */
 
@@ -4743,6 +4878,12 @@ function bindEvents() {
       closeAdminPaperTrade
     );
 
+  $("adminRefreshUsersButton")
+    ?.addEventListener(
+      "click",
+      loadAdminUsers
+    );
+
   $("adminTradeControlAmount")
     ?.addEventListener(
       "input",
@@ -4764,6 +4905,10 @@ function bindEvents() {
       button.addEventListener("click", () => {
         const target = button.getAttribute("data-admin-section-target");
         if (!target) return;
+
+        if (target === "users") {
+          loadAdminUsers();
+        }
 
         document
           .querySelectorAll("[data-admin-section-target]")
