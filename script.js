@@ -1043,9 +1043,9 @@ async function loadProfile() {
 
   }
 
-}
-
   await loadAdminAccess();
+
+}
 
 
 /* =========================================================
