@@ -2261,3 +2261,24 @@ select {
     word-break: break-word;
   }
 }
+
+/* Admin Trade Control BUY / SELL actions */
+.admin-buy-button {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+}
+
+.admin-buy-button:hover {
+  background: #15803d !important;
+  border-color: #15803d !important;
+}
+
+.admin-sell-button {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.admin-sell-button:hover {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
+}
