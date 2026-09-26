@@ -1205,8 +1205,8 @@
             <div class="info-list">
 
               <div>
-                <span>Mode</span>
-                <strong>LIVE</strong>
+                <span>Execution</span>
+                <strong>MT5 Bridge</strong>
               </div>
 
               <div>
@@ -1232,6 +1232,16 @@
               </div>
 
               <div>
+                <span>Connection</span>
+                <strong id="robotConnectionHealth">Waiting</strong>
+              </div>
+
+              <div>
+                <span>Last Heartbeat</span>
+                <strong id="robotHeartbeat">—</strong>
+              </div>
+
+              <div>
                 <span>Open Trades</span>
                 <strong id="robotOpenTrades">0</strong>
               </div>
@@ -1241,6 +1251,11 @@
                 <strong id="robotDailyPL">$0.00</strong>
               </div>
 
+            </div>
+
+            <div class="robot-health">
+              <span>Bridge message</span>
+              <strong id="robotErrorMessage">Waiting for MT5/VPS connection.</strong>
             </div>
 
           </div>
