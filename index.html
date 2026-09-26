@@ -1557,56 +1557,45 @@
       >
 
         <div class="section-header">
-
           <div>
             <h2>Admin Portal</h2>
             <p>Private platform administration and control centre.</p>
           </div>
-
-          <div class="live-market-label">
-            ● ADMIN ONLY
-          </div>
-
+          <div class="live-market-label">● ADMIN ONLY</div>
         </div>
 
+        <div class="admin-portal-layout">
 
-        <div class="stat-grid">
+          <aside class="admin-portal-nav" aria-label="Admin Portal sections">
+            <button type="button" class="admin-portal-nav-item active" data-admin-section-target="overview">▣ <span>Overview</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="finance">▤ <span>Finance</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="trade-control">⚡ <span>Trade Control</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="users">♙ <span>Manage Users</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="withdrawals">↗ <span>Withdrawals</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="deposits">↓ <span>Deposits</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="commissions">% <span>Commissions</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="compounding">◌ <span>Compounding</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="robot">⚙ <span>Trading Robot</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="reports">▥ <span>Audit & Reports</span></button>
+            <button type="button" class="admin-portal-nav-item" data-admin-section-target="access">◆ <span>Admin Access</span></button>
+          </aside>
 
-          <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div>
-              <span>Total Users</span>
-              <strong id="adminTotalUsers">—</strong>
+          <div class="admin-portal-content">
+
+            <div class="admin-section-content active" data-admin-section="overview">
+              <div class="stat-grid">
+                <div class="stat-card"><div class="stat-icon">👥</div><div><span>Total Users</span><strong id="adminTotalUsers">—</strong></div></div>
+                <div class="stat-card"><div class="stat-icon">✓</div><div><span>Funded / Active</span><strong id="adminActiveUsers">—</strong></div></div>
+                <div class="stat-card"><div class="stat-icon">↗</div><div><span>Pending Withdrawals</span><strong id="adminPendingWithdrawals">—</strong></div></div>
+                <div class="stat-card"><div class="stat-icon">▣</div><div><span>Platform Commission</span><strong id="adminCommissionBalance">$0.00</strong></div></div>
+              </div>
+              <div class="panel">
+                <h3>Administration Overview</h3>
+                <p class="muted">Use the menu on the left to open each administration area. Only the selected section is shown on the right.</p>
+              </div>
             </div>
-          </div>
 
-          <div class="stat-card">
-            <div class="stat-icon">✓</div>
-            <div>
-              <span>Funded / Active</span>
-              <strong id="adminActiveUsers">—</strong>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon">↗</div>
-            <div>
-              <span>Pending Withdrawals</span>
-              <strong id="adminPendingWithdrawals">—</strong>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon">▣</div>
-            <div>
-              <span>Platform Commission</span>
-              <strong id="adminCommissionBalance">$0.00</strong>
-            </div>
-          </div>
-
-        </div>
-
-
+            <div class="admin-section-content" data-admin-section="finance">
         <div class="panel admin-finance-panel">
 
           <div class="section-header">
@@ -1719,79 +1708,9 @@
           </div>
 
         </div>
+            </div>
 
-
-        <div class="settings-grid">
-
-          <div class="panel">
-            <h3>User Management</h3>
-            <p class="muted">
-              Manage verified users, funded accounts, inactive accounts,
-              duplicate-account flags and account status.
-            </p>
-            <button type="button" class="primary-button" id="adminUsersButton">
-              Manage Users
-            </button>
-          </div>
-
-          <div class="panel">
-            <h3>Withdrawals</h3>
-            <p class="muted">
-              Review withdrawal requests and approve or reject them manually.
-            </p>
-            <button type="button" class="primary-button" id="adminWithdrawalsButton">
-              Review Withdrawals
-            </button>
-          </div>
-
-          <div class="panel">
-            <h3>Commissions & Referrals</h3>
-            <p class="muted">
-              Configure the 10% profitable-trade commission, Level 1 and
-              Level 2 referral rules, and the Admin network structure.
-            </p>
-            <button type="button" class="primary-button" id="adminCommissionButton">
-              Commission Settings
-            </button>
-          </div>
-
-          <div class="panel">
-            <h3>Compounding</h3>
-            <p class="muted">
-              Current initial rule: eligible profit automatically compounds
-              after the configured 20-hour withdrawal window.
-            </p>
-            <button type="button" class="primary-button" id="adminCompoundingButton">
-              Compounding Settings
-            </button>
-          </div>
-
-          <div class="panel">
-            <h3>Trading Robot</h3>
-            <p class="muted">
-              Monitor MT5 bridge status, robot activity, trades and risk
-              controls from the administration area.
-            </p>
-            <button type="button" class="primary-button" id="adminRobotButton">
-              Robot Control
-            </button>
-          </div>
-
-          <div class="panel">
-            <h3>Audit & Reports</h3>
-            <p class="muted">
-              Review account, wallet, withdrawal, commission and administrative
-              actions through a traceable transaction history.
-            </p>
-            <button type="button" class="primary-button" id="adminReportsButton">
-              View Reports
-            </button>
-          </div>
-
-        </div>
-
-
-
+            <div class="admin-section-content" data-admin-section="trade-control">
         <!-- =================================================
              ADMIN TRADE CONTROL
              ================================================= -->
@@ -1871,8 +1790,17 @@
 
           <div id="adminTradeControlMessage" class="muted" aria-live="polite"></div>
         </div>
+            </div>
 
+            <div class="admin-section-content" data-admin-section="users">
+              <div class="panel">
+                <h3>User Management</h3>
+                <p class="muted">Manage verified users, funded accounts, inactive accounts, duplicate-account flags and account status.</p>
+                <button type="button" class="primary-button" id="adminUsersButton">Manage Users</button>
+              </div>
+            </div>
 
+            <div class="admin-section-content" data-admin-section="withdrawals">
         <div class="panel admin-withdrawals-panel">
           <h3>Pending Withdrawal Requests</h3>
           <p class="muted">
@@ -1884,8 +1812,9 @@
             No pending withdrawal requests.
           </div>
         </div>
+            </div>
 
-
+            <div class="admin-section-content" data-admin-section="deposits">
         <div class="panel admin-deposits-panel">
           <h3>Pending Deposit Requests</h3>
           <p class="muted">
@@ -1896,22 +1825,51 @@
             No pending deposit requests.
           </div>
         </div>
+            </div>
 
-        <div class="panel admin-security-panel">
-          <h3>Admin Access</h3>
-          <p class="muted">
-            This portal is displayed only when the signed-in Supabase user
-            exists in the protected Admin Users list. Ordinary users do not
-            receive the Admin Portal navigation item.
-          </p>
-          <div class="account-status">
-            <span>Access</span>
-            <strong id="adminAccessStatus" class="success-text">Verified Admin</strong>
+            <div class="admin-section-content" data-admin-section="commissions">
+              <div class="panel">
+                <h3>Commissions & Referrals</h3>
+                <p class="muted">Configure the 10% profitable-trade commission, Level 1 and Level 2 referral rules, and the Admin network structure.</p>
+                <button type="button" class="primary-button" id="adminCommissionButton">Commission Settings</button>
+              </div>
+            </div>
+
+            <div class="admin-section-content" data-admin-section="compounding">
+              <div class="panel">
+                <h3>Compounding</h3>
+                <p class="muted">Eligible profit automatically compounds after the configured withdrawal window.</p>
+                <button type="button" class="primary-button" id="adminCompoundingButton">Compounding Settings</button>
+              </div>
+            </div>
+
+            <div class="admin-section-content" data-admin-section="robot">
+              <div class="panel">
+                <h3>Trading Robot</h3>
+                <p class="muted">Monitor MT5 bridge status, robot activity, trades and risk controls from the administration area.</p>
+                <button type="button" class="primary-button" id="adminRobotButton">Robot Control</button>
+              </div>
+            </div>
+
+            <div class="admin-section-content" data-admin-section="reports">
+              <div class="panel">
+                <h3>Audit & Reports</h3>
+                <p class="muted">Review account, wallet, withdrawal, commission and administrative actions through a traceable transaction history.</p>
+                <button type="button" class="primary-button" id="adminReportsButton">View Reports</button>
+              </div>
+            </div>
+
+            <div class="admin-section-content" data-admin-section="access">
+              <div class="panel admin-security-panel">
+                <h3>Admin Access</h3>
+                <p class="muted">This portal is displayed only when the signed-in Supabase user exists in the protected Admin Users list. Ordinary users do not receive the Admin Portal navigation item.</p>
+                <div class="account-status"><span>Access</span><strong id="adminAccessStatus" class="success-text">Verified Admin</strong></div>
+              </div>
+            </div>
+
           </div>
         </div>
-
       </section>
-
 
       <!-- =================================================
            SETTINGS
