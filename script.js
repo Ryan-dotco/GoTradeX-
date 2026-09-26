@@ -2655,12 +2655,12 @@ function renderWithdrawalHistory(withdrawals) {
         ? " — " + escapeHTML(item.rejection_reason)
         : "";
 
-    return \`
+    return `
       <div class="account-status">
-        <span>\${escapeHTML(requested)} · \${escapeHTML(maskedAddress)}</span>
-        <strong>\${formatMoney(item.net_amount)} · \${escapeHTML(status)}\${rejection}</strong>
+        <span>${escapeHTML(requested)} · ${escapeHTML(maskedAddress)}</span>
+        <strong>${formatMoney(item.net_amount)} · ${escapeHTML(status)}${rejection}</strong>
       </div>
-    \`;
+    `;
   }).join("");
 }
 
@@ -2751,40 +2751,40 @@ function renderAdminWithdrawals(withdrawals) {
   }
 
   box.className = "admin-withdrawal-list";
-  box.innerHTML = withdrawals.map(item => \`
+  box.innerHTML = withdrawals.map(item => `
     <div class="panel admin-withdrawal-item">
       <div class="account-status">
         <span>Request</span>
-        <strong>\${escapeHTML(item.id.slice(0, 8))}</strong>
+        <strong>${escapeHTML(item.id.slice(0, 8))}</strong>
       </div>
       <div class="account-status">
         <span>User ID</span>
-        <strong>\${escapeHTML(item.user_id)}</strong>
+        <strong>${escapeHTML(item.user_id)}</strong>
       </div>
       <div class="account-status">
         <span>Requested</span>
-        <strong>\${escapeHTML(new Date(item.requested_at).toLocaleString())}</strong>
+        <strong>${escapeHTML(new Date(item.requested_at).toLocaleString())}</strong>
       </div>
       <div class="account-status">
         <span>Amount</span>
-        <strong>\${formatMoney(item.amount)}</strong>
+        <strong>${formatMoney(item.amount)}</strong>
       </div>
       <div class="account-status">
         <span>Fee / Net</span>
-        <strong>\${formatMoney(item.fee)} / \${formatMoney(item.net_amount)}</strong>
+        <strong>${formatMoney(item.fee)} / ${formatMoney(item.net_amount)}</strong>
       </div>
       <div class="account-status">
         <span>Wallet Address</span>
-        <strong>\${escapeHTML(item.wallet_address)}</strong>
+        <strong>${escapeHTML(item.wallet_address)}</strong>
       </div>
       <div class="settings-grid">
         <button type="button" class="primary-button admin-approve-withdrawal"
-          data-withdrawal-id="\${escapeHTML(item.id)}">Approve</button>
+          data-withdrawal-id="${escapeHTML(item.id)}">Approve</button>
         <button type="button" class="danger-button admin-reject-withdrawal"
-          data-withdrawal-id="\${escapeHTML(item.id)}">Reject</button>
+          data-withdrawal-id="${escapeHTML(item.id)}">Reject</button>
       </div>
     </div>
-  \`).join("");
+  `).join("");
 
   box.querySelectorAll(".admin-approve-withdrawal").forEach(button => {
     button.addEventListener("click", () =>
