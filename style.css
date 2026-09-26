@@ -1997,3 +1997,59 @@ select {
     text-align: center;
   }
 }
+
+
+/* =========================================================
+   ADMIN PORTAL FULL-SCREEN SECTION MODE
+   ========================================================= */
+
+.admin-portal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-portal-layout {
+  position: relative;
+  display: block;
+}
+
+.admin-portal-nav {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  width: min(300px, 90%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+}
+
+#page-admin.admin-menu-open .admin-portal-nav {
+  display: flex;
+}
+
+.admin-portal-content {
+  width: 100%;
+  min-width: 0;
+}
+
+#page-admin:not(.admin-menu-open) .admin-section-content.active {
+  width: 100%;
+}
+
+@media (max-width: 800px) {
+  .admin-portal-header-actions {
+    gap: 6px;
+  }
+
+  .admin-portal-header-actions .live-market-label {
+    display: none;
+  }
+
+  .admin-portal-nav {
+    width: min(280px, 92vw);
+    max-height: 70vh;
+  }
+}
