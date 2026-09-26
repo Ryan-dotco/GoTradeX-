@@ -1475,6 +1475,42 @@ select {
   gap: 8px;
 }
 
+.robot-health {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  margin-top: 16px;
+  padding: 12px;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.robot-health span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.robot-health strong {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.robot-health-good {
+  color: var(--green);
+}
+
+.robot-health-warn {
+  color: var(--yellow);
+}
+
+.robot-health-bad {
+  color: var(--red);
+}
+
 
 /* =========================================================
    AFFILIATES
