@@ -1080,8 +1080,23 @@ async function loadAdminAccess() {
     }
 
     state.isAdmin =
-      Boolean(data && data.user_id === state.user.id) ||
-      state.user.email?.trim().toLowerCase() === "ryan.kalo";
+      Boolean(data && data.user_id === state.user.id);
+
+    if (!state.isAdmin) {
+      try {
+        const { data: adminUsers, error: adminListError } =
+          await state.supabase.rpc("gotradex_admin_list_users");
+
+        if (!adminListError && Array.isArray(adminUsers)) {
+          state.isAdmin = true;
+        }
+      } catch (adminFallbackError) {
+        console.warn(
+          "Admin role fallback check failed:",
+          adminFallbackError
+        );
+      }
+    }
 
     if (button) {
       button.classList.toggle(
