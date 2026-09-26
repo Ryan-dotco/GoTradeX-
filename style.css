@@ -1902,3 +1902,86 @@ select {
   }
 
 }
+
+/* =========================================================
+   ADMIN PORTAL LEFT NAVIGATION
+   ========================================================= */
+
+.admin-portal-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.admin-portal-nav {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--panel, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+.admin-portal-nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-portal-nav-item:hover,
+.admin-portal-nav-item.active {
+  background: var(--accent-light, #eef4ff);
+  border-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+}
+
+.admin-portal-nav-item span {
+  flex: 1;
+}
+
+.admin-portal-content {
+  min-width: 0;
+}
+
+.admin-section-content {
+  display: none;
+}
+
+.admin-section-content.active {
+  display: block;
+}
+
+.admin-section-content > .panel + .panel {
+  margin-top: 16px;
+}
+
+@media (max-width: 800px) {
+  .admin-portal-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-portal-nav {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .admin-portal-nav-item {
+    min-height: 42px;
+  }
+}
