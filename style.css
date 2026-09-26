@@ -2157,3 +2157,107 @@ select {
     min-width: 680px;
   }
 }
+
+
+/* =========================================================
+   MOBILE ADMIN USER TABLE — KEEP ALL CONTENT INSIDE PANEL
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .admin-users-list,
+  .admin-users-list .table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .admin-users-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    display: block;
+  }
+
+  .admin-users-table thead {
+    display: none;
+  }
+
+  .admin-users-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-users-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  }
+
+  .admin-users-table tbody td {
+    min-width: 0;
+    width: 100%;
+    padding: 9px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 8px;
+    background: #0a1628;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .admin-users-table tbody td::before {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .admin-users-table tbody td:nth-child(1) {
+    grid-column: 1 / -1;
+  }
+
+  .admin-users-table tbody td:nth-child(1)::before {
+    content: "User";
+  }
+
+  .admin-users-table tbody td:nth-child(2)::before {
+    content: "Status";
+  }
+
+  .admin-users-table tbody td:nth-child(3)::before {
+    content: "Capital";
+  }
+
+  .admin-users-table tbody td:nth-child(4)::before {
+    content: "Registered";
+  }
+
+  .admin-users-table tbody td:nth-child(5)::before {
+    content: "Funding Deadline";
+  }
+
+  .admin-users-table tbody td:nth-child(6)::before {
+    content: "Funded";
+  }
+
+  .admin-user-name,
+  .admin-user-email {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .admin-user-email {
+    font-size: 11px;
+  }
+
+  .admin-user-deadline {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
