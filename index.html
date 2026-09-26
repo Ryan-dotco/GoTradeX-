@@ -24,7 +24,7 @@
     };
   </script>
 
-  <link rel="stylesheet" href="style.css?v=3.0.11">
+  <link rel="stylesheet" href="style.css?v=3.0.12">
 </head>
 
 <body>
@@ -1970,9 +1970,40 @@
 
             <div class="admin-section-content" data-admin-section="users">
               <div class="panel">
-                <h3>User Management</h3>
-                <p class="muted">Manage verified users, funded accounts, inactive accounts, duplicate-account flags and account status.</p>
-                <button type="button" class="primary-button" id="adminUsersButton">Manage Users</button>
+                <div class="panel-header">
+                  <div>
+                    <h3>User Management</h3>
+                    <span>Funded and active accounts are shown first. Unfunded accounts remain eligible for funding until their 30-day deadline.</span>
+                  </div>
+                  <button type="button" class="small-button" id="adminRefreshUsersButton">Refresh Users</button>
+                </div>
+
+                <div class="admin-user-lifecycle-summary">
+                  <div class="stat-card">
+                    <span>Total Accounts</span>
+                    <strong id="adminUsersTotal">0</strong>
+                  </div>
+                  <div class="stat-card">
+                    <span>Funded / Active</span>
+                    <strong id="adminUsersFunded">0</strong>
+                  </div>
+                  <div class="stat-card">
+                    <span>Unfunded</span>
+                    <strong id="adminUsersUnfunded">0</strong>
+                  </div>
+                  <div class="stat-card">
+                    <span>Archived</span>
+                    <strong id="adminUsersArchived">0</strong>
+                  </div>
+                </div>
+
+                <div id="adminUsersLifecycleStatus" class="muted">
+                  Loading account lifecycle...
+                </div>
+
+                <div id="adminUsersList" class="admin-users-list empty-state">
+                  No accounts found.
+                </div>
               </div>
             </div>
 
@@ -2273,7 +2304,7 @@
 
 
   <!-- JavaScript MUST load last -->
-  <script src="script.js?v=3.0.11"></script>
+  <script src="script.js?v=3.0.12"></script>
 
 </body>
 </html>
