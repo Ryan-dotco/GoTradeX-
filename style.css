@@ -2071,6 +2071,15 @@ select {
   margin-top: 14px;
 }
 
+/* Keep wide admin tables contained inside their portal panel on small screens. */
+.table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 .admin-users-table {
   width: 100%;
   border-collapse: collapse;
