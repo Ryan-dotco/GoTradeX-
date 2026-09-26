@@ -1098,106 +1098,6 @@
       </section>
 
 
-        <div class="panel">
-
-          <div class="panel-header">
-            <div>
-              <h3>Fund Account</h3>
-              <span>Submit a deposit request for admin confirmation. Minimum deposit: $10.00.</span>
-            </div>
-          </div>
-
-          <div class="settings-grid">
-            <div class="field">
-              <label for="depositAmount">Deposit Amount</label>
-              <input id="depositAmount" type="number" min="10" step="0.01"
-                inputmode="decimal" placeholder="Minimum $10.00">
-            </div>
-
-            <div class="field">
-              <label for="depositPaymentReference">Payment Reference</label>
-              <input id="depositPaymentReference" type="text"
-                autocomplete="off" placeholder="Optional payment/reference number">
-            </div>
-          </div>
-
-          <div class="account-status">
-            <span>Funding status</span>
-            <strong id="depositStatusMessage">No pending deposit request.</strong>
-          </div>
-
-          <button id="requestDepositButton" type="button" class="primary-button">
-            Submit Deposit Request
-          </button>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h3>Deposit History</h3>
-              <span>Your recent funding requests and their status.</span>
-            </div>
-          </div>
-          <div id="depositHistory" class="empty-state">
-            No deposit requests yet.
-          </div>
-        </div>
-
-        <div class="panel">
-
-          <div class="panel-header">
-            <div>
-              <h3>Profit Withdrawal</h3>
-              <span>Request a withdrawal from your available trading profit.</span>
-            </div>
-          </div>
-
-          <div class="settings-grid">
-            <div class="field">
-              <label>Available Profit</label>
-              <strong id="walletWithdrawableProfit">$0.00</strong>
-            </div>
-
-            <div class="field">
-              <label for="withdrawalAmount">Withdrawal Amount</label>
-              <input id="withdrawalAmount" type="number" min="10" step="0.01"
-                inputmode="decimal" placeholder="Minimum $10.00">
-            </div>
-
-            <div class="field">
-              <label for="withdrawalWalletAddress">Wallet Address</label>
-              <input id="withdrawalWalletAddress" type="text"
-                autocomplete="off" placeholder="Enter your receiving wallet address">
-            </div>
-          </div>
-
-          <div class="account-status">
-            <span>Withdrawal window</span>
-            <strong id="withdrawalWindowStatus">Available when eligible</strong>
-          </div>
-
-          <button id="requestWithdrawalButton" type="button" class="primary-button">
-            Request Withdrawal
-          </button>
-
-          <div id="withdrawalStatusMessage" class="muted"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h3>Withdrawal History</h3>
-              <span>Your recent withdrawal requests and their status.</span>
-            </div>
-          </div>
-          <div id="withdrawalHistory" class="empty-state">
-            No withdrawal requests yet.
-          </div>
-        </div>
-
-      </section>
-
-
       <!-- =================================================
            ROBOT
            ================================================= -->
@@ -1815,6 +1715,58 @@
             No pending withdrawal requests.
           </div>
         </div>
+
+        <div class="panel">
+
+          <div class="panel-header">
+            <div>
+              <h3>Profit Withdrawal</h3>
+              <span>Request a withdrawal from your available trading profit.</span>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="field">
+              <label>Available Profit</label>
+              <strong id="walletWithdrawableProfit">$0.00</strong>
+            </div>
+
+            <div class="field">
+              <label for="withdrawalAmount">Withdrawal Amount</label>
+              <input id="withdrawalAmount" type="number" min="10" step="0.01"
+                inputmode="decimal" placeholder="Minimum $10.00">
+            </div>
+
+            <div class="field">
+              <label for="withdrawalWalletAddress">Wallet Address</label>
+              <input id="withdrawalWalletAddress" type="text"
+                autocomplete="off" placeholder="Enter your receiving wallet address">
+            </div>
+          </div>
+
+          <div class="account-status">
+            <span>Withdrawal window</span>
+            <strong id="withdrawalWindowStatus">Available when eligible</strong>
+          </div>
+
+          <button id="requestWithdrawalButton" type="button" class="primary-button">
+            Request Withdrawal
+          </button>
+
+          <div id="withdrawalStatusMessage" class="muted"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Withdrawal History</h3>
+              <span>Your recent withdrawal requests and their status.</span>
+            </div>
+          </div>
+          <div id="withdrawalHistory" class="empty-state">
+            No withdrawal requests yet.
+          </div>
+        </div>
             </div>
 
             <div class="admin-section-content" data-admin-section="deposits">
@@ -1828,6 +1780,52 @@
             No pending deposit requests.
           </div>
         </div>
+
+<div class="panel">
+
+          <div class="panel-header">
+            <div>
+              <h3>Fund Account</h3>
+              <span>Submit a deposit request for admin confirmation. Minimum deposit: $10.00.</span>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="field">
+              <label for="depositAmount">Deposit Amount</label>
+              <input id="depositAmount" type="number" min="10" step="0.01"
+                inputmode="decimal" placeholder="Minimum $10.00">
+            </div>
+
+            <div class="field">
+              <label for="depositPaymentReference">Payment Reference</label>
+              <input id="depositPaymentReference" type="text"
+                autocomplete="off" placeholder="Optional payment/reference number">
+            </div>
+          </div>
+
+          <div class="account-status">
+            <span>Funding status</span>
+            <strong id="depositStatusMessage">No pending deposit request.</strong>
+          </div>
+
+          <button id="requestDepositButton" type="button" class="primary-button">
+            Submit Deposit Request
+          </button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Deposit History</h3>
+              <span>Your recent funding requests and their status.</span>
+            </div>
+          </div>
+          <div id="depositHistory" class="empty-state">
+            No deposit requests yet.
+          </div>
+        </div>
+
             </div>
 
             <div class="admin-section-content" data-admin-section="commissions">
