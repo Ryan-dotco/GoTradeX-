@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.3";
+const APP_VERSION = "3.0.5";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -3316,23 +3316,64 @@ async function loadAdminFinanceSettings() {
 
   try {
 
-    const { data, error } =
-      await state.supabase
+    const [
+      { data: finance, error: financeError },
+      { data: wallets, error: walletError },
+      { count: pendingWithdrawals, error: withdrawalError }
+    ] = await Promise.all([
+
+      state.supabase
         .from("gotradex_platform_finance")
         .select("*")
         .eq("id", true)
-        .maybeSingle();
+        .maybeSingle(),
 
-    if (error) {
-      throw error;
+      state.supabase
+        .from("gotradex_wallets")
+        .select("capital_balance,reserved_capital,status")
+        .in("status", ["funded", "active", "suspended"]),
+
+      state.supabase
+        .from("gotradex_withdrawals")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+
+    ]);
+
+    if (financeError) {
+      throw financeError;
     }
 
-    if (!data) {
-      return;
+    if (walletError) {
+      throw walletError;
+    }
+
+    if (withdrawalError) {
+      throw withdrawalError;
     }
 
     const allocation =
-      Number(data.trade_allocation_amount) || 0;
+      Number(finance?.trade_allocation_amount) || 0;
+
+    const totalFunded =
+      (wallets || []).reduce(
+        (sum, wallet) =>
+          sum + (Number(wallet.capital_balance) || 0),
+        0
+      );
+
+    const allocatedCapital =
+      (wallets || []).reduce(
+        (sum, wallet) =>
+          sum + (Number(wallet.reserved_capital) || 0),
+        0
+      );
+
+    const availableCapital =
+      Math.max(
+        0,
+        totalFunded - allocatedCapital
+      );
 
     const input =
       $("adminTradeAllocation");
@@ -3349,17 +3390,22 @@ async function loadAdminFinanceSettings() {
 
     if ($("adminTotalFunded")) {
       $("adminTotalFunded").textContent =
-        formatMoney(0);
+        formatMoney(totalFunded);
     }
 
     if ($("adminAllocatedCapital")) {
       $("adminAllocatedCapital").textContent =
-        formatMoney(0);
+        formatMoney(allocatedCapital);
     }
 
     if ($("adminAvailableCapital")) {
       $("adminAvailableCapital").textContent =
-        formatMoney(0);
+        formatMoney(availableCapital);
+    }
+
+    if ($("adminPendingWithdrawals")) {
+      $("adminPendingWithdrawals").textContent =
+        String(pendingWithdrawals || 0);
     }
 
   } catch (error) {
