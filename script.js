@@ -2615,6 +2615,41 @@ async function startRobot() {
 
   try {
 
+    if (!state.supabase || !state.user) {
+      throw new Error("Please log in before starting AutoBot.");
+    }
+
+    const accountId =
+      Number(state.mt5AccountId);
+
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      throw new Error("A valid AvaTrade MT5 account ID is required.");
+    }
+
+    if (
+      !["conservative", "moderate", "aggressive"]
+        .includes(state.robotRisk)
+    ) {
+      throw new Error("Invalid AutoBot risk setting.");
+    }
+
+    const drawdown =
+      Number(state.maxDrawdown);
+
+    if (
+      !Number.isFinite(drawdown) ||
+      drawdown <= 0 ||
+      drawdown > 100
+    ) {
+      throw new Error("Max drawdown must be between 0 and 100.");
+    }
+
+    if (!isBrokerStatusFresh()) {
+      throw new Error(
+        "AvaTrade MT5/VPS is not connected with a fresh heartbeat. AutoBot cannot start yet."
+      );
+    }
+
     await saveRobotControl(true);
 
     state.robotRunning = true;
@@ -2629,6 +2664,9 @@ async function startRobot() {
     );
 
   } catch (error) {
+
+    state.robotRunning = false;
+    renderRobotStatus();
 
     console.error("Start robot error:", error);
 
