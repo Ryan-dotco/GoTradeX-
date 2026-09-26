@@ -3724,6 +3724,7 @@ async function initializeLiveApp() {
   if (state.isAdmin) {
     await loadAdminWithdrawals();
     await loadAdminDeposits();
+    await loadAdminTradeControl();
   }
 
   subscribeToSupportChat();
@@ -3976,6 +3977,404 @@ async function saveAdminFinanceSettings() {
 
   }
 
+}
+
+
+/* =========================================================
+   ADMIN TRADE CONTROL
+   ========================================================= */
+
+function adminTradeMessage(message, type = "") {
+  const box = $("adminTradeControlMessage");
+  if (!box) return;
+  box.textContent = message || "";
+  box.className = type === "error" ? "error-text" : type === "success" ? "success-text" : "muted";
+}
+
+async function loadAdminTradeControl() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { data: wallets, error } = await state.supabase
+      .from("gotradex_wallets")
+      .select("user_id,capital_balance,reserved_capital,status")
+      .in("status", ["funded", "active"])
+      .gt("capital_balance", 0);
+
+    if (error) throw error;
+
+    const eligible = (wallets || [])
+      .map(wallet => ({
+        ...wallet,
+        available: Math.max(
+          0,
+          (Number(wallet.capital_balance) || 0) -
+          (Number(wallet.reserved_capital) || 0)
+        )
+      }))
+      .filter(wallet => wallet.available > 0);
+
+    const total = eligible.reduce((sum, wallet) => sum + wallet.available, 0);
+
+    if ($("adminTradeEligibleCapital")) {
+      $("adminTradeEligibleCapital").textContent = formatMoney(total);
+    }
+
+    const amountInput = $("adminTradeControlAmount");
+    if (amountInput && !amountInput.value) {
+      const finance = await state.supabase
+        .from("gotradex_platform_finance")
+        .select("trade_allocation_amount")
+        .eq("id", true)
+        .maybeSingle();
+
+      if (!finance.error && finance.data) {
+        amountInput.value =
+          Number(finance.data.trade_allocation_amount || 0).toFixed(2);
+      }
+    }
+
+    await renderAdminTradePreview(eligible, total);
+    await loadAdminOpenTrade();
+
+  } catch (error) {
+    console.error("Admin trade control load error:", error);
+    adminTradeMessage(
+      error.message || "Trade control could not be loaded.",
+      "error"
+    );
+  }
+}
+
+async function getAdminEligibleWallets() {
+  const { data, error } = await state.supabase
+    .from("gotradex_wallets")
+    .select("user_id,capital_balance,reserved_capital,status")
+    .in("status", ["funded", "active"])
+    .gt("capital_balance", 0);
+
+  if (error) throw error;
+
+  return (data || [])
+    .map(wallet => ({
+      ...wallet,
+      available: Math.max(
+        0,
+        (Number(wallet.capital_balance) || 0) -
+        (Number(wallet.reserved_capital) || 0)
+      )
+    }))
+    .filter(wallet => wallet.available > 0);
+}
+
+async function renderAdminTradePreview(wallets = null, total = null) {
+  const box = $("adminTradeAllocationPreview");
+  const amountInput = $("adminTradeControlAmount");
+  if (!box || !amountInput) return;
+
+  const eligible = wallets || await getAdminEligibleWallets();
+  const eligibleTotal = total ?? eligible.reduce((sum, wallet) => sum + wallet.available, 0);
+  const requested = Number(amountInput.value);
+
+  if (!Number.isFinite(requested) || requested <= 0) {
+    box.textContent = "Enter an allocation amount to preview user allocations.";
+    if ($("adminTradeRequestedAmount")) {
+      $("adminTradeRequestedAmount").textContent = formatMoney(0);
+    }
+    return;
+  }
+
+  if (!eligibleTotal) {
+    box.textContent = "No funded/active capital is currently eligible for trading.";
+    return;
+  }
+
+  if (requested > eligibleTotal) {
+    box.innerHTML = "<strong>Allocation exceeds available eligible capital.</strong>";
+    if ($("adminTradeRequestedAmount")) {
+      $("adminTradeRequestedAmount").textContent = formatMoney(requested);
+    }
+    return;
+  }
+
+  if ($("adminTradeRequestedAmount")) {
+    $("adminTradeRequestedAmount").textContent = formatMoney(requested);
+  }
+
+  const rows = eligible.map(wallet => {
+    const pct = wallet.available / eligibleTotal;
+    const allocation = Math.round(requested * pct * 100) / 100;
+    return {
+      userId: wallet.user_id,
+      pct,
+      allocation
+    };
+  }).filter(row => row.allocation > 0);
+
+  let names = {};
+  try {
+    const ids = rows.map(row => row.userId);
+    if (ids.length) {
+      const profileResult = await state.supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", ids);
+      if (!profileResult.error) {
+        (profileResult.data || []).forEach(profile => {
+          names[profile.id] = profile.full_name || profile.email || profile.id;
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("Profile lookup for trade preview failed:", error);
+  }
+
+  const totalPreview = rows.reduce((sum, row) => sum + row.allocation, 0);
+
+  box.innerHTML = `
+    <div class="table-wrapper">
+      <table class="admin-trade-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Capital Share</th>
+            <th>Trade Allocation</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td>${escapeHTML(names[row.userId] || row.userId)}</td>
+              <td>${(row.pct * 100).toFixed(2)}%</td>
+              <td>${formatMoney(row.allocation)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="account-status">
+      <span>Total preview allocation</span>
+      <strong>${formatMoney(totalPreview)}</strong>
+    </div>
+  `;
+}
+
+async function startAdminPaperTrade() {
+  if (!state.isAdmin || !state.supabase) {
+    adminTradeMessage("Admin access is required.", "error");
+    return;
+  }
+
+  const asset = $("adminTradeAsset")?.value?.trim();
+  const direction = $("adminTradeDirection")?.value;
+  const amount = Number($("adminTradeControlAmount")?.value);
+
+  if (!asset || !["buy", "sell"].includes(direction)) {
+    adminTradeMessage("Select an asset and direction.", "error");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    adminTradeMessage("Enter a valid trading allocation.", "error");
+    return;
+  }
+
+  const button = $("adminStartTradeButton");
+  if (button) button.disabled = true;
+
+  try {
+    const { data: tradeId, error } = await state.supabase.rpc(
+      "gotradex_prepare_trade",
+      {
+        p_asset: asset,
+        p_direction: direction,
+        p_allocation_amount: amount
+      }
+    );
+
+    if (error) throw error;
+
+    adminTradeMessage(
+      "Paper trade created. User allocations have been reserved.",
+      "success"
+    );
+
+    await loadAdminOpenTrade(tradeId);
+    await loadAdminFinanceSettings();
+
+  } catch (error) {
+    console.error("Start paper trade error:", error);
+    adminTradeMessage(
+      error.message || "Paper trade could not be started.",
+      "error"
+    );
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function loadAdminOpenTrade(tradeId = null) {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    let query = state.supabase
+      .from("gotradex_trades")
+      .select("id,asset,direction,total_allocated,result,total_pnl,opened_at,created_by,metadata")
+      .eq("result", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1);
+
+    if (tradeId) query = state.supabase
+      .from("gotradex_trades")
+      .select("id,asset,direction,total_allocated,result,total_pnl,opened_at,created_by,metadata")
+      .eq("id", tradeId)
+      .maybeSingle();
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const trade = Array.isArray(data) ? data[0] : data;
+    const panel = $("adminOpenTradePanel");
+
+    if (!trade) {
+      if (panel) panel.style.display = "none";
+      if ($("adminTradeControlStatus")) {
+        $("adminTradeControlStatus").textContent = "Ready";
+      }
+      return;
+    }
+
+    if (panel) panel.style.display = "block";
+    if ($("adminOpenTradeId")) {
+      $("adminOpenTradeId").textContent =
+        `${trade.asset} • ${String(trade.direction).toUpperCase()} • ${trade.id.slice(0, 8)}`;
+    }
+    if ($("adminTradeControlStatus")) {
+      $("adminTradeControlStatus").textContent =
+        `OPEN • ${formatMoney(Number(trade.total_allocated) || 0)}`;
+    }
+
+    await renderOpenTradeAllocations(trade.id);
+
+  } catch (error) {
+    console.error("Load open trade error:", error);
+  }
+}
+
+async function renderOpenTradeAllocations(tradeId) {
+  const box = $("adminTradeAllocationPreview");
+  if (!box) return;
+
+  try {
+    const { data, error } = await state.supabase
+      .from("gotradex_trade_allocations")
+      .select("user_id,allocation_amount,allocation_pct,pnl_amount,commission_amount,net_profit")
+      .eq("trade_id", tradeId)
+      .order("allocation_amount", { ascending: false });
+
+    if (error) throw error;
+
+    const rows = data || [];
+    let names = {};
+
+    if (rows.length) {
+      const profileResult = await state.supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", rows.map(row => row.user_id));
+
+      if (!profileResult.error) {
+        (profileResult.data || []).forEach(profile => {
+          names[profile.id] = profile.full_name || profile.email || profile.id;
+        });
+      }
+    }
+
+    box.innerHTML = `
+      <div class="table-wrapper">
+        <table class="admin-trade-table">
+          <thead><tr><th>User</th><th>Share</th><th>Allocation</th></tr></thead>
+          <tbody>
+            ${rows.map(row => `
+              <tr>
+                <td>${escapeHTML(names[row.user_id] || row.user_id)}</td>
+                <td>${Number(row.allocation_pct || 0).toFixed(2)}%</td>
+                <td>${formatMoney(Number(row.allocation_amount) || 0)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    console.error("Open trade allocation load error:", error);
+    box.textContent = "Unable to load trade allocations.";
+  }
+}
+
+async function closeAdminPaperTrade() {
+  if (!state.isAdmin || !state.supabase) {
+    adminTradeMessage("Admin access is required.", "error");
+    return;
+  }
+
+  const pnl = Number($("adminCloseTradePnl")?.value);
+  if (!Number.isFinite(pnl)) {
+    adminTradeMessage("Enter the total trade P/L.", "error");
+    return;
+  }
+
+  const { data: openTrade, error: findError } = await state.supabase
+    .from("gotradex_trades")
+    .select("id")
+    .eq("result", "open")
+    .order("opened_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (findError) {
+    adminTradeMessage(findError.message || "Open trade could not be found.", "error");
+    return;
+  }
+
+  if (!openTrade) {
+    adminTradeMessage("There is no open paper trade to close.", "error");
+    return;
+  }
+
+  const button = $("adminCloseTradeButton");
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_close_trade",
+      {
+        p_trade_id: openTrade.id,
+        p_total_pnl: pnl
+      }
+    );
+
+    if (error) throw error;
+
+    if ($("adminCloseTradePnl")) $("adminCloseTradePnl").value = "";
+    adminTradeMessage(
+      `Paper trade closed. Total P/L: ${formatMoney(pnl)}.`,
+      "success"
+    );
+
+    await loadAdminOpenTrade();
+    await loadAdminFinanceSettings();
+    await loadWalletAndWithdrawals();
+
+  } catch (error) {
+    console.error("Close paper trade error:", error);
+    adminTradeMessage(
+      error.message || "Paper trade could not be closed.",
+      "error"
+    );
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 
@@ -4319,6 +4718,30 @@ function bindEvents() {
     ?.addEventListener(
       "click",
       saveAdminFinanceSettings
+    );
+
+  $("adminPreviewTradeButton")
+    ?.addEventListener(
+      "click",
+      () => renderAdminTradePreview()
+    );
+
+  $("adminStartTradeButton")
+    ?.addEventListener(
+      "click",
+      startAdminPaperTrade
+    );
+
+  $("adminCloseTradeButton")
+    ?.addEventListener(
+      "click",
+      closeAdminPaperTrade
+    );
+
+  $("adminTradeControlAmount")
+    ?.addEventListener(
+      "input",
+      () => renderAdminTradePreview()
     );
 
   $("requestWithdrawalButton")
