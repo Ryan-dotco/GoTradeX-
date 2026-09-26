@@ -1971,17 +1971,29 @@ select {
 
 @media (max-width: 800px) {
   .admin-portal-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 145px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
   }
 
   .admin-portal-nav {
-    position: static;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    position: sticky;
+    top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 7px;
   }
 
   .admin-portal-nav-item {
-    min-height: 42px;
+    min-height: 40px;
+    padding: 8px 7px;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .admin-portal-nav-item span:first-child {
+    flex: 0 0 18px;
+    text-align: center;
   }
 }
