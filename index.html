@@ -1792,6 +1792,87 @@
 
 
 
+        <!-- =================================================
+             ADMIN TRADE CONTROL
+             ================================================= -->
+        <div class="panel admin-trade-control-panel">
+          <div class="section-header">
+            <div>
+              <h3>Admin Trade Control</h3>
+              <p class="muted">Create and close paper trading cycles using the approved proportional allocation engine.</p>
+            </div>
+            <div class="live-market-label">● ADMIN TRADE CONTROL</div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="field">
+              <label for="adminTradeAsset">Asset</label>
+              <select id="adminTradeAsset">
+                <option value="BTCUSDT">BTC / USD</option>
+                <option value="ETHUSDT">ETH / USD</option>
+                <option value="XAUUSD">Gold / USD</option>
+                <option value="EURUSD">EUR / USD</option>
+                <option value="GBPUSD">GBP / USD</option>
+                <option value="USDZAR">USD / ZAR</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="adminTradeDirection">Direction</label>
+              <select id="adminTradeDirection">
+                <option value="buy">Buy</option>
+                <option value="sell">Sell</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="adminTradeControlAmount">Trading Allocation</label>
+              <input id="adminTradeControlAmount" type="number" min="0.01" step="0.01" placeholder="2.00">
+              <small class="muted">Only this amount will be allocated. The funded pool is not automatically traded in full.</small>
+            </div>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat-card"><div class="stat-icon">$</div><div><span>Eligible Capital</span><strong id="adminTradeEligibleCapital">$0.00</strong></div></div>
+            <div class="stat-card"><div class="stat-icon">▣</div><div><span>Requested Allocation</span><strong id="adminTradeRequestedAmount">$0.00</strong></div></div>
+            <div class="stat-card"><div class="stat-icon">◌</div><div><span>Allocation Status</span><strong id="adminTradeControlStatus">Ready</strong></div></div>
+          </div>
+
+          <div class="panel">
+            <h3>Allocation Preview</h3>
+            <p class="muted">Preview shows each eligible user's proportional share before the trade is created.</p>
+            <div id="adminTradeAllocationPreview" class="empty-state">Enter an allocation amount to preview user allocations.</div>
+          </div>
+
+          <div class="account-status" id="adminOpenTradeSummary" style="display:none;"></div>
+
+          <div class="settings-grid">
+            <button id="adminPreviewTradeButton" type="button" class="primary-button">Preview Allocation</button>
+            <button id="adminStartTradeButton" type="button" class="primary-button">Start Paper Trade</button>
+          </div>
+
+          <div class="panel" id="adminOpenTradePanel" style="display:none;">
+            <div class="section-header">
+              <div>
+                <h3>Open Trade</h3>
+                <p class="muted">Enter the total paper P/L when the trade is ready to close.</p>
+              </div>
+              <strong id="adminOpenTradeId">—</strong>
+            </div>
+            <div class="settings-grid">
+              <div class="field">
+                <label for="adminCloseTradePnl">Total Trade P/L</label>
+                <input id="adminCloseTradePnl" type="number" step="0.01" placeholder="0.50 or -0.50">
+                <small class="muted">Positive = profit, negative = loss, zero = break-even.</small>
+              </div>
+              <button id="adminCloseTradeButton" type="button" class="danger-button">Close Paper Trade</button>
+            </div>
+          </div>
+
+          <div id="adminTradeControlMessage" class="muted" aria-live="polite"></div>
+        </div>
+
+
         <div class="panel admin-withdrawals-panel">
           <h3>Pending Withdrawal Requests</h3>
           <p class="muted">
