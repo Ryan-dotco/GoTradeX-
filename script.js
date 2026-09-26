@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.5";
+const APP_VERSION = "3.0.8";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -2587,6 +2587,221 @@ function updatePortfolio() {
    WITHDRAWALS
    ========================================================= */
 
+/* =========================================================
+   DEPOSITS / FUNDING
+   ========================================================= */
+
+async function loadDeposits() {
+  if (!state.supabase || !state.user) return;
+
+  try {
+    const { data, error } =
+      await state.supabase
+        .from("gotradex_deposits")
+        .select("id,amount,payment_method,payment_reference,status,requested_at,reviewed_at,rejection_reason")
+        .eq("user_id", state.user.id)
+        .order("requested_at", { ascending: false })
+        .limit(20);
+
+    if (error) throw error;
+
+    renderDepositHistory(data || []);
+
+    const pending = (data || []).find(item => item.status === "pending");
+    if ($("depositStatusMessage")) {
+      $("depositStatusMessage").textContent =
+        pending
+          ? "Pending admin confirmation — " + formatMoney(pending.amount)
+          : "No pending deposit request.";
+    }
+  } catch (error) {
+    console.warn("Deposit load failed:", error);
+  }
+}
+
+function renderDepositHistory(deposits) {
+  const box = $("depositHistory");
+  if (!box) return;
+
+  if (!deposits.length) {
+    box.className = "empty-state";
+    box.textContent = "No deposit requests yet.";
+    return;
+  }
+
+  box.className = "withdrawal-history";
+  box.innerHTML = deposits.map(item => {
+    const requested = new Date(item.requested_at).toLocaleString();
+    const reference = item.payment_reference
+      ? " · " + escapeHTML(item.payment_reference)
+      : "";
+    const rejection = item.rejection_reason
+      ? " — " + escapeHTML(item.rejection_reason)
+      : "";
+
+    return `
+      <div class="account-status">
+        <span>${escapeHTML(requested)}${reference}</span>
+        <strong>${formatMoney(item.amount)} · ${escapeHTML(item.status)}${rejection}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+async function requestDeposit() {
+  if (!state.supabase || !state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const amount = Number($("depositAmount")?.value);
+  const reference = $("depositPaymentReference")?.value.trim() || "";
+
+  if (!Number.isFinite(amount) || amount < 10) {
+    showToast("Minimum deposit is $10.00.", "error");
+    return;
+  }
+
+  const button = $("requestDepositButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Submitting...";
+  }
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_request_deposit",
+      {
+        p_amount: amount,
+        p_payment_method: "manual",
+        p_payment_reference: reference || null
+      }
+    );
+
+    if (error) throw error;
+
+    if ($("depositAmount")) $("depositAmount").value = "";
+    if ($("depositPaymentReference")) $("depositPaymentReference").value = "";
+
+    showToast("Deposit request submitted.", "success");
+    await loadDeposits();
+  } catch (error) {
+    console.error("Deposit request error:", error);
+    showToast(error.message || "Deposit request failed.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Submit Deposit Request";
+    }
+  }
+}
+
+async function loadAdminDeposits() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { data, error } =
+      await state.supabase
+        .from("gotradex_deposits")
+        .select("id,user_id,amount,payment_method,payment_reference,status,requested_at")
+        .eq("status", "pending")
+        .order("requested_at", { ascending: true })
+        .limit(100);
+
+    if (error) throw error;
+    renderAdminDeposits(data || []);
+  } catch (error) {
+    console.warn("Admin deposits load failed:", error);
+  }
+}
+
+function renderAdminDeposits(deposits) {
+  const box = $("adminDepositsList");
+  if (!box) return;
+
+  if (!deposits.length) {
+    box.className = "empty-state";
+    box.textContent = "No pending deposit requests.";
+    return;
+  }
+
+  box.className = "admin-withdrawal-list";
+  box.innerHTML = deposits.map(item => `
+    <div class="panel admin-withdrawal-item">
+      <div class="account-status">
+        <span>Request</span>
+        <strong>${escapeHTML(item.id.slice(0, 8))}</strong>
+      </div>
+      <div class="account-status">
+        <span>User ID</span>
+        <strong>${escapeHTML(item.user_id)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Requested</span>
+        <strong>${escapeHTML(new Date(item.requested_at).toLocaleString())}</strong>
+      </div>
+      <div class="account-status">
+        <span>Amount</span>
+        <strong>${formatMoney(item.amount)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Payment Reference</span>
+        <strong>${escapeHTML(item.payment_reference || "—")}</strong>
+      </div>
+      <div class="settings-grid">
+        <button type="button" class="primary-button admin-approve-deposit"
+          data-deposit-id="${escapeHTML(item.id)}">Approve</button>
+        <button type="button" class="danger-button admin-reject-deposit"
+          data-deposit-id="${escapeHTML(item.id)}">Reject</button>
+      </div>
+    </div>
+  `).join("");
+
+  box.querySelectorAll(".admin-approve-deposit").forEach(button => {
+    button.addEventListener("click", () =>
+      reviewAdminDeposit(button.dataset.depositId, "approve"));
+  });
+
+  box.querySelectorAll(".admin-reject-deposit").forEach(button => {
+    button.addEventListener("click", async () => {
+      const reason = window.prompt("Reason for rejecting this deposit:");
+      if (reason === null) return;
+      await reviewAdminDeposit(
+        button.dataset.depositId, "reject", reason
+      );
+    });
+  });
+}
+
+async function reviewAdminDeposit(depositId, action, rejectionReason = null) {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_review_deposit",
+      {
+        p_deposit_id: depositId,
+        p_action: action,
+        p_rejection_reason: rejectionReason
+      }
+    );
+
+    if (error) throw error;
+
+    showToast(
+      action === "approve" ? "Deposit approved and wallet funded." : "Deposit rejected.",
+      "success"
+    );
+
+    await loadAdminFinanceSettings();
+    await loadAdminDeposits();
+  } catch (error) {
+    console.error("Admin deposit review error:", error);
+    showToast(error.message || "Deposit review failed.", "error");
+  }
+}
+
+
 async function loadWalletAndWithdrawals() {
   if (!state.supabase || !state.user) return;
 
@@ -2705,10 +2920,12 @@ async function requestWithdrawal() {
 
     showToast("Withdrawal request submitted.", "success");
     await loadWalletAndWithdrawals();
+    await loadDeposits();
 
     if (state.isAdmin) {
       await loadAdminFinanceSettings();
       await loadAdminWithdrawals();
+      await loadAdminDeposits();
     }
 
   } catch (error) {
@@ -2824,6 +3041,7 @@ async function reviewAdminWithdrawal(withdrawalId, action, rejectionReason = nul
 
     await loadAdminFinanceSettings();
     await loadAdminWithdrawals();
+    await loadAdminDeposits();
 
   } catch (error) {
     console.error("Admin withdrawal review error:", error);
@@ -3501,9 +3719,11 @@ async function initializeLiveApp() {
   updateAffiliates();
 
   await loadWalletAndWithdrawals();
+  await loadDeposits();
 
   if (state.isAdmin) {
     await loadAdminWithdrawals();
+    await loadAdminDeposits();
   }
 
   subscribeToSupportChat();
@@ -4105,6 +4325,12 @@ function bindEvents() {
     ?.addEventListener(
       "click",
       requestWithdrawal
+    );
+
+  $("requestDepositButton")
+    ?.addEventListener(
+      "click",
+      requestDeposit
     );
 
 }
