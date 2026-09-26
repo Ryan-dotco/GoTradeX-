@@ -2584,6 +2584,255 @@ function updatePortfolio() {
 }
 
 /* =========================================================
+   WITHDRAWALS
+   ========================================================= */
+
+async function loadWalletAndWithdrawals() {
+  if (!state.supabase || !state.user) return;
+
+  try {
+    const { data: wallet, error: walletError } =
+      await state.supabase.from("gotradex_wallets")
+        .select("withdrawable_profit,profit_window_ends_at,status")
+        .eq("user_id", state.user.id).maybeSingle();
+
+    if (walletError) throw walletError;
+
+    const available = Number(wallet?.withdrawable_profit) || 0;
+
+    if ($("walletWithdrawableProfit"))
+      $("walletWithdrawableProfit").textContent = formatMoney(available);
+
+    const windowStatus = $("withdrawalWindowStatus");
+    if (windowStatus) {
+      if (wallet?.profit_window_ends_at) {
+        const ends = new Date(wallet.profit_window_ends_at);
+        windowStatus.textContent =
+          Date.now() <= ends.getTime()
+            ? "Open until " + ends.toLocaleString()
+            : "Closed — profit has passed its withdrawal window";
+      } else {
+        windowStatus.textContent =
+          available > 0 ? "Open" : "No withdrawable profit";
+      }
+    }
+
+    const { data: withdrawals, error: withdrawalError } =
+      await state.supabase.from("gotradex_withdrawals")
+        .select("id,amount,fee,net_amount,wallet_address,status,requested_at,reviewed_at,rejection_reason")
+        .eq("user_id", state.user.id)
+        .order("requested_at", { ascending: false }).limit(20);
+
+    if (withdrawalError) throw withdrawalError;
+    renderWithdrawalHistory(withdrawals || []);
+
+  } catch (error) {
+    console.warn("Wallet/withdrawal load failed:", error);
+  }
+}
+
+function renderWithdrawalHistory(withdrawals) {
+  const box = $("withdrawalHistory");
+  if (!box) return;
+
+  if (!withdrawals.length) {
+    box.className = "empty-state";
+    box.textContent = "No withdrawal requests yet.";
+    return;
+  }
+
+  box.className = "withdrawal-history";
+  box.innerHTML = withdrawals.map(item => {
+    const status = String(item.status || "pending");
+    const address = String(item.wallet_address || "");
+    const maskedAddress =
+      address.length > 14
+        ? address.slice(0, 8) + "…" + address.slice(-6)
+        : address;
+    const requested = new Date(item.requested_at).toLocaleString();
+    const rejection =
+      item.rejection_reason
+        ? " — " + escapeHTML(item.rejection_reason)
+        : "";
+
+    return \`
+      <div class="account-status">
+        <span>\${escapeHTML(requested)} · \${escapeHTML(maskedAddress)}</span>
+        <strong>\${formatMoney(item.net_amount)} · \${escapeHTML(status)}\${rejection}</strong>
+      </div>
+    \`;
+  }).join("");
+}
+
+async function requestWithdrawal() {
+  if (!state.supabase || !state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const amount = Number($("withdrawalAmount")?.value);
+  const walletAddress = $("withdrawalWalletAddress")?.value.trim() || "";
+
+  if (!Number.isFinite(amount) || amount < 10) {
+    showToast("Minimum withdrawal is $10.00.", "error");
+    return;
+  }
+
+  if (!walletAddress) {
+    showToast("Enter the wallet address that should receive the withdrawal.", "error");
+    return;
+  }
+
+  const button = $("requestWithdrawalButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Submitting...";
+  }
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_request_withdrawal",
+      { p_amount: amount, p_wallet_address: walletAddress }
+    );
+
+    if (error) throw error;
+
+    $("withdrawalAmount").value = "";
+
+    if ($("withdrawalStatusMessage"))
+      $("withdrawalStatusMessage").textContent =
+        "Withdrawal request submitted. An admin must review it.";
+
+    showToast("Withdrawal request submitted.", "success");
+    await loadWalletAndWithdrawals();
+
+    if (state.isAdmin) {
+      await loadAdminFinanceSettings();
+      await loadAdminWithdrawals();
+    }
+
+  } catch (error) {
+    console.error("Withdrawal request error:", error);
+    showToast(error.message || "Withdrawal request failed.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Request Withdrawal";
+    }
+  }
+}
+
+async function loadAdminWithdrawals() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { data, error } =
+      await state.supabase.from("gotradex_withdrawals")
+        .select("id,user_id,amount,fee,net_amount,wallet_address,status,requested_at")
+        .eq("status", "pending")
+        .order("requested_at", { ascending: true }).limit(100);
+
+    if (error) throw error;
+    renderAdminWithdrawals(data || []);
+
+  } catch (error) {
+    console.warn("Admin withdrawals load failed:", error);
+  }
+}
+
+function renderAdminWithdrawals(withdrawals) {
+  const box = $("adminWithdrawalsList");
+  if (!box) return;
+
+  if (!withdrawals.length) {
+    box.className = "empty-state";
+    box.textContent = "No pending withdrawal requests.";
+    return;
+  }
+
+  box.className = "admin-withdrawal-list";
+  box.innerHTML = withdrawals.map(item => \`
+    <div class="panel admin-withdrawal-item">
+      <div class="account-status">
+        <span>Request</span>
+        <strong>\${escapeHTML(item.id.slice(0, 8))}</strong>
+      </div>
+      <div class="account-status">
+        <span>User ID</span>
+        <strong>\${escapeHTML(item.user_id)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Requested</span>
+        <strong>\${escapeHTML(new Date(item.requested_at).toLocaleString())}</strong>
+      </div>
+      <div class="account-status">
+        <span>Amount</span>
+        <strong>\${formatMoney(item.amount)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Fee / Net</span>
+        <strong>\${formatMoney(item.fee)} / \${formatMoney(item.net_amount)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Wallet Address</span>
+        <strong>\${escapeHTML(item.wallet_address)}</strong>
+      </div>
+      <div class="settings-grid">
+        <button type="button" class="primary-button admin-approve-withdrawal"
+          data-withdrawal-id="\${escapeHTML(item.id)}">Approve</button>
+        <button type="button" class="danger-button admin-reject-withdrawal"
+          data-withdrawal-id="\${escapeHTML(item.id)}">Reject</button>
+      </div>
+    </div>
+  \`).join("");
+
+  box.querySelectorAll(".admin-approve-withdrawal").forEach(button => {
+    button.addEventListener("click", () =>
+      reviewAdminWithdrawal(button.dataset.withdrawalId, "approve"));
+  });
+
+  box.querySelectorAll(".admin-reject-withdrawal").forEach(button => {
+    button.addEventListener("click", async () => {
+      const reason = window.prompt("Reason for rejecting this withdrawal:");
+      if (reason === null) return;
+      await reviewAdminWithdrawal(
+        button.dataset.withdrawalId, "reject", reason
+      );
+    });
+  });
+}
+
+async function reviewAdminWithdrawal(withdrawalId, action, rejectionReason = null) {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_review_withdrawal",
+      {
+        p_withdrawal_id: withdrawalId,
+        p_action: action,
+        p_rejection_reason: rejectionReason
+      }
+    );
+
+    if (error) throw error;
+
+    showToast(
+      action === "approve" ? "Withdrawal approved." : "Withdrawal rejected.",
+      "success"
+    );
+
+    await loadAdminFinanceSettings();
+    await loadAdminWithdrawals();
+
+  } catch (error) {
+    console.error("Admin withdrawal review error:", error);
+    showToast(error.message || "Withdrawal review failed.", "error");
+  }
+}
+
+
+/* =========================================================
    AFFILIATES
    ========================================================= */
 
@@ -3251,6 +3500,12 @@ async function initializeLiveApp() {
 
   updateAffiliates();
 
+  await loadWalletAndWithdrawals();
+
+  if (state.isAdmin) {
+    await loadAdminWithdrawals();
+  }
+
   subscribeToSupportChat();
 
   await loadRobotState();
@@ -3407,6 +3662,8 @@ async function loadAdminFinanceSettings() {
       $("adminPendingWithdrawals").textContent =
         String(pendingWithdrawals || 0);
     }
+
+    await loadAdminWithdrawals();
 
   } catch (error) {
 
@@ -3842,6 +4099,12 @@ function bindEvents() {
     ?.addEventListener(
       "click",
       saveAdminFinanceSettings
+    );
+
+  $("requestWithdrawalButton")
+    ?.addEventListener(
+      "click",
+      requestWithdrawal
     );
 
 }
