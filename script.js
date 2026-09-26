@@ -4744,6 +4744,15 @@ function bindEvents() {
       () => renderAdminTradePreview()
     );
 
+  const adminMenuToggle = $("adminMenuToggle");
+
+  adminMenuToggle?.addEventListener("click", () => {
+    const page = $("page-admin");
+    const isOpen = page?.classList.toggle("admin-menu-open") || false;
+    adminMenuToggle.setAttribute("aria-expanded", String(isOpen));
+    adminMenuToggle.textContent = isOpen ? "✕ Close Menu" : "☰ Admin Menu";
+  });
+
   document
     .querySelectorAll("[data-admin-section-target]")
     .forEach((button) => {
@@ -4765,6 +4774,11 @@ function bindEvents() {
           });
 
         button.classList.add("active");
+
+        const page = $("page-admin");
+        page?.classList.remove("admin-menu-open");
+        adminMenuToggle?.setAttribute("aria-expanded", "false");
+        if (adminMenuToggle) adminMenuToggle.textContent = "☰ Admin Menu";
 
         const adminPage = document.getElementById("page-admin");
         adminPage?.scrollIntoView({ behavior: "smooth", block: "start" });
