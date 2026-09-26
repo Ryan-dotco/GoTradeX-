@@ -1510,6 +1510,120 @@
         </div>
 
 
+        <div class="panel admin-finance-panel">
+
+          <div class="section-header">
+
+            <div>
+              <h3>Platform Finance & Trade Allocation</h3>
+              <p class="muted">
+                View the funded pool and decide how much capital the platform
+                is allowed to allocate to the next trading cycle.
+              </p>
+            </div>
+
+            <div class="live-market-label">
+              ● FINANCE CONTROL
+            </div>
+
+          </div>
+
+
+          <div class="stat-grid">
+
+            <div class="stat-card">
+              <div class="stat-icon">$</div>
+              <div>
+                <span>Total Funded Capital</span>
+                <strong id="adminTotalFunded">$0.00</strong>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon">▣</div>
+              <div>
+                <span>Allocated to Trading</span>
+                <strong id="adminAllocatedCapital">$0.00</strong>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon">◌</div>
+              <div>
+                <span>Available / Reserve</span>
+                <strong id="adminAvailableCapital">$0.00</strong>
+              </div>
+            </div>
+
+          </div>
+
+
+          <div class="settings-grid">
+
+            <div class="field">
+              <label for="adminTradeAllocation">
+                Next Trading Cycle Allocation
+              </label>
+
+              <input
+                id="adminTradeAllocation"
+                type="number"
+                min="0"
+                step="0.01"
+                value="1.00"
+              >
+
+              <small class="muted">
+                Example: if the funded pool is $200 and you set $2,
+                only $2 is authorised for the platform trading cycle.
+              </small>
+            </div>
+
+
+            <div class="panel">
+              <h3>Allocation Method</h3>
+              <p class="muted">
+                User exposure will be calculated proportionally from each
+                user's eligible trading capital. The platform must never
+                automatically place the entire funded pool into one trade.
+              </p>
+
+              <div class="account-status">
+                <span>Current allocation</span>
+                <strong id="adminTradeAllocationStatus">$1.00</strong>
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <button
+            id="saveAdminFinanceButton"
+            type="button"
+            class="primary-button"
+          >
+            Save Finance Settings
+          </button>
+
+
+          <div class="panel admin-security-panel">
+
+            <h3>Trade Allocation Example</h3>
+
+            <p class="muted">
+              If total eligible capital is $200 and the admin authorises a
+              $2 trade allocation, a user with $20 of eligible capital has
+              a 10% share of that allocation, so the user's notional share
+              would be $0.20. A user's profit or loss is then calculated from
+              that user's own allocated amount.
+            </p>
+
+          </div>
+
+        </div>
+
+
         <div class="settings-grid">
 
           <div class="panel">
