@@ -1303,6 +1303,11 @@ const pageTitles = {
     "Contact GoTradeX support."
   ],
 
+  rules: [
+    "Rules & Terms",
+    "Important GoTradeX platform rules and information."
+  ],
+
   settings: [
     "Settings",
     "Manage your GoTradeX account."
