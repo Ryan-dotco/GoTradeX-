@@ -1401,22 +1401,22 @@ function bindPasswordToggle(
 
 
 async function fetchBinanceTicker(symbol) {
-  const response=await fetch(\`\${CONFIG.BINANCE_API}/ticker/24hr?symbol=\${encodeURIComponent(symbol)}\`,{cache:"no-store"});
-  if(!response.ok)throw new Error(\`Market request failed: \${response.status}\`);
+  const response=await fetch(`${CONFIG.BINANCE_API}/ticker/24hr?symbol=${encodeURIComponent(symbol)}`,{cache:"no-store"});
+  if(!response.ok)throw new Error(`Market request failed: ${response.status}`);
   const data=await response.json();
   return {symbol,price:Number(data.lastPrice),change:Number(data.priceChangePercent),volume:Number(data.volume),source:"Binance"};
 }
 
 async function fetchBinanceAllTickers() {
-  const response=await fetch(\`\${CONFIG.BINANCE_API}/ticker/24hr\`,{cache:"no-store"});
-  if(!response.ok)throw new Error(\`Binance market request failed: \${response.status}\`);
+  const response=await fetch(`${CONFIG.BINANCE_API}/ticker/24hr`,{cache:"no-store"});
+  if(!response.ok)throw new Error(`Binance market request failed: ${response.status}`);
   const data=await response.json(),map={};
   if(Array.isArray(data))data.forEach(item=>{if(item?.symbol)map[item.symbol]={symbol:item.symbol,price:Number(item.lastPrice),change:Number(item.priceChangePercent),volume:Number(item.volume),source:"Binance"};});
   return map;
 }
 
 async function fetchForexRates() {
-  const response=await fetch(\`\${CONFIG.FRANKFURTER_API}/latest?from=USD\`,{cache:"no-store"});
+  const response=await fetch(`${CONFIG.FRANKFURTER_API}/latest?from=USD`,{cache:"no-store"});
   if(!response.ok)throw new Error("Forex feed unavailable.");
   const data=await response.json();
   return data.rates||{};
@@ -1460,14 +1460,14 @@ async function loadLiveMarkets(){
     const base=symbol.slice(0,3),quote=symbol.slice(3,6),baseRate=base==="USD"?1:Number(forexRates[base]),quoteRate=quote==="USD"?1:Number(forexRates[quote]);
     let live=null;
     if(baseRate>0&&quoteRate>0){const price=quoteRate/baseRate;live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Frankfurter"};}
-    results[symbol]=buildMarketEntry(symbol,\`\${base} / \${quote}\`,"forex",live);
+    results[symbol]=buildMarketEntry(symbol,`${base} / ${quote}`,"forex",live);
   });
 
   for(const [symbol,name] of marketCatalog.commodities){
     let live=null;
     if(symbol==="XAUUSD"||symbol==="XAGUSD"){
       try{
-        const metal=symbol==="XAUUSD"?"XAU":"XAG",response=await fetch(\`https://api.gold-api.com/price/\${metal}\`,{cache:"no-store"});
+        const metal=symbol==="XAUUSD"?"XAU":"XAG",response=await fetch(`https://api.gold-api.com/price/${metal}`,{cache:"no-store"});
         if(response.ok){const data=await response.json(),price=Number(data?.price);if(price>0)live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Gold API"};}
       }catch(error){console.warn(symbol+" live feed unavailable.");}
     }
@@ -1489,14 +1489,14 @@ function renderDashboardMarkets(){
   const symbols=["BTCUSDT","ETHUSDT","XAUUSD","EURUSD","GBPUSD","USDZAR"];
   container.innerHTML=symbols.filter(symbol=>state.markets[symbol]).map(symbol=>{
     const market=state.markets[symbol],change=Number(market.change)||0,className=change>=0?"positive":"negative";
-    return \`
+    return `
       <div class="market-card">
-        <div class="market-card-top"><span class="market-symbol">\${escapeHTML(symbol)}</span><span class="\${className}">\${change>=0?"+":""}\${change.toFixed(2)}%</span></div>
-        <div class="market-name">\${escapeHTML(market.name||symbol)}</div>
-        <div class="market-price">\${formatPrice(market.price)}</div>
-        <div class="market-change \${className}">\${escapeHTML(market.source||"—")}</div>
+        <div class="market-card-top"><span class="market-symbol">${escapeHTML(symbol)}</span><span class="${className}">${change>=0?"+":""}${change.toFixed(2)}%</span></div>
+        <div class="market-name">${escapeHTML(market.name||symbol)}</div>
+        <div class="market-price">${formatPrice(market.price)}</div>
+        <div class="market-change ${className}">${escapeHTML(market.source||"—")}</div>
       </div>
-    \`;
+    `;
   }).join("");
 }
 
@@ -1505,34 +1505,34 @@ function renderMarketsList(){
   const query=$("marketSearch")?.value.trim().toUpperCase()||"",category=state.currentCategory;
   let entries=[];
   if(category==="crypto")entries=marketCatalog.crypto.map(([symbol,name])=>({symbol,name,type:"crypto"}));
-  else if(category==="forex")entries=marketCatalog.forex.map(symbol=>({symbol,name:\`\${symbol.slice(0,3)} / \${symbol.slice(3,6)}\`,type:"forex"}));
+  else if(category==="forex")entries=marketCatalog.forex.map(symbol=>({symbol,name:`${symbol.slice(0,3)} / ${symbol.slice(3,6)}`,type:"forex"}));
   else if(category==="commodities"||category==="metals")entries=marketCatalog.commodities.map(([symbol,name])=>({symbol,name,type:"commodity"}));
   else if(category==="indices")entries=marketCatalog.indices.map(([symbol,name])=>({symbol,name,type:"index"}));
 
-  const filtered=entries.filter(entry=>{const market=state.markets[entry.symbol],text=\`\${entry.symbol} \${entry.name}\`.toUpperCase();return(!query||text.includes(query))&&market;});
-  if(!filtered.length){container.innerHTML=\`<div class="empty-state">No markets match your search.</div>\`;return;}
+  const filtered=entries.filter(entry=>{const market=state.markets[entry.symbol],text=`${entry.symbol} ${entry.name}`.toUpperCase();return(!query||text.includes(query))&&market;});
+  if(!filtered.length){container.innerHTML=`<div class="empty-state">No markets match your search.</div>`;return;}
 
   container.innerHTML=filtered.map(entry=>{
     const market=state.markets[entry.symbol],change=Number(market.change)||0,className=change>=0?"positive":"negative";
-    return \`
+    return `
       <div class="market-row">
-        <div><strong>\${escapeHTML(entry.symbol)}</strong><span>\${escapeHTML(entry.name)}</span></div>
-        <div><span>Price</span><strong>\${formatPrice(market.price)}</strong></div>
-        <div><span>24h</span><strong class="\${className}">\${change>=0?"+":""}\${change.toFixed(2)}%</strong></div>
-        <div><span>Source</span><strong>\${escapeHTML(market.source||"—")}</strong></div>
+        <div><strong>${escapeHTML(entry.symbol)}</strong><span>${escapeHTML(entry.name)}</span></div>
+        <div><span>Price</span><strong>${formatPrice(market.price)}</strong></div>
+        <div><span>24h</span><strong class="${className}">${change>=0?"+":""}${change.toFixed(2)}%</strong></div>
+        <div><span>Source</span><strong>${escapeHTML(market.source||"—")}</strong></div>
       </div>
-    \`;
+    `;
   }).join("");
 }
 
 function updateDashboardPrice(){
   const btc=state.markets.BTCUSDT;
-  if(btc&&$("btcPrice"))$("btcPrice").textContent=\`$\${formatPrice(btc.price)}\`;
+  if(btc&&$("btcPrice"))$("btcPrice").textContent=`$${formatPrice(btc.price)}`;
 }
 
 async function fetchBinanceKlines(symbol,interval,limit=60){
-  const response=await fetch(\`\${CONFIG.BINANCE_API}/klines?symbol=\${encodeURIComponent(symbol)}&interval=\${encodeURIComponent(interval)}&limit=\${limit}\`,{cache:"no-store"});
-  if(!response.ok)throw new Error(\`Chart request failed: \${response.status}\`);
+  const response=await fetch(`${CONFIG.BINANCE_API}/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`,{cache:"no-store"});
+  if(!response.ok)throw new Error(`Chart request failed: ${response.status}`);
   const rows=await response.json();
   return rows.map(row=>({time:Number(row[0]),close:Number(row[4])}));
 }
