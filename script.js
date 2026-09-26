@@ -1399,618 +1399,168 @@ function bindPasswordToggle(
    LIVE MARKETS
    ========================================================= */
 
+
 async function fetchBinanceTicker(symbol) {
-
-  const response =
-    await fetch(
-      `${CONFIG.BINANCE_API}/ticker/24hr?symbol=${encodeURIComponent(symbol)}`,
-      {
-        cache: "no-store"
-      }
-    );
-
-
-  if (!response.ok) {
-    throw new Error(
-      `Market request failed: ${response.status}`
-    );
-  }
-
-
-  const data =
-    await response.json();
-
-
-  return {
-
-    symbol,
-
-    price:
-      Number(data.lastPrice),
-
-    change:
-      Number(data.priceChangePercent),
-
-    volume:
-      Number(data.volume),
-
-    source:
-      "Binance"
-
-  };
-
+  const response=await fetch(\`\${CONFIG.BINANCE_API}/ticker/24hr?symbol=\${encodeURIComponent(symbol)}\`,{cache:"no-store"});
+  if(!response.ok)throw new Error(\`Market request failed: \${response.status}\`);
+  const data=await response.json();
+  return {symbol,price:Number(data.lastPrice),change:Number(data.priceChangePercent),volume:Number(data.volume),source:"Binance"};
 }
 
+async function fetchBinanceAllTickers() {
+  const response=await fetch(\`\${CONFIG.BINANCE_API}/ticker/24hr\`,{cache:"no-store"});
+  if(!response.ok)throw new Error(\`Binance market request failed: \${response.status}\`);
+  const data=await response.json(),map={};
+  if(Array.isArray(data))data.forEach(item=>{if(item?.symbol)map[item.symbol]={symbol:item.symbol,price:Number(item.lastPrice),change:Number(item.priceChangePercent),volume:Number(item.volume),source:"Binance"};});
+  return map;
+}
 
 async function fetchForexRates() {
-
-  const response =
-    await fetch(
-      `${CONFIG.FRANKFURTER_API}/latest?from=USD&to=EUR,GBP,ZAR`,
-      {
-        cache: "no-store"
-      }
-    );
-
-
-  if (!response.ok) {
-    throw new Error(
-      "Forex feed unavailable."
-    );
-  }
-
-
-  const data =
-    await response.json();
-
-
-  return data.rates || {};
-
+  const response=await fetch(\`\${CONFIG.FRANKFURTER_API}/latest?from=USD\`,{cache:"no-store"});
+  if(!response.ok)throw new Error("Forex feed unavailable.");
+  const data=await response.json();
+  return data.rates||{};
 }
 
-
-async function loadLiveMarkets() {
-
-  const previous = {
-    ...state.markets
-  };
-
-  const results = {
-    ...previous
-  };
-
-  const cryptoSymbols = [
-    "BTCUSDT",
-    "ETHUSDT"
-  ];
-
-  const cryptoResults =
-    await Promise.all(
-      cryptoSymbols.map(async symbol => {
-
-        try {
-
-          return await fetchBinanceTicker(
-            symbol
-          );
-
-        } catch (error) {
-
-          console.warn(
-            `${symbol} unavailable:`,
-            error
-          );
-
-          return null;
-
-        }
-
-      })
-    );
-
-  cryptoResults
-    .filter(Boolean)
-    .forEach(market => {
-
-      results[market.symbol] =
-        market;
-
-    });
-
-
-  try {
-
-    const rates =
-      await fetchForexRates();
-
-    const previousEUR =
-      previous.EURUSD?.price;
-
-    const previousGBP =
-      previous.GBPUSD?.price;
-
-    const previousZAR =
-      previous.USDZAR?.price;
-
-
-    if (rates.EUR) {
-
-      const price =
-        1 / Number(rates.EUR);
-
-      results.EURUSD = {
-
-        symbol: "EURUSD",
-
-        price,
-
-        change:
-          previousEUR
-            ? ((price - previousEUR) / previousEUR) * 100
-            : 0,
-
-        source: "Frankfurter"
-
-      };
-
-    }
-
-
-    if (rates.GBP) {
-
-      const price =
-        1 / Number(rates.GBP);
-
-      results.GBPUSD = {
-
-        symbol: "GBPUSD",
-
-        price,
-
-        change:
-          previousGBP
-            ? ((price - previousGBP) / previousGBP) * 100
-            : 0,
-
-        source: "Frankfurter"
-
-      };
-
-    }
-
-
-    if (rates.ZAR) {
-
-      const price =
-        Number(rates.ZAR);
-
-      results.USDZAR = {
-
-        symbol: "USDZAR",
-
-        price,
-
-        change:
-          previousZAR
-            ? ((price - previousZAR) / previousZAR) * 100
-            : 0,
-
-        source: "Frankfurter"
-
-      };
-
-    }
-
-  } catch (error) {
-
-    console.warn(
-      "Forex feed unavailable; keeping last known rates:",
-      error
-    );
-
-  }
-
-
-  state.markets =
-    results;
-
-  state.marketsUpdatedAt =
-    new Date().toISOString();
-
-
-  renderDashboardMarkets();
-
-  renderMarketsList();
-
-  updateDashboardPrice();
-
-  updateSignalFromMarket();
-
-}
-
-/* =========================================================
-   MARKET RENDER
-   ========================================================= */
-
-const marketNames = {
-
-  BTCUSDT: "Bitcoin / USD",
-  ETHUSDT: "Ethereum / USD",
-  EURUSD: "Euro / USD",
-  GBPUSD: "Pound / USD",
-  USDZAR: "USD / South African Rand"
-
+const marketCatalog={
+  crypto:[
+    ["BTCUSDT","Bitcoin / USD"],["ETHUSDT","Ethereum / USD"],["BNBUSDT","BNB / USD"],["SOLUSDT","Solana / USD"],["XRPUSDT","XRP / USD"],
+    ["ADAUSDT","Cardano / USD"],["DOGEUSDT","Dogecoin / USD"],["AVAXUSDT","Avalanche / USD"],["DOTUSDT","Polkadot / USD"],["LINKUSDT","Chainlink / USD"],
+    ["LTCUSDT","Litecoin / USD"],["BCHUSDT","Bitcoin Cash / USD"],["TRXUSDT","TRON / USD"],["SHIBUSDT","Shiba Inu / USD"],["TONUSDT","Toncoin / USD"],
+    ["XLMUSDT","Stellar / USD"],["ATOMUSDT","Cosmos / USD"],["ETCUSDT","Ethereum Classic / USD"],["FILUSDT","Filecoin / USD"],["APTUSDT","Aptos / USD"],
+    ["NEARUSDT","NEAR / USD"],["ALGOUSDT","Algorand / USD"],["ICPUSDT","Internet Computer / USD"],["HBARUSDT","Hedera / USD"],
+    ["VETUSDT","VeChain / USD"],["UNIUSDT","Uniswap / USD"],["AAVEUSDT","Aave / USD"],["MKRUSDT","Maker / USD"],["SANDUSDT","The Sandbox / USD"],
+    ["MANAUSDT","Decentraland / USD"],["PEPEUSDT","Pepe / USD"]
+  ],
+  forex:["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","EURGBP","EURJPY","EURCHF","EURAUD","EURCAD","EURNZD","GBPJPY","GBPCHF","GBPAUD","GBPCAD","GBPNZD","AUDJPY","AUDCHF","AUDCAD","AUDNZD","CADJPY","CADCHF","NZDJPY","NZDCHF","CHFJPY","USDZAR","USDMXN","USDTRY","USDSEK","USDNOK","USDDKK","USDPLN","USDHUF","USDCZK","EURSEK","EURNOK","EURDKK","EURPLN","EURHUF","EURCZK","EURZAR","GBPSEK","GBPNOK","GBPPLN","GBPZAR","AUDSGD","AUDZAR","CADZAR","NZDSEK","NZDZAR"],
+  commodities:[["XAUUSD","Gold / USD"],["XAGUSD","Silver / USD"],["WTIUSD","WTI Crude Oil"],["BRENTUSD","Brent Crude Oil"],["NATGASUSD","Natural Gas"],["COPPERUSD","Copper"],["PLATINUMUSD","Platinum"],["PALLADIUMUSD","Palladium"]],
+  indices:[["US500","S&P 500"],["NAS100","Nasdaq 100"],["US30","Dow Jones"],["GER40","DAX 40"],["UK100","FTSE 100"],["JPN225","Nikkei 225"],["FRA40","CAC 40"],["AUS200","ASX 200"],["HK50","Hang Seng"],["CHINA50","China A50"]]
 };
 
+const demoMarketPrices={
+  BTCUSDT:64231.5,ETHUSDT:3450.2,BNBUSDT:610.2,SOLUSDT:148.4,XRPUSDT:2.4,ADAUSDT:.82,DOGEUSDT:.17,AVAXUSDT:38.1,DOTUSDT:4.9,LINKUSDT:18.2,LTCUSDT:96.2,BCHUSDT:540,TRXUSDT:.31,SHIBUSDT:.000012,TONUSDT:3.2,XLMUSDT:.3,ATOMUSDT:4.6,ETCUSDT:18.7,FILUSDT:2.1,APTUSDT:4.2,NEARUSDT:2.6,ALGOUSDT:.21,ICPUSDT:5.2,HBARUSDT:.22,VETUSDT:.03,UNIUSDT:7,AAVEUSDT:250,MKRUSDT:1800,SANDUSDT:.25,MANAUSDT:.24,PEPEUSDT:.000009,
+  EURUSD:1.0821,GBPUSD:1.263,USDJPY:150.2,USDCHF:.85,AUDUSD:.66,USDCAD:1.37,NZDUSD:.6,EURGBP:.86,EURJPY:162.5,EURCHF:.92,EURAUD:1.64,EURCAD:1.48,EURNZD:1.8,GBPJPY:189.7,GBPCHF:1.07,GBPAUD:1.91,GBPCAD:1.73,GBPNZD:2.1,AUDJPY:99.1,AUDCHF:.56,AUDCAD:.9,AUDNZD:1.1,CADJPY:109.6,CADCHF:.62,NZDJPY:90.1,NZDCHF:.51,CHFJPY:176.7,USDZAR:17.5,USDMXN:19.3,USDTRY:41,USDSEK:9.35,USDNOK:10,USDDKK:6.6,USDPLN:3.7,USDHUF:335,USDCZK:21.2,EURSEK:11,EURNOK:11.2,EURDKK:7.46,EURPLN:4.25,EURHUF:400,EURCZK:24,EURZAR:18.9,GBPSEK:12,GBPNOK:12.6,GBPPLN:4.67,GBPZAR:22.1,AUDSGD:.86,AUDZAR:11.6,CADZAR:12.8,NZDSEK:5.6,NZDZAR:10.5,
+  XAUUSD:2340.1,XAGUSD:28.5,WTIUSD:78.2,BRENTUSD:82.1,NATGASUSD:3.1,COPPERUSD:4.2,PLATINUMUSD:980,PALLADIUMUSD:930,US500:5200,NAS100:18200,US30:39000,GER40:18500,UK100:8300,JPN225:39000,FRA40:8200,AUS200:7900,HK50:18000,CHINA50:13500
+};
 
-function renderDashboardMarkets() {
-
-  const container =
-    $("dashboardMarkets");
-
-  if (!container) {
-    return;
-  }
-
-
-  const symbols = [
-    "BTCUSDT",
-    "ETHUSDT",
-    "EURUSD",
-    "GBPUSD",
-    "USDZAR"
-  ];
-
-
-  container.innerHTML =
-    symbols
-      .filter(
-        symbol => state.markets[symbol]
-      )
-      .map(symbol => {
-
-        const market =
-          state.markets[symbol];
-
-        const change =
-          Number(market.change) || 0;
-
-        const className =
-          change >= 0
-            ? "positive"
-            : "negative";
-
-
-        return `
-
-          <div class="market-card">
-
-            <div class="market-card-top">
-
-              <span class="market-symbol">
-                ${escapeHTML(symbol)}
-              </span>
-
-              <span class="${className}">
-                ${change >= 0 ? "+" : ""}
-                ${change.toFixed(2)}%
-              </span>
-
-            </div>
-
-            <div class="market-name">
-              ${escapeHTML(
-                marketNames[symbol] || symbol
-              )}
-            </div>
-
-            <div class="market-price">
-              ${formatPrice(market.price)}
-            </div>
-
-            <div class="market-change ${className}">
-              ${escapeHTML(market.source)}
-            </div>
-
-          </div>
-
-        `;
-
-      })
-      .join("");
-
-
+function buildMarketEntry(symbol,name,type,live){
+  const livePrice=Number(live?.price),fallback=Number(demoMarketPrices[symbol]),price=Number.isFinite(livePrice)&&livePrice>0?livePrice:fallback;
+  return {symbol,name,type,price,change:Number.isFinite(Number(live?.change))?Number(live.change):0,source:Number.isFinite(livePrice)&&livePrice>0?(live.source||"Live API"):"Demo fallback"};
 }
 
+async function loadLiveMarkets(){
+  const previous={...state.markets},results={...previous};
+  let cryptoTickers={},forexRates={};
+  try{cryptoTickers=await fetchBinanceAllTickers();}catch(error){console.warn("Crypto feed unavailable; using fallback data.",error);}
+  try{forexRates=await fetchForexRates();}catch(error){console.warn("Forex feed unavailable; using fallback data.",error);}
 
-function renderMarketsList() {
+  marketCatalog.crypto.forEach(([symbol,name])=>{results[symbol]=buildMarketEntry(symbol,name,"crypto",cryptoTickers[symbol]);});
 
-  const container =
-    $("marketsList");
+  marketCatalog.forex.forEach(symbol=>{
+    const base=symbol.slice(0,3),quote=symbol.slice(3,6),baseRate=base==="USD"?1:Number(forexRates[base]),quoteRate=quote==="USD"?1:Number(forexRates[quote]);
+    let live=null;
+    if(baseRate>0&&quoteRate>0){const price=quoteRate/baseRate;live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Frankfurter"};}
+    results[symbol]=buildMarketEntry(symbol,\`\${base} / \${quote}\`,"forex",live);
+  });
 
-  if (!container) {
-    return;
+  for(const [symbol,name] of marketCatalog.commodities){
+    let live=null;
+    if(symbol==="XAUUSD"||symbol==="XAGUSD"){
+      try{
+        const metal=symbol==="XAUUSD"?"XAU":"XAG",response=await fetch(\`https://api.gold-api.com/price/\${metal}\`,{cache:"no-store"});
+        if(response.ok){const data=await response.json(),price=Number(data?.price);if(price>0)live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Gold API"};}
+      }catch(error){console.warn(symbol+" live feed unavailable.");}
+    }
+    results[symbol]=buildMarketEntry(symbol,name,"commodity",live);
   }
 
+  for(const [symbol,name] of marketCatalog.indices)results[symbol]=buildMarketEntry(symbol,name,"index",null);
 
-  const query =
-    $("marketSearch")
-      ?.value
-      .trim()
-      .toUpperCase() || "";
+  state.markets=results;
+  state.marketsUpdatedAt=new Date().toISOString();
+  renderDashboardMarkets();
+  renderMarketsList();
+  updateDashboardPrice();
+  updateSignalFromMarket();
+}
 
-
-  const category =
-    state.currentCategory;
-
-
-  let symbols;
-
-
-  if (category === "crypto") {
-
-    symbols = [
-      "BTCUSDT",
-      "ETHUSDT"
-    ];
-
-  } else if (category === "forex") {
-
-    symbols = [
-      "EURUSD",
-      "GBPUSD",
-      "USDZAR"
-    ];
-
-  } else {
-
-    symbols = [];
-
-  }
-
-
-  const filtered =
-    symbols.filter(symbol => {
-
-      if (!query) return true;
-
-      return (
-        symbol.includes(query) ||
-        (
-          marketNames[symbol] || ""
-        )
-        .toUpperCase()
-        .includes(query)
-      );
-
-    });
-
-
-  if (!filtered.length) {
-
-    container.innerHTML = `
-
-      <div class="empty-state">
-
-        Live data for this category
-        is not connected yet.
-
+function renderDashboardMarkets(){
+  const container=$("dashboardMarkets");if(!container)return;
+  const symbols=["BTCUSDT","ETHUSDT","XAUUSD","EURUSD","GBPUSD","USDZAR"];
+  container.innerHTML=symbols.filter(symbol=>state.markets[symbol]).map(symbol=>{
+    const market=state.markets[symbol],change=Number(market.change)||0,className=change>=0?"positive":"negative";
+    return \`
+      <div class="market-card">
+        <div class="market-card-top"><span class="market-symbol">\${escapeHTML(symbol)}</span><span class="\${className}">\${change>=0?"+":""}\${change.toFixed(2)}%</span></div>
+        <div class="market-name">\${escapeHTML(market.name||symbol)}</div>
+        <div class="market-price">\${formatPrice(market.price)}</div>
+        <div class="market-change \${className}">\${escapeHTML(market.source||"—")}</div>
       </div>
-
-    `;
-
-    return;
-  }
-
-
-  container.innerHTML =
-    filtered
-      .filter(
-        symbol =>
-          state.markets[symbol]
-      )
-      .map(symbol => {
-
-        const market =
-          state.markets[symbol];
-
-        const change =
-          Number(market.change) || 0;
-
-        const className =
-          change >= 0
-            ? "positive"
-            : "negative";
-
-
-        return `
-
-          <div class="market-row">
-
-            <div>
-              <strong>
-                ${escapeHTML(symbol)}
-              </strong>
-
-              <span>
-                ${escapeHTML(
-                  marketNames[symbol] || ""
-                )}
-              </span>
-            </div>
-
-            <div>
-              <span>Price</span>
-              <strong>
-                ${formatPrice(market.price)}
-              </strong>
-            </div>
-
-            <div>
-              <span>24h</span>
-              <strong class="${className}">
-                ${change >= 0 ? "+" : ""}
-                ${change.toFixed(2)}%
-              </strong>
-            </div>
-
-            <div>
-              <span>Source</span>
-              <strong>
-                ${escapeHTML(
-                  market.source
-                )}
-              </strong>
-            </div>
-
-          </div>
-
-        `;
-
-      })
-      .join("");
-
+    \`;
+  }).join("");
 }
 
+function renderMarketsList(){
+  const container=$("marketsList");if(!container)return;
+  const query=$("marketSearch")?.value.trim().toUpperCase()||"",category=state.currentCategory;
+  let entries=[];
+  if(category==="crypto")entries=marketCatalog.crypto.map(([symbol,name])=>({symbol,name,type:"crypto"}));
+  else if(category==="forex")entries=marketCatalog.forex.map(symbol=>({symbol,name:\`\${symbol.slice(0,3)} / \${symbol.slice(3,6)}\`,type:"forex"}));
+  else if(category==="commodities"||category==="metals")entries=marketCatalog.commodities.map(([symbol,name])=>({symbol,name,type:"commodity"}));
+  else if(category==="indices")entries=marketCatalog.indices.map(([symbol,name])=>({symbol,name,type:"index"}));
 
-/* =========================================================
-   DASHBOARD PRICE
-   ========================================================= */
+  const filtered=entries.filter(entry=>{const market=state.markets[entry.symbol],text=\`\${entry.symbol} \${entry.name}\`.toUpperCase();return(!query||text.includes(query))&&market;});
+  if(!filtered.length){container.innerHTML=\`<div class="empty-state">No markets match your search.</div>\`;return;}
 
-function updateDashboardPrice() {
-
-  const btc =
-    state.markets.BTCUSDT;
-
-
-  if (
-    btc &&
-    $("btcPrice")
-  ) {
-
-    $("btcPrice").textContent =
-      `$${formatPrice(btc.price)}`;
-
-  }
-
+  container.innerHTML=filtered.map(entry=>{
+    const market=state.markets[entry.symbol],change=Number(market.change)||0,className=change>=0?"positive":"negative";
+    return \`
+      <div class="market-row">
+        <div><strong>\${escapeHTML(entry.symbol)}</strong><span>\${escapeHTML(entry.name)}</span></div>
+        <div><span>Price</span><strong>\${formatPrice(market.price)}</strong></div>
+        <div><span>24h</span><strong class="\${className}">\${change>=0?"+":""}\${change.toFixed(2)}%</strong></div>
+        <div><span>Source</span><strong>\${escapeHTML(market.source||"—")}</strong></div>
+      </div>
+    \`;
+  }).join("");
 }
 
-
-/* =========================================================
-   CHART
-   ========================================================= */
-
-async function fetchBinanceKlines(symbol, interval, limit = 60) {
-
-  const response =
-    await fetch(
-      `${CONFIG.BINANCE_API}/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`,
-      { cache: "no-store" }
-    );
-
-  if (!response.ok) {
-    throw new Error(`Chart request failed: ${response.status}`);
-  }
-
-  const rows = await response.json();
-
-  return rows.map(row => ({
-    time: Number(row[0]),
-    close: Number(row[4])
-  }));
-
+function updateDashboardPrice(){
+  const btc=state.markets.BTCUSDT;
+  if(btc&&$("btcPrice"))$("btcPrice").textContent=\`$\${formatPrice(btc.price)}\`;
 }
 
-function chartIntervalForTimeframe(timeframe) {
-  const intervals = {
-    "1H": "1h",
-    "4H": "4h",
-    "1D": "1d",
-    "1W": "1w"
-  };
-
-  return intervals[timeframe] || "1h";
+async function fetchBinanceKlines(symbol,interval,limit=60){
+  const response=await fetch(\`\${CONFIG.BINANCE_API}/klines?symbol=\${encodeURIComponent(symbol)}&interval=\${encodeURIComponent(interval)}&limit=\${limit}\`,{cache:"no-store"});
+  if(!response.ok)throw new Error(\`Chart request failed: \${response.status}\`);
+  const rows=await response.json();
+  return rows.map(row=>({time:Number(row[0]),close:Number(row[4])}));
 }
 
-function createSyntheticChartPoints(currentPrice, count = 30) {
-  const points = [];
+function chartIntervalForTimeframe(timeframe){
+  const intervals={"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1H":"1h","4H":"4h","12H":"12h","1D":"1d","1W":"1w","1M":"1M"};
+  return intervals[timeframe]||null;
+}
 
-  for (let i = 0; i < count; i++) {
-    const variation = currentPrice
-      ? currentPrice * (1 + Math.sin(i / 3) * 0.004)
-      : 0;
-
-    points.push({
-      time: Date.now() - ((count - i) * 3600000),
-      close: Number(variation.toFixed(2))
-    });
-  }
-
+function createSyntheticChartPoints(currentPrice,timeframe="1H",count=60){
+  const step={"5s":5000,"15s":15000,"30s":30000,"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1H":3600000,"4H":14400000,"12H":43200000,"1D":86400000,"1W":604800000,"1M":2592000000,"6M":15552000000,"1Y":31536000000}[timeframe]||3600000;
+  const points=[],base=Number(currentPrice)||1;
+  for(let i=0;i<count;i++)points.push({time:Date.now()-((count-i)*step),close:Number((base*(1+Math.sin(i/3)*.004)).toFixed(6))});
   return points;
 }
 
-async function createChart() {
-
-  const canvas = $("mainChart");
-
-  if (!canvas || typeof Chart === "undefined") {
-    return;
-  }
-
-  if (state.chart) {
-    state.chart.destroy();
-    state.chart = null;
-  }
-
-  const currentPrice = state.markets.BTCUSDT?.price || 0;
-  const interval = chartIntervalForTimeframe(state.currentTimeframe);
-  let candles = [];
-
-  try {
-    candles = await fetchBinanceKlines("BTCUSDT", interval, 60);
-  } catch (error) {
-    console.warn("Live chart unavailable; using temporary fallback:", error);
-    candles = createSyntheticChartPoints(currentPrice);
-  }
-
-  const labels = candles.map(candle =>
-    new Date(candle.time).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    })
-  );
-
-  const points = candles.map(candle => candle.close);
-
-  state.chart = new Chart(canvas.getContext("2d"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        data: points,
-        borderColor: "#4f7cff",
-        backgroundColor: "rgba(37,99,235,0.10)",
-        fill: true,
-        tension: 0.35,
-        pointRadius: 0,
-        borderWidth: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { display: false },
-        y: {
-          grid: { color: "rgba(145,164,189,0.10)" },
-          ticks: { color: "#91a4bd", font: { size: 9 } }
-        }
-      }
-    }
-  });
+async function createChart(){
+  const canvas=$("mainChart");if(!canvas||typeof Chart==="undefined")return;
+  if(state.chart){state.chart.destroy();state.chart=null;}
+  const tf=state.currentTimeframe,currentPrice=state.markets.BTCUSDT?.price||0,interval=chartIntervalForTimeframe(tf);
+  let candles=[];
+  try{if(!interval)throw new Error("Synthetic timeframe");candles=await fetchBinanceKlines("BTCUSDT",interval,60);}
+  catch(error){console.warn("Live chart unavailable; using timeframe fallback:",error);candles=createSyntheticChartPoints(currentPrice,tf,60);}
+  const labels=candles.map(c=>new Date(c.time).toLocaleString([],tf==="5s"||tf==="15s"||tf==="30s"?{hour:"2-digit",minute:"2-digit",second:"2-digit"}:{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}));
+  state.chart=new Chart(canvas.getContext("2d"),{type:"line",data:{labels,datasets:[{data:candles.map(c=>c.close),borderColor:"#4f7cff",backgroundColor:"rgba(37,99,235,0.10)",fill:true,tension:.35,pointRadius:0,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:"rgba(145,164,189,0.10)"},ticks:{color:"#91a4bd",font:{size:9}}}}}});
 }
+
+
 /* =========================================================
    SIGNAL ENGINE
    ========================================================= */
