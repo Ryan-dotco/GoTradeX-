@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.0";
+const APP_VERSION = "3.0.3";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -40,6 +40,8 @@ const state = {
   user: null,
 
   profile: null,
+
+  isAdmin: false,
 
   currentPage: "dashboard",
 
@@ -1043,6 +1045,70 @@ async function loadProfile() {
 
 }
 
+  await loadAdminAccess();
+
+
+/* =========================================================
+   ADMIN ACCESS
+   ========================================================= */
+
+async function loadAdminAccess() {
+
+  state.isAdmin = false;
+
+  const button = $("adminNavButton");
+
+  if (button) {
+    button.classList.add("hidden");
+  }
+
+  if (!state.supabase || !state.user) {
+    return;
+  }
+
+  try {
+
+    const { data, error } =
+      await state.supabase
+        .from("admin_users")
+        .select("user_id")
+        .eq("user_id", state.user.id)
+        .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    state.isAdmin =
+      Boolean(data && data.user_id === state.user.id);
+
+    if (button) {
+      button.classList.toggle(
+        "hidden",
+        !state.isAdmin
+      );
+    }
+
+    if ($("adminAccessStatus")) {
+      $("adminAccessStatus").textContent =
+        state.isAdmin
+          ? "Verified Admin"
+          : "Not Authorized";
+    }
+
+  } catch (error) {
+
+    console.warn(
+      "Admin access check failed:",
+      error
+    );
+
+    state.isAdmin = false;
+
+  }
+
+}
+
 
 async function createOrUpdateProfile() {
 
@@ -1236,12 +1302,28 @@ const pageTitles = {
   settings: [
     "Settings",
     "Manage your GoTradeX account."
+  ],
+
+  admin: [
+    "Admin Portal",
+    "Private platform administration and control centre."
   ]
 
 };
 
 
 function showPage(page) {
+
+  if (
+    page === "admin" &&
+    state.isAdmin !== true
+  ) {
+    showToast(
+      "Admin access is required.",
+      "error"
+    );
+    page = "dashboard";
+  }
 
   if (!pageTitles[page]) {
     page = "dashboard";
@@ -3242,6 +3324,9 @@ async function logout() {
 
     state.user = null;
     state.profile = null;
+    state.isAdmin = false;
+
+    $("adminNavButton")?.classList.add("hidden");
 
     showAuthScreen();
 
