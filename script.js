@@ -1208,6 +1208,10 @@ function updateUserInterface() {
     $("sidebarEmail").textContent = email;
   }
 
+  if ($("sidebarRole")) {
+    $("sidebarRole").textContent = state.isAdmin ? "Admin" : "User";
+  }
+
   if ($("welcomeName")) {
     $("welcomeName").textContent = name;
   }
