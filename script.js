@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.32";
+const APP_VERSION = "3.0.33";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -64,6 +64,8 @@ const state = {
   maxDrawdown: 10,
 
   mt5AccountId: "",
+
+  mt5BridgeToken: "",
 
   robotStatus: {
     connected: false,
@@ -2931,6 +2933,50 @@ function startRobotStatusRefresh() {
 }
 
 
+async function generateMT5BridgeToken() {
+  if (!state.supabase || !state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const accountId = Number($("mt5AccountId")?.value || state.mt5AccountId);
+  if (!Number.isInteger(accountId) || accountId <= 0) {
+    showToast("Enter your AvaTrade MT5 Account ID first.", "error");
+    return;
+  }
+
+  try {
+    const { data, error } = await state.supabase.functions.invoke(
+      "issue-mt5-bridge-token",
+      { body: { mt5_account_id: accountId } }
+    );
+
+    if (error) throw error;
+    if (!data?.token) throw new Error(data?.error || "Bridge token was not returned.");
+
+    state.mt5AccountId = String(accountId);
+    state.mt5BridgeToken = data.token;
+
+    if ($("bridgeTokenPanel")) $("bridgeTokenPanel").classList.remove("hidden");
+    if ($("bridgeTokenValue")) $("bridgeTokenValue").textContent = data.token;
+
+    showToast("MT5 Bridge Token generated. Copy it into the GoTradeX EA.", "success");
+  } catch (error) {
+    console.error("MT5 bridge token error:", error);
+    showToast(error.message || "Could not generate MT5 bridge token.", "error");
+  }
+}
+
+async function copyMT5BridgeToken() {
+  const token = state.mt5BridgeToken || $("bridgeTokenValue")?.textContent || "";
+  if (!token) {
+    showToast("Generate a bridge token first.", "error");
+    return;
+  }
+  await copyText(token);
+  showToast("MT5 Bridge Token copied.", "success");
+}
+
 async function saveRobotControl(running) {
 
   if (!state.supabase || !state.user) {
@@ -5596,6 +5642,18 @@ function bindEvents() {
     ?.addEventListener(
       "click",
       startRobot
+    );
+
+  $("generateBridgeTokenButton")
+    ?.addEventListener(
+      "click",
+      generateMT5BridgeToken
+    );
+
+  $("copyBridgeTokenButton")
+    ?.addEventListener(
+      "click",
+      copyMT5BridgeToken
     );
 
 
