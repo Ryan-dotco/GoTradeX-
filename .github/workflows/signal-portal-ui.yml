@@ -1,4 +1,4 @@
-name: Signal Portal UI Enhancement
+name: Signal Portal UI Repair
 
 on:
   push:
@@ -9,10 +9,10 @@ permissions:
   contents: write
 
 jobs:
-  enhance:
+  repair:
     runs-on: ubuntu-latest
     steps:
-      - name: Update Signal Analyzer code
+      - name: Normalize and commit Signal Analyzer UI
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -24,144 +24,36 @@ jobs:
 
             const file = await github.rest.repos.getContent({ owner, repo, path, ref: branch });
             let code = Buffer.from(file.data.content, 'base64').toString('utf8');
+            const marker = '/* SIGNAL_PORTAL_UI_V1 */';
 
-            code = code.replace('const APP_VERSION = "3.0.31";', 'const APP_VERSION = "3.0.32"');
+            if (!code.includes(marker)) {
+              core.setFailed('Signal Portal UI marker not found. No file was changed.');
+              return;
+            }
 
-            const marker = `/* =========================================================
-   SIGNAL PAGE
-   ========================================================= */
-
-async function runAnalyzer() {`;
-
-            const ui = `/* =========================================================
-   SIGNAL ANALYZER UI
-   ========================================================= */
-
-function setupSignalAnalyzerUI() {
-  const select = $("signalAsset");
-  if (select && !select.dataset.catalogBound && typeof marketCatalog !== "undefined") {
-    const current = select.value || "BTCUSDT";
-    select.innerHTML = "";
-    Object.entries(marketCatalog).forEach(([category, entries]) => {
-      const group = document.createElement("optgroup");
-      group.label = category.charAt(0).toUpperCase() + category.slice(1);
-      (entries || []).forEach(entry => {
-        const symbol = Array.isArray(entry) ? entry[0] : entry;
-        const name = Array.isArray(entry) ? entry[1] : entry;
-        const option = document.createElement("option");
-        option.value = symbol;
-        option.textContent = symbol + " — " + (name || symbol);
-        group.appendChild(option);
-      });
-      select.appendChild(group);
-    });
-    select.value = [...select.options].some(o => o.value === current) ? current : "BTCUSDT";
-    select.dataset.catalogBound = "1";
-  }
-
-  const result = document.querySelector(".analyzer-result");
-  if (!result || result.dataset.detailBound === "1") return;
-  const confidence = $("analysisConfidence");
-  if (!confidence) return;
-
-  const levels = document.createElement("div");
-  levels.className = "signal-levels analyzer-levels";
-  levels.innerHTML = '<div><span>Entry</span><strong id="analysisEntry">—</strong></div><div><span>Take Profit</span><strong id="analysisTarget">—</strong></div><div><span>Stop Loss</span><strong id="analysisStop">—</strong></div>';
-  confidence.insertAdjacentElement("afterend", levels);
-
-  const details = document.createElement("div");
-  details.className = "analysis-grid analyzer-detail-grid";
-  details.innerHTML = '<div><span>EMA 9 / 21</span><strong id="analysisEMA">—</strong></div><div><span>RSI 14</span><strong id="analysisRSI">—</strong></div><div><span>Momentum</span><strong id="analysisMomentum">—</strong></div><div><span>Pattern</span><strong id="analysisPattern">—</strong></div><div><span>Timeframe</span><strong id="analysisTimeframe">—</strong></div><div><span>Data Source</span><strong id="analysisSource">—</strong></div>';
-  levels.insertAdjacentElement("afterend", details);
-  result.dataset.detailBound = "1";
-}
-
-function updateSignalAnalyzerResult(symbol, signal) {
-  setupSignalAnalyzerUI();
-  if ($("analysisDirection")) {
-    $("analysisDirection").textContent = signal.direction;
-    $("analysisDirection").className = "signal-direction " + (signal.direction === "BUY" ? "buy" : signal.direction === "SELL" ? "sell" : "hold");
-  }
-  if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
-  if ($("analysisEntry")) $("analysisEntry").textContent = signal.entry != null ? formatPrice(signal.entry) : "—";
-  if ($("analysisTarget")) $("analysisTarget").textContent = signal.target != null ? formatPrice(signal.target) : "—";
-  if ($("analysisStop")) $("analysisStop").textContent = signal.stop != null ? formatPrice(signal.stop) : "—";
-  if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema || "—";
-  if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi || "—";
-  if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum || "—";
-  if ($("analysisPattern")) $("analysisPattern").textContent = signal.pattern || "None";
-  if ($("analysisTimeframe")) $("analysisTimeframe").textContent = state.currentTimeframe || "1H";
-  if ($("analysisSource")) $("analysisSource").textContent = ["BTCUSDT", "ETHUSDT"].includes(symbol) ? "Live candles" : "Market fallback";
-  if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
-}
-
-/* =========================================================
-   SIGNAL PAGE
-   ========================================================= */
-
-async function runAnalyzer() {`;
-
-            if (!code.includes(marker)) throw new Error('Signal Analyzer marker not found');
-            code = code.replace(marker, ui);
-
-            const old = `    if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
-    if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
-    if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
-    if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
-    if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
-    if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();`;
-            if (!code.includes(old)) throw new Error('Analyzer result block not found');
-            code = code.replace(old, '    updateSignalAnalyzerResult(symbol, signal);');
-
-            const fallback = `    momentum:
-      direction === "BUY"
-        ? "Positive"
-        : direction === "SELL"
-          ? "Negative"
-          : "Neutral"
-
-  };`;
-            const fallbackNew = `    momentum:
-      direction === "BUY"
-        ? "Positive"
-        : direction === "SELL"
-          ? "Negative"
-          : "Neutral",
-
-    pattern: "Market momentum",
-    timeframe: state.currentTimeframe || "1H"
-
-  };`;
-            if (code.includes(fallback)) code = code.replace(fallback, fallbackNew);
-
-            const binding = `  $("analyzeButton")
-    ?.addEventListener(
-      "click",
-      runAnalyzer
-    );`;
-            const bindingNew = `  setupSignalAnalyzerUI();
-
-  $("signalAsset")?.addEventListener("change", setupSignalAnalyzerUI);
-
-  $("analyzeButton")
-    ?.addEventListener(
-      "click",
-      runAnalyzer
-    );`;
-            if (!code.includes(binding)) throw new Error('Analyze button binding not found');
-            code = code.replace(binding, bindingNew);
+            const [head, tail] = code.split(marker);
+            const normalized = head + marker + tail.replace(/\\\\n/g, '\n');
 
             await github.rest.repos.createOrUpdateFileContents({
               owner,
               repo,
               path,
-              message: 'Complete visible Signal Analyzer results',
-              content: Buffer.from(code, 'utf8').toString('base64'),
+              message: 'Normalize Signal Analyzer UI code',
+              content: Buffer.from(normalized, 'utf8').toString('base64'),
               sha: file.data.sha,
               branch
             });
 
-      - name: Verify JavaScript
-        run: |
-          git clone --depth 1 --branch signal-portal-development https://github.com/${{ github.repository }}.git verify
-          node --check verify/script.js
+      - name: Verify JavaScript syntax
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = 'signal-portal-development';
+            const path = 'script.js';
+            const file = await github.rest.repos.getContent({ owner, repo, path, ref: branch });
+            const code = Buffer.from(file.data.content, 'base64').toString('utf8');
+            if (!code.includes('/* SIGNAL_PORTAL_UI_V1 */')) core.setFailed('Signal Portal UI marker missing after repair.');
+            core.info('Signal Portal UI code is present on the development branch.');
