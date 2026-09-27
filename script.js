@@ -5309,38 +5309,43 @@ function bindEvents() {
     );
 
 
-  document
-    .querySelectorAll(".chart-control-toggle")
-    .forEach(toggle => {
-      toggle.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const box = toggle.parentElement?.querySelector(".timeframes");
-        if (!box) return;
-        const shouldOpen = box.hidden;
-        box.hidden = !shouldOpen;
-        toggle.setAttribute("aria-expanded", String(shouldOpen));
-      });
-    });
+  // Put the Timeframe control inside the chart wrapper, alongside Chart Tools.
+  // This keeps the portal in the same reliable touch layer as the working Chart Tools menu.
+  const timeframeControl = document.querySelector(".chart-timeframe-control");
+  const chartWrapper = document.querySelector(".chart-wrapper");
+  if (timeframeControl && chartWrapper && !chartWrapper.contains(timeframeControl)) {
+    chartWrapper.appendChild(timeframeControl);
+  }
 
-  document
-    .querySelectorAll(".timeframe")
-    .forEach(button => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        document.querySelectorAll(".timeframe").forEach(item => item.classList.remove("active"));
-        button.classList.add("active");
-        state.currentTimeframe = button.dataset.timeframe;
-        const box = button.closest(".timeframes");
-        if (box) box.hidden = true;
-        const toggle = box?.parentElement?.querySelector(".chart-control-toggle");
-        toggle?.setAttribute("aria-expanded", "false");
-        if ($("signalDuration")) $("signalDuration").textContent = estimatedSignalDuration();
-        if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
-        createChart();
-      });
-    });
+  // Delegated handlers keep the Timeframe portal working even after chart redraws.
+  document.addEventListener("click", (event) => {
+    const toggle = event.target.closest?.(".chart-control-toggle");
+    if (toggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      const box = toggle.parentElement?.querySelector(".timeframes");
+      if (!box) return;
+      const shouldOpen = box.hidden;
+      box.hidden = !shouldOpen;
+      toggle.setAttribute("aria-expanded", String(shouldOpen));
+      return;
+    }
+
+    const button = event.target.closest?.(".timeframe");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    document.querySelectorAll(".timeframe").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+    state.currentTimeframe = button.dataset.timeframe;
+    const box = button.closest(".timeframes");
+    if (box) box.hidden = true;
+    const toggle = box?.parentElement?.querySelector(".chart-control-toggle");
+    toggle?.setAttribute("aria-expanded", "false");
+    if ($("signalDuration")) $("signalDuration").textContent = estimatedSignalDuration();
+    if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
+    createChart();
+  }, true);
 
   document
     .querySelectorAll(".indicator-toggle")
