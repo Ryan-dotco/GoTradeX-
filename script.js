@@ -411,7 +411,9 @@ function bindLoginForm() {
 
 async function handleLogin(event) {
 
-  event.preventDefault();
+  event?.preventDefault?.();
+
+  console.log("GoTradeX login submit started.", APP_VERSION);
 
   if (!state.supabase) {
     setAuthMessage("Supabase is not connected.", "error");
@@ -469,6 +471,11 @@ async function handleLogin(event) {
     }
 
     state.user = signedInUser;
+
+    // Open the dashboard immediately after authentication. Do not wait for
+    // profile, market, chart, or admin data to finish loading.
+    showAppScreen();
+    setAuthMessage("");
 
     /*
       AUTHENTICATION HAS SUCCEEDED AT THIS POINT.
