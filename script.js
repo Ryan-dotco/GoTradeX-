@@ -1645,7 +1645,24 @@ async function fetchBinanceKlines(symbol,interval,limit=60){
   const response=await fetch(`${CONFIG.BINANCE_API}/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`,{cache:"no-store"});
   if(!response.ok)throw new Error(`Chart request failed: ${response.status}`);
   const rows=await response.json();
-  return rows.map(row=>({time:Number(row[0]),close:Number(row[4])}));
+  if(!Array.isArray(rows)) throw new Error("Invalid candle response.");
+  return rows.map(row=>({
+    time:Number(row[0]),
+    open:Number(row[1]),
+    high:Number(row[2]),
+    low:Number(row[3]),
+    close:Number(row[4]),
+    volume:Number(row[5]),
+    closeTime:Number(row[6]),
+    quoteVolume:Number(row[7]),
+    trades:Number(row[8])
+  })).filter(c=>
+    Number.isFinite(c.time)&&
+    Number.isFinite(c.open)&&
+    Number.isFinite(c.high)&&
+    Number.isFinite(c.low)&&
+    Number.isFinite(c.close)
+  );
 }
 
 function chartIntervalForTimeframe(timeframe){
@@ -1656,7 +1673,19 @@ function chartIntervalForTimeframe(timeframe){
 function createSyntheticChartPoints(currentPrice,timeframe="1H",count=60){
   const step={"5s":5000,"15s":15000,"30s":30000,"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1H":3600000,"4H":14400000,"12H":43200000,"1D":86400000,"1W":604800000,"1M":2592000000,"6M":15552000000,"1Y":31536000000}[timeframe]||3600000;
   const points=[],base=Number(currentPrice)||1;
-  for(let i=0;i<count;i++)points.push({time:Date.now()-((count-i)*step),close:Number((base*(1+Math.sin(i/3)*.004)).toFixed(6))});
+  let previousClose=base;
+  for(let i=0;i<count;i++){
+    const time=Date.now()-((count-i)*step);
+    const drift=Math.sin(i/3)*0.003+Math.sin(i/7)*0.0015;
+    const close=Math.max(0.00000001,previousClose*(1+drift));
+    const open=previousClose;
+    const spread=Math.max(base*0.001,Math.abs(close-open)*1.8);
+    const high=Math.max(open,close)+spread*(0.35+((i%4)/10));
+    const low=Math.min(open,close)-spread*(0.35+(((i+2)%4)/10));
+    const volume=Math.max(1,base*(1+Math.sin(i/5)*0.5));
+    points.push({time,open,high,low,close,volume});
+    previousClose=close;
+  }
   return points;
 }
 
