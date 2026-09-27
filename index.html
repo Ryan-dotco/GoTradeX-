@@ -967,12 +967,10 @@
               </label>
 
               <select id="signalAsset">
-
-                <option value="BTCUSDT">BTCUSDT</option>
-                <option value="ETHUSDT">ETHUSDT</option>
-                <option value="EURUSD">EURUSD</option>
-                <option value="GBPUSD">GBPUSD</option>
-
+                <option value="BTCUSDT">Bitcoin / USD</option>
+                <option value="ETHUSDT">Ethereum / USD</option>
+                <option value="EURUSD">EUR / USD</option>
+                <option value="GBPUSD">GBP / USD</option>
               </select>
 
             </div>
@@ -1008,6 +1006,21 @@
 
             <div class="analysis-grid">
 
+              <div class="analysis-level-box">
+                <span>Entry</span>
+                <strong id="analysisEntry">—</strong>
+              </div>
+
+              <div class="analysis-level-box">
+                <span>Take Profit</span>
+                <strong id="analysisTarget">—</strong>
+              </div>
+
+              <div class="analysis-level-box">
+                <span>Stop Loss</span>
+                <strong id="analysisStop">—</strong>
+              </div>
+
               <div class="analysis-duration-box">
                 <span>Estimated duration</span>
                 <strong id="analysisDuration">~1 hour</strong>
@@ -1026,6 +1039,21 @@
               <div>
                 <span>Momentum</span>
                 <strong id="analysisMomentum">—</strong>
+              </div>
+
+              <div>
+                <span>Candlestick Pattern</span>
+                <strong id="analysisPattern">—</strong>
+              </div>
+
+              <div>
+                <span>Timeframe</span>
+                <strong id="analysisTimeframe">1H</strong>
+              </div>
+
+              <div>
+                <span>Asset</span>
+                <strong id="analysisAssetName">BTC / USD</strong>
               </div>
 
             </div>
