@@ -1,0 +1,95 @@
+/* GoTradeX chart-only responsive overrides.
+   This file intentionally changes only chart sizing/fit behaviour. */
+
+.chart-panel {
+  min-width: 0 !important;
+  width: 100%;
+  overflow: hidden;
+}
+
+.chart-panel .panel-header {
+  min-width: 0;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.chart-panel .panel-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.chart-panel .timeframes {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.chart-panel .timeframe,
+.chart-panel .chart-tool {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.chart-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 360px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chart-wrapper canvas {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+@media (max-width: 850px) {
+  .dashboard-grid,
+  .dashboard-grid > *,
+  .chart-panel,
+  .chart-wrapper {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .chart-panel .panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chart-panel .timeframes {
+    width: 100%;
+    flex: 0 0 auto;
+    padding-bottom: 5px;
+  }
+
+  .chart-wrapper {
+    height: 340px;
+  }
+}
+
+@media (max-width: 600px) {
+  .chart-panel {
+    padding: 12px !important;
+  }
+
+  .chart-wrapper {
+    height: 330px;
+    border-radius: 7px;
+  }
+
+  .own-chart-toolbar {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+}
