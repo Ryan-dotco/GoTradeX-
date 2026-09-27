@@ -5312,18 +5312,23 @@ function bindEvents() {
   document
     .querySelectorAll(".chart-control-toggle")
     .forEach(toggle => {
-      toggle.addEventListener("click", () => {
+      toggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         const box = toggle.parentElement?.querySelector(".timeframes");
-        const open = !box?.hidden;
-        if (box) box.hidden = open;
-        toggle.setAttribute("aria-expanded", String(!open));
+        if (!box) return;
+        const shouldOpen = box.hidden;
+        box.hidden = !shouldOpen;
+        toggle.setAttribute("aria-expanded", String(shouldOpen));
       });
     });
 
   document
     .querySelectorAll(".timeframe")
     .forEach(button => {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         document.querySelectorAll(".timeframe").forEach(item => item.classList.remove("active"));
         button.classList.add("active");
         state.currentTimeframe = button.dataset.timeframe;
@@ -5340,11 +5345,15 @@ function bindEvents() {
   document
     .querySelectorAll(".indicator-toggle")
     .forEach(toggle => {
-      toggle.addEventListener("click", () => {
+      toggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         const list = toggle.nextElementSibling;
-        const open = !list?.hidden;
-        if (list) list.hidden = open;
-        toggle.setAttribute("aria-expanded", String(!open));
+        if (!list) return;
+        const shouldOpen = list.hidden;
+        list.hidden = !shouldOpen;
+        toggle.setAttribute("aria-expanded", String(shouldOpen));
+        toggle.classList.toggle("expanded", shouldOpen);
       });
     });
 
