@@ -2144,6 +2144,10 @@ async function generateLiveSignal(symbol = "BTCUSDT") {
   if (candles.length < 22) return fallback;
   const closes = candles.map(c => Number(c.close)).filter(Number.isFinite);
   if (closes.length < 22) return fallback;
+  const livePrice = Number(state.markets?.[symbol]?.price);
+  if (Number.isFinite(livePrice) && livePrice > 0) {
+    closes[closes.length - 1] = livePrice;
+  }
   const price = closes[closes.length - 1];
   const ema9 = calculateEMA(closes.slice(-40), 9);
   const ema21 = calculateEMA(closes.slice(-40), 21);
