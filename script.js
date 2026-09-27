@@ -47,6 +47,8 @@ const state = {
 
   currentCategory: "crypto",
 
+  currentSymbol: "BTCUSDT",
+
   currentTimeframe: "1H",
 
   chart: null,
@@ -1623,6 +1625,10 @@ function renderMarketsList(){
   const container=$("marketsList");if(!container)return;
   const query=$("marketSearch")?.value.trim().toUpperCase()||"",category=state.currentCategory;
   let entries=[];
+  if (!category) {
+    container.innerHTML = "";
+    return;
+  }
   if(category==="crypto")entries=marketCatalog.crypto.map(([symbol,name])=>({symbol,name,type:"crypto"}));
   else if(category==="forex")entries=marketCatalog.forex.map(symbol=>({symbol,name:`${symbol.slice(0,3)} / ${symbol.slice(3,6)}`,type:"forex"}));
   else if(category==="commodities"||category==="metals")entries=marketCatalog.commodities.map(([symbol,name])=>({symbol,name,type:"commodity"}));
@@ -1632,14 +1638,14 @@ function renderMarketsList(){
   if(!filtered.length){container.innerHTML=`<div class="empty-state">No markets match your search.</div>`;return;}
 
   container.innerHTML=filtered.map(entry=>{
-    const market=state.markets[entry.symbol],change=Number(market.change)||0,className=change>=0?"positive":"negative";
+    const market=state.markets[entry.symbol],change=Number(market.change)||0,className=change>=0?"positive":"negative",selected=state.currentSymbol===entry.symbol?" selected-market":"";
     return `
-      <div class="market-row">
+      <button type="button" class="market-row market-select-row${selected}" data-market-symbol="${escapeHTML(entry.symbol)}">
         <div><strong>${escapeHTML(entry.symbol)}</strong><span>${escapeHTML(entry.name)}</span></div>
         <div><span>Price</span><strong>${formatPrice(market.price)}</strong></div>
         <div><span>24h</span><strong class="${className}">${change>=0?"+":""}${change.toFixed(2)}%</strong></div>
         <div><span>Source</span><strong>${escapeHTML(market.source||"—")}</strong></div>
-      </div>
+      </button>
     `;
   }).join("");
 }
@@ -1986,13 +1992,15 @@ async function createChart() {
   }
 
   const timeframe = state.currentTimeframe || "1H";
-  const currentPrice = state.markets?.BTCUSDT?.price || 0;
+  const symbol = state.currentSymbol || "BTCUSDT";
+  const currentPrice = state.markets?.[symbol]?.price || 0;
   const interval = chartIntervalForTimeframe(timeframe);
 
   let candles = [];
   try {
     if (!interval) throw new Error("Synthetic timeframe");
-    candles = await fetchBinanceKlines("BTCUSDT", interval, 80);
+    if (!/USDT$/.test(symbol)) throw new Error("Non-crypto live candle provider");
+    candles = await fetchBinanceKlines(symbol, interval, 80);
   } catch (error) {
     console.warn("Live candles unavailable; using local candle engine:", error);
     candles = createSyntheticChartPoints(currentPrice, timeframe, 80);
@@ -2101,6 +2109,32 @@ async function createChart() {
 /* =========================================================
    SIGNAL ENGINE
    ========================================================= */
+
+function updateSelectedMarketHeader() {
+  const symbol = state.currentSymbol || "BTCUSDT";
+  const market = state.markets?.[symbol];
+  const title = $("chartSymbol");
+  if (title) title.textContent = market?.name || symbol;
+  const price = $("btcPrice");
+  if (price && market?.price) {
+    const liveLabel = /USDT$/.test(symbol) ? " • LIVE" : "";
+    price.textContent = "$" + formatPrice(market.price) + liveLabel;
+  }
+}
+
+async function selectMarketSymbol(symbol) {
+  if (!symbol || !state.markets?.[symbol]) return;
+  state.currentSymbol = symbol;
+  updateSelectedMarketHeader();
+  renderMarketsList();
+  clearTimeout(state.liveMarketReconnectTimer);
+  try { state.liveMarketSocket?.close(); } catch {}
+  state.liveMarketSocket = null;
+  await createChart();
+  connectLiveMarketStream();
+  await updateSignalFromMarket();
+  showPage("dashboard");
+}
 
 async function fetchSignalKlines(symbol) {
   if (!["BTCUSDT", "ETHUSDT"].includes(symbol)) return [];
@@ -2301,7 +2335,7 @@ function generateSignal(symbol = "BTCUSDT") {
 
 
 async function updateSignalFromMarket() {
-  const symbol = "BTCUSDT";
+  const symbol = state.currentSymbol || "BTCUSDT";
   const signal = await generateLiveSignal(symbol);
   if ($("signalDirection")) {
     $("signalDirection").textContent = signal.direction;
@@ -4144,6 +4178,8 @@ function updateLiveChartCandle(price, timestamp = Date.now()) {
 }
 
 function handleLiveMarketTrade(message) {
+  const streamSymbol = message?.s || "";
+  if (streamSymbol && streamSymbol !== state.currentSymbol) return;
   const price = Number(message?.p);
   const timestamp = Number(message?.T || message?.E || Date.now());
   if (!Number.isFinite(price)) return;
@@ -4164,16 +4200,19 @@ function connectLiveMarketStream() {
   if (typeof WebSocket === "undefined") return;
   clearTimeout(state.liveMarketReconnectTimer);
   try { state.liveMarketSocket?.close(); } catch {}
-  const socket = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@trade");
+  const symbol = state.currentSymbol || "BTCUSDT";
+  if (!/USDT$/.test(symbol)) return;
+  const socket = new WebSocket("wss://stream.binance.com:9443/ws/" + symbol.toLowerCase() + "@trade");
   state.liveMarketSocket = socket;
   socket.onopen = () => {
     console.log("GoTradeX live BTC stream connected.");
-    if ($("btcPrice") && state.markets.BTCUSDT?.price) $("btcPrice").textContent = "$" + formatPrice(state.markets.BTCUSDT.price) + " • LIVE";
+    const current = state.markets[state.currentSymbol || "BTCUSDT"];
+    if ($("btcPrice") && current?.price) $("btcPrice").textContent = "$" + formatPrice(current.price) + " • LIVE";
   };
   socket.onmessage = event => {
     try {
       const message = JSON.parse(event.data);
-      if (message?.e === "trade" && message?.s === "BTCUSDT") handleLiveMarketTrade(message);
+      if (message?.e === "trade") handleLiveMarketTrade(message);
     } catch (error) { console.warn("Live BTC stream message error:", error); }
   };
   socket.onerror = error => console.warn("Live BTC stream error:", error);
@@ -4273,6 +4312,8 @@ async function initializeLiveApp() {
   await updateSignalFromMarket();
 
   connectLiveMarketStream();
+
+  updateSelectedMarketHeader();
 
   startLiveRefresh();
 
@@ -5285,8 +5326,13 @@ function bindEvents() {
 
           button.classList.add("active");
 
-          state.currentCategory =
-            button.dataset.category;
+          const nextCategory = button.dataset.category;
+          if (state.currentCategory === nextCategory) {
+            state.currentCategory = "";
+            button.classList.remove("active");
+          } else {
+            state.currentCategory = nextCategory;
+          }
 
           renderMarketsList();
 
@@ -5301,6 +5347,12 @@ function bindEvents() {
       "input",
       renderMarketsList
     );
+
+  $("marketsList")?.addEventListener("click", event => {
+    const row = event.target.closest("[data-market-symbol]");
+    if (!row) return;
+    selectMarketSymbol(row.dataset.marketSymbol);
+  });
 
 
   $("analyzeButton")
