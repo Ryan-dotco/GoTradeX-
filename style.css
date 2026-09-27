@@ -1065,7 +1065,7 @@ select {
   flex-direction: column;
   height: 285px;
   min-height: 285px;
-  overflow: hidden;
+  overflow: visible;
   background: #081321;
   border-radius: 8px;
 }
@@ -2559,4 +2559,42 @@ select {
 @media (max-width: 600px) {
   .category-tabs { grid-template-columns: 1fr 1fr; gap: 9px !important; }
   .category-tab { min-height: 52px !important; font-size: 13px !important; }
+}
+
+
+/* =========================================================
+   CHART TOOLS PORTAL — TOUCH / OVERFLOW FIX
+   ========================================================= */
+.chart-wrapper {
+  overflow: visible !important;
+}
+.chart-wrapper .own-chart-toolbar {
+  position: absolute !important;
+  left: 8px !important;
+  top: 8px !important;
+  z-index: 100 !important;
+  pointer-events: auto !important;
+}
+.chart-wrapper .chart-tools-toggle {
+  min-height: 44px !important;
+  min-width: 118px !important;
+  padding: 10px 14px !important;
+  font-size: 12px !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+.chart-wrapper .chart-tools-menu {
+  z-index: 110 !important;
+  pointer-events: auto !important;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.chart-wrapper .chart-tool {
+  min-height: 42px !important;
+  padding: 9px 12px !important;
+  font-size: 11px !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
 }
