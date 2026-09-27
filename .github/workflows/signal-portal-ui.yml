@@ -2,10 +2,8 @@ name: Signal Portal UI Enhancement
 
 on:
   push:
-    branches:
-      - signal-portal-development
-    paths:
-      - '.github/workflows/signal-portal-ui.yml'
+    branches: [signal-portal-development]
+    paths: ['.github/workflows/signal-portal-ui.yml']
 
 permissions:
   contents: write
@@ -14,23 +12,28 @@ jobs:
   enhance:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout development branch
-        uses: actions/checkout@v4
+      - name: Update Signal Analyzer code
+        uses: actions/github-script@v7
         with:
-          ref: signal-portal-development
-          fetch-depth: 0
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = 'signal-portal-development';
+            const path = 'script.js';
 
-      - name: Enhance Signal Analyzer only
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('script.js')
-          s = p.read_text(encoding='utf-8')
+            const file = await github.rest.repos.getContent({ owner, repo, path, ref: branch });
+            let code = Buffer.from(file.data.content, 'base64').toString('utf8');
 
-          s = s.replace('const APP_VERSION = "3.0.31";', 'const APP_VERSION = "3.0.32";', 1)
+            code = code.replace('const APP_VERSION = "3.0.31";', 'const APP_VERSION = "3.0.32"');
 
-          marker = '/* =========================================================\n   SIGNAL PAGE\n   ========================================================= */\n\nasync function runAnalyzer() {'
-          ui = r'''/* =========================================================
+            const marker = `/* =========================================================
+   SIGNAL PAGE
+   ========================================================= */
+
+async function runAnalyzer() {`;
+
+            const ui = `/* =========================================================
    SIGNAL ANALYZER UI
    ========================================================= */
 
@@ -47,7 +50,7 @@ function setupSignalAnalyzerUI() {
         const name = Array.isArray(entry) ? entry[1] : entry;
         const option = document.createElement("option");
         option.value = symbol;
-        option.textContent = `${symbol} — ${name || symbol}`;
+        option.textContent = symbol + " — " + (name || symbol);
         group.appendChild(option);
       });
       select.appendChild(group);
@@ -58,31 +61,18 @@ function setupSignalAnalyzerUI() {
 
   const result = document.querySelector(".analyzer-result");
   if (!result || result.dataset.detailBound === "1") return;
-
   const confidence = $("analysisConfidence");
   if (!confidence) return;
 
   const levels = document.createElement("div");
   levels.className = "signal-levels analyzer-levels";
-  levels.innerHTML = `
-    <div><span>Entry</span><strong id="analysisEntry">—</strong></div>
-    <div><span>Take Profit</span><strong id="analysisTarget">—</strong></div>
-    <div><span>Stop Loss</span><strong id="analysisStop">—</strong></div>
-  `;
+  levels.innerHTML = '<div><span>Entry</span><strong id="analysisEntry">—</strong></div><div><span>Take Profit</span><strong id="analysisTarget">—</strong></div><div><span>Stop Loss</span><strong id="analysisStop">—</strong></div>';
   confidence.insertAdjacentElement("afterend", levels);
 
   const details = document.createElement("div");
   details.className = "analysis-grid analyzer-detail-grid";
-  details.innerHTML = `
-    <div><span>EMA 9 / 21</span><strong id="analysisEMA">—</strong></div>
-    <div><span>RSI 14</span><strong id="analysisRSI">—</strong></div>
-    <div><span>Momentum</span><strong id="analysisMomentum">—</strong></div>
-    <div><span>Pattern</span><strong id="analysisPattern">—</strong></div>
-    <div><span>Timeframe</span><strong id="analysisTimeframe">—</strong></div>
-    <div><span>Data Source</span><strong id="analysisSource">—</strong></div>
-  `;
+  details.innerHTML = '<div><span>EMA 9 / 21</span><strong id="analysisEMA">—</strong></div><div><span>RSI 14</span><strong id="analysisRSI">—</strong></div><div><span>Momentum</span><strong id="analysisMomentum">—</strong></div><div><span>Pattern</span><strong id="analysisPattern">—</strong></div><div><span>Timeframe</span><strong id="analysisTimeframe">—</strong></div><div><span>Data Source</span><strong id="analysisSource">—</strong></div>';
   levels.insertAdjacentElement("afterend", details);
-
   result.dataset.detailBound = "1";
 }
 
@@ -92,7 +82,7 @@ function updateSignalAnalyzerResult(symbol, signal) {
     $("analysisDirection").textContent = signal.direction;
     $("analysisDirection").className = "signal-direction " + (signal.direction === "BUY" ? "buy" : signal.direction === "SELL" ? "sell" : "hold");
   }
-  if ($("analysisConfidence")) $("analysisConfidence").textContent = `${signal.confidence}%`;
+  if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
   if ($("analysisEntry")) $("analysisEntry").textContent = signal.entry != null ? formatPrice(signal.entry) : "—";
   if ($("analysisTarget")) $("analysisTarget").textContent = signal.target != null ? formatPrice(signal.target) : "—";
   if ($("analysisStop")) $("analysisStop").textContent = signal.stop != null ? formatPrice(signal.stop) : "—";
@@ -109,29 +99,29 @@ function updateSignalAnalyzerResult(symbol, signal) {
    SIGNAL PAGE
    ========================================================= */
 
-async function runAnalyzer() {'''
-          if marker in s:
-              s = s.replace(marker, ui, 1)
+async function runAnalyzer() {`;
 
-          old = '''    if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
+            if (!code.includes(marker)) throw new Error('Signal Analyzer marker not found');
+            code = code.replace(marker, ui);
+
+            const old = `    if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
     if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
     if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
     if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
     if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
-    if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();'''
-          new = '''    updateSignalAnalyzerResult(symbol, signal);'''
-          if old in s:
-              s = s.replace(old, new, 1)
+    if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();`;
+            if (!code.includes(old)) throw new Error('Analyzer result block not found');
+            code = code.replace(old, '    updateSignalAnalyzerResult(symbol, signal);');
 
-          fallback_return = '''    momentum:
+            const fallback = `    momentum:
       direction === "BUY"
         ? "Positive"
         : direction === "SELL"
           ? "Negative"
           : "Neutral"
 
-  };'''
-          fallback_new = '''    momentum:
+  };`;
+            const fallbackNew = `    momentum:
       direction === "BUY"
         ? "Positive"
         : direction === "SELL"
@@ -141,43 +131,37 @@ async function runAnalyzer() {'''
     pattern: "Market momentum",
     timeframe: state.currentTimeframe || "1H"
 
-  };'''
-          if fallback_return in s:
-              s = s.replace(fallback_return, fallback_new, 1)
+  };`;
+            if (code.includes(fallback)) code = code.replace(fallback, fallbackNew);
 
-          bind_marker = '''  $("analyzeButton")
+            const binding = `  $("analyzeButton")
     ?.addEventListener(
       "click",
       runAnalyzer
-    );'''
-          bind_new = '''  setupSignalAnalyzerUI();
+    );`;
+            const bindingNew = `  setupSignalAnalyzerUI();
 
-  $("signalAsset")?.addEventListener("change", () => {
-    setupSignalAnalyzerUI();
-  });
+  $("signalAsset")?.addEventListener("change", setupSignalAnalyzerUI);
 
   $("analyzeButton")
     ?.addEventListener(
       "click",
       runAnalyzer
-    );'''
-          if bind_marker in s:
-              s = s.replace(bind_marker, bind_new, 1)
+    );`;
+            if (!code.includes(binding)) throw new Error('Analyze button binding not found');
+            code = code.replace(binding, bindingNew);
 
-          p.write_text(s, encoding='utf-8')
-          PY
+            await github.rest.repos.createOrUpdateFileContents({
+              owner,
+              repo,
+              path,
+              message: 'Complete visible Signal Analyzer results',
+              content: Buffer.from(code, 'utf8').toString('base64'),
+              sha: file.data.sha,
+              branch
+            });
 
-      - name: Verify JavaScript syntax
-        run: node --check script.js
-
-      - name: Commit Signal Analyzer enhancement
+      - name: Verify JavaScript
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add script.js
-          if git diff --cached --quiet; then
-            echo "No Signal Analyzer changes needed."
-            exit 0
-          fi
-          git commit -m "Complete visible Signal Analyzer results"
-          git push origin signal-portal-development
+          git clone --depth 1 --branch signal-portal-development https://github.com/${{ github.repository }}.git verify
+          node --check verify/script.js
