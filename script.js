@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.27";
+const APP_VERSION = "3.0.28";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -429,11 +429,27 @@ async function handleLogin(event) {
 
     if (error) throw error;
 
-    state.user = data?.user || null;
+    // Confirm the browser actually received a Supabase session.
+    // Some browsers can return from signInWithPassword before the
+    // local session storage has finished updating.
+    let signedInUser = data?.user || null;
 
-    if (!state.user) {
-      throw new Error("Login succeeded but no user session was returned.");
+    if (!signedInUser) {
+      const { data: sessionData, error: sessionError } =
+        await state.supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      signedInUser = sessionData?.session?.user || null;
     }
+
+    if (!signedInUser) {
+      throw new Error(
+        "Supabase accepted the login, but no browser session was created. Please refresh the page and try again."
+      );
+    }
+
+    state.user = signedInUser;
 
     /*
       AUTHENTICATION HAS SUCCEEDED AT THIS POINT.
