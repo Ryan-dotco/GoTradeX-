@@ -5853,7 +5853,7 @@ document.addEventListener("click", (event) => {
   state.currentCategory = category;
   renderMarketsList();
 }, true);
-\n\n/* SIGNAL_PORTAL_UI_V2 */
+/* SIGNAL_PORTAL_UI_V2 */
 (function enhanceSignalPortalUI() {
   function populateSignalAssets() {
     const select = document.getElementById("signalAsset");
