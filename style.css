@@ -2348,3 +2348,8 @@ select {
   background: #b91c1c !important;
   border-color: #b91c1c !important;
 }
+
+
+/* Active market selection */
+.market-select-row { width: 100%; text-align: left; cursor: pointer; font: inherit; }
+.market-select-row:hover, .market-select-row.selected-market { border-color: var(--accent); background: #10213a; }
