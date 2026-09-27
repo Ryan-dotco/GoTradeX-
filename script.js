@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.26";
+const APP_VERSION = "3.0.27";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -435,17 +435,29 @@ async function handleLogin(event) {
       throw new Error("Login succeeded but no user session was returned.");
     }
 
-    // Show the application immediately after Supabase authentication.
-    // Profile/admin/live-data loading must never block the login screen.
-    showAppScreen();
-    updateUserInterface();
-    showPage("dashboard");
-    setAuthMessage("");
-    showToast("Login successful.", "success");
+    /*
+      AUTHENTICATION HAS SUCCEEDED AT THIS POINT.
+      Never let profile, dashboard, chart, admin, or market initialization
+      turn a successful Supabase login into a fake "Login failed" message.
+    */
+    try {
+      showAppScreen();
+      updateUserInterface();
+
+      if (typeof showPage === "function") {
+        showPage("dashboard");
+      }
+
+      setAuthMessage("");
+      showToast("Login successful.", "success");
+    } catch (uiError) {
+      console.warn("Post-login UI warning:", uiError);
+      showAppScreen();
+      setAuthMessage("");
+    }
 
     // Finish account/profile/live-data initialization in the background.
-    // A failure here must not send a successfully authenticated user
-    // back to the login screen.
+    // These operations must never block the authenticated session.
     Promise.allSettled([
       loadProfile(),
       initializeLiveApp()
@@ -455,7 +467,11 @@ async function handleLogin(event) {
           console.warn("Post-login initialization warning:", result.reason);
         }
       });
-      updateUserInterface();
+      try {
+        updateUserInterface();
+      } catch (uiError) {
+        console.warn("Post-login interface refresh warning:", uiError);
+      }
     });
 
   } catch (error) {
