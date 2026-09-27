@@ -1,0 +1,55 @@
+name: Repair GoTradeX Login
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Repair login-blocking JavaScript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('script.js')
+          s = p.read_text(encoding='utf-8')
+          broken = '''async /* =========================================================
+             GOTRADEX OWN TRADING CHART
+             Candles + Heikin-Ashi + volume + EMA + RSI + crosshair.
+             ========================================================= */
+
+          function chartPriceLabel'''
+          fixed = '''/* =========================================================
+             GOTRADEX OWN TRADING CHART
+             Candles + Heikin-Ashi + volume + EMA + RSI + crosshair.
+             ========================================================= */
+
+          function chartPriceLabel'''
+          if broken in s:
+              p.write_text(s.replace(broken, fixed, 1), encoding='utf-8')
+          else:
+              print('Login-blocking syntax already repaired.')
+          PY
+
+      - name: Commit repair if needed
+        shell: bash
+        run: |
+          git config user.name "GoTradeX Repair Bot"
+          git config user.email "actions@github.com"
+          git add script.js
+          if git diff --cached --quiet; then
+            echo "No repair commit needed."
+          else
+            git commit -m "Repair login blocking JavaScript syntax"
+            git push
+          fi
