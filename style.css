@@ -2353,3 +2353,47 @@ select {
 /* Active market selection */
 .market-select-row { width: 100%; text-align: left; cursor: pointer; font: inherit; }
 .market-select-row:hover, .market-select-row.selected-market { border-color: var(--accent); background: #10213a; }
+
+
+/* =========================================================
+   COMPACT TRADING CONTROLS + RESPONSIVE LIVE CHART
+   ========================================================= */
+
+.chart-panel .panel-header { align-items: flex-start; }
+.chart-timeframe-control { position: relative; flex: 0 0 auto; }
+.chart-control-toggle, .chart-tools-toggle, .indicator-toggle {
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+  background: #172941; color: var(--text); font-size: 10px; font-weight: 800; white-space: nowrap;
+}
+.chart-control-toggle:hover, .chart-tools-toggle:hover, .indicator-toggle:hover { border-color: var(--accent); }
+.chart-timeframe-control .timeframes[hidden], .chart-tools-menu[hidden], .indicator-list[hidden] { display:none !important; }
+.chart-timeframe-control .timeframes {
+  position:absolute; right:0; top:calc(100% + 6px); z-index:30;
+  width:min(280px,calc(100vw - 30px)); padding:8px; border:1px solid var(--border);
+  border-radius:10px; background:#0b1729; box-shadow:var(--shadow);
+  display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px;
+}
+.chart-timeframe-control .timeframe { min-width:0; padding:7px 4px; text-align:center; }
+.chart-wrapper .own-chart-toolbar { position:absolute; left:8px; top:8px; z-index:25; display:block; margin:0; padding:0; }
+.chart-tools-menu {
+  position:absolute; left:0; top:calc(100% + 6px); width:min(280px,calc(100vw - 30px));
+  padding:9px; border:1px solid var(--border); border-radius:10px; background:#0b1729; box-shadow:var(--shadow);
+}
+.chart-tools-group { display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+.chart-tools-group + .chart-tools-group { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.chart-tools-group > span { width:100%; color:var(--muted); font-size:9px; font-weight:800; margin-bottom:2px; }
+.signal-duration-box, .analysis-duration-box {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin:10px 0; padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:#0a1628;
+}
+.signal-duration-box span, .analysis-duration-box span { color:var(--muted); font-size:9px; }
+.signal-duration-box strong, .analysis-duration-box strong { font-size:11px; }
+.indicator-toggle { width:100%; margin:2px 0 8px; text-align:left; }
+.chart-wrapper { width:100%; max-width:100%; min-width:0; height:clamp(285px,42vw,520px); }
+@media (orientation:landscape) and (max-width:1000px) { .chart-wrapper { height:min(72vh,520px); } }
+@media (max-width:600px) {
+  .chart-panel .panel-header { gap:8px; }
+  .chart-panel .panel-header > div:first-child { min-width:0; }
+  .chart-panel .panel-header h3 { font-size:12px; }
+  .chart-panel .panel-header > div:first-child span { font-size:9px; }
+}
