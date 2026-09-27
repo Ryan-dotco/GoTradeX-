@@ -1765,7 +1765,7 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const width = Math.max(320, Math.floor(rect.width || 600));
-  const height = Math.max(260, Math.floor(rect.height || 285));
+  const height = Math.max(240, Math.floor(rect.height || 285));
 
   canvas.width = Math.floor(width * dpr);
   canvas.height = Math.floor(height * dpr);
@@ -1774,25 +1774,22 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
 
   const volumeHeight = options.showVolume ? 46 : 0;
   const padding = { top: 14, right: 68, bottom: 25, left: 8 };
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom - volumeHeight;
+  const chartWidth = Math.max(80, width - padding.left - padding.right);
+  const chartHeight = Math.max(80, height - padding.top - padding.bottom - volumeHeight);
 
-  const displayCandles = options.heikin ? buildHeikinAshi(candles) : candles;
-  const highs = displayCandles.map(c => c.high);
-  const lows = displayCandles.map(c => c.low);
+  const mode = options.mode || "candles";
+  const displayCandles = mode === "heikin" ? buildHeikinAshi(candles) : candles;
+  const highs = displayCandles.map(c => Number(c.high)).filter(Number.isFinite);
+  const lows = displayCandles.map(c => Number(c.low)).filter(Number.isFinite);
   const maxPrice = Math.max(...highs);
   const minPrice = Math.min(...lows);
-  const range = Math.max(maxPrice - minPrice, maxPrice * 0.001);
+  const range = Math.max(maxPrice - minPrice, Math.abs(maxPrice) * 0.001, 0.00000001);
   const top = maxPrice + range * 0.08;
   const bottom = minPrice - range * 0.08;
-
-  const priceY = price =>
-    padding.top + ((top - price) / (top - bottom)) * chartHeight;
-
+  const priceY = price => padding.top + ((top - price) / (top - bottom)) * chartHeight;
   const slot = chartWidth / displayCandles.length;
   const bodyWidth = Math.max(2, Math.min(13, slot * 0.68));
 
-  // Background/grid.
   ctx.fillStyle = "#081321";
   ctx.fillRect(0, 0, width, height);
   ctx.strokeStyle = "rgba(145,164,189,0.11)";
@@ -1806,13 +1803,12 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
-
     const price = top - ((top - bottom) / 5) * i;
     ctx.fillText(chartPriceLabel(price), width - padding.right + 7, y + 3);
   }
 
-  // Candles and volume.
   const maxVolume = Math.max(...displayCandles.map(c => Number(c.volume) || 0), 1);
+
   displayCandles.forEach((c, i) => {
     const x = padding.left + slot * i + slot / 2;
     const openY = priceY(c.open);
@@ -1826,17 +1822,32 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     ctx.fillStyle = candleColor;
     ctx.lineWidth = 1.2;
 
-    ctx.beginPath();
-    ctx.moveTo(x, highY);
-    ctx.lineTo(x, lowY);
-    ctx.stroke();
-
-    ctx.fillRect(
-      x - bodyWidth / 2,
-      Math.min(openY, closeY),
-      bodyWidth,
-      Math.max(1.5, Math.abs(closeY - openY))
-    );
+    if (mode === "line") {
+      if (i === 0) ctx.beginPath();
+      else ctx.lineTo(x, closeY);
+      if (i === 0) ctx.moveTo(x, closeY);
+      if (i === displayCandles.length - 1) ctx.stroke();
+    } else if (mode === "bars") {
+      ctx.beginPath();
+      ctx.moveTo(x, highY);
+      ctx.lineTo(x, lowY);
+      ctx.moveTo(x - Math.min(6, slot * 0.28), openY);
+      ctx.lineTo(x, openY);
+      ctx.moveTo(x, closeY);
+      ctx.lineTo(x + Math.min(6, slot * 0.28), closeY);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x, highY);
+      ctx.lineTo(x, lowY);
+      ctx.stroke();
+      ctx.fillRect(
+        x - bodyWidth / 2,
+        Math.min(openY, closeY),
+        bodyWidth,
+        Math.max(1.5, Math.abs(closeY - openY))
+      );
+    }
 
     if (options.showVolume) {
       const volume = Number(c.volume) || 0;
@@ -1854,8 +1865,7 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
 
   const closes = displayCandles.map(c => c.close);
 
-  // EMA 9 / EMA 21.
-  if (options.showEMA) {
+  if (options.showEMA && mode !== "line") {
     [
       { period: 9, stroke: "#f59e0b" },
       { period: 21, stroke: "#60a5fa" }
@@ -1864,19 +1874,16 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
       ctx.strokeStyle = line.stroke;
       ctx.lineWidth = 1.25;
       ctx.beginPath();
-
       values.forEach((value, i) => {
         const x = padding.left + slot * i + slot / 2;
         const y = priceY(value);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
-
       ctx.stroke();
     });
   }
 
-  // Latest price.
   const last = displayCandles[displayCandles.length - 1];
   const latestY = priceY(last.close);
   ctx.strokeStyle = "rgba(79,124,255,0.7)";
@@ -1893,7 +1900,6 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   ctx.font = "bold 9px Arial";
   ctx.fillText(chartPriceLabel(last.close), width - padding.right + 4, latestY + 3);
 
-  // Time labels.
   ctx.fillStyle = "#91a4bd";
   ctx.font = "9px Arial";
   const labelIndexes = [0, Math.floor(displayCandles.length / 3), Math.floor(displayCandles.length * 2 / 3), displayCandles.length - 1];
@@ -1904,7 +1910,6 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     ctx.fillText(label, Math.max(padding.left, x - 28), height - 8);
   });
 
-  // Crosshair.
   if (options.crosshairX !== null && options.crosshairX >= padding.left && options.crosshairX <= width - padding.right) {
     const index = Math.max(0, Math.min(displayCandles.length - 1, Math.floor((options.crosshairX - padding.left) / slot)));
     const candle = displayCandles[index];
@@ -1932,18 +1937,15 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     );
   }
 
-  // RSI strip.
   if (options.showRSI) {
     const rsiValues = calculateRSIValues(closes, 14);
     const stripTop = height - padding.bottom - volumeHeight + 2;
     const stripHeight = 38;
-
     ctx.strokeStyle = "rgba(145,164,189,0.18)";
     ctx.beginPath();
     ctx.moveTo(padding.left, stripTop);
     ctx.lineTo(width - padding.right, stripTop);
     ctx.stroke();
-
     ctx.strokeStyle = "#a78bfa";
     ctx.lineWidth = 1.1;
     ctx.beginPath();
@@ -1955,12 +1957,3390 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
       else ctx.lineTo(x, y);
     });
     ctx.stroke();
-
     ctx.fillStyle = "#a78bfa";
     ctx.font = "9px Arial";
     ctx.fillText("RSI 14", padding.left + 4, stripTop + 11);
   }
 }
+
+/* =========================================================
+   SIGNAL ENGINE
+   ========================================================= */
+
+async function fetchSignalKlines(symbol) {
+  if (!["BTCUSDT", "ETHUSDT"].includes(symbol)) return [];
+  try { return await fetchBinanceKlines(symbol, "1h", 60); }
+  catch (error) { console.warn("Live signal candles unavailable:", error); return []; }
+}
+
+function calculateEMA(values, period) {
+  if (!values.length) return null;
+  const multiplier = 2 / (period + 1);
+  let ema = values[0];
+  for (let i = 1; i < values.length; i++) ema = (values[i] - ema) * multiplier + ema;
+  return ema;
+}
+
+function calculateRSI(values, period = 14) {
+  if (values.length <= period) return null;
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = values[i] - values[i - 1];
+    if (change >= 0) gains += change; else losses += Math.abs(change);
+  }
+  let averageGain = gains / period;
+  let averageLoss = losses / period;
+  for (let i = period + 1; i < values.length; i++) {
+    const change = values[i] - values[i - 1];
+    const gain = Math.max(change, 0);
+    const loss = Math.max(-change, 0);
+    averageGain = ((averageGain * (period - 1)) + gain) / period;
+    averageLoss = ((averageLoss * (period - 1)) + loss) / period;
+  }
+  if (averageLoss === 0) return 100;
+  const relativeStrength = averageGain / averageLoss;
+  return 100 - (100 / (1 + relativeStrength));
+}
+
+async function generateLiveSignal(symbol = "BTCUSDT") {
+  const fallback = generateSignal(symbol);
+  const candles = await fetchSignalKlines(symbol);
+  if (candles.length < 22) return fallback;
+  const closes = candles.map(c => Number(c.close)).filter(Number.isFinite);
+  if (closes.length < 22) return fallback;
+  const price = closes[closes.length - 1];
+  const ema9 = calculateEMA(closes.slice(-40), 9);
+  const ema21 = calculateEMA(closes.slice(-40), 21);
+  const rsiValue = calculateRSI(closes, 14);
+  const lookback = closes[Math.max(0, closes.length - 11)];
+  const momentumPercent = lookback ? ((price - lookback) / lookback) * 100 : 0;
+  let score = 0;
+  if (ema9 > ema21) score += 1; else if (ema9 < ema21) score -= 1;
+  if (rsiValue >= 55) score += 1; else if (rsiValue <= 45) score -= 1;
+  if (momentumPercent > 0.15) score += 1; else if (momentumPercent < -0.15) score -= 1;
+  let direction = "HOLD";
+  if (score >= 2) direction = "BUY"; else if (score <= -2) direction = "SELL";
+  let confidence = direction === "HOLD" ? 50 + Math.min(Math.round(Math.abs(momentumPercent) * 2), 10) : 55 + Math.abs(score) * 10;
+  confidence = Math.min(confidence, 85);
+  const entry = price;
+  const target = direction === "BUY" ? price * 1.01 : direction === "SELL" ? price * 0.99 : price;
+  const stop = direction === "BUY" ? price * 0.995 : direction === "SELL" ? price * 1.005 : price;
+  return {
+    direction, confidence, entry, target, stop,
+    ema: ema9 > ema21 ? "Bullish" : ema9 < ema21 ? "Bearish" : "Neutral",
+    rsi: rsiValue !== null ? rsiValue.toFixed(1) : "Waiting",
+    momentum: momentumPercent > 0.15 ? "Positive" : momentumPercent < -0.15 ? "Negative" : "Neutral"
+  };
+}
+function generateSignal(symbol = "BTCUSDT") {
+
+  const market =
+    state.markets[symbol];
+
+
+  if (!market) {
+
+    return {
+
+      direction: "HOLD",
+
+      confidence: 0,
+
+      entry: null,
+
+      target: null,
+
+      stop: null,
+
+      ema: "Waiting",
+
+      rsi: "Waiting",
+
+      momentum: "Waiting"
+
+    };
+
+  }
+
+
+  const price =
+    Number(market.price);
+
+
+  const change =
+    Number(market.change) || 0;
+
+
+  let direction =
+    "HOLD";
+
+
+  let confidence =
+    55;
+
+
+  if (change > 1) {
+
+    direction = "BUY";
+    confidence = 76;
+
+  } else if (change < -1) {
+
+    direction = "SELL";
+    confidence = 74;
+
+  } else if (change > 0) {
+
+    direction = "BUY";
+    confidence = 64;
+
+  } else if (change < 0) {
+
+    direction = "SELL";
+    confidence = 63;
+
+  }
+
+
+  const entry =
+    price;
+
+
+  const target =
+    direction === "BUY"
+      ? price * 1.01
+      : direction === "SELL"
+        ? price * 0.99
+        : price;
+
+
+  const stop =
+    direction === "BUY"
+      ? price * 0.995
+      : direction === "SELL"
+        ? price * 1.005
+        : price;
+
+
+  return {
+
+    direction,
+
+    confidence,
+
+    entry,
+
+    target,
+
+    stop,
+
+    ema:
+      direction === "BUY"
+        ? "Bullish"
+        : direction === "SELL"
+          ? "Bearish"
+          : "Neutral",
+
+    rsi:
+      direction === "BUY"
+        ? "58"
+        : direction === "SELL"
+          ? "42"
+          : "50",
+
+    momentum:
+      direction === "BUY"
+        ? "Positive"
+        : direction === "SELL"
+          ? "Negative"
+          : "Neutral"
+
+  };
+
+}
+
+
+async function updateSignalFromMarket() {
+  const symbol = "BTCUSDT";
+  const signal = await generateLiveSignal(symbol);
+  if ($("signalDirection")) {
+    $("signalDirection").textContent = signal.direction;
+    $("signalDirection").className = "signal-direction " + (signal.direction === "BUY" ? "buy" : signal.direction === "SELL" ? "sell" : "hold");
+  }
+  if ($("signalConfidence")) $("signalConfidence").textContent = signal.confidence + "%";
+  if ($("signalEntry")) $("signalEntry").textContent = signal.entry ? "$" + formatPrice(signal.entry) : "—";
+  if ($("signalTarget")) $("signalTarget").textContent = signal.target ? "$" + formatPrice(signal.target) : "—";
+  if ($("signalStop")) $("signalStop").textContent = signal.stop ? "$" + formatPrice(signal.stop) : "—";
+  if ($("emaSignal")) $("emaSignal").textContent = signal.ema;
+  if ($("rsiSignal")) $("rsiSignal").textContent = signal.rsi;
+  if ($("momentumSignal")) $("momentumSignal").textContent = signal.momentum;
+  if ($("activeSignalsValue")) $("activeSignalsValue").textContent = signal.confidence > 0 ? "1" : "0";
+  const now = new Date().toISOString();
+  const latest = state.signals[0];
+  if (!latest || latest.symbol !== symbol || latest.direction !== signal.direction || Date.now() - new Date(latest.time).getTime() > 60000) {
+    state.signals.unshift({ symbol, ...signal, time: now });
+    state.signals = state.signals.slice(0, 10);
+  } else {
+    state.signals[0] = { ...latest, ...signal, symbol, time: now };
+  }
+  renderSignals();
+  await queueRobotSignal({ symbol, ...signal });
+}
+
+/* =========================================================
+   SIGNAL PAGE
+   ========================================================= */
+
+async function runAnalyzer() {
+  const symbol = $("signalAsset")?.value || "BTCUSDT";
+  const button = $("analyzeButton");
+  if (button) { button.disabled = true; button.textContent = "Analyzing..."; }
+  try {
+    const signal = await generateLiveSignal(symbol);
+    if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
+    if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
+    if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
+    if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
+    if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
+    showToast(symbol + " live analysis updated.", "success");
+  } catch (error) {
+    console.error("Signal analyzer error:", error);
+    showToast("Signal analysis failed.", "error");
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "Analyze"; }
+  }
+}
+
+function renderSignals() {
+
+  const container =
+    $("signalsList");
+
+  if (!container) {
+    return;
+  }
+
+
+  if (!state.signals.length) {
+
+    container.innerHTML = `
+
+      <div class="empty-state">
+        No signals yet.
+      </div>
+
+    `;
+
+    return;
+  }
+
+
+  container.innerHTML =
+    state.signals
+      .map(signal => {
+
+        const directionClass =
+          signal.direction === "BUY"
+            ? "positive"
+            : signal.direction === "SELL"
+              ? "negative"
+              : "";
+
+
+        return `
+
+          <div class="market-row">
+
+            <div>
+              <strong>
+                ${escapeHTML(
+                  signal.symbol
+                )}
+              </strong>
+
+              <span>
+                ${new Date(
+                  signal.time
+                ).toLocaleTimeString()}
+              </span>
+            </div>
+
+            <div>
+              <span>Signal</span>
+              <strong class="${directionClass}">
+                ${escapeHTML(
+                  signal.direction
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span>Confidence</span>
+              <strong>
+                ${signal.confidence}%
+              </strong>
+            </div>
+
+            <div>
+              <span>RSI</span>
+              <strong>
+                ${escapeHTML(
+                  signal.rsi
+                )}
+              </strong>
+            </div>
+
+          </div>
+
+        `;
+
+      })
+      .join("");
+
+}
+
+
+/* =========================================================
+   ROBOT
+   ========================================================= */
+
+function setRobotRisk(risk) {
+
+  state.robotRisk =
+    risk;
+
+
+  document
+    .querySelectorAll(".risk-button")
+    .forEach(button => {
+
+      button.classList.toggle(
+        "active",
+        button.dataset.risk === risk
+      );
+
+    });
+
+
+  if ($("robotRiskText")) {
+
+    $("robotRiskText").textContent =
+      risk.charAt(0).toUpperCase() +
+      risk.slice(1);
+
+  }
+
+}
+
+
+function renderRobotStatus() {
+
+  const running =
+    state.robotRunning === true;
+
+  const connected =
+    state.robotStatus.connected === true;
+
+  if ($("robotStatusValue")) {
+    $("robotStatusValue").textContent =
+      running ? "Running" : "Stopped";
+  }
+
+  if ($("robotLabel")) {
+    $("robotLabel").textContent =
+      running ? "RUNNING" : (connected ? "CONNECTED" : "STOPPED");
+  }
+
+  if ($("robotIndicator")) {
+    $("robotIndicator").style.background =
+      running
+        ? "var(--green)"
+        : connected
+          ? "var(--yellow)"
+          : "var(--red)";
+  }
+
+  if ($("brokerStatus")) {
+    $("brokerStatus").textContent =
+      connected ? "AvaTrade MT5 Connected" : "Not Connected";
+  }
+
+  if ($("robotAccountStatus")) {
+    $("robotAccountStatus").textContent =
+      state.mt5AccountId || "Not Set";
+  }
+
+  if ($("robotOpenTrades")) {
+    $("robotOpenTrades").textContent =
+      String(state.robotStatus.openTrades || 0);
+  }
+
+  if ($("robotDailyPL")) {
+    $("robotDailyPL").textContent =
+      formatMoney(state.robotStatus.dailyPL || 0);
+  }
+
+  const heartbeatTime =
+    state.robotStatus.lastHeartbeat
+      ? new Date(state.robotStatus.lastHeartbeat)
+      : null;
+
+  const heartbeatAge =
+    heartbeatTime && !Number.isNaN(heartbeatTime.getTime())
+      ? Date.now() - heartbeatTime.getTime()
+      : Infinity;
+
+  const fresh =
+    connected &&
+    heartbeatAge <= 30000;
+
+  if ($("robotConnectionHealth")) {
+    $("robotConnectionHealth").textContent =
+      fresh
+        ? "Ready"
+        : connected
+          ? "Stale"
+          : "Waiting";
+    $("robotConnectionHealth").className =
+      fresh
+        ? "robot-health-good"
+        : connected
+          ? "robot-health-warn"
+          : "robot-health-bad";
+  }
+
+  if ($("robotHeartbeat")) {
+    $("robotHeartbeat").textContent =
+      heartbeatTime && !Number.isNaN(heartbeatTime.getTime())
+        ? heartbeatTime.toLocaleTimeString()
+        : "No heartbeat";
+  }
+
+  if ($("robotErrorMessage")) {
+    $("robotErrorMessage").textContent =
+      state.robotStatus.lastError ||
+      (
+        fresh
+          ? "MT5/VPS bridge is connected and reporting normally."
+          : connected
+            ? "MT5/VPS is connected, but the heartbeat is stale."
+            : "Waiting for MT5/VPS connection."
+      );
+  }
+
+  if ($("startRobotButton")) {
+    $("startRobotButton").classList.toggle("hidden", running);
+  }
+
+  if ($("stopRobotButton")) {
+    $("stopRobotButton").classList.toggle("hidden", !running);
+  }
+
+  setRobotRisk(state.robotRisk);
+}
+
+
+async function loadRobotState() {
+
+  if (!state.supabase || !state.user) {
+    return;
+  }
+
+  try {
+    const { data: control, error: controlError } =
+      await state.supabase
+        .from("gotradex_bot_control")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .maybeSingle();
+
+    if (controlError) throw controlError;
+
+    if (control) {
+      state.robotRunning = Boolean(control.running);
+      state.robotRisk = control.risk || "conservative";
+      state.maxDrawdown = Number(control.max_drawdown) || 10;
+      state.mt5AccountId =
+        control.mt5_account_id
+          ? String(control.mt5_account_id)
+          : "";
+
+      if ($("mt5AccountId")) {
+        $("mt5AccountId").value = state.mt5AccountId;
+      }
+    }
+
+    const { data: status, error: statusError } =
+      await state.supabase
+        .from("gotradex_bot_status")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .maybeSingle();
+
+    if (statusError) throw statusError;
+
+    if (status) {
+      state.robotStatus = {
+        connected: Boolean(status.connected),
+        running: Boolean(status.running),
+        balance: Number(status.balance) || 0,
+        equity: Number(status.equity) || 0,
+        dailyPL: Number(status.daily_pl) || 0,
+        openTrades: Number(status.open_trades) || 0,
+        lastHeartbeat: status.last_heartbeat || null,
+        lastError: status.last_error || ""
+      };
+    }
+
+    renderRobotStatus();
+    updatePortfolio();
+
+  } catch (error) {
+    console.warn("Robot state load warning:", error);
+  }
+}
+
+
+async function refreshRobotStatus() {
+
+  if (!state.supabase || !state.user) {
+    return;
+  }
+
+  try {
+
+    const [
+      { data: control, error: controlError },
+      { data: status, error: statusError }
+    ] = await Promise.all([
+      state.supabase
+        .from("gotradex_bot_control")
+        .select("running,risk,max_drawdown,mt5_account_id")
+        .eq("user_id", state.user.id)
+        .maybeSingle(),
+
+      state.supabase
+        .from("gotradex_bot_status")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .maybeSingle()
+    ]);
+
+    if (controlError) throw controlError;
+    if (statusError) throw statusError;
+
+    if (control) {
+      state.robotRunning = Boolean(control.running);
+      state.robotRisk = control.risk || state.robotRisk;
+      state.maxDrawdown =
+        Number(control.max_drawdown) || state.maxDrawdown;
+      state.mt5AccountId =
+        control.mt5_account_id
+          ? String(control.mt5_account_id)
+          : state.mt5AccountId;
+
+      if ($("mt5AccountId")) {
+        $("mt5AccountId").value = state.mt5AccountId;
+      }
+    }
+
+    if (status) {
+      state.robotStatus = {
+        connected: Boolean(status.connected),
+        running: Boolean(status.running),
+        balance: Number(status.balance) || 0,
+        equity: Number(status.equity) || 0,
+        dailyPL: Number(status.daily_pl) || 0,
+        openTrades: Number(status.open_trades) || 0,
+        lastHeartbeat: status.last_heartbeat || null,
+        lastError: status.last_error || ""
+      };
+    }
+
+    renderRobotStatus();
+    updatePortfolio();
+
+  } catch (error) {
+    console.warn("Robot status refresh warning:", error);
+  }
+}
+
+
+function startRobotStatusRefresh() {
+
+  clearInterval(state.robotStatusTimer);
+
+  state.robotStatusTimer =
+    setInterval(refreshRobotStatus, 5000);
+}
+
+
+async function saveRobotControl(running) {
+
+  if (!state.supabase || !state.user) {
+    throw new Error("Trading account session is not available.");
+  }
+
+  const accountId =
+    Number($("mt5AccountId")?.value || state.mt5AccountId);
+
+  if (!Number.isInteger(accountId) || accountId <= 0) {
+    throw new Error("Enter your AvaTrade MT5 Account ID first.");
+  }
+
+  state.mt5AccountId = String(accountId);
+
+  const payload = {
+    user_id: state.user.id,
+    broker: "AvaTrade MT5",
+    mode: "LIVE",
+    running,
+    risk: state.robotRisk,
+    max_drawdown: state.maxDrawdown,
+    mt5_account_id: accountId,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } =
+    await state.supabase
+      .from("gotradex_bot_control")
+      .upsert(payload, { onConflict: "user_id" });
+
+  if (error) throw error;
+}
+
+
+async function startRobot() {
+
+  try {
+
+    if (!state.supabase || !state.user) {
+      throw new Error("Please log in before starting AutoBot.");
+    }
+
+    const accountId =
+      Number(state.mt5AccountId);
+
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      throw new Error("A valid AvaTrade MT5 account ID is required.");
+    }
+
+    if (
+      !["conservative", "moderate", "aggressive"]
+        .includes(state.robotRisk)
+    ) {
+      throw new Error("Invalid AutoBot risk setting.");
+    }
+
+    const drawdown =
+      Number(state.maxDrawdown);
+
+    if (
+      !Number.isFinite(drawdown) ||
+      drawdown <= 0 ||
+      drawdown > 100
+    ) {
+      throw new Error("Max drawdown must be between 0 and 100.");
+    }
+
+    if (!isBrokerStatusFresh()) {
+      throw new Error(
+        "AvaTrade MT5/VPS is not connected with a fresh heartbeat. AutoBot cannot start yet."
+      );
+    }
+
+    await saveRobotControl(true);
+
+    state.robotRunning = true;
+    state.lastQueuedSignalKey = "";
+    state.lastQueuedAt = 0;
+
+    renderRobotStatus();
+
+    showToast(
+      "AutoBot started. AvaTrade MT5 will continue running through the MT5/VPS bridge.",
+      "success"
+    );
+
+  } catch (error) {
+
+    state.robotRunning = false;
+    renderRobotStatus();
+
+    console.error("Start robot error:", error);
+
+    showToast(
+      error.message || "Unable to start the robot.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function stopRobot() {
+
+  try {
+
+    await saveRobotControl(false);
+
+    state.robotRunning = false;
+
+    renderRobotStatus();
+
+    showToast(
+      "AutoBot stopped. No new trades will be submitted.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error("Stop robot error:", error);
+
+    showToast(
+      error.message || "Unable to stop the robot.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function queueRobotSignal(signal) {
+
+  if (!state.robotRunning || !state.user) {
+    return;
+  }
+
+  const lastHeartbeat =
+    state.robotStatus.lastHeartbeat
+      ? new Date(state.robotStatus.lastHeartbeat).getTime()
+      : 0;
+
+  const heartbeatAge =
+    lastHeartbeat
+      ? Date.now() - lastHeartbeat
+      : Infinity;
+
+  if (
+    state.robotStatus.connected !== true ||
+    heartbeatAge > 30000
+  ) {
+    return;
+  }
+
+  const accountId =
+    Number(state.mt5AccountId);
+
+  if (!Number.isInteger(accountId) || accountId <= 0) {
+    return;
+  }
+
+  if (!signal || !["BUY", "SELL"].includes(signal.direction)) {
+    return;
+  }
+
+  if (Number(signal.confidence) < 70) {
+    return;
+  }
+
+  const brokerSymbol =
+    signal.symbol === "BTCUSDT"
+      ? "BTCUSD"
+      : signal.symbol;
+
+  const now = Date.now();
+  const key =
+    [
+      brokerSymbol,
+      signal.direction,
+      Number(signal.entry).toFixed(2),
+      Number(signal.stop).toFixed(2),
+      Number(signal.target).toFixed(2)
+    ].join(":");
+
+  if (
+    key === state.lastQueuedSignalKey &&
+    now - state.lastQueuedAt < 300000
+  ) {
+    return;
+  }
+
+  const { error } =
+    await state.supabase
+      .from("gotradex_trade_commands")
+      .insert({
+        user_id: state.user.id,
+        mt5_account_id: accountId,
+        symbol: brokerSymbol,
+        direction: signal.direction,
+        entry: signal.entry,
+        stop_loss: signal.stop,
+        take_profit: signal.target,
+        confidence: signal.confidence,
+        risk: state.robotRisk
+      });
+
+  if (error) {
+    console.error("Robot signal queue error:", error);
+    return;
+  }
+
+  state.lastQueuedSignalKey = key;
+  state.lastQueuedAt = now;
+
+  showToast(
+    "AutoBot queued " +
+      signal.direction +
+      " " +
+      brokerSymbol +
+      " (" +
+      signal.confidence +
+      "% confidence).",
+    "success"
+  );
+}
+
+
+/* =========================================================
+   PORTFOLIO
+   ========================================================= */
+
+function isBrokerStatusFresh() {
+
+  const heartbeat =
+    state.robotStatus.lastHeartbeat
+      ? new Date(state.robotStatus.lastHeartbeat).getTime()
+      : 0;
+
+  return (
+    state.robotStatus.connected === true &&
+    Number.isFinite(heartbeat) &&
+    Date.now() - heartbeat <= 30000
+  );
+
+}
+
+
+function updatePortfolio() {
+
+  const fresh =
+    isBrokerStatusFresh();
+
+  const balance =
+    fresh
+      ? Number(state.robotStatus.balance) || 0
+      : 0;
+
+  const equity =
+    fresh
+      ? Number(state.robotStatus.equity) || 0
+      : 0;
+
+  const dailyPL =
+    fresh
+      ? Number(state.robotStatus.dailyPL) || 0
+      : 0;
+
+  const openTrades =
+    fresh
+      ? Number(state.robotStatus.openTrades) || 0
+      : 0;
+
+  const invested =
+    fresh
+      ? Math.max(0, balance - equity)
+      : 0;
+
+  if ($("balanceValue")) {
+    $("balanceValue").textContent =
+      formatMoney(balance);
+  }
+
+  if ($("dailyProfitValue")) {
+    $("dailyProfitValue").textContent =
+      formatMoney(dailyPL);
+  }
+
+  if ($("portfolioBalance")) {
+    $("portfolioBalance").textContent =
+      formatMoney(balance);
+  }
+
+  if ($("portfolioAvailable")) {
+    $("portfolioAvailable").textContent =
+      formatMoney(equity);
+  }
+
+  if ($("portfolioInvested")) {
+    $("portfolioInvested").textContent =
+      formatMoney(invested);
+  }
+
+  if ($("portfolioProfit")) {
+    $("portfolioProfit").textContent =
+      formatMoney(dailyPL);
+  }
+
+  const positionsEmpty =
+    $("positionsEmpty");
+
+  if (positionsEmpty) {
+    positionsEmpty.textContent =
+      fresh
+        ? openTrades > 0
+          ? openTrades + " open trade" + (openTrades === 1 ? "" : "s") + " reported by AvaTrade MT5. Detailed position data will appear when the bridge provides position details."
+          : "No open trades reported by AvaTrade MT5."
+        : "Waiting for a fresh AvaTrade MT5 connection.";
+  }
+
+}
+
+/* =========================================================
+   WITHDRAWALS
+   ========================================================= */
+
+/* =========================================================
+   DEPOSITS / FUNDING
+   ========================================================= */
+
+async function loadDeposits() {
+  if (!state.supabase || !state.user) return;
+
+  try {
+    const { data, error } =
+      await state.supabase
+        .from("gotradex_deposits")
+        .select("id,amount,payment_method,payment_reference,status,requested_at,reviewed_at,rejection_reason")
+        .eq("user_id", state.user.id)
+        .order("requested_at", { ascending: false })
+        .limit(20);
+
+    if (error) throw error;
+
+    renderDepositHistory(data || []);
+
+    const pending = (data || []).find(item => item.status === "pending");
+    if ($("depositStatusMessage")) {
+      $("depositStatusMessage").textContent =
+        pending
+          ? "Pending admin confirmation — " + formatMoney(pending.amount)
+          : "No pending deposit request.";
+    }
+  } catch (error) {
+    console.warn("Deposit load failed:", error);
+  }
+}
+
+function renderDepositHistory(deposits) {
+  const box = $("depositHistory");
+  if (!box) return;
+
+  if (!deposits.length) {
+    box.className = "empty-state";
+    box.textContent = "No deposit requests yet.";
+    return;
+  }
+
+  box.className = "withdrawal-history";
+  box.innerHTML = deposits.map(item => {
+    const requested = new Date(item.requested_at).toLocaleString();
+    const reference = item.payment_reference
+      ? " · " + escapeHTML(item.payment_reference)
+      : "";
+    const rejection = item.rejection_reason
+      ? " — " + escapeHTML(item.rejection_reason)
+      : "";
+
+    return `
+      <div class="account-status">
+        <span>${escapeHTML(requested)}${reference}</span>
+        <strong>${formatMoney(item.amount)} · ${escapeHTML(item.status)}${rejection}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+async function requestDeposit() {
+  if (!state.supabase || !state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const amount = Number($("depositAmount")?.value);
+  const reference = $("depositPaymentReference")?.value.trim() || "";
+
+  if (!Number.isFinite(amount) || amount < 10) {
+    showToast("Minimum deposit is $10.00.", "error");
+    return;
+  }
+
+  const button = $("requestDepositButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Submitting...";
+  }
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_request_deposit",
+      {
+        p_amount: amount,
+        p_payment_method: "manual",
+        p_payment_reference: reference || null
+      }
+    );
+
+    if (error) throw error;
+
+    if ($("depositAmount")) $("depositAmount").value = "";
+    if ($("depositPaymentReference")) $("depositPaymentReference").value = "";
+
+    showToast("Deposit request submitted.", "success");
+    await loadDeposits();
+  } catch (error) {
+    console.error("Deposit request error:", error);
+    showToast(error.message || "Deposit request failed.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Submit Deposit Request";
+    }
+  }
+}
+
+async function loadAdminDeposits() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { data, error } =
+      await state.supabase
+        .from("gotradex_deposits")
+        .select("id,user_id,amount,payment_method,payment_reference,status,requested_at")
+        .eq("status", "pending")
+        .order("requested_at", { ascending: true })
+        .limit(100);
+
+    if (error) throw error;
+    renderAdminDeposits(data || []);
+  } catch (error) {
+    console.warn("Admin deposits load failed:", error);
+  }
+}
+
+function renderAdminDeposits(deposits) {
+  const box = $("adminDepositsList");
+  if (!box) return;
+
+  if (!deposits.length) {
+    box.className = "empty-state";
+    box.textContent = "No pending deposit requests.";
+    return;
+  }
+
+  box.className = "admin-withdrawal-list";
+  box.innerHTML = deposits.map(item => `
+    <div class="panel admin-withdrawal-item">
+      <div class="account-status">
+        <span>Request</span>
+        <strong>${escapeHTML(item.id.slice(0, 8))}</strong>
+      </div>
+      <div class="account-status">
+        <span>User ID</span>
+        <strong>${escapeHTML(item.user_id)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Requested</span>
+        <strong>${escapeHTML(new Date(item.requested_at).toLocaleString())}</strong>
+      </div>
+      <div class="account-status">
+        <span>Amount</span>
+        <strong>${formatMoney(item.amount)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Payment Reference</span>
+        <strong>${escapeHTML(item.payment_reference || "—")}</strong>
+      </div>
+      <div class="settings-grid">
+        <button type="button" class="primary-button admin-approve-deposit"
+          data-deposit-id="${escapeHTML(item.id)}">Approve</button>
+        <button type="button" class="danger-button admin-reject-deposit"
+          data-deposit-id="${escapeHTML(item.id)}">Reject</button>
+      </div>
+    </div>
+  `).join("");
+
+  box.querySelectorAll(".admin-approve-deposit").forEach(button => {
+    button.addEventListener("click", () =>
+      reviewAdminDeposit(button.dataset.depositId, "approve"));
+  });
+
+  box.querySelectorAll(".admin-reject-deposit").forEach(button => {
+    button.addEventListener("click", async () => {
+      const reason = window.prompt("Reason for rejecting this deposit:");
+      if (reason === null) return;
+      await reviewAdminDeposit(
+        button.dataset.depositId, "reject", reason
+      );
+    });
+  });
+}
+
+async function reviewAdminDeposit(depositId, action, rejectionReason = null) {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_review_deposit",
+      {
+        p_deposit_id: depositId,
+        p_action: action,
+        p_rejection_reason: rejectionReason
+      }
+    );
+
+    if (error) throw error;
+
+    showToast(
+      action === "approve" ? "Deposit approved and wallet funded." : "Deposit rejected.",
+      "success"
+    );
+
+    await loadAdminFinanceSettings();
+    await loadAdminDeposits();
+  } catch (error) {
+    console.error("Admin deposit review error:", error);
+    showToast(error.message || "Deposit review failed.", "error");
+  }
+}
+
+
+async function loadWalletAndWithdrawals() {
+  if (!state.supabase || !state.user) return;
+
+  try {
+    const { data: wallet, error: walletError } =
+      await state.supabase.from("gotradex_wallets")
+        .select("withdrawable_profit,profit_window_ends_at,status")
+        .eq("user_id", state.user.id).maybeSingle();
+
+    if (walletError) throw walletError;
+
+    const available = Number(wallet?.withdrawable_profit) || 0;
+
+    if ($("walletWithdrawableProfit"))
+      $("walletWithdrawableProfit").textContent = formatMoney(available);
+
+    const windowStatus = $("withdrawalWindowStatus");
+    if (windowStatus) {
+      if (wallet?.profit_window_ends_at) {
+        const ends = new Date(wallet.profit_window_ends_at);
+        windowStatus.textContent =
+          Date.now() <= ends.getTime()
+            ? "Open until " + ends.toLocaleString()
+            : "Closed — profit has passed its withdrawal window";
+      } else {
+        windowStatus.textContent =
+          available > 0 ? "Open" : "No withdrawable profit";
+      }
+    }
+
+    const { data: withdrawals, error: withdrawalError } =
+      await state.supabase.from("gotradex_withdrawals")
+        .select("id,amount,fee,net_amount,wallet_address,status,requested_at,reviewed_at,rejection_reason")
+        .eq("user_id", state.user.id)
+        .order("requested_at", { ascending: false }).limit(20);
+
+    if (withdrawalError) throw withdrawalError;
+    renderWithdrawalHistory(withdrawals || []);
+
+  } catch (error) {
+    console.warn("Wallet/withdrawal load failed:", error);
+  }
+}
+
+function renderWithdrawalHistory(withdrawals) {
+  const box = $("withdrawalHistory");
+  if (!box) return;
+
+  if (!withdrawals.length) {
+    box.className = "empty-state";
+    box.textContent = "No withdrawal requests yet.";
+    return;
+  }
+
+  box.className = "withdrawal-history";
+  box.innerHTML = withdrawals.map(item => {
+    const status = String(item.status || "pending");
+    const address = String(item.wallet_address || "");
+    const maskedAddress =
+      address.length > 14
+        ? address.slice(0, 8) + "…" + address.slice(-6)
+        : address;
+    const requested = new Date(item.requested_at).toLocaleString();
+    const rejection =
+      item.rejection_reason
+        ? " — " + escapeHTML(item.rejection_reason)
+        : "";
+
+    return `
+      <div class="account-status">
+        <span>${escapeHTML(requested)} · ${escapeHTML(maskedAddress)}</span>
+        <strong>${formatMoney(item.net_amount)} · ${escapeHTML(status)}${rejection}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+async function requestWithdrawal() {
+  if (!state.supabase || !state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const amount = Number($("withdrawalAmount")?.value);
+  const walletAddress = $("withdrawalWalletAddress")?.value.trim() || "";
+
+  if (!Number.isFinite(amount) || amount < 10) {
+    showToast("Minimum withdrawal is $10.00.", "error");
+    return;
+  }
+
+  if (!walletAddress) {
+    showToast("Enter the wallet address that should receive the withdrawal.", "error");
+    return;
+  }
+
+  const button = $("requestWithdrawalButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Submitting...";
+  }
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_request_withdrawal",
+      { p_amount: amount, p_wallet_address: walletAddress }
+    );
+
+    if (error) throw error;
+
+    $("withdrawalAmount").value = "";
+
+    if ($("withdrawalStatusMessage"))
+      $("withdrawalStatusMessage").textContent =
+        "Withdrawal request submitted. An admin must review it.";
+
+    showToast("Withdrawal request submitted.", "success");
+    await loadWalletAndWithdrawals();
+    await loadDeposits();
+
+    if (state.isAdmin) {
+      await loadAdminFinanceSettings();
+      await loadAdminWithdrawals();
+      await loadAdminDeposits();
+    }
+
+  } catch (error) {
+    console.error("Withdrawal request error:", error);
+    showToast(error.message || "Withdrawal request failed.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Request Withdrawal";
+    }
+  }
+}
+
+async function loadAdminWithdrawals() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { data, error } =
+      await state.supabase.from("gotradex_withdrawals")
+        .select("id,user_id,amount,fee,net_amount,wallet_address,status,requested_at")
+        .eq("status", "pending")
+        .order("requested_at", { ascending: true }).limit(100);
+
+    if (error) throw error;
+    renderAdminWithdrawals(data || []);
+
+  } catch (error) {
+    console.warn("Admin withdrawals load failed:", error);
+  }
+}
+
+function renderAdminWithdrawals(withdrawals) {
+  const box = $("adminWithdrawalsList");
+  if (!box) return;
+
+  if (!withdrawals.length) {
+    box.className = "empty-state";
+    box.textContent = "No pending withdrawal requests.";
+    return;
+  }
+
+  box.className = "admin-withdrawal-list";
+  box.innerHTML = withdrawals.map(item => `
+    <div class="panel admin-withdrawal-item">
+      <div class="account-status">
+        <span>Request</span>
+        <strong>${escapeHTML(item.id.slice(0, 8))}</strong>
+      </div>
+      <div class="account-status">
+        <span>User ID</span>
+        <strong>${escapeHTML(item.user_id)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Requested</span>
+        <strong>${escapeHTML(new Date(item.requested_at).toLocaleString())}</strong>
+      </div>
+      <div class="account-status">
+        <span>Amount</span>
+        <strong>${formatMoney(item.amount)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Fee / Net</span>
+        <strong>${formatMoney(item.fee)} / ${formatMoney(item.net_amount)}</strong>
+      </div>
+      <div class="account-status">
+        <span>Wallet Address</span>
+        <strong>${escapeHTML(item.wallet_address)}</strong>
+      </div>
+      <div class="settings-grid">
+        <button type="button" class="primary-button admin-approve-withdrawal"
+          data-withdrawal-id="${escapeHTML(item.id)}">Approve</button>
+        <button type="button" class="danger-button admin-reject-withdrawal"
+          data-withdrawal-id="${escapeHTML(item.id)}">Reject</button>
+      </div>
+    </div>
+  `).join("");
+
+  box.querySelectorAll(".admin-approve-withdrawal").forEach(button => {
+    button.addEventListener("click", () =>
+      reviewAdminWithdrawal(button.dataset.withdrawalId, "approve"));
+  });
+
+  box.querySelectorAll(".admin-reject-withdrawal").forEach(button => {
+    button.addEventListener("click", async () => {
+      const reason = window.prompt("Reason for rejecting this withdrawal:");
+      if (reason === null) return;
+      await reviewAdminWithdrawal(
+        button.dataset.withdrawalId, "reject", reason
+      );
+    });
+  });
+}
+
+async function reviewAdminWithdrawal(withdrawalId, action, rejectionReason = null) {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_review_withdrawal",
+      {
+        p_withdrawal_id: withdrawalId,
+        p_action: action,
+        p_rejection_reason: rejectionReason
+      }
+    );
+
+    if (error) throw error;
+
+    showToast(
+      action === "approve" ? "Withdrawal approved." : "Withdrawal rejected.",
+      "success"
+    );
+
+    await loadAdminFinanceSettings();
+    await loadAdminWithdrawals();
+    await loadAdminDeposits();
+
+  } catch (error) {
+    console.error("Admin withdrawal review error:", error);
+    showToast(error.message || "Withdrawal review failed.", "error");
+  }
+}
+
+
+/* =========================================================
+   AFFILIATES
+   ========================================================= */
+
+function updateAffiliates() {
+
+  const code =
+    state.profile?.referral_code ||
+    generateReferralCode(
+      state.user?.id
+    );
+
+
+  if ($("referralCode")) {
+
+    $("referralCode").textContent =
+      code;
+
+  }
+
+
+  if ($("referralLink")) {
+
+    const url =
+      new URL(
+        window.location.href
+      );
+
+    url.searchParams.set(
+      "ref",
+      code
+    );
+
+    $("referralLink").value =
+      url.toString();
+
+  }
+
+}
+
+
+async function copyText(text) {
+
+  try {
+
+    await navigator.clipboard.writeText(
+      text
+    );
+
+    showToast(
+      "Copied.",
+      "success"
+    );
+
+  } catch {
+
+    showToast(
+      "Copy failed. Select and copy manually.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   SUPPORT CHAT
+   ========================================================= */
+
+async function loadSupportMessages() {
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+    return;
+  }
+
+
+  try {
+
+    const { data, error } =
+      await state.supabase
+        .from("support_messages")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .order("created_at", {
+          ascending: true
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    renderChatMessages(
+      data || []
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Support messages error:",
+      error
+    );
+
+    const container =
+      $("chatMessages");
+
+    if (container) {
+
+      container.innerHTML = `
+
+        <div class="empty-state">
+          Unable to load live chat.
+        </div>
+
+      `;
+
+    }
+
+  }
+
+}
+
+
+function renderChatMessages(messages) {
+
+  const container =
+    $("chatMessages");
+
+  if (!container) {
+    return;
+  }
+
+
+  if (!messages.length) {
+
+    container.innerHTML = `
+
+      <div class="empty-state">
+        Start a conversation with GoTradeX Support.
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  container.innerHTML =
+    messages
+      .map(message => {
+
+        const date =
+          new Date(
+            message.created_at
+          );
+
+
+        return `
+
+          <div class="chat-bubble ${message.sender === "support" ? "support" : "user"}">
+
+            <div>
+              ${escapeHTML(
+                message.message
+              )}
+            </div>
+
+            <div class="chat-time">
+              ${date.toLocaleString()}
+            </div>
+
+          </div>
+
+        `;
+
+      })
+      .join("");
+
+
+  container.scrollTop =
+    container.scrollHeight;
+
+}
+
+
+async function sendChatMessage(event) {
+
+  event.preventDefault();
+
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+
+    showToast(
+      "You must be logged in.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const input =
+    $("chatInput");
+
+  const message =
+    input?.value.trim();
+
+
+  if (!message) {
+    return;
+  }
+
+
+  input.value = "";
+
+
+  try {
+
+    const { error } =
+      await state.supabase
+        .from("support_messages")
+        .insert({
+
+          user_id:
+            state.user.id,
+
+          message,
+
+          sender:
+            "user"
+
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    await loadSupportMessages();
+
+
+  } catch (error) {
+
+    console.error(
+      "Send chat error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Message could not be sent.",
+      "error"
+    );
+
+  }
+
+}
+
+
+function subscribeToSupportChat() {
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+    return;
+  }
+
+
+  if (state.supportChannel) {
+
+    state.supabase
+      .removeChannel(
+        state.supportChannel
+      );
+
+  }
+
+
+  state.supportChannel =
+    state.supabase
+      .channel(
+        `support-${state.user.id}`
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "support_messages",
+          filter:
+            `user_id=eq.${state.user.id}`
+        },
+        () => {
+
+          if (
+            state.currentPage ===
+            "support"
+          ) {
+
+            loadSupportMessages();
+
+          }
+
+        }
+      )
+      .subscribe();
+
+}
+
+
+/* =========================================================
+   SETTINGS
+   ========================================================= */
+
+async function saveProfile(event) {
+
+  event.preventDefault();
+
+
+  if (
+    !state.supabase ||
+    !state.user
+  ) {
+    return;
+  }
+
+
+  const name =
+    $("settingsName")
+      ?.value
+      .trim();
+
+
+  if (!name) {
+
+    showToast(
+      "Enter your name.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    const { error: authError } =
+      await state.supabase.auth
+        .updateUser({
+
+          data: {
+
+            full_name: name
+
+          }
+
+        });
+
+
+    if (authError) {
+      throw authError;
+    }
+
+
+    const { error: profileError } =
+      await state.supabase
+        .from("profiles")
+        .upsert(
+          {
+
+            id: state.user.id,
+
+            email:
+              state.user.email || "",
+
+            full_name:
+              name,
+
+            referral_code:
+              state.profile?.referral_code ||
+              generateReferralCode(
+                state.user.id
+              )
+
+          },
+          {
+            onConflict: "id"
+          }
+        );
+
+
+    if (profileError) {
+      throw profileError;
+    }
+
+
+    state.user =
+      (
+        await state.supabase.auth
+          .getUser()
+      ).data.user;
+
+
+    await loadProfile();
+
+    updateUserInterface();
+
+    showToast(
+      "Profile saved.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Profile save error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Profile could not be saved.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function changePassword(event) {
+
+  event.preventDefault();
+
+
+  const password =
+    $("newPassword")
+      ?.value || "";
+
+  const confirm =
+    $("confirmPassword")
+      ?.value || "";
+
+
+  if (password.length < 6) {
+
+    showToast(
+      "Password must contain at least 6 characters.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  if (password !== confirm) {
+
+    showToast(
+      "Passwords do not match.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    const { error } =
+      await state.supabase.auth
+        .updateUser({
+          password
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    $("passwordForm").reset();
+
+
+    showToast(
+      "Password changed successfully.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    showToast(
+      error.message ||
+      "Password change failed.",
+      "error"
+    );
+
+  }
+
+}
+
+
+function saveConnections() {
+
+  const settings = {
+
+    telegramWebhook:
+      $("telegramWebhook")
+        ?.value
+        .trim() || "",
+
+    whatsappWebhook:
+      $("whatsappWebhook")
+        ?.value
+        .trim() || ""
+
+  };
+
+
+  localStorage.setItem(
+    "gotradex_connections",
+    JSON.stringify(settings)
+  );
+
+
+  state.settings =
+    settings;
+
+
+  showToast(
+    "Connection settings saved.",
+    "success"
+  );
+
+}
+
+
+function loadConnections() {
+
+  try {
+
+    const saved =
+      JSON.parse(
+        localStorage.getItem(
+          "gotradex_connections"
+        ) || "{}"
+      );
+
+
+    state.settings = {
+
+      telegramWebhook:
+        saved.telegramWebhook || "",
+
+      whatsappWebhook:
+        saved.whatsappWebhook || ""
+
+    };
+
+
+    if ($("telegramWebhook")) {
+
+      $("telegramWebhook").value =
+        state.settings.telegramWebhook;
+
+    }
+
+
+    if ($("whatsappWebhook")) {
+
+      $("whatsappWebhook").value =
+        state.settings.whatsappWebhook;
+
+    }
+
+  } catch {
+
+    state.settings = {
+
+      telegramWebhook: "",
+      whatsappWebhook: ""
+
+    };
+
+  }
+
+}
+
+
+/* =========================================================
+   REFRESH
+   ========================================================= */
+
+async function refreshApplication() {
+
+  const button =
+    $("refreshButton");
+
+
+  if (button) {
+    button.disabled = true;
+  }
+
+
+  try {
+
+    await loadLiveMarkets();
+
+    await createChart();
+
+    updatePortfolio();
+
+    await updateSignalFromMarket();
+
+    showToast(
+      "Live data refreshed.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Refresh error:",
+      error
+    );
+
+    showToast(
+      "Live market refresh failed.",
+      "error"
+    );
+
+  } finally {
+
+    if (button) {
+      button.disabled = false;
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   LIVE APP
+   ========================================================= */
+
+async function initializeLiveApp() {
+
+  loadConnections();
+
+  updatePortfolio();
+
+  updateAffiliates();
+
+  await loadWalletAndWithdrawals();
+  await loadDeposits();
+
+  if (state.isAdmin) {
+    await loadAdminWithdrawals();
+    await loadAdminDeposits();
+    await loadAdminTradeControl();
+  }
+
+  subscribeToSupportChat();
+
+  await loadRobotState();
+
+  startRobotStatusRefresh();
+
+  await loadLiveMarkets();
+
+  await createChart();
+
+  updatePortfolio();
+
+  updateSignalFromMarket();
+
+  startLiveRefresh();
+
+}
+
+
+function startLiveRefresh() {
+
+  clearInterval(
+    state.liveRefreshTimer
+  );
+
+
+  state.liveRefreshTimer =
+    setInterval(
+      async () => {
+
+        await loadLiveMarkets();
+
+        updatePortfolio();
+
+        if (
+          state.currentPage ===
+          "dashboard"
+        ) {
+
+          await createChart();
+
+        }
+
+      },
+      30000
+    );
+
+}
+
+
+/* =========================================================
+   ADMIN FINANCE
+   ========================================================= */
+
+async function loadAdminFinanceSettings() {
+
+  if (
+    !state.isAdmin ||
+    !state.supabase
+  ) {
+    return;
+  }
+
+  try {
+
+    const [
+      { data: finance, error: financeError },
+      { data: wallets, error: walletError },
+      { count: pendingWithdrawals, error: withdrawalError }
+    ] = await Promise.all([
+
+      state.supabase
+        .from("gotradex_platform_finance")
+        .select("*")
+        .eq("id", true)
+        .maybeSingle(),
+
+      state.supabase
+        .from("gotradex_wallets")
+        .select("capital_balance,reserved_capital,status")
+        .in("status", ["funded", "active", "suspended"]),
+
+      state.supabase
+        .from("gotradex_withdrawals")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+
+    ]);
+
+    if (financeError) {
+      throw financeError;
+    }
+
+    if (walletError) {
+      throw walletError;
+    }
+
+    if (withdrawalError) {
+      throw withdrawalError;
+    }
+
+    const allocation =
+      Number(finance?.trade_allocation_amount) || 0;
+
+    const totalFunded =
+      (wallets || []).reduce(
+        (sum, wallet) =>
+          sum + (Number(wallet.capital_balance) || 0),
+        0
+      );
+
+    const allocatedCapital =
+      (wallets || []).reduce(
+        (sum, wallet) =>
+          sum + (Number(wallet.reserved_capital) || 0),
+        0
+      );
+
+    const availableCapital =
+      Math.max(
+        0,
+        totalFunded - allocatedCapital
+      );
+
+    const input =
+      $("adminTradeAllocation");
+
+    if (input) {
+      input.value =
+        allocation.toFixed(2);
+    }
+
+    if ($("adminTradeAllocationStatus")) {
+      $("adminTradeAllocationStatus").textContent =
+        formatMoney(allocation);
+    }
+
+    if ($("adminTotalFunded")) {
+      $("adminTotalFunded").textContent =
+        formatMoney(totalFunded);
+    }
+
+    if ($("adminAllocatedCapital")) {
+      $("adminAllocatedCapital").textContent =
+        formatMoney(allocatedCapital);
+    }
+
+    if ($("adminAvailableCapital")) {
+      $("adminAvailableCapital").textContent =
+        formatMoney(availableCapital);
+    }
+
+    if ($("adminPendingWithdrawals")) {
+      $("adminPendingWithdrawals").textContent =
+        String(pendingWithdrawals || 0);
+    }
+
+    await loadAdminWithdrawals();
+
+  } catch (error) {
+
+    console.warn(
+      "Admin finance settings load failed:",
+      error
+    );
+
+    showToast(
+      "Finance settings could not be loaded.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function saveAdminFinanceSettings() {
+
+  if (
+    !state.isAdmin ||
+    !state.supabase
+  ) {
+    showToast(
+      "Admin access is required.",
+      "error"
+    );
+    return;
+  }
+
+  const input =
+    $("adminTradeAllocation");
+
+  const allocation =
+    Number(input?.value);
+
+  if (
+    !Number.isFinite(allocation) ||
+    allocation < 0
+  ) {
+    showToast(
+      "Enter a valid trading allocation.",
+      "error"
+    );
+    return;
+  }
+
+  try {
+
+    const { error } =
+      await state.supabase
+        .from("gotradex_platform_finance")
+        .update({
+          trade_allocation_amount:
+            allocation,
+          updated_at:
+            new Date().toISOString(),
+          updated_by:
+            state.user.id
+        })
+        .eq("id", true);
+
+    if (error) {
+      throw error;
+    }
+
+    if ($("adminTradeAllocationStatus")) {
+      $("adminTradeAllocationStatus").textContent =
+        formatMoney(allocation);
+    }
+
+    showToast(
+      "Finance settings saved.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Admin finance save error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Finance settings could not be saved.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   ADMIN TRADE CONTROL
+   ========================================================= */
+
+function adminTradeMessage(message, type = "") {
+  const box = $("adminTradeControlMessage");
+  if (!box) return;
+  box.textContent = message || "";
+  box.className = type === "error" ? "error-text" : type === "success" ? "success-text" : "muted";
+}
+
+async function loadAdminTradeControl() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    const { data: wallets, error } = await state.supabase
+      .from("gotradex_wallets")
+      .select("user_id,capital_balance,reserved_capital,status")
+      .in("status", ["funded", "active"])
+      .gt("capital_balance", 0);
+
+    if (error) throw error;
+
+    const eligible = (wallets || [])
+      .map(wallet => ({
+        ...wallet,
+        available: Math.max(
+          0,
+          (Number(wallet.capital_balance) || 0) -
+          (Number(wallet.reserved_capital) || 0)
+        )
+      }))
+      .filter(wallet => wallet.available > 0);
+
+    const total = eligible.reduce((sum, wallet) => sum + wallet.available, 0);
+
+    if ($("adminTradeEligibleCapital")) {
+      $("adminTradeEligibleCapital").textContent = formatMoney(total);
+    }
+
+    const amountInput = $("adminTradeControlAmount");
+    if (amountInput && !amountInput.value) {
+      const finance = await state.supabase
+        .from("gotradex_platform_finance")
+        .select("trade_allocation_amount")
+        .eq("id", true)
+        .maybeSingle();
+
+      if (!finance.error && finance.data) {
+        amountInput.value =
+          Number(finance.data.trade_allocation_amount || 0).toFixed(2);
+      }
+    }
+
+    await renderAdminTradePreview(eligible, total);
+    await loadAdminOpenTrade();
+
+  } catch (error) {
+    console.error("Admin trade control load error:", error);
+    adminTradeMessage(
+      error.message || "Trade control could not be loaded.",
+      "error"
+    );
+  }
+}
+
+async function getAdminEligibleWallets() {
+  const { data, error } = await state.supabase
+    .from("gotradex_wallets")
+    .select("user_id,capital_balance,reserved_capital,status")
+    .in("status", ["funded", "active"])
+    .gt("capital_balance", 0);
+
+  if (error) throw error;
+
+  return (data || [])
+    .map(wallet => ({
+      ...wallet,
+      available: Math.max(
+        0,
+        (Number(wallet.capital_balance) || 0) -
+        (Number(wallet.reserved_capital) || 0)
+      )
+    }))
+    .filter(wallet => wallet.available > 0);
+}
+
+async function renderAdminTradePreview(wallets = null, total = null) {
+  const box = $("adminTradeAllocationPreview");
+  const amountInput = $("adminTradeControlAmount");
+  if (!box || !amountInput) return;
+
+  const eligible = wallets || await getAdminEligibleWallets();
+  const eligibleTotal = total ?? eligible.reduce((sum, wallet) => sum + wallet.available, 0);
+  const requested = Number(amountInput.value);
+
+  if (!Number.isFinite(requested) || requested <= 0) {
+    box.textContent = "Enter an allocation amount to preview user allocations.";
+    if ($("adminTradeRequestedAmount")) {
+      $("adminTradeRequestedAmount").textContent = formatMoney(0);
+    }
+    return;
+  }
+
+  if (!eligibleTotal) {
+    box.textContent = "No funded/active capital is currently eligible for trading.";
+    return;
+  }
+
+  if (requested > eligibleTotal) {
+    box.innerHTML = "<strong>Allocation exceeds available eligible capital.</strong>";
+    if ($("adminTradeRequestedAmount")) {
+      $("adminTradeRequestedAmount").textContent = formatMoney(requested);
+    }
+    return;
+  }
+
+  if ($("adminTradeRequestedAmount")) {
+    $("adminTradeRequestedAmount").textContent = formatMoney(requested);
+  }
+
+  const rows = eligible.map(wallet => {
+    const pct = wallet.available / eligibleTotal;
+    const allocation = Math.round(requested * pct * 100) / 100;
+    return {
+      userId: wallet.user_id,
+      pct,
+      allocation
+    };
+  }).filter(row => row.allocation > 0);
+
+  let names = {};
+  try {
+    const ids = rows.map(row => row.userId);
+    if (ids.length) {
+      const profileResult = await state.supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", ids);
+      if (!profileResult.error) {
+        (profileResult.data || []).forEach(profile => {
+          names[profile.id] = profile.full_name || profile.email || profile.id;
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("Profile lookup for trade preview failed:", error);
+  }
+
+  const totalPreview = rows.reduce((sum, row) => sum + row.allocation, 0);
+
+  box.innerHTML = `
+    <div class="table-wrapper">
+      <table class="admin-trade-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Capital Share</th>
+            <th>Trade Allocation</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td>${escapeHTML(names[row.userId] || row.userId)}</td>
+              <td>${(row.pct * 100).toFixed(2)}%</td>
+              <td>${formatMoney(row.allocation)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="account-status">
+      <span>Total preview allocation</span>
+      <strong>${formatMoney(totalPreview)}</strong>
+    </div>
+  `;
+}
+
+async function placeAdminTrade(direction) {
+  if (!["buy", "sell"].includes(direction)) return;
+
+  const directionSelect = $("adminTradeDirection");
+  if (directionSelect) directionSelect.value = direction;
+
+  await startAdminPaperTrade();
+}
+
+async function startAdminPaperTrade() {
+  if (!state.isAdmin || !state.supabase) {
+    adminTradeMessage("Admin access is required.", "error");
+    return;
+  }
+
+  const asset = $("adminTradeAsset")?.value?.trim();
+  const direction = $("adminTradeDirection")?.value;
+  const amount = Number($("adminTradeControlAmount")?.value);
+
+  if (!asset || !["buy", "sell"].includes(direction)) {
+    adminTradeMessage("Select an asset and direction.", "error");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    adminTradeMessage("Enter a valid trading allocation.", "error");
+    return;
+  }
+
+  const button = $("adminStartTradeButton");
+  if (button) button.disabled = true;
+
+  try {
+    const { data: tradeId, error } = await state.supabase.rpc(
+      "gotradex_prepare_trade",
+      {
+        p_asset: asset,
+        p_direction: direction,
+        p_allocation_amount: amount
+      }
+    );
+
+    if (error) throw error;
+
+    adminTradeMessage(
+      "Paper trade created. User allocations have been reserved.",
+      "success"
+    );
+
+    await loadAdminOpenTrade(tradeId);
+    await loadAdminFinanceSettings();
+
+  } catch (error) {
+    console.error("Start paper trade error:", error);
+    adminTradeMessage(
+      error.message || "Paper trade could not be started.",
+      "error"
+    );
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function loadAdminOpenTrade(tradeId = null) {
+  if (!state.isAdmin || !state.supabase) return;
+
+  try {
+    let query = state.supabase
+      .from("gotradex_trades")
+      .select("id,asset,direction,total_allocated,result,total_pnl,opened_at,created_by,metadata")
+      .eq("result", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1);
+
+    if (tradeId) query = state.supabase
+      .from("gotradex_trades")
+      .select("id,asset,direction,total_allocated,result,total_pnl,opened_at,created_by,metadata")
+      .eq("id", tradeId)
+      .maybeSingle();
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const trade = Array.isArray(data) ? data[0] : data;
+    const panel = $("adminOpenTradePanel");
+
+    if (!trade) {
+      if (panel) panel.style.display = "none";
+      if ($("adminTradeControlStatus")) {
+        $("adminTradeControlStatus").textContent = "Ready";
+      }
+      return;
+    }
+
+    if (panel) panel.style.display = "block";
+    if ($("adminOpenTradeId")) {
+      $("adminOpenTradeId").textContent =
+        `${trade.asset} • ${String(trade.direction).toUpperCase()} • ${trade.id.slice(0, 8)}`;
+    }
+    if ($("adminTradeControlStatus")) {
+      $("adminTradeControlStatus").textContent =
+        `OPEN • ${formatMoney(Number(trade.total_allocated) || 0)}`;
+    }
+
+    await renderOpenTradeAllocations(trade.id);
+
+  } catch (error) {
+    console.error("Load open trade error:", error);
+  }
+}
+
+async function renderOpenTradeAllocations(tradeId) {
+  const box = $("adminTradeAllocationPreview");
+  if (!box) return;
+
+  try {
+    const { data, error } = await state.supabase
+      .from("gotradex_trade_allocations")
+      .select("user_id,allocation_amount,allocation_pct,pnl_amount,commission_amount,net_profit")
+      .eq("trade_id", tradeId)
+      .order("allocation_amount", { ascending: false });
+
+    if (error) throw error;
+
+    const rows = data || [];
+    let names = {};
+
+    if (rows.length) {
+      const profileResult = await state.supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", rows.map(row => row.user_id));
+
+      if (!profileResult.error) {
+        (profileResult.data || []).forEach(profile => {
+          names[profile.id] = profile.full_name || profile.email || profile.id;
+        });
+      }
+    }
+
+    box.innerHTML = `
+      <div class="table-wrapper">
+        <table class="admin-trade-table">
+          <thead><tr><th>User</th><th>Share</th><th>Allocation</th></tr></thead>
+          <tbody>
+            ${rows.map(row => `
+              <tr>
+                <td>${escapeHTML(names[row.user_id] || row.user_id)}</td>
+                <td>${Number(row.allocation_pct || 0).toFixed(2)}%</td>
+                <td>${formatMoney(Number(row.allocation_amount) || 0)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    console.error("Open trade allocation load error:", error);
+    box.textContent = "Unable to load trade allocations.";
+  }
+}
+
+async function closeAdminPaperTrade() {
+  if (!state.isAdmin || !state.supabase) {
+    adminTradeMessage("Admin access is required.", "error");
+    return;
+  }
+
+  const pnl = Number($("adminCloseTradePnl")?.value);
+  if (!Number.isFinite(pnl)) {
+    adminTradeMessage("Enter the total trade P/L.", "error");
+    return;
+  }
+
+  const { data: openTrade, error: findError } = await state.supabase
+    .from("gotradex_trades")
+    .select("id")
+    .eq("result", "open")
+    .order("opened_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (findError) {
+    adminTradeMessage(findError.message || "Open trade could not be found.", "error");
+    return;
+  }
+
+  if (!openTrade) {
+    adminTradeMessage("There is no open paper trade to close.", "error");
+    return;
+  }
+
+  const button = $("adminCloseTradeButton");
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await state.supabase.rpc(
+      "gotradex_close_trade",
+      {
+        p_trade_id: openTrade.id,
+        p_total_pnl: pnl
+      }
+    );
+
+    if (error) throw error;
+
+    if ($("adminCloseTradePnl")) $("adminCloseTradePnl").value = "";
+    adminTradeMessage(
+      `Paper trade closed. Total P/L: ${formatMoney(pnl)}.`,
+      "success"
+    );
+
+    await loadAdminOpenTrade();
+    await loadAdminFinanceSettings();
+    await loadWalletAndWithdrawals();
+
+  } catch (error) {
+    console.error("Close paper trade error:", error);
+    adminTradeMessage(
+      error.message || "Paper trade could not be closed.",
+      "error"
+    );
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+
+/* =========================================================
+   ADMIN USER ACCOUNT LIFECYCLE
+   ========================================================= */
+
+function formatAdminLifecycleDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString();
+}
+
+function adminUserStatusLabel(status) {
+  const value = String(status || "unfunded").toLowerCase();
+  return value === "active"
+    ? "Active"
+    : value === "funded"
+      ? "Funded"
+      : value === "unfunded"
+        ? "Unfunded"
+        : value === "archived"
+          ? "Archived"
+          : value === "suspended"
+            ? "Suspended"
+            : value;
+}
+
+async function loadAdminUsers() {
+  if (!state.isAdmin || !state.supabase) return;
+
+  const list = $("adminUsersList");
+  const statusBox = $("adminUsersLifecycleStatus");
+
+  if (statusBox) statusBox.textContent = "Loading account lifecycle...";
+
+  try {
+    const { data, error } = await state.supabase.rpc(
+      "gotradex_admin_list_users"
+    );
+
+    if (error) throw error;
+
+    const users = data || [];
+    const fundedCount = users.filter(user =>
+      ["funded", "active"].includes(String(user.status || "").toLowerCase())
+    ).length;
+    const unfundedCount = users.filter(user =>
+      String(user.status || "").toLowerCase() === "unfunded"
+    ).length;
+    const archivedCount = users.filter(user =>
+      String(user.status || "").toLowerCase() === "archived"
+    ).length;
+
+    if ($("adminUsersTotal")) $("adminUsersTotal").textContent = String(users.length);
+    if ($("adminUsersFunded")) $("adminUsersFunded").textContent = String(fundedCount);
+    if ($("adminUsersUnfunded")) $("adminUsersUnfunded").textContent = String(unfundedCount);
+    if ($("adminUsersArchived")) $("adminUsersArchived").textContent = String(archivedCount);
+
+    if (!list) return;
+
+    if (!users.length) {
+      list.className = "admin-users-list empty-state";
+      list.textContent = "No accounts found.";
+      if (statusBox) statusBox.textContent = "No account records found.";
+      return;
+    }
+
+    list.className = "admin-users-list";
+    list.innerHTML = `
+      <div class="table-wrapper">
+        <table class="admin-users-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Status</th>
+              <th>Capital</th>
+              <th>Registered</th>
+              <th>Funding Deadline</th>
+              <th>Funded</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(user => {
+              const status = String(user.status || "unfunded").toLowerCase();
+              const deadline = user.funding_deadline_at
+                ? new Date(user.funding_deadline_at)
+                : null;
+              const expired = status === "unfunded" &&
+                deadline &&
+                !Number.isNaN(deadline.getTime()) &&
+                deadline.getTime() < Date.now();
+
+              return `
+                <tr>
+                  <td>
+                    <span class="admin-user-name">${escapeHTML(user.full_name || "Unnamed user")}</span>
+                    <span class="admin-user-email">${escapeHTML(user.email || "No email")}</span>
+                  </td>
+                  <td>
+                    <span class="admin-user-status ${escapeHTML(status)}">${escapeHTML(adminUserStatusLabel(status))}</span>
+                  </td>
+                  <td>${formatMoney(Number(user.capital_balance) || 0)}</td>
+                  <td>${formatAdminLifecycleDate(user.registered_at)}</td>
+                  <td>
+                    <span class="admin-user-deadline${expired ? " expired" : ""}">
+                      ${status === "unfunded"
+                        ? (expired ? "Deadline passed" : formatAdminLifecycleDate(user.funding_deadline_at))
+                        : "—"}
+                    </span>
+                  </td>
+                  <td>${formatAdminLifecycleDate(user.funded_at)}</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    if (statusBox) {
+      statusBox.textContent =
+        "Account lifecycle loaded. Funded/active accounts are sorted first; unfunded accounts are sorted by their funding deadline.";
+    }
+  } catch (error) {
+    console.error("Admin user lifecycle load error:", error);
+    if (list) {
+      list.className = "admin-users-list empty-state";
+      list.textContent = "Unable to load account lifecycle.";
+    }
+    if (statusBox) {
+      statusBox.textContent = error.message || "Account lifecycle could not be loaded.";
+    }
+  }
+}
+
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+async function logout() {
+
+  if (!state.supabase) {
+    return;
+  }
+
+
+  try {
+
+    const { error } =
+      await state.supabase.auth
+        .signOut({
+          scope: "local"
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    state.user = null;
+    state.profile = null;
+    state.isAdmin = false;
+
+    $("adminNavButton")?.classList.add("hidden");
+
+    showAuthScreen();
+
+    showLoginForm();
+
+    showToast(
+      "Logged out.",
+      "success"
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Logout error:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Logout failed.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   EVENT BINDING
+   ========================================================= */
+
+function bindEvents() {
+
+  $("loginTab")
+    ?.addEventListener(
+      "click",
+      showLoginForm
+    );
+
+
+  $("registerTab")
+    ?.addEventListener(
+      "click",
+      showRegisterForm
+    );
+
+
+  $("forgotPasswordButton")
+    ?.addEventListener(
+      "click",
+      showResetForm
+    );
+
+
+  $("backToLoginButton")
+    ?.addEventListener(
+      "click",
+      showLoginForm
+    );
+
+
+  $("loginForm")
+    ?.addEventListener(
+      "submit",
+      handleLogin
+    );
+
+
+  $("registerForm")
+    ?.addEventListener(
+      "submit",
+      handleRegister
+    );
+
+
+  $("resetForm")
+    ?.addEventListener(
+      "submit",
+      handlePasswordReset
+    );
+
+
+  bindPasswordToggle(
+    "toggleLoginPassword",
+    "loginPassword"
+  );
+
+
+  bindPasswordToggle(
+    "toggleRegisterPassword",
+    "registerPassword"
+  );
+
+
+  bindNavigation();
+
+
+  $("refreshButton")
+    ?.addEventListener(
+      "click",
+      refreshApplication
+    );
+
+
+  $("topProfileButton")
+    ?.addEventListener(
+      "click",
+      () => showPage("settings")
+    );
+
+
+  $("profileSettingsButton")
+    ?.addEventListener(
+      "click",
+      () => showPage("settings")
+    );
+
+
+  $("settingsLogoutButton")
+    ?.addEventListener(
+      "click",
+      logout
+    );
+
+
+  $("logoutButton")
+    ?.addEventListener(
+      "click",
+      logout
+    );
+
+
+  $("mobileMenuButton")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        $("sidebar")
+          ?.classList.toggle("open");
+
+      }
+    );
+
+
+  document
+    .querySelectorAll(".timeframe")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(".timeframe")
+            .forEach(item =>
+              item.classList.remove(
+                "active"
+              )
+            );
+
+          button.classList.add("active");
+
+          state.currentTimeframe =
+            button.dataset.timeframe;
+
+          createChart();
+
+        }
+      );
+
+    });
+
+
+  document
+    .querySelectorAll(".category-tab")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          document
+            .querySelectorAll(".category-tab")
+            .forEach(item =>
+              item.classList.remove(
+                "active"
+              )
+            );
+
+          button.classList.add("active");
+
+          state.currentCategory =
+            button.dataset.category;
+
+          renderMarketsList();
+
+        }
+      );
+
+    });
+
+
+  $("marketSearch")
+    ?.addEventListener(
+      "input",
+      renderMarketsList
+    );
+
+
+  $("analyzeButton")
+    ?.addEventListener(
+      "click",
+      runAnalyzer
+    );
+
+
+  document
+    .querySelectorAll(".risk-button")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          setRobotRisk(
+            button.dataset.risk
+          );
+
+        }
+      );
+
+    });
+
+
+  $("startRobotButton")
+    ?.addEventListener(
+      "click",
+      startRobot
+    );
+
+
+  $("stopRobotButton")
+    ?.addEventListener(
+      "click",
+      stopRobot
+    );
+
+
+  $("copyReferralButton")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        copyText(
+          $("referralCode")
+            ?.textContent || ""
+        );
+
+      }
+    );
+
+
+  $("copyReferralLinkButton")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        copyText(
+          $("referralLink")
+            ?.value || ""
+        );
+
+      }
+    );
+
+
+  $("chatForm")
+    ?.addEventListener(
+      "submit",
+      sendChatMessage
+    );
+
+
+  $("profileForm")
+    ?.addEventListener(
+      "submit",
+      saveProfile
+    );
+
+
+  $("passwordForm")
+    ?.addEventListener(
+      "submit",
+      changePassword
+    );
+
+
+  $("saveConnectionsButton")
+    ?.addEventListener(
+      "click",
+      saveConnections
+    );
+
+
+  $("saveAdminFinanceButton")
+    ?.addEventListener(
+      "click",
+      saveAdminFinanceSettings
+    );
+
+  $("adminPreviewTradeButton")
+    ?.addEventListener(
+      "click",
+      () => renderAdminTradePreview()
+    );
+
+  $("adminStartTradeButton")
+    ?.addEventListener(
+      "click",
+      startAdminPaperTrade
+    );
+
+  $("adminBuyTradeButton")
+    ?.addEventListener(
+      "click",
+      () => placeAdminTrade("buy")
+    );
+
+  $("adminSellTradeButton")
+    ?.addEventListener(
+      "click",
+      () => placeAdminTrade("sell")
+    );
+
+  $("adminCloseTradeButton")
+    ?.addEventListener(
+      "click",
+      closeAdminPaperTrade
+    );
+
+  $("adminRefreshUsersButton")
+    ?.addEventListener(
+      "click",
+      loadAdminUsers
+    );
+
+  $("adminTradeControlAmount")
+    ?.addEventListener(
+      "input",
+      () => renderAdminTradePreview()
+    );
+
+  const adminMenuToggle = $("adminMenuToggle");
+
+  adminMenuToggle?.addEventListener("click", () => {
+    const page = $("page-admin");
+    const isOpen = page?.classList.toggle("admin-menu-open") || false;
+    adminMenuToggle.setAttribute("aria-expanded", String(isOpen));
+    adminMenuToggle.textContent = isOpen ? "✕ Close Menu" : "☰ Admin Menu";
+  });
+
+  document
+    .querySelectorAll("[data-admin-section-target]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.getAttribute("data-admin-section-target");
+        if (!target) return;
+
+        if (target === "users") {
+          loadAdminUsers();
+        }
+
+        document
+          .querySelectorAll("[data-admin-section-target]")
+          .forEach((item) => item.classList.remove("active"));
+
+        document
+          .querySelectorAll("[data-admin-section]")
+          .forEach((section) => {
+            section.classList.toggle(
+              "active",
+              section.getAttribute("data-admin-section") === target
+            );
+          });
+
+        button.classList.add("active");
+
+        const page = $("page-admin");
+        page?.classList.remove("admin-menu-open");
+        adminMenuToggle?.setAttribute("aria-expanded", "false");
+        if (adminMenuToggle) adminMenuToggle.textContent = "☰ Admin Menu";
+
+        const adminPage = document.getElementById("page-admin");
+        adminPage?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+  $("requestWithdrawalButton")
+    ?.addEventListener(
+      "click",
+      requestWithdrawal
+    );
+
+  $("requestDepositButton")
+    ?.addEventListener(
+      "click",
+      requestDeposit
+    );
+
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+async function initializeApp() {
+
+  console.log(
+    `${APP_NAME} initializing... ${APP_VERSION}`
+  );
+
+
+  const connected =
+    initializeSupabase();
+
+
+  bindEvents();
+
+
+  if (!connected) {
+
+    showAuthScreen();
+
+    return;
+
+  }
+
+
+  listenForAuthChanges();
+
+  await restoreSession();
+
+
+  console.log(
+    `${APP_NAME} initialized. ${APP_VERSION}`
+  );
+
+}
+
+
+/* =========================================================
+   START ONLY ONCE
+   ========================================================= */
+
+if (
+  document.readyState ===
+  "loading"
+) {
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeApp,
+    {
+      once: true
+    }
+  );
+
+} else {
+
+  initializeApp();
 
 async function createChart() {
   const canvas = $("mainChart");
@@ -1983,31 +5363,43 @@ async function createChart() {
     console.warn("Live candles unavailable; using local candle engine:", error);
     candles = createSyntheticChartPoints(currentPrice, timeframe, 80);
   }
-
   if (!candles.length) return;
 
   const wrapper = canvas.parentElement;
-  if (wrapper && !wrapper.querySelector(".own-chart-toolbar")) {
-    const toolbar = document.createElement("div");
+  const chartState = state.chartView || {
+    mode: "candles",
+    ema: true,
+    volume: true,
+    rsi: false,
+    crosshairX: null
+  };
+  state.chartView = chartState;
+
+  let toolbar = wrapper?.querySelector(".own-chart-toolbar");
+  if (wrapper && !toolbar) {
+    toolbar = document.createElement("div");
     toolbar.className = "own-chart-toolbar";
     toolbar.innerHTML = `
+      <button type="button" data-chart-mode="line" class="chart-tool">Line Chart</button>
       <button type="button" data-chart-mode="candles" class="chart-tool active">Candles</button>
-      <button type="button" data-chart-mode="heikin" class="chart-tool">Heikin-Ashi</button>
+      <button type="button" data-chart-mode="bars" class="chart-tool">Bars</button>
+      <button type="button" data-chart-mode="heikin" class="chart-tool">Heiken Ashi</button>
       <button type="button" data-chart-toggle="ema" class="chart-tool active">EMA</button>
       <button type="button" data-chart-toggle="volume" class="chart-tool active">Volume</button>
       <button type="button" data-chart-toggle="rsi" class="chart-tool">RSI</button>
     `;
     wrapper.insertBefore(toolbar, canvas);
+  }
 
+  if (toolbar && !toolbar.dataset.bound) {
+    toolbar.dataset.bound = "1";
     toolbar.querySelectorAll("[data-chart-mode]").forEach(button => {
       button.addEventListener("click", () => {
-        toolbar.querySelectorAll("[data-chart-mode]").forEach(b => b.classList.remove("active"));
-        button.classList.add("active");
-        chartState.heikin = button.dataset.chartMode === "heikin";
+        chartState.mode = button.dataset.chartMode;
+        toolbar.querySelectorAll("[data-chart-mode]").forEach(b => b.classList.toggle("active", b === button));
         render();
       });
     });
-
     toolbar.querySelectorAll("[data-chart-toggle]").forEach(button => {
       button.addEventListener("click", () => {
         const key = button.dataset.chartToggle;
@@ -2018,16 +5410,17 @@ async function createChart() {
     });
   }
 
-  const chartState = {
-    heikin: false,
-    ema: true,
-    volume: true,
-    rsi: false,
-    crosshairX: null
-  };
+  if (toolbar) {
+    toolbar.querySelectorAll("[data-chart-mode]").forEach(button => {
+      button.classList.toggle("active", button.dataset.chartMode === chartState.mode);
+    });
+    toolbar.querySelectorAll("[data-chart-toggle]").forEach(button => {
+      button.classList.toggle("active", Boolean(chartState[button.dataset.chartToggle]));
+    });
+  }
 
   const render = () => drawOwnTradingChart(canvas, candles, {
-    heikin: chartState.heikin,
+    mode: chartState.mode,
     showEMA: chartState.ema,
     showVolume: chartState.volume,
     showRSI: chartState.rsi,
@@ -2045,15 +5438,15 @@ async function createChart() {
     render();
   };
 
-  render();
+  requestAnimationFrame(render);
 
   const resizeObserver = typeof ResizeObserver !== "undefined"
-    ? new ResizeObserver(render)
+    ? new ResizeObserver(() => requestAnimationFrame(render))
     : null;
   resizeObserver?.observe(wrapper || canvas);
 
   state.chart = {
-    type: "own-candlestick",
+    type: "own-trading-chart",
     candles,
     destroy() {
       resizeObserver?.disconnect();
