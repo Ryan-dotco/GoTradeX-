@@ -83,6 +83,14 @@ const state = {
 
   liveRefreshTimer: null,
 
+  liveMarketSocket: null,
+
+  liveMarketReconnectTimer: null,
+
+  liveSignalTimer: null,
+
+  lastLiveSignalAt: 0,
+
   settings: {
 
     telegramWebhook: "",
@@ -2079,6 +2087,7 @@ async function createChart() {
   state.chart = {
     type: "own-trading-chart",
     candles,
+    render,
     destroy() {
       resizeObserver?.disconnect();
       canvas.onmousemove = null;
@@ -4096,6 +4105,82 @@ function loadConnections() {
 
 
 /* =========================================================
+   LIVE MARKET STREAM
+   ========================================================= */
+
+function chartTimeBucket(timeframe, timestamp) {
+  const time = Number(timestamp) || Date.now();
+  const date = new Date(time);
+  const fixedSteps = {"5s":5000,"15s":15000,"30s":30000,"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1H":3600000,"4H":14400000,"12H":43200000,"1D":86400000,"1W":604800000};
+  if (fixedSteps[timeframe]) return Math.floor(time / fixedSteps[timeframe]) * fixedSteps[timeframe];
+  if (timeframe === "1M") return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+  if (timeframe === "6M") return Date.UTC(date.getUTCFullYear(), Math.floor(date.getUTCMonth() / 6) * 6, 1);
+  if (timeframe === "1Y") return Date.UTC(date.getUTCFullYear(), 0, 1);
+  return Math.floor(time / 3600000) * 3600000;
+}
+
+function updateLiveChartCandle(price, timestamp = Date.now()) {
+  const chart = state.chart;
+  if (!chart?.candles?.length) return;
+  const value = Number(price);
+  if (!Number.isFinite(value)) return;
+  const bucket = chartTimeBucket(state.currentTimeframe || "1H", timestamp);
+  let candle = chart.candles[chart.candles.length - 1];
+  if (!candle || Number(candle.time) !== bucket) {
+    candle = {time:bucket,open:value,high:value,low:value,close:value,volume:0};
+    chart.candles.push(candle);
+    if (chart.candles.length > 120) chart.candles.shift();
+  } else {
+    candle.high = Math.max(Number(candle.high) || value, value);
+    candle.low = Math.min(Number(candle.low) || value, value);
+    candle.close = value;
+  }
+  chart.candles[chart.candles.length - 1] = candle;
+  chart.render?.();
+}
+
+function handleLiveMarketTrade(message) {
+  const price = Number(message?.p);
+  const timestamp = Number(message?.T || message?.E || Date.now());
+  if (!Number.isFinite(price)) return;
+  state.markets.BTCUSDT = {...(state.markets.BTCUSDT || {}),symbol:"BTCUSDT",price,timestamp};
+  if ($("btcPrice")) $("btcPrice").textContent = "$" + formatPrice(price) + " • LIVE";
+  updateLiveChartCandle(price, timestamp);
+  if (!state.liveSignalTimer) {
+    state.liveSignalTimer = setTimeout(async () => {
+      state.liveSignalTimer = null;
+      if (Date.now() - state.lastLiveSignalAt < 4000) return;
+      state.lastLiveSignalAt = Date.now();
+      try { await updateSignalFromMarket(); } catch (error) { console.warn("Live signal update skipped:", error); }
+    }, 750);
+  }
+}
+
+function connectLiveMarketStream() {
+  if (typeof WebSocket === "undefined") return;
+  clearTimeout(state.liveMarketReconnectTimer);
+  try { state.liveMarketSocket?.close(); } catch {}
+  const socket = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@trade");
+  state.liveMarketSocket = socket;
+  socket.onopen = () => {
+    console.log("GoTradeX live BTC stream connected.");
+    if ($("btcPrice") && state.markets.BTCUSDT?.price) $("btcPrice").textContent = "$" + formatPrice(state.markets.BTCUSDT.price) + " • LIVE";
+  };
+  socket.onmessage = event => {
+    try {
+      const message = JSON.parse(event.data);
+      if (message?.e === "trade" && message?.s === "BTCUSDT") handleLiveMarketTrade(message);
+    } catch (error) { console.warn("Live BTC stream message error:", error); }
+  };
+  socket.onerror = error => console.warn("Live BTC stream error:", error);
+  socket.onclose = () => {
+    if (state.liveMarketSocket === socket) state.liveMarketSocket = null;
+    clearTimeout(state.liveMarketReconnectTimer);
+    state.liveMarketReconnectTimer = setTimeout(() => { if (state.user) connectLiveMarketStream(); }, 3000);
+  };
+}
+
+/* =========================================================
    REFRESH
    ========================================================= */
 
@@ -4181,7 +4266,9 @@ async function initializeLiveApp() {
 
   updatePortfolio();
 
-  updateSignalFromMarket();
+  await updateSignalFromMarket();
+
+  connectLiveMarketStream();
 
   startLiveRefresh();
 
@@ -4202,6 +4289,8 @@ function startLiveRefresh() {
         await loadLiveMarkets();
 
         updatePortfolio();
+
+        await updateSignalFromMarket();
 
         if (
           state.currentPage ===
@@ -4992,6 +5081,11 @@ async function logout() {
     state.user = null;
     state.profile = null;
     state.isAdmin = false;
+
+    clearTimeout(state.liveMarketReconnectTimer);
+    clearTimeout(state.liveSignalTimer);
+    try { state.liveMarketSocket?.close(); } catch {}
+    state.liveMarketSocket = null;
 
     $("adminNavButton")?.classList.add("hidden");
 
