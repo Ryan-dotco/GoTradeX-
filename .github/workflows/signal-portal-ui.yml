@@ -1,0 +1,183 @@
+name: Signal Portal UI Enhancement
+
+on:
+  push:
+    branches:
+      - signal-portal-development
+    paths:
+      - '.github/workflows/signal-portal-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  enhance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v4
+        with:
+          ref: signal-portal-development
+          fetch-depth: 0
+
+      - name: Enhance Signal Analyzer only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('script.js')
+          s = p.read_text(encoding='utf-8')
+
+          s = s.replace('const APP_VERSION = "3.0.31";', 'const APP_VERSION = "3.0.32";', 1)
+
+          marker = '/* =========================================================\n   SIGNAL PAGE\n   ========================================================= */\n\nasync function runAnalyzer() {'
+          ui = r'''/* =========================================================
+   SIGNAL ANALYZER UI
+   ========================================================= */
+
+function setupSignalAnalyzerUI() {
+  const select = $("signalAsset");
+  if (select && !select.dataset.catalogBound && typeof marketCatalog !== "undefined") {
+    const current = select.value || "BTCUSDT";
+    select.innerHTML = "";
+    Object.entries(marketCatalog).forEach(([category, entries]) => {
+      const group = document.createElement("optgroup");
+      group.label = category.charAt(0).toUpperCase() + category.slice(1);
+      (entries || []).forEach(entry => {
+        const symbol = Array.isArray(entry) ? entry[0] : entry;
+        const name = Array.isArray(entry) ? entry[1] : entry;
+        const option = document.createElement("option");
+        option.value = symbol;
+        option.textContent = `${symbol} — ${name || symbol}`;
+        group.appendChild(option);
+      });
+      select.appendChild(group);
+    });
+    select.value = [...select.options].some(o => o.value === current) ? current : "BTCUSDT";
+    select.dataset.catalogBound = "1";
+  }
+
+  const result = document.querySelector(".analyzer-result");
+  if (!result || result.dataset.detailBound === "1") return;
+
+  const confidence = $("analysisConfidence");
+  if (!confidence) return;
+
+  const levels = document.createElement("div");
+  levels.className = "signal-levels analyzer-levels";
+  levels.innerHTML = `
+    <div><span>Entry</span><strong id="analysisEntry">—</strong></div>
+    <div><span>Take Profit</span><strong id="analysisTarget">—</strong></div>
+    <div><span>Stop Loss</span><strong id="analysisStop">—</strong></div>
+  `;
+  confidence.insertAdjacentElement("afterend", levels);
+
+  const details = document.createElement("div");
+  details.className = "analysis-grid analyzer-detail-grid";
+  details.innerHTML = `
+    <div><span>EMA 9 / 21</span><strong id="analysisEMA">—</strong></div>
+    <div><span>RSI 14</span><strong id="analysisRSI">—</strong></div>
+    <div><span>Momentum</span><strong id="analysisMomentum">—</strong></div>
+    <div><span>Pattern</span><strong id="analysisPattern">—</strong></div>
+    <div><span>Timeframe</span><strong id="analysisTimeframe">—</strong></div>
+    <div><span>Data Source</span><strong id="analysisSource">—</strong></div>
+  `;
+  levels.insertAdjacentElement("afterend", details);
+
+  result.dataset.detailBound = "1";
+}
+
+function updateSignalAnalyzerResult(symbol, signal) {
+  setupSignalAnalyzerUI();
+  if ($("analysisDirection")) {
+    $("analysisDirection").textContent = signal.direction;
+    $("analysisDirection").className = "signal-direction " + (signal.direction === "BUY" ? "buy" : signal.direction === "SELL" ? "sell" : "hold");
+  }
+  if ($("analysisConfidence")) $("analysisConfidence").textContent = `${signal.confidence}%`;
+  if ($("analysisEntry")) $("analysisEntry").textContent = signal.entry != null ? formatPrice(signal.entry) : "—";
+  if ($("analysisTarget")) $("analysisTarget").textContent = signal.target != null ? formatPrice(signal.target) : "—";
+  if ($("analysisStop")) $("analysisStop").textContent = signal.stop != null ? formatPrice(signal.stop) : "—";
+  if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema || "—";
+  if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi || "—";
+  if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum || "—";
+  if ($("analysisPattern")) $("analysisPattern").textContent = signal.pattern || "None";
+  if ($("analysisTimeframe")) $("analysisTimeframe").textContent = state.currentTimeframe || "1H";
+  if ($("analysisSource")) $("analysisSource").textContent = ["BTCUSDT", "ETHUSDT"].includes(symbol) ? "Live candles" : "Market fallback";
+  if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
+}
+
+/* =========================================================
+   SIGNAL PAGE
+   ========================================================= */
+
+async function runAnalyzer() {'''
+          if marker in s:
+              s = s.replace(marker, ui, 1)
+
+          old = '''    if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
+    if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
+    if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
+    if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
+    if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
+    if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();'''
+          new = '''    updateSignalAnalyzerResult(symbol, signal);'''
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          fallback_return = '''    momentum:
+      direction === "BUY"
+        ? "Positive"
+        : direction === "SELL"
+          ? "Negative"
+          : "Neutral"
+
+  };'''
+          fallback_new = '''    momentum:
+      direction === "BUY"
+        ? "Positive"
+        : direction === "SELL"
+          ? "Negative"
+          : "Neutral",
+
+    pattern: "Market momentum",
+    timeframe: state.currentTimeframe || "1H"
+
+  };'''
+          if fallback_return in s:
+              s = s.replace(fallback_return, fallback_new, 1)
+
+          bind_marker = '''  $("analyzeButton")
+    ?.addEventListener(
+      "click",
+      runAnalyzer
+    );'''
+          bind_new = '''  setupSignalAnalyzerUI();
+
+  $("signalAsset")?.addEventListener("change", () => {
+    setupSignalAnalyzerUI();
+  });
+
+  $("analyzeButton")
+    ?.addEventListener(
+      "click",
+      runAnalyzer
+    );'''
+          if bind_marker in s:
+              s = s.replace(bind_marker, bind_new, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Verify JavaScript syntax
+        run: node --check script.js
+
+      - name: Commit Signal Analyzer enhancement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add script.js
+          if git diff --cached --quiet; then
+            echo "No Signal Analyzer changes needed."
+            exit 0
+          fi
+          git commit -m "Complete visible Signal Analyzer results"
+          git push origin signal-portal-development
