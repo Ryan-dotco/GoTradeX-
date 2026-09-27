@@ -2369,11 +2369,37 @@ select {
 .chart-timeframe-control .timeframes[hidden], .chart-tools-menu[hidden], .indicator-list[hidden] { display:none !important; }
 .chart-timeframe-control .timeframes {
   position:absolute; right:0; top:calc(100% + 6px); z-index:30;
-  width:min(280px,calc(100vw - 30px)); padding:8px; border:1px solid var(--border);
+  width:min(300px,calc(100vw - 24px)); padding:10px; border:1px solid var(--border);
   border-radius:10px; background:#0b1729; box-shadow:var(--shadow);
-  display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px;
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px;
 }
-.chart-timeframe-control .timeframe { min-width:0; padding:7px 4px; text-align:center; }
+.chart-timeframe-control .timeframe {
+  min-width:0;
+  min-height:40px;
+  padding:9px 5px;
+  text-align:center;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#172941;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  touch-action:manipulation;
+}
+.chart-timeframe-control .timeframe.active {
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+.indicator-toggle {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:38px;
+  margin:0 0 8px;
+  padding:9px 12px;
+  touch-action:manipulation;
+}
 .chart-wrapper .own-chart-toolbar { position:absolute; left:8px; top:8px; z-index:25; display:block; margin:0; padding:0; }
 .chart-tools-menu {
   position:absolute; left:0; top:calc(100% + 6px); width:min(280px,calc(100vw - 30px));
