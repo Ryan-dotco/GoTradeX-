@@ -1026,10 +1026,52 @@ select {
   min-height: 360px;
 }
 
+
+
+/* =========================================================
+   OWN TRADING CHART TOOLBAR
+   ========================================================= */
+.own-chart-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 6px 0;
+  margin-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.chart-tool {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #172941;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chart-tool.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 .chart-wrapper {
   position: relative;
-
   height: 285px;
+  min-height: 285px;
+  overflow: hidden;
+  background: #081321;
+  border-radius: 8px;
+}
+
+.chart-wrapper canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .signal-live,
