@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.12";
+const APP_VERSION = "3.0.26";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
