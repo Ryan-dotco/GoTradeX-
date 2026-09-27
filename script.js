@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.29";
+const APP_VERSION = "3.0.30";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -5362,8 +5362,8 @@ function bindEvents() {
     state.currentTimeframe = button.dataset.timeframe;
     const box = button.closest(".timeframes");
     if (box) box.hidden = true;
-    const toggle = box?.parentElement?.querySelector(".chart-control-toggle");
-    toggle?.setAttribute("aria-expanded", "false");
+    const timeframeToggle = box?.parentElement?.querySelector(".chart-control-toggle");
+    timeframeToggle?.setAttribute("aria-expanded", "false");
     if ($("signalDuration")) $("signalDuration").textContent = estimatedSignalDuration();
     if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
     createChart();
