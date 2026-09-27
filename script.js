@@ -5374,17 +5374,25 @@ function bindEvents() {
               )
             );
 
-          button.classList.add("active");
-
           const nextCategory = button.dataset.category;
-          if (state.currentCategory === nextCategory) {
-            state.currentCategory = "";
-            button.classList.remove("active");
-          } else {
-            state.currentCategory = nextCategory;
-          }
+          if (!nextCategory) return;
+
+          // Category tabs are selectors, not toggle-off buttons.
+          // Every tap must reveal the complete list inside that category.
+          document
+            .querySelectorAll(".category-tab")
+            .forEach(item => item.classList.remove("active"));
+
+          button.classList.add("active");
+          state.currentCategory = nextCategory;
 
           renderMarketsList();
+
+          // Keep the selected market visible after switching categories.
+          const firstMarket = $("marketsList")?.querySelector("[data-market-symbol]");
+          if (firstMarket && !state.markets?.[state.currentSymbol]) {
+            selectMarketSymbol(firstMarket.dataset.marketSymbol);
+          }
 
         }
       );
@@ -5669,3 +5677,19 @@ if (
   initializeApp();
 
 }
+
+/* =========================================================
+   MARKET CATEGORY PORTAL — MOBILE TOUCH FIX
+   ========================================================= */
+document.addEventListener("click", (event) => {
+  const tab = event.target.closest?.(".category-tab");
+  if (!tab) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const category = tab.dataset.category;
+  if (!category) return;
+  document.querySelectorAll(".category-tab").forEach(item => item.classList.remove("active"));
+  tab.classList.add("active");
+  state.currentCategory = category;
+  renderMarketsList();
+}, true);
