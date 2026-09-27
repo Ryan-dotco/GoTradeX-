@@ -395,122 +395,80 @@ async function handleLogin(event) {
   event.preventDefault();
 
   if (!state.supabase) {
-
-    showToast(
-      "Supabase is not connected.",
-      "error"
-    );
-
+    setAuthMessage("Supabase is not connected.", "error");
     return;
   }
 
-
-  const email =
-    $("loginEmail")?.value
-      .trim()
-      .toLowerCase();
-
-  const password =
-    $("loginPassword")?.value || "";
-
+  const email = $("loginEmail")?.value.trim().toLowerCase();
+  const password = $("loginPassword")?.value || "";
 
   if (!email || !password) {
-
-    setAuthMessage(
-      "Enter your email and password.",
-      "error"
-    );
-
+    setAuthMessage("Enter your email and password.", "error");
     return;
   }
-
 
   const button =
     event.submitter ||
-    $("loginForm")?.querySelector(
-      'button[type="submit"]'
-    );
+    $("loginForm")?.querySelector('button[type="submit"]');
 
-  const originalText =
-    button?.textContent || "Login";
+  const originalText = button?.textContent || "Login";
 
   if (button) {
     button.disabled = true;
     button.textContent = "Logging in...";
   }
 
-
   setAuthMessage("Connecting...");
 
-
   try {
-
     const { data, error } =
-      await state.supabase.auth
-        .signInWithPassword({
-          email,
-          password
-        });
+      await state.supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
+    if (error) throw error;
 
-    if (error) {
-      throw error;
-    }
-
-
-    state.user =
-      data?.user || null;
-
+    state.user = data?.user || null;
 
     if (!state.user) {
-      throw new Error(
-        "Login succeeded but no user session was returned."
-      );
+      throw new Error("Login succeeded but no user session was returned.");
     }
 
-
-    await loadProfile();
-
+    // Show the application immediately after Supabase authentication.
+    // Profile/admin/live-data loading must never block the login screen.
     showAppScreen();
-
     updateUserInterface();
-
-    await initializeLiveApp();
-
     showPage("dashboard");
+    setAuthMessage("");
+    showToast("Login successful.", "success");
 
-    showToast(
-      "Login successful.",
-      "success"
-    );
-
+    // Finish account/profile/live-data initialization in the background.
+    // A failure here must not send a successfully authenticated user
+    // back to the login screen.
+    Promise.allSettled([
+      loadProfile(),
+      initializeLiveApp()
+    ]).then(results => {
+      results.forEach(result => {
+        if (result.status === "rejected") {
+          console.warn("Post-login initialization warning:", result.reason);
+        }
+      });
+      updateUserInterface();
+    });
 
   } catch (error) {
-
-    console.error(
-      "Login error:",
-      error
-    );
-
-    setAuthMessage(
-      error.message ||
-      "Login failed.",
-      "error"
-    );
-
+    console.error("Login error:", error);
+    setAuthMessage(error.message || "Login failed.", "error");
   } finally {
-
     if (button) {
-
       button.disabled = false;
       button.textContent = originalText;
-
     }
-
   }
 
 }
-
 
 /* =========================================================
    REGISTER
@@ -837,16 +795,26 @@ function listenForAuthChanges() {
         session?.user
       ) {
 
-        state.user =
-          session.user;
+        // handleLogin() owns the interactive login flow. Keep the auth
+        // listener lightweight so it cannot block or overwrite the login UI.
+        state.user = session.user;
 
-        await loadProfile();
+        if ($("appScreen")?.classList.contains("hidden")) {
+          showAppScreen();
+          updateUserInterface();
 
-        showAppScreen();
-
-        updateUserInterface();
-
-        await initializeLiveApp();
+          Promise.allSettled([
+            loadProfile(),
+            initializeLiveApp()
+          ]).then(results => {
+            results.forEach(result => {
+              if (result.status === "rejected") {
+                console.warn("Auth-state initialization warning:", result.reason);
+              }
+            });
+            updateUserInterface();
+          });
+        }
 
         return;
       }
