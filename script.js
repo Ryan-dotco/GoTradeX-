@@ -1660,17 +1660,381 @@ function createSyntheticChartPoints(currentPrice,timeframe="1H",count=60){
   return points;
 }
 
-async function createChart(){
-  const canvas=$("mainChart");if(!canvas||typeof Chart==="undefined")return;
-  if(state.chart){state.chart.destroy();state.chart=null;}
-  const tf=state.currentTimeframe,currentPrice=state.markets.BTCUSDT?.price||0,interval=chartIntervalForTimeframe(tf);
-  let candles=[];
-  try{if(!interval)throw new Error("Synthetic timeframe");candles=await fetchBinanceKlines("BTCUSDT",interval,60);}
-  catch(error){console.warn("Live chart unavailable; using timeframe fallback:",error);candles=createSyntheticChartPoints(currentPrice,tf,60);}
-  const labels=candles.map(c=>new Date(c.time).toLocaleString([],tf==="5s"||tf==="15s"||tf==="30s"?{hour:"2-digit",minute:"2-digit",second:"2-digit"}:{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}));
-  state.chart=new Chart(canvas.getContext("2d"),{type:"line",data:{labels,datasets:[{data:candles.map(c=>c.close),borderColor:"#4f7cff",backgroundColor:"rgba(37,99,235,0.10)",fill:true,tension:.35,pointRadius:0,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:"rgba(145,164,189,0.10)"},ticks:{color:"#91a4bd",font:{size:9}}}}}});
+async /* =========================================================
+   GOTRADEX OWN TRADING CHART
+   Candles + Heikin-Ashi + volume + EMA + RSI + crosshair.
+   ========================================================= */
+
+function chartPriceLabel(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (n >= 1) return n.toFixed(4);
+  return n.toFixed(6);
 }
 
+function buildHeikinAshi(candles) {
+  let previousOpen = null;
+  let previousClose = null;
+
+  return candles.map(c => {
+    const close = (c.open + c.high + c.low + c.close) / 4;
+    const open = previousOpen === null
+      ? (c.open + c.close) / 2
+      : (previousOpen + previousClose) / 2;
+    const high = Math.max(c.high, open, close);
+    const low = Math.min(c.low, open, close);
+
+    previousOpen = open;
+    previousClose = close;
+
+    return { ...c, open, high, low, close };
+  });
+}
+
+function calculateEMAValues(values, period) {
+  if (!values.length) return [];
+  const multiplier = 2 / (period + 1);
+  let ema = values[0];
+  return values.map((value, index) => {
+    if (index === 0) return ema;
+    ema = (value - ema) * multiplier + ema;
+    return ema;
+  });
+}
+
+function calculateRSIValues(values, period = 14) {
+  const result = new Array(values.length).fill(null);
+  if (values.length <= period) return result;
+
+  let gain = 0;
+  let loss = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = values[i] - values[i - 1];
+    gain += Math.max(change, 0);
+    loss += Math.max(-change, 0);
+  }
+
+  let avgGain = gain / period;
+  let avgLoss = loss / period;
+  result[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+
+  for (let i = period + 1; i < values.length; i++) {
+    const change = values[i] - values[i - 1];
+    avgGain = ((avgGain * (period - 1)) + Math.max(change, 0)) / period;
+    avgLoss = ((avgLoss * (period - 1)) + Math.max(-change, 0)) / period;
+    result[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+  }
+
+  return result;
+}
+
+function drawOwnTradingChart(canvas, candles, options = {}) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx || !candles.length) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(320, Math.floor(rect.width || 600));
+  const height = Math.max(260, Math.floor(rect.height || 285));
+
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const volumeHeight = options.showVolume ? 46 : 0;
+  const padding = { top: 14, right: 68, bottom: 25, left: 8 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom - volumeHeight;
+
+  const displayCandles = options.heikin ? buildHeikinAshi(candles) : candles;
+  const highs = displayCandles.map(c => c.high);
+  const lows = displayCandles.map(c => c.low);
+  const maxPrice = Math.max(...highs);
+  const minPrice = Math.min(...lows);
+  const range = Math.max(maxPrice - minPrice, maxPrice * 0.001);
+  const top = maxPrice + range * 0.08;
+  const bottom = minPrice - range * 0.08;
+
+  const priceY = price =>
+    padding.top + ((top - price) / (top - bottom)) * chartHeight;
+
+  const slot = chartWidth / displayCandles.length;
+  const bodyWidth = Math.max(2, Math.min(13, slot * 0.68));
+
+  // Background/grid.
+  ctx.fillStyle = "#081321";
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = "rgba(145,164,189,0.11)";
+  ctx.lineWidth = 1;
+  ctx.font = "10px Arial";
+  ctx.fillStyle = "#91a4bd";
+
+  for (let i = 0; i <= 5; i++) {
+    const y = padding.top + (chartHeight / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+
+    const price = top - ((top - bottom) / 5) * i;
+    ctx.fillText(chartPriceLabel(price), width - padding.right + 7, y + 3);
+  }
+
+  // Candles and volume.
+  const maxVolume = Math.max(...displayCandles.map(c => Number(c.volume) || 0), 1);
+  displayCandles.forEach((c, i) => {
+    const x = padding.left + slot * i + slot / 2;
+    const openY = priceY(c.open);
+    const closeY = priceY(c.close);
+    const highY = priceY(c.high);
+    const lowY = priceY(c.low);
+    const rising = c.close >= c.open;
+    const candleColor = rising ? "#22c55e" : "#ef4444";
+
+    ctx.strokeStyle = candleColor;
+    ctx.fillStyle = candleColor;
+    ctx.lineWidth = 1.2;
+
+    ctx.beginPath();
+    ctx.moveTo(x, highY);
+    ctx.lineTo(x, lowY);
+    ctx.stroke();
+
+    ctx.fillRect(
+      x - bodyWidth / 2,
+      Math.min(openY, closeY),
+      bodyWidth,
+      Math.max(1.5, Math.abs(closeY - openY))
+    );
+
+    if (options.showVolume) {
+      const volume = Number(c.volume) || 0;
+      const barHeight = (volume / maxVolume) * (volumeHeight - 7);
+      ctx.globalAlpha = 0.32;
+      ctx.fillRect(
+        x - Math.max(1, bodyWidth / 2),
+        height - padding.bottom - barHeight,
+        Math.max(2, bodyWidth),
+        barHeight
+      );
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  const closes = displayCandles.map(c => c.close);
+
+  // EMA 9 / EMA 21.
+  if (options.showEMA) {
+    [
+      { period: 9, stroke: "#f59e0b" },
+      { period: 21, stroke: "#60a5fa" }
+    ].forEach(line => {
+      const values = calculateEMAValues(closes, line.period);
+      ctx.strokeStyle = line.stroke;
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+
+      values.forEach((value, i) => {
+        const x = padding.left + slot * i + slot / 2;
+        const y = priceY(value);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      ctx.stroke();
+    });
+  }
+
+  // Latest price.
+  const last = displayCandles[displayCandles.length - 1];
+  const latestY = priceY(last.close);
+  ctx.strokeStyle = "rgba(79,124,255,0.7)";
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padding.left, latestY);
+  ctx.lineTo(width - padding.right, latestY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "#4f7cff";
+  ctx.fillRect(width - padding.right, latestY - 9, 62, 18);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 9px Arial";
+  ctx.fillText(chartPriceLabel(last.close), width - padding.right + 4, latestY + 3);
+
+  // Time labels.
+  ctx.fillStyle = "#91a4bd";
+  ctx.font = "9px Arial";
+  const labelIndexes = [0, Math.floor(displayCandles.length / 3), Math.floor(displayCandles.length * 2 / 3), displayCandles.length - 1];
+  [...new Set(labelIndexes)].forEach(i => {
+    const x = padding.left + slot * i + slot / 2;
+    const date = new Date(displayCandles[i].time);
+    const label = date.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    ctx.fillText(label, Math.max(padding.left, x - 28), height - 8);
+  });
+
+  // Crosshair.
+  if (options.crosshairX !== null && options.crosshairX >= padding.left && options.crosshairX <= width - padding.right) {
+    const index = Math.max(0, Math.min(displayCandles.length - 1, Math.floor((options.crosshairX - padding.left) / slot)));
+    const candle = displayCandles[index];
+    const x = padding.left + slot * index + slot / 2;
+    const y = priceY(candle.close);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.28)";
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x, padding.top);
+    ctx.lineTo(x, height - padding.bottom);
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(Math.max(4, x - 52), 3, 104, 16);
+    ctx.fillStyle = "#fff";
+    ctx.font = "9px Arial";
+    ctx.fillText(
+      new Date(candle.time).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+      Math.max(6, x - 48),
+      14
+    );
+  }
+
+  // RSI strip.
+  if (options.showRSI) {
+    const rsiValues = calculateRSIValues(closes, 14);
+    const stripTop = height - padding.bottom - volumeHeight + 2;
+    const stripHeight = 38;
+
+    ctx.strokeStyle = "rgba(145,164,189,0.18)";
+    ctx.beginPath();
+    ctx.moveTo(padding.left, stripTop);
+    ctx.lineTo(width - padding.right, stripTop);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#a78bfa";
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    rsiValues.forEach((value, i) => {
+      if (value === null) return;
+      const x = padding.left + slot * i + slot / 2;
+      const y = stripTop + stripHeight - (value / 100) * stripHeight;
+      if (i === 14) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = "#a78bfa";
+    ctx.font = "9px Arial";
+    ctx.fillText("RSI 14", padding.left + 4, stripTop + 11);
+  }
+}
+
+async function createChart() {
+  const canvas = $("mainChart");
+  if (!canvas) return;
+
+  if (state.chart?.destroy) {
+    state.chart.destroy();
+    state.chart = null;
+  }
+
+  const timeframe = state.currentTimeframe || "1H";
+  const currentPrice = state.markets?.BTCUSDT?.price || 0;
+  const interval = chartIntervalForTimeframe(timeframe);
+
+  let candles = [];
+  try {
+    if (!interval) throw new Error("Synthetic timeframe");
+    candles = await fetchBinanceKlines("BTCUSDT", interval, 80);
+  } catch (error) {
+    console.warn("Live candles unavailable; using local candle engine:", error);
+    candles = createSyntheticChartPoints(currentPrice, timeframe, 80);
+  }
+
+  if (!candles.length) return;
+
+  const wrapper = canvas.parentElement;
+  if (wrapper && !wrapper.querySelector(".own-chart-toolbar")) {
+    const toolbar = document.createElement("div");
+    toolbar.className = "own-chart-toolbar";
+    toolbar.innerHTML = `
+      <button type="button" data-chart-mode="candles" class="chart-tool active">Candles</button>
+      <button type="button" data-chart-mode="heikin" class="chart-tool">Heikin-Ashi</button>
+      <button type="button" data-chart-toggle="ema" class="chart-tool active">EMA</button>
+      <button type="button" data-chart-toggle="volume" class="chart-tool active">Volume</button>
+      <button type="button" data-chart-toggle="rsi" class="chart-tool">RSI</button>
+    `;
+    wrapper.insertBefore(toolbar, canvas);
+
+    toolbar.querySelectorAll("[data-chart-mode]").forEach(button => {
+      button.addEventListener("click", () => {
+        toolbar.querySelectorAll("[data-chart-mode]").forEach(b => b.classList.remove("active"));
+        button.classList.add("active");
+        chartState.heikin = button.dataset.chartMode === "heikin";
+        render();
+      });
+    });
+
+    toolbar.querySelectorAll("[data-chart-toggle]").forEach(button => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.chartToggle;
+        chartState[key] = !chartState[key];
+        button.classList.toggle("active", chartState[key]);
+        render();
+      });
+    });
+  }
+
+  const chartState = {
+    heikin: false,
+    ema: true,
+    volume: true,
+    rsi: false,
+    crosshairX: null
+  };
+
+  const render = () => drawOwnTradingChart(canvas, candles, {
+    heikin: chartState.heikin,
+    showEMA: chartState.ema,
+    showVolume: chartState.volume,
+    showRSI: chartState.rsi,
+    crosshairX: chartState.crosshairX
+  });
+
+  canvas.onmousemove = event => {
+    const rect = canvas.getBoundingClientRect();
+    chartState.crosshairX = event.clientX - rect.left;
+    render();
+  };
+
+  canvas.onmouseleave = () => {
+    chartState.crosshairX = null;
+    render();
+  };
+
+  render();
+
+  const resizeObserver = typeof ResizeObserver !== "undefined"
+    ? new ResizeObserver(render)
+    : null;
+  resizeObserver?.observe(wrapper || canvas);
+
+  state.chart = {
+    type: "own-candlestick",
+    candles,
+    destroy() {
+      resizeObserver?.disconnect();
+      canvas.onmousemove = null;
+      canvas.onmouseleave = null;
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  };
+}
 
 /* =========================================================
    SIGNAL ENGINE
