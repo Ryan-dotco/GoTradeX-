@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.31";
+const APP_VERSION = "3.0.32";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -2528,9 +2528,15 @@ async function runAnalyzer() {
     const signal = await generateLiveSignal(symbol);
     if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
     if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
+    if ($("analysisEntry")) $("analysisEntry").textContent = formatSignalPrice(signal.entry);
+    if ($("analysisTarget")) $("analysisTarget").textContent = formatSignalPrice(signal.target);
+    if ($("analysisStop")) $("analysisStop").textContent = formatSignalPrice(signal.stop);
     if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
     if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
     if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
+    if ($("analysisPattern")) $("analysisPattern").textContent = signal.pattern || "None";
+    if ($("analysisTimeframe")) $("analysisTimeframe").textContent = state.currentTimeframe || "1H";
+    if ($("analysisAssetName")) $("analysisAssetName").textContent = $("signalAsset")?.selectedOptions?.[0]?.textContent || symbol;
     if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
 
     const now = new Date().toISOString();
@@ -5847,4 +5853,75 @@ document.addEventListener("click", (event) => {
   state.currentCategory = category;
   renderMarketsList();
 }, true);
-\n\n/* SIGNAL_PORTAL_UI_V1 */\n(function enhanceSignalPortalUI() {\n  function populateSignalAssets() {\n    const select = document.getElementById('signalAsset');\n    if (!select || typeof marketCatalog !== 'object') return;\n    const previous = select.value || 'BTCUSDT';\n    const groups = [\n      ['crypto', 'Crypto'],\n      ['forex', 'Forex'],\n      ['commodities', 'Commodities'],\n      ['indices', 'Indices'],\n      ['metals', 'Metals']\n    ];\n    const frag = document.createDocumentFragment();\n    groups.forEach(([key, label]) => {\n      const items = Array.isArray(marketCatalog[key]) ? marketCatalog[key] : [];\n      if (!items.length) return;\n      const group = document.createElement('optgroup');\n      group.label = label;\n      items.forEach(item => {\n        const option = document.createElement('option');\n        option.value = item[0];\n        option.textContent = item[1] || item[0];\n        group.appendChild(option);\n      });\n      frag.appendChild(group);\n    });\n    if (frag.childNodes.length) {\n      select.replaceChildren(frag);\n      select.value = Array.from(select.options).some(o => o.value === previous) ? previous : 'BTCUSDT';\n    }\n  }\n\n  function ensureResultFields() {\n    const result = document.querySelector('#page-signals .analyzer-result');\n    if (!result || document.getElementById('analysisTradeLevels')) return;\n    const grid = document.createElement('div');\n    grid.id = 'analysisTradeLevels';\n    grid.className = 'analysis-grid';\n    grid.innerHTML = `\n      <div><span>Entry</span><strong id="analysisEntry">—</strong></div>\n      <div><span>Take Profit</span><strong id="analysisTarget">—</strong></div>\n      <div><span>Stop Loss</span><strong id="analysisStop">—</strong></div>\n      <div><span>Pattern</span><strong id="analysisPattern">—</strong></div>\n      <div><span>Timeframe</span><strong id="analysisTimeframe">—</strong></div>\n      <div><span>Asset</span><strong id="analysisAssetName">—</strong></div>`;\n    result.appendChild(grid);\n  }\n\n  function formatLevel(value) {\n    return value == null || value === '' || !Number.isFinite(Number(value)) ? '—' : '$' + formatPrice(Number(value));\n  }\n\n  function syncVisibleSignal(signal) {\n    if (!signal) return;\n    ensureResultFields();\n    const symbol = signal.symbol || document.getElementById('signalAsset')?.value || 'BTCUSDT';\n    const assetOption = document.querySelector(`#signalAsset option[value="${CSS.escape(symbol)}"]`);\n    const timeframe = state.currentTimeframe || '1H';\n    const values = {\n      analysisEntry: formatLevel(signal.entry),\n      analysisTarget: formatLevel(signal.target),\n      analysisStop: formatLevel(signal.stop),\n      analysisPattern: signal.pattern || 'None',\n      analysisTimeframe: timeframe,\n      analysisAssetName: assetOption?.textContent || symbol\n    };\n    Object.entries(values).forEach(([id, value]) => {\n      const el = document.getElementById(id);\n      if (el) el.textContent = value;\n    });\n  }\n\n  function watchAnalyzer() {\n    const button = document.getElementById('analyzeButton');\n    if (!button || button.dataset.signalUiBound) return;\n    button.dataset.signalUiBound = '1';\n    button.addEventListener('click', () => {\n      ensureResultFields();\n      let tries = 0;\n      const timer = setInterval(() => {\n        tries += 1;\n        const latest = Array.isArray(state.signals) ? state.signals[0] : null;\n        if (latest) syncVisibleSignal(latest);\n        if (latest || tries >= 40) clearInterval(timer);\n      }, 250);\n    });\n  }\n\n  function boot() {\n    populateSignalAssets();\n    ensureResultFields();\n    watchAnalyzer();\n  }\n\n  if (document.readyState === 'loading') {\n    document.addEventListener('DOMContentLoaded', boot, { once: true });\n  } else {\n    boot();\n  }\n  setTimeout(boot, 500);\n  setTimeout(boot, 1500);\n})();\n
+\n\n/* SIGNAL_PORTAL_UI_V2 */
+(function enhanceSignalPortalUI() {
+  function populateSignalAssets() {
+    const select = document.getElementById("signalAsset");
+    if (!select || typeof marketCatalog !== "object") return;
+    const previous = select.value || "BTCUSDT";
+    const groups = [
+      ["crypto", "Crypto"],
+      ["forex", "Forex"],
+      ["commodities", "Commodities"],
+      ["indices", "Indices"]
+    ];
+    const frag = document.createDocumentFragment();
+    groups.forEach(([key, label]) => {
+      const items = Array.isArray(marketCatalog[key]) ? marketCatalog[key] : [];
+      if (!items.length) return;
+      const group = document.createElement("optgroup");
+      group.label = label;
+      items.forEach(item => {
+        const symbol = Array.isArray(item) ? item[0] : item;
+        const name = Array.isArray(item) ? item[1] : symbol.slice(0,3) + " / " + symbol.slice(3,6);
+        const option = document.createElement("option");
+        option.value = symbol;
+        option.textContent = name || symbol;
+        group.appendChild(option);
+      });
+      frag.appendChild(group);
+    });
+    if (frag.childNodes.length) {
+      select.replaceChildren(frag);
+      select.value = Array.from(select.options).some(o => o.value === previous) ? previous : "BTCUSDT";
+    }
+  }
+
+  function formatLevel(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "—";
+    return number >= 1000 ? number.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
+      : number >= 1 ? number.toFixed(4)
+      : number.toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
+  }
+
+  function syncVisibleSignal(signal) {
+    if (!signal) return;
+    const symbol = signal.symbol || document.getElementById("signalAsset")?.value || "BTCUSDT";
+    const option = Array.from(document.getElementById("signalAsset")?.options || []).find(o => o.value === symbol);
+    const set = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+    set("analysisEntry", formatLevel(signal.entry));
+    set("analysisTarget", formatLevel(signal.target));
+    set("analysisStop", formatLevel(signal.stop));
+    set("analysisPattern", signal.pattern || "None");
+    set("analysisTimeframe", state.currentTimeframe || "1H");
+    set("analysisAssetName", option?.textContent || symbol);
+  }
+
+  function boot() {
+    populateSignalAssets();
+    const latest = Array.isArray(state.signals) ? state.signals[0] : null;
+    if (latest) syncVisibleSignal(latest);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
+  setTimeout(boot, 500);
+  setTimeout(boot, 1500);
+})();
