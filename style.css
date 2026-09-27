@@ -1061,6 +1061,8 @@ select {
 
 .chart-wrapper {
   position: relative;
+  display: flex;
+  flex-direction: column;
   height: 285px;
   min-height: 285px;
   overflow: hidden;
@@ -1068,10 +1070,16 @@ select {
   border-radius: 8px;
 }
 
+.chart-wrapper .own-chart-toolbar {
+  flex: 0 0 auto;
+}
+
 .chart-wrapper canvas {
   display: block;
+  flex: 1 1 auto;
   width: 100% !important;
-  height: calc(100% - 34px) !important;
+  min-height: 0;
+  height: auto !important;
 }
 
 .signal-live,
