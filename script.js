@@ -1660,7 +1660,7 @@ function createSyntheticChartPoints(currentPrice,timeframe="1H",count=60){
   return points;
 }
 
-async /* =========================================================
+/* =========================================================
    GOTRADEX OWN TRADING CHART
    Candles + Heikin-Ashi + volume + EMA + RSI + crosshair.
    ========================================================= */
