@@ -2015,13 +2015,22 @@ async function createChart() {
     toolbar = document.createElement("div");
     toolbar.className = "own-chart-toolbar";
     toolbar.innerHTML = `
-      <button type="button" data-chart-mode="line" class="chart-tool">Line Chart</button>
-      <button type="button" data-chart-mode="candles" class="chart-tool active">Candles</button>
-      <button type="button" data-chart-mode="bars" class="chart-tool">Bars</button>
-      <button type="button" data-chart-mode="heikin" class="chart-tool">Heiken Ashi</button>
-      <button type="button" data-chart-toggle="ema" class="chart-tool active">EMA</button>
-      <button type="button" data-chart-toggle="volume" class="chart-tool active">Volume</button>
-      <button type="button" data-chart-toggle="rsi" class="chart-tool">RSI</button>
+      <button type="button" data-chart-tools-toggle class="chart-tools-toggle">☰ Chart Tools</button>
+      <div class="chart-tools-menu" hidden>
+        <div class="chart-tools-group">
+          <span>Chart</span>
+          <button type="button" data-chart-mode="line" class="chart-tool">Line</button>
+          <button type="button" data-chart-mode="candles" class="chart-tool active">Candles</button>
+          <button type="button" data-chart-mode="bars" class="chart-tool">Bars</button>
+          <button type="button" data-chart-mode="heikin" class="chart-tool">Heikin-Ashi</button>
+        </div>
+        <div class="chart-tools-group">
+          <span>Indicators</span>
+          <button type="button" data-chart-toggle="ema" class="chart-tool active">EMA</button>
+          <button type="button" data-chart-toggle="volume" class="chart-tool active">Volume</button>
+          <button type="button" data-chart-toggle="rsi" class="chart-tool">RSI</button>
+        </div>
+      </div>
     `;
     wrapper.insertBefore(toolbar, canvas);
   }
@@ -2047,6 +2056,13 @@ async function createChart() {
 
   if (toolbar && !toolbar.dataset.bound) {
     toolbar.dataset.bound = "1";
+    const toolsToggle = toolbar.querySelector("[data-chart-tools-toggle]");
+    const toolsMenu = toolbar.querySelector(".chart-tools-menu");
+    toolsToggle?.addEventListener("click", () => {
+      const open = !toolsMenu?.hidden;
+      if (toolsMenu) toolsMenu.hidden = open;
+      toolsToggle.setAttribute("aria-expanded", String(!open));
+    });
     toolbar.querySelectorAll("[data-chart-mode]").forEach(button => {
       button.addEventListener("click", () => {
         chartState.mode = button.dataset.chartMode;
@@ -2104,6 +2120,17 @@ async function createChart() {
       if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
   };
+}
+
+function estimatedSignalDuration(timeframe = state.currentTimeframe || "1H") {
+  const map = {
+    "5s":"~5 seconds","15s":"~15 seconds","30s":"~30 seconds",
+    "1m":"~1 minute","2m":"~2 minutes","5m":"~5 minutes",
+    "15m":"~15 minutes","30m":"~30 minutes","1H":"~1 hour",
+    "4H":"~4 hours","12H":"~12 hours","1D":"~1 day",
+    "1W":"~1 week","1M":"~1 month","6M":"~6 months","1Y":"~1 year"
+  };
+  return map[timeframe] || "~" + timeframe;
 }
 
 /* =========================================================
@@ -2345,6 +2372,7 @@ async function updateSignalFromMarket() {
   if ($("signalEntry")) $("signalEntry").textContent = signal.entry ? "$" + formatPrice(signal.entry) : "—";
   if ($("signalTarget")) $("signalTarget").textContent = signal.target ? "$" + formatPrice(signal.target) : "—";
   if ($("signalStop")) $("signalStop").textContent = signal.stop ? "$" + formatPrice(signal.stop) : "—";
+  if ($("signalDuration")) $("signalDuration").textContent = estimatedSignalDuration();
   if ($("emaSignal")) $("emaSignal").textContent = signal.ema;
   if ($("rsiSignal")) $("rsiSignal").textContent = signal.rsi;
   if ($("momentumSignal")) $("momentumSignal").textContent = signal.momentum;
@@ -2376,6 +2404,7 @@ async function runAnalyzer() {
     if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
     if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
     if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
+    if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
     showToast(symbol + " live analysis updated.", "success");
   } catch (error) {
     console.error("Signal analyzer error:", error);
@@ -4183,8 +4212,9 @@ function handleLiveMarketTrade(message) {
   const price = Number(message?.p);
   const timestamp = Number(message?.T || message?.E || Date.now());
   if (!Number.isFinite(price)) return;
-  state.markets.BTCUSDT = {...(state.markets.BTCUSDT || {}),symbol:"BTCUSDT",price,timestamp};
-  if ($("btcPrice")) $("btcPrice").textContent = "$" + formatPrice(price) + " • LIVE";
+  const symbol = state.currentSymbol || "BTCUSDT";
+  state.markets[symbol] = {...(state.markets[symbol] || {}),symbol,price,timestamp};
+  updateSelectedMarketHeader();
   updateLiveChartCandle(price, timestamp);
   if (!state.liveSignalTimer) {
     state.liveSignalTimer = setTimeout(async () => {
@@ -4205,7 +4235,7 @@ function connectLiveMarketStream() {
   const socket = new WebSocket("wss://stream.binance.com:9443/ws/" + symbol.toLowerCase() + "@trade");
   state.liveMarketSocket = socket;
   socket.onopen = () => {
-    console.log("GoTradeX live BTC stream connected.");
+    console.log("GoTradeX live " + symbol + " stream connected.");
     const current = state.markets[state.currentSymbol || "BTCUSDT"];
     if ($("btcPrice") && current?.price) $("btcPrice").textContent = "$" + formatPrice(current.price) + " • LIVE";
   };
@@ -5280,31 +5310,42 @@ function bindEvents() {
 
 
   document
+    .querySelectorAll(".chart-control-toggle")
+    .forEach(toggle => {
+      toggle.addEventListener("click", () => {
+        const box = toggle.parentElement?.querySelector(".timeframes");
+        const open = !box?.hidden;
+        if (box) box.hidden = open;
+        toggle.setAttribute("aria-expanded", String(!open));
+      });
+    });
+
+  document
     .querySelectorAll(".timeframe")
     .forEach(button => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".timeframe").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+        state.currentTimeframe = button.dataset.timeframe;
+        const box = button.closest(".timeframes");
+        if (box) box.hidden = true;
+        const toggle = box?.parentElement?.querySelector(".chart-control-toggle");
+        toggle?.setAttribute("aria-expanded", "false");
+        if ($("signalDuration")) $("signalDuration").textContent = estimatedSignalDuration();
+        if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
+        createChart();
+      });
+    });
 
-      button.addEventListener(
-        "click",
-        () => {
-
-          document
-            .querySelectorAll(".timeframe")
-            .forEach(item =>
-              item.classList.remove(
-                "active"
-              )
-            );
-
-          button.classList.add("active");
-
-          state.currentTimeframe =
-            button.dataset.timeframe;
-
-          createChart();
-
-        }
-      );
-
+  document
+    .querySelectorAll(".indicator-toggle")
+    .forEach(toggle => {
+      toggle.addEventListener("click", () => {
+        const list = toggle.nextElementSibling;
+        const open = !list?.hidden;
+        if (list) list.hidden = open;
+        toggle.setAttribute("aria-expanded", String(!open));
+      });
     });
 
 
