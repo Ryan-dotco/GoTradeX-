@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.28";
+const APP_VERSION = "3.0.29";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -383,6 +383,25 @@ function showAppScreen() {
   $("authScreen")?.classList.add("hidden");
   $("appScreen")?.classList.remove("hidden");
 
+}
+
+
+/* =========================================================
+   LOGIN FORM BINDING
+   ========================================================= */
+
+function bindLoginForm() {
+
+  const form = $("loginForm");
+
+  if (!form || form.dataset.loginBound === "true") {
+    return;
+  }
+
+  form.addEventListener("submit", handleLogin);
+  form.dataset.loginBound = "true";
+
+  console.log("GoTradeX: login form bound.", APP_VERSION);
 }
 
 
@@ -5226,11 +5245,7 @@ function bindEvents() {
     );
 
 
-  $("loginForm")
-    ?.addEventListener(
-      "submit",
-      handleLogin
-    );
+  bindLoginForm();
 
 
   $("registerForm")
@@ -5634,6 +5649,12 @@ async function initializeApp() {
 
   const connected =
     initializeSupabase();
+
+
+  // Bind Login independently before the rest of the UI event wiring.
+  // This keeps authentication usable even if another optional UI binding
+  // encounters a browser-specific issue.
+  bindLoginForm();
 
 
   bindEvents();
