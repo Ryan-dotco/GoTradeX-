@@ -65,7 +65,7 @@ jobs:
         run: |
           git config user.name "GoTradeX Repair Bot"
           git config user.email "actions@github.com"
-          git add script.js
+          git add script.js index.html
           if git diff --cached --quiet; then
             echo "No repair commit needed."
           else
