@@ -24,7 +24,7 @@
     };
   </script>
 
-  <link rel="stylesheet" href="style.css?v=3.0.17">
+  <link rel="stylesheet" href="style.css?v=3.0.18">
 </head>
 
 <body>
@@ -697,22 +697,26 @@
               </div>
 
 
-              <div class="timeframes">
-                <button type="button" class="timeframe" data-timeframe="5s">5s</button>
-                <button type="button" class="timeframe" data-timeframe="15s">15s</button>
-                <button type="button" class="timeframe" data-timeframe="30s">30s</button>
-                <button type="button" class="timeframe" data-timeframe="1m">1m</button>
-                <button type="button" class="timeframe" data-timeframe="5m">5m</button>
-                <button type="button" class="timeframe" data-timeframe="15m">15m</button>
-                <button type="button" class="timeframe" data-timeframe="30m">30m</button>
-                <button type="button" class="timeframe active" data-timeframe="1H">1H</button>
-                <button type="button" class="timeframe" data-timeframe="4H">4H</button>
-                <button type="button" class="timeframe" data-timeframe="12H">12H</button>
-                <button type="button" class="timeframe" data-timeframe="1D">1D</button>
-                <button type="button" class="timeframe" data-timeframe="1W">1W</button>
-                <button type="button" class="timeframe" data-timeframe="1M">1M</button>
-                <button type="button" class="timeframe" data-timeframe="6M">6M</button>
-                <button type="button" class="timeframe" data-timeframe="1Y">1Y</button>
+              <div class="chart-timeframe-control">
+                <button type="button" class="chart-control-toggle" aria-expanded="false">⏱ Timeframe</button>
+                <div class="timeframes" hidden>
+                  <button type="button" class="timeframe" data-timeframe="5s">5s</button>
+                  <button type="button" class="timeframe" data-timeframe="15s">15s</button>
+                  <button type="button" class="timeframe" data-timeframe="30s">30s</button>
+                  <button type="button" class="timeframe" data-timeframe="1m">1m</button>
+                  <button type="button" class="timeframe" data-timeframe="2m">2m</button>
+                  <button type="button" class="timeframe" data-timeframe="5m">5m</button>
+                  <button type="button" class="timeframe" data-timeframe="15m">15m</button>
+                  <button type="button" class="timeframe" data-timeframe="30m">30m</button>
+                  <button type="button" class="timeframe" data-timeframe="1H">1H</button>
+                  <button type="button" class="timeframe active" data-timeframe="4H">4H</button>
+                  <button type="button" class="timeframe" data-timeframe="12H">12H</button>
+                  <button type="button" class="timeframe" data-timeframe="1D">1D</button>
+                  <button type="button" class="timeframe" data-timeframe="1W">1W</button>
+                  <button type="button" class="timeframe" data-timeframe="1M">1M</button>
+                  <button type="button" class="timeframe" data-timeframe="6M">6M</button>
+                  <button type="button" class="timeframe" data-timeframe="1Y">1Y</button>
+                </div>
               </div>
 
             </div>
@@ -995,6 +999,11 @@
             </div>
 
             <div class="analysis-grid">
+
+              <div class="analysis-duration-box">
+                <span>Estimated duration</span>
+                <strong id="analysisDuration">~1 hour</strong>
+              </div>
 
               <div>
                 <span>EMA</span>
@@ -2310,7 +2319,7 @@
 
 
   <!-- JavaScript MUST load last -->
-  <script src="script.js?v=3.0.20"></script>
+  <script src="script.js?v=3.0.21"></script>
 
 </body>
 </html>
