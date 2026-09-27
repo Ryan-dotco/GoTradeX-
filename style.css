@@ -2448,9 +2448,9 @@ select {
   max-height: min(72vh, 520px);
   overflow-y: auto;
   overflow-x: hidden;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  padding: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
 }
@@ -2507,9 +2507,9 @@ select {
 @media (max-width: 600px) {
   .chart-timeframe-control .timeframes {
     width: min(390px, calc(100vw - 16px));
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    padding: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    padding: 10px;
     max-height: 70vh;
   }
 
@@ -2597,4 +2597,48 @@ select {
   font-size: 11px !important;
   touch-action: manipulation !important;
   cursor: pointer !important;
+}
+
+
+/* =========================================================
+   CHART TOOLS — GUARANTEED TOUCH LAYER
+   ========================================================= */
+.chart-wrapper {
+  position: relative !important;
+  isolation: isolate;
+}
+.chart-wrapper canvas {
+  position: relative !important;
+  z-index: 1 !important;
+}
+.chart-wrapper .own-chart-toolbar {
+  position: absolute !important;
+  left: 8px !important;
+  top: 8px !important;
+  width: max-content !important;
+  max-width: calc(100% - 16px) !important;
+  height: auto !important;
+  overflow: visible !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+}
+.chart-wrapper .chart-tools-toggle {
+  position: relative !important;
+  z-index: 1001 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 46px !important;
+  min-width: 126px !important;
+  pointer-events: auto !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.chart-wrapper .chart-tools-menu {
+  position: absolute !important;
+  left: 0 !important;
+  top: calc(100% + 6px) !important;
+  z-index: 1002 !important;
+  width: min(290px, calc(100vw - 24px)) !important;
+  pointer-events: auto !important;
 }
