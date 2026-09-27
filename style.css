@@ -2523,3 +2523,40 @@ select {
     font-size: 12px;
   }
 }
+
+
+/* Market category portal: make every category easy to open on touch devices. */
+.category-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px !important;
+  width: 100%;
+  margin-bottom: 14px;
+}
+.category-tab {
+  min-height: 48px !important;
+  padding: 12px 14px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 5;
+}
+.markets-list {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+}
+.market-row {
+  min-height: 64px;
+  width: 100%;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+@media (max-width: 600px) {
+  .category-tabs { grid-template-columns: 1fr 1fr; gap: 9px !important; }
+  .category-tab { min-height: 52px !important; font-size: 13px !important; }
+}
