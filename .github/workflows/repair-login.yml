@@ -35,10 +35,29 @@ jobs:
              ========================================================= */
 
           function chartPriceLabel'''
+          changed = False
+
           if broken in s:
-              p.write_text(s.replace(broken, fixed, 1), encoding='utf-8')
+              s = s.replace(broken, fixed, 1)
+              changed = True
+
+          duplicate = '    const toggle = box?.parentElement?.querySelector(".chart-control-toggle");'
+          duplicate_fixed = '    const timeframeToggle = box?.parentElement?.querySelector(".chart-control-toggle");'
+          if duplicate in s:
+              s = s.replace(duplicate, duplicate_fixed, 1)
+              s = s.replace('    toggle?.setAttribute("aria-expanded", "false");', '    timeframeToggle?.setAttribute("aria-expanded", "false");', 1)
+              changed = True
+
+          s = s.replace('const APP_VERSION = "3.0.29";', 'const APP_VERSION = "3.0.30";')
+          if 'script.js?v=3.0.29' in Path('index.html').read_text(encoding='utf-8'):
+              index = Path('index.html').read_text(encoding='utf-8').replace('script.js?v=3.0.29', 'script.js?v=3.0.30')
+              Path('index.html').write_text(index, encoding='utf-8')
+              changed = True
+
+          if changed:
+              p.write_text(s, encoding='utf-8')
           else:
-              print('Login-blocking syntax already repaired.')
+              print('Login repair already applied.')
           PY
 
       - name: Commit repair if needed
