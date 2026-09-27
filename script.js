@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.30";
+const APP_VERSION = "3.0.31";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -2189,10 +2189,106 @@ async function selectMarketSymbol(symbol) {
   showPage("dashboard");
 }
 
+function signalIntervalForTimeframe(timeframe = state.currentTimeframe || "1H") {
+  const map = {
+    "1m": "1m",
+    "2m": "1m",
+    "5m": "5m",
+    "15m": "15m",
+    "30m": "30m",
+    "1H": "1h",
+    "4H": "4h",
+    "12H": "12h",
+    "1D": "1d",
+    "1W": "1w",
+    "1M": "1M"
+  };
+  return map[timeframe] || null;
+}
+
 async function fetchSignalKlines(symbol) {
   if (!["BTCUSDT", "ETHUSDT"].includes(symbol)) return [];
-  try { return await fetchBinanceKlines(symbol, "1h", 60); }
-  catch (error) { console.warn("Live signal candles unavailable:", error); return []; }
+  const interval = signalIntervalForTimeframe();
+  if (!interval) return [];
+  try {
+    return await fetchBinanceKlines(symbol, interval, 80);
+  } catch (error) {
+    console.warn("Live signal candles unavailable:", error);
+    return [];
+  }
+}
+
+function detectCandlestickPattern(candles) {
+  if (!Array.isArray(candles) || candles.length < 2) return "None";
+
+  const current = candles[candles.length - 1];
+  const previous = candles[candles.length - 2];
+
+  const open = Number(current.open);
+  const high = Number(current.high);
+  const low = Number(current.low);
+  const close = Number(current.close);
+  const prevOpen = Number(previous.open);
+  const prevClose = Number(previous.close);
+
+  if (![open, high, low, close, prevOpen, prevClose].every(Number.isFinite)) {
+    return "None";
+  }
+
+  const body = Math.abs(close - open);
+  const range = Math.max(high - low, Number.EPSILON);
+  const upperWick = high - Math.max(open, close);
+  const lowerWick = Math.min(open, close) - low;
+  const isBullish = close > open;
+  const isBearish = close < open;
+  const previousBullish = prevClose > prevOpen;
+  const previousBearish = prevClose < prevOpen;
+
+  if (body / range <= 0.10) return "Doji";
+
+  if (
+    previousBearish &&
+    isBullish &&
+    open <= prevClose &&
+    close >= prevOpen
+  ) {
+    return "Bullish Engulfing";
+  }
+
+  if (
+    previousBullish &&
+    isBearish &&
+    open >= prevClose &&
+    close <= prevOpen
+  ) {
+    return "Bearish Engulfing";
+  }
+
+  if (
+    lowerWick >= body * 2 &&
+    upperWick <= Math.max(body * 0.75, range * 0.05) &&
+    close >= low + range * 0.55
+  ) {
+    return "Hammer";
+  }
+
+  if (
+    upperWick >= body * 2 &&
+    lowerWick <= Math.max(body * 0.75, range * 0.05) &&
+    close <= low + range * 0.45
+  ) {
+    return "Shooting Star";
+  }
+
+  if (
+    candles.length >= 2 &&
+    high <= Math.max(Number(previous.high), Number(previous.open), Number(previous.close)) &&
+    low >= Math.min(Number(previous.low), Number(previous.open), Number(previous.close))
+  ) {
+    return "Inside Bar";
+  }
+
+  return "None";
 }
 
 function calculateEMA(values, period) {
@@ -2231,6 +2327,7 @@ async function generateLiveSignal(symbol = "BTCUSDT") {
   if (candles.length < 22) return fallback;
   const closes = candles.map(c => Number(c.close)).filter(Number.isFinite);
   if (closes.length < 22) return fallback;
+  const pattern = detectCandlestickPattern(candles);
   const livePrice = Number(state.markets?.[symbol]?.price);
   if (Number.isFinite(livePrice) && livePrice > 0) {
     closes[closes.length - 1] = livePrice;
@@ -2245,6 +2342,9 @@ async function generateLiveSignal(symbol = "BTCUSDT") {
   if (ema9 > ema21) score += 1; else if (ema9 < ema21) score -= 1;
   if (rsiValue >= 55) score += 1; else if (rsiValue <= 45) score -= 1;
   if (momentumPercent > 0.15) score += 1; else if (momentumPercent < -0.15) score -= 1;
+
+  if (["Bullish Engulfing", "Hammer"].includes(pattern)) score += 1;
+  else if (["Bearish Engulfing", "Shooting Star"].includes(pattern)) score -= 1;
   let direction = "HOLD";
   if (score >= 2) direction = "BUY"; else if (score <= -2) direction = "SELL";
   let confidence = direction === "HOLD" ? 50 + Math.min(Math.round(Math.abs(momentumPercent) * 2), 10) : 55 + Math.abs(score) * 10;
@@ -2254,6 +2354,7 @@ async function generateLiveSignal(symbol = "BTCUSDT") {
   const stop = direction === "BUY" ? price * 0.995 : direction === "SELL" ? price * 1.005 : price;
   return {
     direction, confidence, entry, target, stop,
+    pattern,
     ema: ema9 > ema21 ? "Bullish" : ema9 < ema21 ? "Bearish" : "Neutral",
     rsi: rsiValue !== null ? rsiValue.toFixed(1) : "Waiting",
     momentum: momentumPercent > 0.15 ? "Positive" : momentumPercent < -0.15 ? "Negative" : "Neutral"
@@ -2431,6 +2532,26 @@ async function runAnalyzer() {
     if ($("analysisRSI")) $("analysisRSI").textContent = signal.rsi;
     if ($("analysisMomentum")) $("analysisMomentum").textContent = signal.momentum;
     if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
+
+    const now = new Date().toISOString();
+    const latest = state.signals[0];
+    const analyzerSignal = { symbol, ...signal, time: now };
+
+    if (
+      !latest ||
+      latest.symbol !== symbol ||
+      latest.direction !== signal.direction ||
+      Date.now() - new Date(latest.time).getTime() > 60000
+    ) {
+      state.signals.unshift(analyzerSignal);
+      state.signals = state.signals.slice(0, 10);
+    } else {
+      state.signals[0] = { ...latest, ...analyzerSignal };
+    }
+
+    renderSignals();
+    await queueRobotSignal(analyzerSignal);
+
     showToast(symbol + " live analysis updated.", "success");
   } catch (error) {
     console.error("Signal analyzer error:", error);
