@@ -1096,14 +1096,30 @@ select {
   font-weight: 900;
 }
 
+.chart-panel .panel-header {
+  min-width: 0;
+}
+
 .timeframes {
   display: flex;
-  gap: 4px;
+  flex: 1 1 0;
+  min-width: 0;
   max-width: 100%;
+  gap: 4px;
   overflow-x: auto;
+  overflow-y: hidden;
   flex-wrap: nowrap;
   padding-bottom: 2px;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.timeframes::-webkit-scrollbar {
+  height: 5px;
+}
+
+.timeframe {
+  flex: 0 0 auto;
 }
 
 .timeframe {
