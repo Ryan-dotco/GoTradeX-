@@ -1172,14 +1172,29 @@
             </p>
 
             <div class="field">
-              <label for="mt5AccountId">AvaTrade MT5 Account ID</label>
+              <label for="avatradeAccountId">AvaTrade Account ID</label>
               <input
-                id="mt5AccountId"
+                id="avatradeAccountId"
+                type="number"
+                inputmode="numeric"
+                min="1"
+                placeholder="Enter your AvaTrade account ID"
+                autocomplete="off"
+              >
+              <small class="muted">Your AvaTrade account identifier.</small>
+            </div>
+
+            <div class="field">
+              <label for="mt5LoginId">MT5 Login ID</label>
+              <input
+                id="mt5LoginId"
                 type="number"
                 inputmode="numeric"
                 min="1"
                 placeholder="Enter your MT5 login number"
+                autocomplete="off"
               >
+              <small class="muted">The MT5 login used by the AvaTrade MT5 terminal.</small>
             </div>
 
             <div class="field">
@@ -1191,18 +1206,19 @@
                 placeholder="Generate a secure bridge token"
                 autocomplete="off"
               >
-              <small class="muted">Shown once. Copy it into the EA on Windows later.</small>
+              <small class="muted">Copy this token into the GoTradeX MT5 Bridge EA on Windows/VPS.</small>
             </div>
 
             <button
               id="generateMt5BridgeTokenButton"
               type="button"
-              class="small-button full-button"
+              class="primary-button full-button"
+              style="min-height:52px;font-size:1rem;font-weight:800;margin:8px 0 12px;"
             >
-              Generate MT5 Bridge Token
+              🔐 Generate MT5 Bridge Token
             </button>
 
-            <div id="mt5BridgeTokenStatus" class="muted"></div>
+            <div id="mt5BridgeTokenStatus" class="muted" aria-live="polite"></div>
 
 
             <div class="risk-options">
@@ -2350,6 +2366,161 @@
 
   <!-- JavaScript MUST load last -->
   <script src="script.js?v=3.0.30"></script>
+  <script>
+  /* =====================================================
+     MT5 BRIDGE UI
+     Keeps broker ID, MT5 login ID and bridge token separate.
+     ===================================================== */
+  (function () {
+    function bridgeReady() {
+      return typeof $ === "function" && typeof state !== "undefined";
+    }
+
+    async function sha256Hex(value) {
+      const bytes = new TextEncoder().encode(value);
+      const hash = await crypto.subtle.digest("SHA-256", bytes);
+      return Array.from(new Uint8Array(hash))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    function makeBridgeToken() {
+      const bytes = new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      const raw = btoa(String.fromCharCode(...bytes))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "");
+      return "GTX-MT5-" + raw;
+    }
+
+    async function loadBridgeSettings() {
+      if (!bridgeReady() || !state.supabase || !state.user) return;
+
+      const { data, error } = await state.supabase
+        .from("gotradex_bot_control")
+        .select("avatrade_account_id,mt5_login_id")
+        .eq("user_id", state.user.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        if ($("avatradeAccountId")) $("avatradeAccountId").value = data.avatrade_account_id || "";
+        if ($("mt5LoginId")) $("mt5LoginId").value = data.mt5_login_id || data.mt5_account_id || "";
+        if (data.mt5_login_id) state.mt5AccountId = String(data.mt5_login_id);
+      }
+
+      const tokenResult = await state.supabase
+        .from("gotradex_mt5_bridge_tokens")
+        .select("id,mt5_account_id,expires_at,revoked_at,created_at")
+        .eq("user_id", state.user.id)
+        .is("revoked_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!tokenResult.error && tokenResult.data) {
+        if ($("mt5BridgeTokenStatus")) {
+          const expires = new Date(tokenResult.data.expires_at).toLocaleDateString();
+          $("mt5BridgeTokenStatus").textContent =
+            "Active bridge token exists. Generate a new token to rotate it. Expires " + expires + ".";
+        }
+      }
+    }
+
+    async function saveBridgeIds() {
+      if (!bridgeReady() || !state.supabase || !state.user) {
+        throw new Error("Please log in first.");
+      }
+
+      const ava = Number($("avatradeAccountId")?.value || 0);
+      const mt5 = Number($("mt5LoginId")?.value || 0);
+
+      if (!Number.isInteger(ava) || ava <= 0) {
+        throw new Error("Enter a valid AvaTrade Account ID.");
+      }
+      if (!Number.isInteger(mt5) || mt5 <= 0) {
+        throw new Error("Enter a valid MT5 Login ID.");
+      }
+
+      const { error } = await state.supabase
+        .from("gotradex_bot_control")
+        .upsert({
+          user_id: state.user.id,
+          broker: "AvaTrade MT5",
+          mode: "LIVE",
+          mt5_account_id: mt5,
+          avatrade_account_id: ava,
+          mt5_login_id: mt5,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "user_id" });
+
+      if (error) throw error;
+
+      state.mt5AccountId = String(mt5);
+    }
+
+    async function generateBridgeToken() {
+      const button = $("generateMt5BridgeTokenButton");
+      if (button) {
+        button.disabled = true;
+        button.textContent = "Generating Secure Token...";
+      }
+
+      try {
+        await saveBridgeIds();
+
+        const rawToken = makeBridgeToken();
+        const tokenHash = await sha256Hex(rawToken);
+        const mt5 = Number($("mt5LoginId").value);
+
+        const { error: revokeError } = await state.supabase
+          .from("gotradex_mt5_bridge_tokens")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("user_id", state.user.id)
+          .is("revoked_at", null);
+
+        if (revokeError) throw revokeError;
+
+        const { error: insertError } = await state.supabase
+          .from("gotradex_mt5_bridge_tokens")
+          .insert({
+            user_id: state.user.id,
+            mt5_account_id: mt5,
+            token_hash: tokenHash,
+            label: "GoTradeX MT5 Bridge",
+            expires_at: new Date(Date.now() + 30 * 86400000).toISOString()
+          });
+
+        if (insertError) throw insertError;
+
+        $("mt5BridgeToken").value = rawToken;
+        $("mt5BridgeTokenStatus").textContent =
+          "Token generated and saved securely. Copy it to the MT5 Bridge EA now. It will not be shown again after refresh.";
+        showToast("MT5 Bridge Token generated.", "success");
+      } catch (error) {
+        console.error("Bridge token generation error:", error);
+        showToast(error.message || "Unable to generate bridge token.", "error");
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "🔐 Generate MT5 Bridge Token";
+        }
+      }
+    }
+
+    function bindBridgeUI() {
+      if (!bridgeReady()) return;
+      $("generateMt5BridgeTokenButton")?.addEventListener("click", generateBridgeToken);
+      $("avatradeAccountId")?.addEventListener("change", saveBridgeIds);
+      $("mt5LoginId")?.addEventListener("change", saveBridgeIds);
+      loadBridgeSettings().catch(error => console.warn("Bridge settings load:", error));
+    }
+
+    document.addEventListener("DOMContentLoaded", bindBridgeUI);
+  })();
+  </script>
+
+
 
 </body>
 </html>
