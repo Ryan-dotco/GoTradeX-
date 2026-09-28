@@ -4110,6 +4110,61 @@ async function changePassword(event) {
 }
 
 
+async function generateMt5BridgeToken() {
+  if (!state.supabase || !state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const accountId = Number($("mt5AccountId")?.value || state.mt5AccountId);
+
+  if (!Number.isInteger(accountId) || accountId <= 0) {
+    showToast("Enter your AvaTrade MT5 Account ID first.", "error");
+    return;
+  }
+
+  const button = $("generateMt5BridgeTokenButton");
+  const input = $("mt5BridgeToken");
+  const status = $("mt5BridgeTokenStatus");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Generating...";
+  }
+  if (status) status.textContent = "Creating a new secure bridge token...";
+
+  try {
+    const { data, error } = await state.supabase.functions.invoke(
+      "issue-mt5-bridge-token",
+      {
+        body: { mt5_account_id: accountId }
+      }
+    );
+
+    if (error) throw error;
+
+    const token = data?.token || "";
+    if (!token) throw new Error("The bridge token was not returned.");
+
+    if (input) input.value = token;
+    if (status) {
+      status.textContent =
+        "Token created. Copy it now; generating another token will revoke this one.";
+    }
+
+    showToast("MT5 bridge token created.", "success");
+  } catch (error) {
+    console.error("MT5 bridge token error:", error);
+    if (status) status.textContent = error.message || "Token generation failed.";
+    showToast(error.message || "MT5 bridge token generation failed.", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Generate MT5 Bridge Token";
+    }
+  }
+}
+
 function saveConnections() {
 
   const settings = {
@@ -5532,6 +5587,12 @@ function bindEvents() {
     ?.addEventListener(
       "click",
       saveConnections
+    );
+
+  $("generateMt5BridgeTokenButton")
+    ?.addEventListener(
+      "click",
+      generateMt5BridgeToken
     );
 
 
