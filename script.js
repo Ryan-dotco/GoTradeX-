@@ -2479,7 +2479,7 @@ async function selectMarketSymbol(symbol) {
 }
 
 async function fetchSignalKlines(symbol) {
-  if (!["BTCUSDT", "ETHUSDT"].includes(symbol)) return [];
+  if (!state.markets?.[symbol]) return [];
   try { return await fetchChartCandles(symbol, "1h", 60); }
   catch (error) { console.warn("Live signal candles unavailable:", error); return []; }
 }
@@ -2524,7 +2524,7 @@ async function generateLiveSignal(symbol = "BTCUSDT") {
   if (Number.isFinite(livePrice) && livePrice > 0) {
     closes[closes.length - 1] = livePrice;
   }
-  const price = closes[closes.length - 1];
+  const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : closes[closes.length - 1];
   const ema9 = calculateEMA(closes.slice(-40), 9);
   const ema21 = calculateEMA(closes.slice(-40), 21);
   const rsiValue = calculateRSI(closes, 14);
@@ -2678,9 +2678,14 @@ function generateSignal(symbol = "BTCUSDT") {
 
 
 function demoStorageKey() {
-  return state.user && state.deriv.selectedAccountId
-    ? "gotradex_demo_" + state.user.id + "_" + state.deriv.selectedAccountId
-    : "";
+  if (!state.user) return "";
+  if (state.deriv.selectedAccountId) {
+    return "gotradex_demo_" + state.user.id + "_deriv_" + state.deriv.selectedAccountId;
+  }
+  if (state.bybit.connected) {
+    return "gotradex_demo_" + state.user.id + "_bybit_" + state.bybit.environment;
+  }
+  return "gotradex_demo_" + state.user.id + "_local";
 }
 
 function saveDemoState() {
@@ -2704,7 +2709,9 @@ function saveDemoState() {
 
 function loadDemoState() {
   const account = state.deriv.selectedAccount;
-  const liveBalance = Number(account?.balance);
+  const derivBalance = Number(account?.balance);
+  const bybitBalance = Number(state.bybit.totalEquity);
+  const liveBalance = derivBalance > 0 ? derivBalance : bybitBalance > 0 ? bybitBalance : 10000;
   const key = demoStorageKey();
   let saved = null;
 
@@ -3167,7 +3174,7 @@ function renderRobotStatus() {
   if ($("startRobotButton")) {
     $("startRobotButton").classList.toggle("hidden", running);
     $("startRobotButton").disabled =
-      !connected || !state.deriv.selectedAccountId;
+      !connected || (state.deriv.connected && !state.deriv.selectedAccountId && !state.bybit.connected);
   }
 
   if ($("stopRobotButton")) {
@@ -3303,9 +3310,7 @@ async function scanDemoMarkets() {
   for (const symbol of symbols) {
     if (!state.robotRunning) break;
     try {
-      const signal = /USDT$/.test(symbol)
-        ? await generateLiveSignal(symbol)
-        : generateSignal(symbol);
+      const signal = await generateLiveSignal(symbol);
 
       if (signal && ["BUY", "SELL"].includes(signal.direction) && Number(signal.confidence) >= 65) {
         openDemoTrade(symbol, signal);
