@@ -4631,15 +4631,17 @@ function renderDerivAccountSummary() {
 
   if ($("robotAccountStatus")) {
     $("robotAccountStatus").textContent =
-      account?.account_id || "Not Set";
+      account?.account_id ||
+      (state.bybit.connected ? "Bybit " + state.bybit.environment.toUpperCase() : "Not Set");
   }
 
   if ($("robotBalance")) {
     const balance = Number(account?.balance);
+    const unifiedBalance = Number.isFinite(balance) && balance > 0
+      ? balance
+      : Number(state.bybit.totalEquity) || 0;
     $("robotBalance").textContent =
-      Number.isFinite(balance)
-        ? formatMoney(balance)
-        : "—";
+      unifiedBalance > 0 ? formatMoney(unifiedBalance) : "—";
   }
 
   state.robotStatus.connected = Boolean((state.deriv.connected && account) || state.bybit.connected);
@@ -4662,11 +4664,13 @@ function renderDerivAccountSummary() {
 
   if ($("brokerStatus")) {
     $("brokerStatus").textContent =
-      state.deriv.connected
-        ? "Deriv Connected"
-        : state.bybit.connected
-          ? "Bybit Connected"
-          : "Not Connected";
+      state.deriv.connected && state.bybit.connected
+        ? "Deriv + Bybit Connected"
+        : state.deriv.connected
+          ? "Deriv Connected"
+          : state.bybit.connected
+            ? "Bybit Connected"
+            : "Not Connected";
   }
 
   if ($("derivConnectionStatus")) {
@@ -4684,7 +4688,7 @@ function renderDerivAccountSummary() {
   if ($("startRobotButton")) {
     $("startRobotButton").disabled =
       !(state.deriv.connected || state.bybit.connected) ||
-      (state.deriv.connected && !state.deriv.selectedAccountId);
+      (state.deriv.connected && !state.deriv.selectedAccountId && !state.bybit.connected);
   }
 
   if ($("derivTradingMode")) {
