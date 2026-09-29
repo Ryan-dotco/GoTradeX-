@@ -1222,6 +1222,73 @@
 
           <div class="panel">
 
+            <h3>Bybit Connection</h3>
+
+            <p class="muted">
+              Connect Bybit to GoTradeX for market data and account testing.
+              API credentials are kept only in the current browser session.
+            </p>
+
+            <div class="account-status">
+              <span>Environment</span>
+              <strong id="bybitEnvironmentLabel">DEMO</strong>
+            </div>
+
+            <div class="field">
+              <label for="bybitEnvironment">Bybit Environment</label>
+              <select id="bybitEnvironment">
+                <option value="demo">DEMO / TEST</option>
+                <option value="live">LIVE</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="bybitApiKey">API Key</label>
+              <input id="bybitApiKey" type="text" autocomplete="off" placeholder="Bybit API key">
+            </div>
+
+            <div class="field">
+              <label for="bybitApiSecret">API Secret</label>
+              <input id="bybitApiSecret" type="password" autocomplete="off" placeholder="Bybit API secret">
+            </div>
+
+            <div class="robot-actions-row">
+              <button id="connectBybitButton" type="button" class="primary-button">
+                🔗 Test Bybit
+              </button>
+              <button id="disconnectBybitButton" type="button" class="danger-button">
+                Clear
+              </button>
+            </div>
+
+            <div class="panel" style="margin-top:14px;padding:14px;">
+              <div class="info-list">
+                <div>
+                  <span>Connection</span>
+                  <strong id="bybitConnectionStatus">Not Connected</strong>
+                </div>
+                <div>
+                  <span>API key</span>
+                  <strong id="bybitMaskedKey">—</strong>
+                </div>
+                <div>
+                  <span>Total equity</span>
+                  <strong id="bybitEquity">—</strong>
+                </div>
+                <div>
+                  <span>Available balance</span>
+                  <strong id="bybitAvailable">—</strong>
+                </div>
+              </div>
+            </div>
+
+            <div id="bybitConnectionMessage" class="muted" aria-live="polite"></div>
+
+          </div>
+
+
+          <div class="panel">
+
             <h3>AutoBot Control</h3>
 
             <p class="muted">
@@ -2349,7 +2416,8 @@
 
 
   <!-- JavaScript MUST load last -->
-  <script src="script.js?v=3.0.35"></script>
+  <script src="bybit-connector.js?v=1.0.0"></script>
+  <script src="script.js?v=3.0.36"></script>
   <script src="robot-history.js?v=1.0.0"></script>
   <script>
   /* =====================================================
