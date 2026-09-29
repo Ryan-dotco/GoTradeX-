@@ -1950,42 +1950,6 @@ function buildMarketEntry(symbol,name,type,live){
   return {symbol,name,type,price,change:Number.isFinite(Number(live?.change))?Number(live.change):0,source:Number.isFinite(livePrice)&&livePrice>0?(live.source||"Live API"):"Demo fallback"};
 }
 
-async function loadLiveMarkets(){
-  const previous={...state.markets},results={...previous};
-  let cryptoTickers={},forexRates={};
-  try{cryptoTickers=await fetchBinanceAllTickers();}catch(error){console.warn("Crypto feed unavailable; using fallback data.",error);}
-  try{forexRates=await fetchForexRates();}catch(error){console.warn("Forex feed unavailable; using fallback data.",error);}
-
-  marketCatalog.crypto.forEach(([symbol,name])=>{results[symbol]=buildMarketEntry(symbol,name,"crypto",cryptoTickers[symbol]);});
-
-  marketCatalog.forex.forEach(symbol=>{
-    const base=symbol.slice(0,3),quote=symbol.slice(3,6),baseRate=base==="USD"?1:Number(forexRates[base]),quoteRate=quote==="USD"?1:Number(forexRates[quote]);
-    let live=null;
-    if(baseRate>0&&quoteRate>0){const price=quoteRate/baseRate;live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Frankfurter"};}
-    results[symbol]=buildMarketEntry(symbol,`${base} / ${quote}`,"forex",live);
-  });
-
-  for(const [symbol,name] of marketCatalog.commodities){
-    let live=null;
-    if(symbol==="XAUUSD"||symbol==="XAGUSD"){
-      try{
-        const metal=symbol==="XAUUSD"?"XAU":"XAG",response=await fetch(`https://api.gold-api.com/price/${metal}`,{cache:"no-store"});
-        if(response.ok){const data=await response.json(),price=Number(data?.price);if(price>0)live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Gold API"};}
-      }catch(error){console.warn(symbol+" live feed unavailable.");}
-    }
-    results[symbol]=buildMarketEntry(symbol,name,"commodity",live);
-  }
-
-  for(const [symbol,name] of marketCatalog.indices)results[symbol]=buildMarketEntry(symbol,name,"index",null);
-
-  state.markets=results;
-  state.marketsUpdatedAt=new Date().toISOString();
-  renderDashboardMarkets();
-  renderMarketsList();
-  updateDashboardPrice();
-  updateSignalFromMarket();
-}
-
 function renderDashboardMarkets(){
   const container=$("dashboardMarkets");if(!container)return;
   const symbols=["BTCUSDT","ETHUSDT","XAUUSD","EURUSD","GBPUSD","USDZAR"];
