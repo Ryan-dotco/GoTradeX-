@@ -154,6 +154,9 @@ const state = {
 
 };
 
+/* Expose the single application state to the separately loaded live-chart module. */
+window.state = state;
+
 
 /* =========================================================
    HELPERS
