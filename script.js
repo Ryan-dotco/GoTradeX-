@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.31";
+const APP_VERSION = "3.0.32";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -64,6 +64,17 @@ const state = {
   maxDrawdown: 10,
 
   mt5AccountId: "",
+
+  deriv: {
+    installationId: "",
+    connected: false,
+    expiresAt: null,
+    updatedAt: null,
+    accounts: [],
+    selectedAccountId: "",
+    selectedAccount: null,
+    loading: false
+  },
 
   robotStatus: {
     connected: false,
@@ -2564,11 +2575,8 @@ function setRobotRisk(risk) {
 
 function renderRobotStatus() {
 
-  const running =
-    state.robotRunning === true;
-
-  const connected =
-    state.robotStatus.connected === true;
+  const running = state.robotRunning === true;
+  const connected = state.deriv.connected === true;
 
   if ($("robotStatusValue")) {
     $("robotStatusValue").textContent =
@@ -2589,15 +2597,7 @@ function renderRobotStatus() {
           : "var(--red)";
   }
 
-  if ($("brokerStatus")) {
-    $("brokerStatus").textContent =
-      connected ? "AvaTrade MT5 Connected" : "Not Connected";
-  }
-
-  if ($("robotAccountStatus")) {
-    $("robotAccountStatus").textContent =
-      state.mt5AccountId || "Not Set";
-  }
+  renderDerivAccountSummary();
 
   if ($("robotOpenTrades")) {
     $("robotOpenTrades").textContent =
@@ -2609,56 +2609,19 @@ function renderRobotStatus() {
       formatMoney(state.robotStatus.dailyPL || 0);
   }
 
-  const heartbeatTime =
-    state.robotStatus.lastHeartbeat
-      ? new Date(state.robotStatus.lastHeartbeat)
-      : null;
-
-  const heartbeatAge =
-    heartbeatTime && !Number.isNaN(heartbeatTime.getTime())
-      ? Date.now() - heartbeatTime.getTime()
-      : Infinity;
-
-  const fresh =
-    connected &&
-    heartbeatAge <= 30000;
-
-  if ($("robotConnectionHealth")) {
-    $("robotConnectionHealth").textContent =
-      fresh
-        ? "Ready"
-        : connected
-          ? "Stale"
-          : "Waiting";
-    $("robotConnectionHealth").className =
-      fresh
-        ? "robot-health-good"
-        : connected
-          ? "robot-health-warn"
-          : "robot-health-bad";
-  }
-
-  if ($("robotHeartbeat")) {
-    $("robotHeartbeat").textContent =
-      heartbeatTime && !Number.isNaN(heartbeatTime.getTime())
-        ? heartbeatTime.toLocaleTimeString()
-        : "No heartbeat";
-  }
-
   if ($("robotErrorMessage")) {
     $("robotErrorMessage").textContent =
-      state.robotStatus.lastError ||
-      (
-        fresh
-          ? "MT5/VPS bridge is connected and reporting normally."
-          : connected
-            ? "MT5/VPS is connected, but the heartbeat is stale."
-            : "Waiting for MT5/VPS connection."
-      );
+      running
+        ? "Demo AutoBot is running. Live execution is locked."
+        : connected
+          ? "Deriv is connected and ready for demo testing."
+          : "Connect a Deriv account to begin.";
   }
 
   if ($("startRobotButton")) {
     $("startRobotButton").classList.toggle("hidden", running);
+    $("startRobotButton").disabled =
+      !connected || !state.deriv.selectedAccountId;
   }
 
   if ($("stopRobotButton")) {
@@ -2667,7 +2630,6 @@ function renderRobotStatus() {
 
   setRobotRisk(state.robotRisk);
 }
-
 
 async function loadRobotState() {
 
@@ -2843,51 +2805,21 @@ async function startRobot() {
 
   try {
 
-    if (!state.supabase || !state.user) {
+    if (!state.user) {
       throw new Error("Please log in before starting AutoBot.");
     }
 
-    const accountId =
-      Number(state.mt5AccountId);
-
-    if (!Number.isInteger(accountId) || accountId <= 0) {
-      throw new Error("A valid AvaTrade MT5 account ID is required.");
+    if (!state.deriv.connected || !state.deriv.selectedAccountId) {
+      throw new Error("Connect a Deriv trading account before starting the demo robot.");
     }
-
-    if (
-      !["conservative", "moderate", "aggressive"]
-        .includes(state.robotRisk)
-    ) {
-      throw new Error("Invalid AutoBot risk setting.");
-    }
-
-    const drawdown =
-      Number(state.maxDrawdown);
-
-    if (
-      !Number.isFinite(drawdown) ||
-      drawdown <= 0 ||
-      drawdown > 100
-    ) {
-      throw new Error("Max drawdown must be between 0 and 100.");
-    }
-
-    if (!isBrokerStatusFresh()) {
-      throw new Error(
-        "AvaTrade MT5/VPS is not connected with a fresh heartbeat. AutoBot cannot start yet."
-      );
-    }
-
-    await saveRobotControl(true);
 
     state.robotRunning = true;
-    state.lastQueuedSignalKey = "";
-    state.lastQueuedAt = 0;
-
     renderRobotStatus();
 
     showToast(
-      "AutoBot started. AvaTrade MT5 will continue running through the MT5/VPS bridge.",
+      "Demo AutoBot started for " +
+        state.deriv.selectedAccountId +
+        ". Live execution remains locked.",
       "success"
     );
 
@@ -2907,35 +2839,17 @@ async function startRobot() {
 
 }
 
-
 async function stopRobot() {
 
-  try {
+  state.robotRunning = false;
+  renderRobotStatus();
 
-    await saveRobotControl(false);
-
-    state.robotRunning = false;
-
-    renderRobotStatus();
-
-    showToast(
-      "AutoBot stopped. No new trades will be submitted.",
-      "success"
-    );
-
-  } catch (error) {
-
-    console.error("Stop robot error:", error);
-
-    showToast(
-      error.message || "Unable to stop the robot.",
-      "error"
-    );
-
-  }
+  showToast(
+    "AutoBot stopped.",
+    "success"
+  );
 
 }
-
 
 async function queueRobotSignal(signal) {
 
@@ -4165,6 +4079,316 @@ async function generateMt5BridgeToken() {
   }
 }
 
+/* =========================================================
+   DERIV BROKER CONNECTION
+   ========================================================= */
+
+const DERIV_OAUTH_URL =
+  "https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-oauth";
+
+function getDerivInstallationId() {
+  if (state.deriv.installationId) return state.deriv.installationId;
+
+  const key = "gotradex_deriv_installation_id";
+  let value = localStorage.getItem(key);
+
+  if (!value || value.length < 20) {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    value = "gtx-" + Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem(key, value);
+  }
+
+  state.deriv.installationId = value;
+  return value;
+}
+
+async function derivRequest(action, extra = {}) {
+  const params = new URLSearchParams({
+    action,
+    installation_id: getDerivInstallationId(),
+    ...extra
+  });
+
+  const response = await fetch(DERIV_OAUTH_URL + "?" + params.toString(), {
+    method: "GET",
+    headers: { "Accept": "application/json" }
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error ||
+      data?.errors?.[0]?.message ||
+      "Deriv request failed."
+    );
+  }
+
+  return data;
+}
+
+function renderDerivAccounts(accounts = []) {
+  const select = $("derivAccountSelect");
+  if (!select) return;
+
+  state.deriv.accounts = Array.isArray(accounts) ? accounts : [];
+
+  if (!state.deriv.accounts.length) {
+    select.innerHTML = '<option value="">No Deriv accounts returned</option>';
+    state.deriv.selectedAccount = null;
+    state.deriv.selectedAccountId = "";
+    renderDerivAccountSummary();
+    return;
+  }
+
+  const preferred =
+    state.deriv.selectedAccountId &&
+    state.deriv.accounts.some(account =>
+      String(account.account_id) === String(state.deriv.selectedAccountId)
+    )
+      ? String(state.deriv.selectedAccountId)
+      : String(state.deriv.accounts[0].account_id);
+
+  state.deriv.selectedAccountId = preferred;
+
+  select.innerHTML = state.deriv.accounts.map(account => {
+    const id = escapeHTML(account.account_id || "");
+    const type = escapeHTML(account.account_type || "account");
+    const currency = escapeHTML(account.currency || "");
+    const balance = Number(account.balance);
+
+    return '<option value="' + id + '">' +
+      escapeHTML(account.account_id || "Account") +
+      " • " + type.toUpperCase() +
+      " • " + (Number.isFinite(balance) ? formatMoney(balance) : "—") +
+      " " + currency +
+      "</option>";
+  }).join("");
+
+  select.value = preferred;
+  state.deriv.selectedAccount =
+    state.deriv.accounts.find(account =>
+      String(account.account_id) === String(preferred)
+    ) || null;
+
+  renderDerivAccountSummary();
+}
+
+function renderDerivAccountSummary() {
+  const account = state.deriv.selectedAccount;
+
+  if ($("derivSelectedAccount")) {
+    $("derivSelectedAccount").textContent =
+      account?.account_id || "—";
+  }
+
+  if ($("derivAccountType")) {
+    $("derivAccountType").textContent =
+      account?.account_type
+        ? String(account.account_type).toUpperCase()
+        : "—";
+  }
+
+  if ($("derivBalance")) {
+    const balance = Number(account?.balance);
+    $("derivBalance").textContent =
+      Number.isFinite(balance)
+        ? formatMoney(balance)
+        : "—";
+  }
+
+  if ($("derivCurrency")) {
+    $("derivCurrency").textContent =
+      account?.currency || "—";
+  }
+
+  if ($("robotAccountStatus")) {
+    $("robotAccountStatus").textContent =
+      account?.account_id || "Not Set";
+  }
+
+  if ($("robotBalance")) {
+    const balance = Number(account?.balance);
+    $("robotBalance").textContent =
+      Number.isFinite(balance)
+        ? formatMoney(balance)
+        : "—";
+  }
+
+  if ($("brokerStatus")) {
+    $("brokerStatus").textContent =
+      state.deriv.connected
+        ? "Deriv Connected"
+        : "Not Connected";
+  }
+
+  if ($("derivConnectionStatus")) {
+    $("derivConnectionStatus").textContent =
+      state.deriv.connected
+        ? "Connected"
+        : "Not Connected";
+  }
+
+  if ($("robotConnectionHealth")) {
+    $("robotConnectionHealth").textContent =
+      state.deriv.connected ? "Ready" : "Waiting";
+  }
+
+  if ($("startRobotButton")) {
+    $("startRobotButton").disabled =
+      !state.deriv.connected || !state.deriv.selectedAccountId;
+  }
+
+  if ($("derivTradingMode")) {
+    $("derivTradingMode").textContent =
+      account?.account_type === "real"
+        ? "LIVE ACCOUNT • EXECUTION LOCKED"
+        : "DEMO / TEST";
+  }
+}
+
+async function loadDerivConnection(options = {}) {
+  if (!state.user) return;
+
+  const message = $("derivConnectionMessage");
+
+  try {
+    state.deriv.loading = true;
+
+    if (message && !options.silent) {
+      message.textContent = "Checking Deriv connection...";
+    }
+
+    const status = await derivRequest("status");
+
+    state.deriv.connected = Boolean(status.connected);
+    state.deriv.expiresAt = status.expires_at || null;
+    state.deriv.updatedAt = status.updated_at || null;
+
+    if (!state.deriv.connected) {
+      state.deriv.accounts = [];
+      state.deriv.selectedAccount = null;
+      state.deriv.selectedAccountId = "";
+      renderDerivAccounts([]);
+      if (message) message.textContent = "Deriv is not connected.";
+      renderDerivAccountSummary();
+      return;
+    }
+
+    const accountsResponse = await derivRequest("accounts");
+    const accounts =
+      Array.isArray(accountsResponse?.data)
+        ? accountsResponse.data
+        : Array.isArray(accountsResponse?.accounts)
+          ? accountsResponse.accounts
+          : [];
+
+    renderDerivAccounts(accounts);
+
+    if (message) {
+      message.textContent =
+        accounts.length
+          ? "Deriv connected successfully."
+          : "Deriv connected, but no trading accounts were returned.";
+    }
+
+  } catch (error) {
+    console.warn("Deriv connection load warning:", error);
+    state.deriv.connected = false;
+    if (message) {
+      message.textContent =
+        error.message || "Unable to check the Deriv connection.";
+    }
+    renderDerivAccountSummary();
+  } finally {
+    state.deriv.loading = false;
+    if ($("robotHeartbeat")) {
+      $("robotHeartbeat").textContent = new Date().toLocaleTimeString();
+    }
+  }
+}
+
+async function connectDeriv() {
+  if (!state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+
+  const button = $("connectDerivButton");
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Opening Deriv...";
+    }
+
+    const data = await derivRequest("start");
+
+    if (!data.authorization_url) {
+      throw new Error("Deriv authorization URL was not returned.");
+    }
+
+    window.location.href = data.authorization_url;
+
+  } catch (error) {
+    console.error("Deriv connect error:", error);
+    showToast(error.message || "Unable to start Deriv connection.", "error");
+    if (button) {
+      button.disabled = false;
+      button.textContent = "🔗 Connect Deriv";
+    }
+  }
+}
+
+async function disconnectDeriv() {
+  try {
+    await derivRequest("disconnect");
+
+    state.deriv.connected = false;
+    state.deriv.accounts = [];
+    state.deriv.selectedAccount = null;
+    state.deriv.selectedAccountId = "";
+
+    renderDerivAccounts([]);
+    renderDerivAccountSummary();
+
+    if ($("derivConnectionMessage")) {
+      $("derivConnectionMessage").textContent = "Deriv disconnected.";
+    }
+
+    showToast("Deriv disconnected.", "success");
+
+  } catch (error) {
+    console.error("Deriv disconnect error:", error);
+    showToast(error.message || "Unable to disconnect Deriv.", "error");
+  }
+}
+
+async function refreshDerivConnection() {
+  await loadDerivConnection();
+  showToast(
+    state.deriv.connected
+      ? "Deriv connection refreshed."
+      : "Deriv is not connected.",
+    state.deriv.connected ? "success" : "error"
+  );
+}
+
+function handleDerivAccountChange() {
+  const id = $("derivAccountSelect")?.value || "";
+  state.deriv.selectedAccountId = id;
+  state.deriv.selectedAccount =
+    state.deriv.accounts.find(account =>
+      String(account.account_id) === String(id)
+    ) || null;
+  renderDerivAccountSummary();
+}
+
+/* =========================================================
+   CONNECTION SETTINGS
+   ========================================================= */
+
 function saveConnections() {
 
   const settings = {
@@ -4394,6 +4618,8 @@ async function refreshApplication() {
 async function initializeLiveApp() {
 
   loadConnections();
+
+  await loadDerivConnection({ silent: true });
 
   updatePortfolio();
 
@@ -5338,6 +5564,26 @@ function bindEvents() {
 
   bindNavigation();
 
+
+  $("connectDerivButton")?.addEventListener(
+    "click",
+    connectDeriv
+  );
+
+  $("refreshDerivButton")?.addEventListener(
+    "click",
+    refreshDerivConnection
+  );
+
+  $("disconnectDerivButton")?.addEventListener(
+    "click",
+    disconnectDeriv
+  );
+
+  $("derivAccountSelect")?.addEventListener(
+    "change",
+    handleDerivAccountChange
+  );
 
   $("refreshButton")
     ?.addEventListener(
