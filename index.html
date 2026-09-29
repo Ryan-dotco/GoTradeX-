@@ -597,59 +597,44 @@
            DASHBOARD
            ================================================= -->
 
-      <section
-        id="page-dashboard"
-        class="app-page active-page gtx-first-dashboard"
-      >
+      <section id="page-dashboard" class="app-page active-page gtx-first-dashboard">
 
-        <div class="welcome-row gtx-dashboard-welcome">
+        <div class="welcome-row">
           <div>
             <h2>Welcome back, <span id="welcomeName">Trader</span></h2>
-            <p>Your GoTradeX trading command centre.</p>
+            <p>Your live trading command centre.</p>
           </div>
           <div class="live-market-label">● LIVE DATA</div>
         </div>
 
-        <div class="gtx-kenghi-portal panel">
-          <div class="gtx-kenghi-stage" aria-label="Kenghi trading assistant">
+        <div class="gtx-kenghi-chat-hero panel">
+          <div class="gtx-kenghi-hero-face" aria-hidden="true">
             <div class="gtx-kenghi-orbit gtx-kenghi-orbit-one"></div>
             <div class="gtx-kenghi-orbit gtx-kenghi-orbit-two"></div>
-            <div class="gtx-kenghi-avatar" aria-hidden="true">
-              <span class="gtx-kenghi-eyes"><i></i><i></i></span>
-              <span class="gtx-kenghi-smile"></span>
-            </div>
+            <div class="gtx-kenghi-avatar"><span class="gtx-kenghi-eyes"><i></i><i></i></span><span class="gtx-kenghi-smile"></span></div>
           </div>
-          <div class="gtx-kenghi-copy">
-            <div class="gtx-kenghi-badge">KENGHI • LIVE ASSISTANT</div>
-            <h2>Kenghi</h2>
-            <p>Your market assistant is ready. Choose an asset and timeframe below to begin.</p>
+          <div class="gtx-kenghi-hero-copy">
+            <span class="gtx-kenghi-badge">KENGHI AI</span>
+            <h2>Kenghi is here</h2>
+            <p>Chat with your GoTradeX AI assistant while you watch the live market.</p>
           </div>
-          <button id="gtxKenghiChatButton" type="button" class="gtx-kenghi-chat-button">
-            <span>◉</span><strong>Chat with Kenghi</strong>
-          </button>
+          <button id="gtxKenghiChatButton" type="button" class="gtx-kenghi-chat-button">💬 Chat with Kenghi</button>
         </div>
 
         <div class="gtx-dashboard-controls panel">
           <div class="gtx-dashboard-control-column">
-            <div class="gtx-control-title">
-              <strong>Assets</strong>
-              <span>Choose what you want to trade</span>
-            </div>
+            <div class="gtx-control-title"><strong>Assets</strong><span>Choose an asset</span></div>
             <div class="gtx-dashboard-asset-row" role="tablist" aria-label="Dashboard assets">
               <button type="button" class="gtx-dashboard-asset active" data-dashboard-category="commodities">Commodities</button>
               <button type="button" class="gtx-dashboard-asset" data-dashboard-category="forex">Forex</button>
-              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="crypto">Crypto</button>
               <button type="button" class="gtx-dashboard-asset" data-dashboard-category="indices">Indices</button>
+              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="crypto">Crypto</button>
               <button type="button" class="gtx-dashboard-asset" data-dashboard-category="metals">Metals</button>
             </div>
             <select id="gtxDashboardAssetSelect" class="gtx-dashboard-select" aria-label="Dashboard instrument"></select>
           </div>
-
           <div class="gtx-dashboard-control-column">
-            <div class="gtx-control-title">
-              <strong>Timeframe</strong>
-              <span>Select the trading interval</span>
-            </div>
+            <div class="gtx-control-title"><strong>Timeframe</strong><span>Choose the chart interval</span></div>
             <div class="gtx-dashboard-timeframe-row" role="tablist" aria-label="Dashboard timeframe">
               <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="5s">5s</button>
               <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="15s">15s</button>
@@ -664,19 +649,22 @@
           </div>
         </div>
 
-        <div class="gtx-dashboard-signal-strip">
-          <div><span>Selected market</span><strong id="gtxDashboardSelectedMarket">USOIL</strong></div>
-          <div><span>Timeframe</span><strong id="gtxDashboardSelectedTimeframe">1m</strong></div>
-          <div><span>Signal</span><strong id="gtxDashboardSignal">HOLD</strong></div>
+        <div class="panel gtx-chart-panel gtx-dashboard-live-chart">
+          <div class="panel-header">
+            <div><h3>Live Chart</h3><span id="gtxDashboardChartSubtitle">Real market candles</span></div>
+            <div class="gtx-chart-status"><span id="gtxDashboardChartDot" class="gtx-live-dot"></span><strong id="gtxDashboardChartStatus">BYBIT</strong></div>
+          </div>
+          <div class="gtx-chart-toolbar">
+            <strong id="gtxDashboardChartSymbol">BTCUSDT</strong>
+            <span id="gtxDashboardChartPrice">—</span>
+            <span>Bybit</span>
+          </div>
+          <div class="gtx-chart-wrap"><canvas id="gtxDashboardChart" aria-label="Live Bybit candlestick chart"></canvas></div>
         </div>
 
         <div class="gtx-dashboard-order-actions" aria-label="Trade actions">
-          <button id="gtxDashboardBuyButton" type="button" class="gtx-dashboard-buy">
-            <span>BUY</span><strong id="gtxDashboardBidPrice">—</strong>
-          </button>
-          <button id="gtxDashboardSellButton" type="button" class="gtx-dashboard-sell">
-            <span>SELL</span><strong id="gtxDashboardAskPrice">—</strong>
-          </button>
+          <button id="gtxDashboardBuyButton" type="button" class="gtx-dashboard-buy"><span>BUY</span><strong id="gtxDashboardBidPrice">—</strong></button>
+          <button id="gtxDashboardSellButton" type="button" class="gtx-dashboard-sell"><span>SELL</span><strong id="gtxDashboardAskPrice">—</strong></button>
         </div>
 
       </section>
