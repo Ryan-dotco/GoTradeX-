@@ -2622,28 +2622,7 @@ function zoomChartAt(nextZoom, focalX) {
   setChartViewport(next.zoom, nextPan);
 }
 
-function renderCurrentChart() {
-  if (!state.chart?.canvas || !state.chart?.candles?.length) return;
-  const canvas = state.chart.canvas;
-  const chartState = state.chartView || {};
-  drawOwnTradingChart(canvas, state.chart.candles, {
-    mode: chartState.mode || "candles",
-    showEMA: chartState.ema !== false,
-    showVolume: chartState.volume !== false,
-    showRSI: Boolean(chartState.rsi),
-    showAlligator: chartState.alligator !== false,
-    showBollinger: Boolean(chartState.bollinger),
-    showSMA50: Boolean(chartState.sma50),
-    showSMA200: Boolean(chartState.sma200),
-    showVWAP: Boolean(chartState.vwap),
-    showMACD: Boolean(chartState.macd),
-    showStochastic: Boolean(chartState.stochastic),
-    showATR: Boolean(chartState.atr),
-    crosshairX: chartState.crosshairX ?? null,
-    zoom: chartState.zoom || 1,
-    pan: chartState.pan || 0
-  });
-}
+function renderCurrentChart() { /* Legacy renderer disabled: gtx-live-chart-fix.js owns #mainChart. */ }
 
 async function createChart() {
   // Canonical chart engine lives in gtx-live-chart-fix.js.
