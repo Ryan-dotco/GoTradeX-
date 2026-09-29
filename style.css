@@ -3734,3 +3734,62 @@ select {
     line-height: 1;
   }
 }
+
+
+/* =========================================================
+   PHASE 2 — MOBILE SWIPE PAGES
+   ========================================================= */
+.gtx-swipe-next-hint {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .app-page.active-page {
+    position: relative;
+    overflow-x: hidden;
+    overscroll-behavior-x: contain;
+  }
+
+  .gtx-swipe-next-hint {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 48%;
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, .72);
+    color: rgba(255,255,255,.78);
+    font-size: 9px;
+    line-height: 1.1;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .gtx-swipe-next-hint b {
+    font-size: 17px;
+    font-weight: 400;
+    line-height: .7;
+  }
+
+  #page-support.active-page .gtx-swipe-next-hint {
+    top: 7px;
+    right: 9px;
+  }
+
+  .gtx-signal-order-actions {
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+
+  #page-signals.active-page .analyzer-grid {
+    margin-bottom: 0;
+  }
+
+  #page-signals.active-page {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+}
