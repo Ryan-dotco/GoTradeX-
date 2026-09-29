@@ -3513,3 +3513,316 @@ select {
     grid-column: auto;
   }
 }
+
+
+/* =========================================================
+   GTX 3.0.46 — MOBILE EXCHANGE TERMINAL
+   Inspired by professional exchange mobile layouts
+   ========================================================= */
+
+.gtx-mobile-terminal-tabs,
+.gtx-mobile-order-actions {
+  display: none;
+}
+
+.gtx-orderbook-panel {
+  margin-top: 16px;
+}
+
+.gtx-orderbook-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  letter-spacing: .05em;
+}
+
+.gtx-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #15c77a;
+  box-shadow: 0 0 0 4px rgba(21,199,122,.12);
+}
+
+.gtx-orderbook-head,
+.gtx-orderbook-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.gtx-orderbook-head {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.gtx-orderbook-head span:nth-child(2) {
+  text-align: center;
+}
+
+.gtx-orderbook-head span:nth-child(3) {
+  text-align: right;
+}
+
+.gtx-orderbook-columns {
+  display: grid;
+  grid-template-columns: 1fr 110px 1fr;
+  gap: 10px;
+  min-height: 270px;
+  padding: 0 10px 12px;
+}
+
+.gtx-orderbook-side {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+
+.gtx-orderbook-row {
+  position: relative;
+  min-height: 28px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.gtx-orderbook-row span {
+  position: relative;
+  z-index: 1;
+  color: var(--muted);
+}
+
+.gtx-orderbook-row strong {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+}
+
+.gtx-orderbook-row i {
+  position: absolute;
+  inset: 0;
+  opacity: .08;
+  transform-origin: right center;
+}
+
+.gtx-orderbook-row.bid {
+  grid-template-columns: 1fr 1fr auto;
+  background: linear-gradient(90deg, rgba(22,138,85,.12), transparent);
+}
+
+.gtx-orderbook-row.ask {
+  grid-template-columns: 1fr 1fr auto;
+  background: linear-gradient(270deg, rgba(200,63,76,.12), transparent);
+}
+
+.gtx-bids .gtx-orderbook-row strong { color: #18b978; }
+.gtx-asks .gtx-orderbook-row strong { color: #ef5965; }
+
+.gtx-orderbook-mid {
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 4px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.gtx-orderbook-mid strong {
+  font-size: 18px;
+  color: var(--text);
+}
+
+.gtx-orderbook-mid span,
+.gtx-orderbook-mid small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.gtx-orderbook-empty {
+  padding: 24px 8px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 10px;
+}
+
+@media (max-width: 850px) {
+  .gtx-mobile-terminal-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: -2px 0 10px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(8,19,33,.96);
+    backdrop-filter: blur(10px);
+  }
+
+  .gtx-mobile-terminal-tab {
+    min-height: 40px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    touch-action: manipulation;
+  }
+
+  .gtx-mobile-terminal-tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .gtx-orderbook-panel {
+    margin-top: 10px;
+    border-radius: 12px;
+  }
+
+  .gtx-orderbook-panel .panel-header {
+    margin-bottom: 5px;
+  }
+
+  .gtx-orderbook-columns {
+    grid-template-columns: minmax(0,1fr) 92px minmax(0,1fr);
+    gap: 6px;
+    min-height: 250px;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .gtx-orderbook-head,
+  .gtx-orderbook-row {
+    gap: 4px;
+  }
+
+  .gtx-orderbook-row {
+    min-height: 27px;
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+
+  .gtx-orderbook-row strong {
+    font-size: 10px;
+  }
+
+  .gtx-orderbook-mid strong {
+    font-size: 15px;
+  }
+
+  .gtx-mobile-order-actions {
+    position: sticky;
+    bottom: 8px;
+    z-index: 120;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 10px 0 2px;
+    padding: 7px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(7,17,29,.95);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 14px 35px rgba(0,0,0,.4);
+  }
+
+  .gtx-mobile-order-actions button {
+    min-height: 58px;
+    border: 0;
+    border-radius: 11px;
+    color: #fff;
+    display: grid;
+    place-items: center;
+    line-height: 1.05;
+    font-weight: 900;
+    font-size: 12px;
+    touch-action: manipulation;
+  }
+
+  .gtx-mobile-order-actions strong {
+    font-size: 16px;
+  }
+
+  .gtx-mobile-buy { background: #08bd70; }
+  .gtx-mobile-sell { background: #f23f54; }
+
+  /* Exchange-style mobile composition: chart first, depth second. */
+  #page-dashboard .welcome-row,
+  #page-dashboard .stat-grid {
+    display: none;
+  }
+
+  #page-dashboard .dashboard-grid {
+    display: block;
+  }
+
+  #page-dashboard .signal-panel {
+    margin-top: 10px;
+  }
+
+  #page-dashboard .manual-trading-panel {
+    margin-top: 10px;
+  }
+
+  #page-dashboard .chart-panel {
+    margin-bottom: 0;
+  }
+
+  #page-dashboard .chart-wrapper {
+    height: min(64vh, 520px);
+    min-height: 390px;
+  }
+
+  #page-dashboard .chart-panel .panel-header {
+    margin-bottom: 8px;
+  }
+
+  #page-dashboard .chart-panel .panel-header > div:first-child h3 {
+    font-size: 20px;
+  }
+
+  #page-dashboard .chart-panel .panel-header > div:first-child span {
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  #page-dashboard .manual-trading-panel {
+    display: none;
+  }
+
+  #page-dashboard .manual-positions-panel {
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .gtx-orderbook-columns {
+    grid-template-columns: minmax(0,1fr) 76px minmax(0,1fr);
+  }
+
+  .gtx-orderbook-mid strong {
+    font-size: 13px;
+  }
+
+  #page-dashboard .chart-wrapper {
+    height: 430px;
+    min-height: 430px;
+  }
+}
+
+@media (min-width: 851px) {
+  .gtx-orderbook-panel {
+    display: none;
+  }
+}
