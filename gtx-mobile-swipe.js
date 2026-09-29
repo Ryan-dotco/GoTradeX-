@@ -46,9 +46,16 @@
 
     let hint = active.querySelector(".gtx-swipe-next-hint");
     if (!hint) {
-      hint = document.createElement("div");
+      hint = document.createElement("button");
       hint.className = "gtx-swipe-next-hint";
-      hint.setAttribute("aria-hidden", "true");
+      hint.type = "button";
+      hint.setAttribute("aria-label", "Open next page");
+      hint.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const index = currentIndex();
+        if (index >= 0) goTo((index + 1) % sequence.length);
+      });
       active.appendChild(hint);
     }
 
@@ -57,7 +64,7 @@
 
     const next = nextItem(index);
     hint.innerHTML =
-      "<span>Swipe left for " +
+      "<span>Swipe / tap for " +
       next.title +
       "</span><b aria-hidden=\"true\">›</b>";
   }
