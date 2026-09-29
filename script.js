@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.42";
+const APP_VERSION = "3.0.43";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -2285,7 +2285,9 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   const volumeHeight = options.showVolume ? 46 : 0;
   const oscillatorHeight = oscillatorCount ? Math.min(150, oscillatorCount * 42) : 0;
   const padding = { top: 14, right: 68, bottom: 25, left: 8 };
-  const chartWidth = width - padding.left - padding.right;
+  const mode = options.mode || "candles";
+  const displayCandles = mode === "heikin" ? buildHeikinAshi(candles) : candles;
+
   const zoom = Math.max(0.55, Math.min(4, Number(options.zoom) || 1));
   const candleCount = displayCandles.length;
   const visibleCount = Math.max(12, Math.min(candleCount, Math.round(candleCount / zoom)));
@@ -2294,10 +2296,14 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   const viewStart = Math.floor(pan);
   const viewCandles = displayCandles.slice(viewStart, viewStart + visibleCount);
   const viewCloses = viewCandles.map(c => c.close);
-  const chartHeight = Math.max(120, height - padding.top - padding.bottom - volumeHeight - oscillatorHeight);
 
-  const mode = options.mode || "candles";
-  const displayCandles = mode === "heikin" ? buildHeikinAshi(candles) : candles;
+  // Keep a visible breathing room to the right of the newest candle so the
+  // live candle can expand and contract without being pressed against the edge.
+  const futureSpace = Math.max(34, Math.min(72, width * 0.075));
+  const plotRight = width - padding.right - futureSpace;
+  const chartWidth = Math.max(180, plotRight - padding.left);
+
+  const chartHeight = Math.max(120, height - padding.top - padding.bottom - volumeHeight - oscillatorHeight);
   const highs = displayCandles.map(c => c.high);
   const lows = displayCandles.map(c => c.low);
   const maxPrice = Math.max(...highs);
@@ -2321,7 +2327,7 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     const y = padding.top + (chartHeight / 5) * i;
     ctx.beginPath();
     ctx.moveTo(padding.left, y);
-    ctx.lineTo(width - padding.right, y);
+    ctx.lineTo(plotRight, y);
     ctx.stroke();
     const price = top - ((top - bottom) / 5) * i;
     ctx.fillText(chartPriceLabel(price), width - padding.right + 7, y + 3);
@@ -2452,12 +2458,12 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(padding.left, latestY);
-  ctx.lineTo(width - padding.right, latestY);
+  ctx.lineTo(plotRight, latestY);
   ctx.stroke();
   ctx.setLineDash([]);
 
   ctx.fillStyle = "#4f7cff";
-  ctx.fillRect(width - padding.right, latestY - 9, 62, 18);
+  ctx.fillRect(plotRight, latestY - 9, 62, 18);
   ctx.fillStyle = "#fff";
   ctx.font = "bold 9px Arial";
   ctx.fillText(chartPriceLabel(last.close), width - padding.right + 4, latestY + 3);
@@ -2472,7 +2478,7 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     ctx.fillText(label, Math.max(padding.left, x - 28), height - 8);
   });
 
-  if (options.crosshairX !== null && options.crosshairX >= padding.left && options.crosshairX <= width - padding.right) {
+  if (options.crosshairX !== null && options.crosshairX >= padding.left && options.crosshairX <= plotRight) {
     const index = Math.max(0, Math.min(displayCandles.length - 1, Math.floor((options.crosshairX - padding.left) / slot)));
     const candle = displayCandles[index];
     const x = padding.left + slot * index + slot / 2;
@@ -2484,7 +2490,7 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     ctx.moveTo(x, padding.top);
     ctx.lineTo(x, height - padding.bottom);
     ctx.moveTo(padding.left, y);
-    ctx.lineTo(width - padding.right, y);
+    ctx.lineTo(plotRight, y);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -2758,8 +2764,14 @@ async function createChart() {
     toolbar.dataset.bound = "1";
     const toolsToggle = toolbar.querySelector("[data-chart-tools-toggle]");
     const toolsMenu = toolbar.querySelector(".chart-tools-menu");
-    toolsToggle?.addEventListener("click", () => {
+    toolsToggle?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const open = !toolsMenu?.hidden;
+
+      document.querySelectorAll(".chart-market-menu,.timeframes").forEach(menu => { menu.hidden = true; });
+      document.querySelectorAll(".chart-market-toggle,.chart-control-toggle").forEach(button => button.setAttribute("aria-expanded", "false"));
+
       if (toolsMenu) toolsMenu.hidden = open;
       toolsToggle.setAttribute("aria-expanded", String(!open));
     });
@@ -6907,6 +6919,13 @@ function bindEvents() {
     );
 
 
+  // Keep chart portals mutually exclusive and close them when the trader taps elsewhere.
+  document.addEventListener("click", (event) => {
+    if (event.target.closest?.(".chart-market-control,.chart-timeframe-control,.own-chart-toolbar")) return;
+    document.querySelectorAll(".chart-market-menu,.timeframes,.chart-tools-menu").forEach(menu => { menu.hidden = true; });
+    document.querySelectorAll(".chart-market-toggle,.chart-control-toggle,.chart-tools-toggle").forEach(button => button.setAttribute("aria-expanded", "false"));
+  }, true);
+
   // Timeframe stays in the chart header so it never covers the live candle area.
   // Chart Tools is also mounted in the header by createChart().
   // Delegated handlers keep both portals working without touching the canvas.
@@ -6918,6 +6937,10 @@ function bindEvents() {
       const box = toggle.parentElement?.querySelector(".timeframes");
       if (!box) return;
       const shouldOpen = box.hidden;
+
+      document.querySelectorAll(".chart-market-menu,.chart-tools-menu").forEach(menu => { menu.hidden = true; });
+      document.querySelectorAll(".chart-market-toggle,.chart-tools-toggle").forEach(button => button.setAttribute("aria-expanded", "false"));
+
       box.hidden = !shouldOpen;
       toggle.setAttribute("aria-expanded", String(shouldOpen));
       return;
@@ -6943,7 +6966,14 @@ function bindEvents() {
   const chartMarketMenu = $("chartSymbol")?.closest(".panel-header")?.querySelector(".chart-market-menu");
   chartMarketToggle?.addEventListener("click", (event) => {
     event.preventDefault();
+    event.stopPropagation();
     const open = chartMarketMenu ? chartMarketMenu.hidden : true;
+
+    document.querySelectorAll(".chart-market-menu").forEach(menu => { if (menu !== chartMarketMenu) menu.hidden = true; });
+    document.querySelectorAll(".timeframes").forEach(menu => { menu.hidden = true; });
+    document.querySelectorAll(".chart-tools-menu").forEach(menu => { menu.hidden = true; });
+    document.querySelectorAll(".chart-control-toggle,.chart-tools-toggle").forEach(button => button.setAttribute("aria-expanded", "false"));
+
     if (chartMarketMenu) chartMarketMenu.hidden = !open;
     chartMarketToggle.setAttribute("aria-expanded", String(open));
     updateChartMarketPortal();
