@@ -3226,6 +3226,7 @@ async function runAnalyzer() {
   if (button) { button.disabled = true; button.textContent = "Analyzing..."; }
   try {
     const signal = await generateLiveSignal(symbol);
+    window.GTXTradingCore?.recordSignal?.({ symbol, direction: signal.direction, confidence: signal.confidence, entry: signal.entry, target: signal.target, stop: signal.stop });
     if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
     if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
     if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
