@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.34";
+const APP_VERSION = "3.0.35";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -96,7 +96,9 @@ const state = {
     tradeHistory: [],
     lastSignalKey: "",
     lastTradeAt: 0,
-    initialized: false
+    initialized: false,
+    scannerTimer: null,
+    monitorTimer: null
   },
 
   lastQueuedSignalKey: "",
@@ -3080,6 +3082,57 @@ async function saveRobotControl(running) {
 }
 
 
+async function scanDemoMarkets() {
+  if (!state.robotRunning || !state.deriv.connected) return;
+
+  const symbols = ["BTCUSDT", "ETHUSDT", "XAUUSD", "EURUSD", "GBPUSD", "USDZAR"];
+  for (const symbol of symbols) {
+    if (!state.robotRunning) break;
+    try {
+      const signal = /USDT$/.test(symbol)
+        ? await generateLiveSignal(symbol)
+        : generateSignal(symbol);
+
+      if (signal && ["BUY", "SELL"].includes(signal.direction) && Number(signal.confidence) >= 65) {
+        openDemoTrade(symbol, signal);
+      }
+    } catch (error) {
+      console.warn("Demo scanner skipped " + symbol + ":", error);
+    }
+  }
+
+  manageDemoTrades();
+  updateDemoMetrics();
+  evaluateDemoDrawdown();
+  renderRobotStatus();
+}
+
+function startDemoScanner() {
+  clearInterval(state.demo.scannerTimer);
+  clearInterval(state.demo.monitorTimer);
+
+  state.demo.scannerTimer = setInterval(() => {
+    scanDemoMarkets().catch(error => console.warn("Demo scan error:", error));
+  }, 15000);
+
+  state.demo.monitorTimer = setInterval(() => {
+    if (!state.robotRunning) return;
+    manageDemoTrades();
+    updateDemoMetrics();
+    evaluateDemoDrawdown();
+    renderRobotStatus();
+  }, 3000);
+
+  scanDemoMarkets().catch(error => console.warn("Initial demo scan error:", error));
+}
+
+function stopDemoScanner() {
+  clearInterval(state.demo.scannerTimer);
+  clearInterval(state.demo.monitorTimer);
+  state.demo.scannerTimer = null;
+  state.demo.monitorTimer = null;
+}
+
 async function startRobot() {
   try {
     if (!state.user) throw new Error("Please log in before starting AutoBot.");
@@ -3102,6 +3155,7 @@ async function startRobot() {
       "success"
     );
 
+    startDemoScanner();
     await updateSignalFromMarket();
   } catch (error) {
     state.robotRunning = false;
@@ -3113,6 +3167,7 @@ async function startRobot() {
 
 async function stopRobot() {
   state.robotRunning = false;
+  stopDemoScanner();
   updateDemoMetrics();
   saveDemoState();
   renderRobotStatus();
