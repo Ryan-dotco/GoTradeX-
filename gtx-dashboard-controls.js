@@ -3,11 +3,11 @@
   "use strict";
 
   const groups = {
-    commodities: [["USOIL","US Oil"],["UKOIL","UK Oil"],["NATGAS","Natural Gas"]],
-    forex: [["EURUSD","EUR / USD"],["GBPUSD","GBP / USD"],["USDJPY","USD / JPY"],["AUDUSD","AUD / USD"],["USDCHF","USD / CHF"]],
-    crypto: [["BTCUSDT","BTC / USDT"],["ETHUSDT","ETH / USDT"],["SOLUSDT","SOL / USDT"],["XRPUSDT","XRP / USDT"]],
-    indices: [["US30","US 30"],["US500","US 500"],["NAS100","Nasdaq 100"],["GER40","Germany 40"]],
-    metals: [["XAUUSD","Gold / USD"],["XAGUSD","Silver / USD"],["XPTUSD","Platinum / USD"]]
+    commodities:[["USOIL","US Oil"],["UKOIL","UK Oil"],["NATGAS","Natural Gas"]],
+    forex:[["EURUSD","EUR / USD"],["GBPUSD","GBP / USD"],["USDJPY","USD / JPY"],["AUDUSD","AUD / USD"],["USDCHF","USD / CHF"]],
+    indices:[["US30","US 30"],["US500","US 500"],["NAS100","Nasdaq 100"],["GER40","Germany 40"]],
+    crypto:[["BTCUSDT","BTC / USDT"],["ETHUSDT","ETH / USDT"],["SOLUSDT","SOL / USDT"],["XRPUSDT","XRP / USDT"]],
+    metals:[["XAUUSD","Gold / USD"],["XAGUSD","Silver / USD"],["XPTUSD","Platinum / USD"]]
   };
 
   const timeframes = ["5s","15s","30s","1m","5m","15m","1h","4h","1D"];
