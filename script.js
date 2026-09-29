@@ -5098,7 +5098,9 @@ function disconnectBybit() {
 function handleBybitEnvironmentChange() {
   state.bybit.environment = "demo";
   state.bybit.connected = false;
-  state.bybit.lastError = "Bybit live mode is locked. GoTradeX is using Bybit DEMO.";\n  renderBybitConnection();\n}
+  state.bybit.lastError = "Bybit live mode is locked. GoTradeX is using Bybit DEMO.";
+  renderBybitConnection();
+}
 
 async function refreshBybitConnection() {
   if (!state.bybit.apiKey || !state.bybit.apiSecret) {
