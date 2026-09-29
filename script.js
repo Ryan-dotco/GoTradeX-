@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.35";
+const APP_VERSION = "3.0.36";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -74,6 +74,18 @@ const state = {
     selectedAccountId: "",
     selectedAccount: null,
     loading: false
+  },
+
+  bybit: {
+    connected: false,
+    environment: "demo",
+    apiKey: "",
+    apiSecret: "",
+    maskedKey: "",
+    totalEquity: 0,
+    totalAvailableBalance: 0,
+    totalWalletBalance: 0,
+    lastError: ""
   },
 
   robotStatus: {
@@ -496,6 +508,7 @@ async function handleLogin(event) {
     }
 
     state.user = signedInUser;
+    window.gotradexSupabaseSession = data?.session || null;
 
     // Open the dashboard immediately after authentication. Do not wait for
     // profile, market, chart, or admin data to finish loading.
@@ -881,6 +894,7 @@ function listenForAuthChanges() {
         // handleLogin() owns the interactive login flow. Keep the auth
         // listener lightweight so it cannot block or overwrite the login UI.
         state.user = session.user;
+        window.gotradexSupabaseSession = session || null;
 
         if ($("appScreen")?.classList.contains("hidden")) {
           showAppScreen();
@@ -1001,6 +1015,7 @@ async function restoreSession() {
 
       state.user =
         data.session.user;
+      window.gotradexSupabaseSession = data.session || null;
 
       await loadProfile();
 
@@ -2575,7 +2590,7 @@ function manageDemoTrades() {
 }
 
 function openDemoTrade(symbol, signal) {
-  if (!state.robotRunning || !state.deriv.connected) return false;
+  if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return false;
   if (!signal || !["BUY", "SELL"].includes(signal.direction)) return false;
   if (Number(signal.confidence) < 65) return false;
 
@@ -2631,7 +2646,8 @@ function openDemoTrade(symbol, signal) {
 }
 
 function runDemoEngine(signal) {
-  if (!state.robotRunning || !state.deriv.connected || !state.deriv.selectedAccountId) return;
+  if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return;
+  if (state.deriv.connected && !state.deriv.selectedAccountId) return;
   manageDemoTrades();
   if (evaluateDemoDrawdown()) return;
 
@@ -2855,7 +2871,7 @@ function renderDemoTrades() {
 function renderRobotStatus() {
 
   const running = state.robotRunning === true;
-  const connected = state.deriv.connected === true;
+  const connected = state.deriv.connected === true || state.bybit.connected === true;
 
   if ($("robotStatusValue")) {
     $("robotStatusValue").textContent =
@@ -3083,7 +3099,7 @@ async function saveRobotControl(running) {
 
 
 async function scanDemoMarkets() {
-  if (!state.robotRunning || !state.deriv.connected) return;
+  if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return;
 
   const symbols = ["BTCUSDT", "ETHUSDT", "XAUUSD", "EURUSD", "GBPUSD", "USDZAR"];
   for (const symbol of symbols) {
@@ -3136,8 +3152,11 @@ function stopDemoScanner() {
 async function startRobot() {
   try {
     if (!state.user) throw new Error("Please log in before starting AutoBot.");
-    if (!state.deriv.connected || !state.deriv.selectedAccountId) {
-      throw new Error("Connect a Deriv trading account before starting the demo robot.");
+    if (!state.deriv.connected && !state.bybit.connected) {
+      throw new Error("Connect Deriv or Bybit before starting the demo robot.");
+    }
+    if (state.deriv.connected && !state.deriv.selectedAccountId) {
+      throw new Error("Select a Deriv trading account before using the Deriv demo engine.");
     }
 
     if (!state.demo.initialized || state.demo.startingBalance <= 0) {
@@ -3150,8 +3169,7 @@ async function startRobot() {
     renderRobotStatus();
 
     showToast(
-      "Demo AutoBot started for " + state.deriv.selectedAccountId +
-      ". Live execution remains locked.",
+      "Demo AutoBot started. Deriv/Bybit live execution remains locked.",
       "success"
     );
 
@@ -4563,7 +4581,7 @@ function renderDerivAccountSummary() {
         : "—";
   }
 
-  state.robotStatus.connected = Boolean(state.deriv.connected && account);
+  state.robotStatus.connected = Boolean((state.deriv.connected && account) || state.bybit.connected);
 
   if (state.deriv.connected && account) {
     if (!state.demo.initialized || state.demo.startingBalance <= 0) {
@@ -4761,6 +4779,139 @@ function handleDerivAccountChange() {
   renderDerivAccountSummary();
 }
 
+function renderBybitConnection() {
+  const env = state.bybit.environment === "live" ? "LIVE" : "DEMO";
+  if ($("bybitEnvironmentLabel")) $("bybitEnvironmentLabel").textContent = env;
+  if ($("bybitConnectionStatus")) {
+    $("bybitConnectionStatus").textContent = state.bybit.connected ? "Connected" : "Not Connected";
+  }
+  if ($("bybitMaskedKey")) $("bybitMaskedKey").textContent = state.bybit.maskedKey || "—";
+  if ($("bybitEquity")) $("bybitEquity").textContent = formatMoney(state.bybit.totalEquity);
+  if ($("bybitAvailable")) $("bybitAvailable").textContent = formatMoney(state.bybit.totalAvailableBalance);
+  if ($("bybitConnectionMessage")) {
+    $("bybitConnectionMessage").textContent =
+      state.bybit.lastError ||
+      (state.bybit.connected
+        ? "Bybit account verified for the current session."
+        : "Bybit is not connected.");
+  }
+  if ($("connectBybitButton")) {
+    $("connectBybitButton").textContent =
+      state.bybit.connected ? "✓ Bybit Connected" : "🔗 Test Bybit";
+    $("connectBybitButton").disabled = false;
+  }
+}
+
+async function connectBybit() {
+  if (!state.user) {
+    showToast("Please log in first.", "error");
+    return;
+  }
+  if (!window.GTXBybit) {
+    showToast("Bybit connector module is not loaded.", "error");
+    return;
+  }
+
+  const apiKey = $("bybitApiKey")?.value.trim() || "";
+  const apiSecret = $("bybitApiSecret")?.value.trim() || "";
+  const environment = $("bybitEnvironment")?.value === "live" ? "live" : "demo";
+
+  if (!apiKey || !apiSecret) {
+    showToast("Enter the Bybit API key and secret.", "error");
+    return;
+  }
+
+  state.bybit.lastError = "";
+  state.bybit.environment = environment;
+  renderBybitConnection();
+
+  const button = $("connectBybitButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Testing Bybit...";
+  }
+
+  try {
+    const result = await window.GTXBybit.connect(apiKey, apiSecret, environment);
+    const account = result?.account || {};
+
+    state.bybit.connected = true;
+    state.bybit.apiKey = apiKey;
+    state.bybit.apiSecret = apiSecret;
+    state.bybit.maskedKey = result?.api_key_masked || "";
+    state.bybit.totalEquity = Number(account.totalEquity) || 0;
+    state.bybit.totalAvailableBalance = Number(account.totalAvailableBalance) || 0;
+    state.bybit.totalWalletBalance = Number(account.totalWalletBalance) || 0;
+
+    renderBybitConnection();
+    updatePortfolio();
+
+    showToast(
+      "Bybit " + environment.toUpperCase() + " connection verified.",
+      "success"
+    );
+  } catch (error) {
+    state.bybit.connected = false;
+    state.bybit.lastError = error.message || "Bybit connection failed.";
+    state.bybit.apiKey = "";
+    state.bybit.apiSecret = "";
+    renderBybitConnection();
+    showToast(state.bybit.lastError, "error");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function disconnectBybit() {
+  state.bybit.connected = false;
+  state.bybit.apiKey = "";
+  state.bybit.apiSecret = "";
+  state.bybit.maskedKey = "";
+  state.bybit.totalEquity = 0;
+  state.bybit.totalAvailableBalance = 0;
+  state.bybit.totalWalletBalance = 0;
+  state.bybit.lastError = "";
+  if ($("bybitApiKey")) $("bybitApiKey").value = "";
+  if ($("bybitApiSecret")) $("bybitApiSecret").value = "";
+  renderBybitConnection();
+  updatePortfolio();
+  showToast("Bybit session credentials cleared.", "success");
+}
+
+function handleBybitEnvironmentChange() {
+  state.bybit.environment =
+    $("bybitEnvironment")?.value === "live" ? "live" : "demo";
+  state.bybit.connected = false;
+  state.bybit.lastError = "";
+  renderBybitConnection();
+}
+
+async function refreshBybitConnection() {
+  if (!state.bybit.apiKey || !state.bybit.apiSecret) {
+    showToast("Enter the Bybit credentials first.", "error");
+    return;
+  }
+  try {
+    const result = await window.GTXBybit.balance(
+      state.bybit.apiKey,
+      state.bybit.apiSecret,
+      state.bybit.environment
+    );
+    const account = result?.account || {};
+    state.bybit.connected = true;
+    state.bybit.totalEquity = Number(account.totalEquity) || 0;
+    state.bybit.totalAvailableBalance = Number(account.totalAvailableBalance) || 0;
+    state.bybit.totalWalletBalance = Number(account.totalWalletBalance) || 0;
+    state.bybit.lastError = "";
+    renderBybitConnection();
+    updatePortfolio();
+  } catch (error) {
+    state.bybit.connected = false;
+    state.bybit.lastError = error.message || "Bybit refresh failed.";
+    renderBybitConnection();
+  }
+}
+
 /* =========================================================
    CONNECTION SETTINGS
    ========================================================= */
@@ -4953,6 +5104,10 @@ async function refreshApplication() {
 
     await loadDerivConnection({ silent: true });
 
+    if (state.bybit.connected) {
+      await refreshBybitConnection();
+    }
+
     await loadLiveMarkets();
 
     await createChart();
@@ -4996,6 +5151,8 @@ async function refreshApplication() {
 async function initializeLiveApp() {
 
   loadConnections();
+
+  renderBybitConnection();
 
   await loadDerivConnection({ silent: true });
 
@@ -5839,6 +5996,18 @@ async function logout() {
     state.user = null;
     state.profile = null;
     state.isAdmin = false;
+    window.gotradexSupabaseSession = null;
+    state.bybit = {
+      connected: false,
+      environment: "demo",
+      apiKey: "",
+      apiSecret: "",
+      maskedKey: "",
+      totalEquity: 0,
+      totalAvailableBalance: 0,
+      totalWalletBalance: 0,
+      lastError: ""
+    };
 
     clearTimeout(state.liveMarketReconnectTimer);
     clearTimeout(state.liveSignalTimer);
@@ -5959,6 +6128,21 @@ function bindEvents() {
   $("derivAccountSelect")?.addEventListener(
     "change",
     handleDerivAccountChange
+  );
+
+  $("connectBybitButton")?.addEventListener(
+    "click",
+    connectBybit
+  );
+
+  $("disconnectBybitButton")?.addEventListener(
+    "click",
+    disconnectBybit
+  );
+
+  $("bybitEnvironment")?.addEventListener(
+    "change",
+    handleBybitEnvironmentChange
   );
 
   $("refreshButton")
