@@ -122,18 +122,25 @@
     set("gtxLiveMACD", active.has("macd") ? (mc || "WAITING") : "OFF");
     set("gtxIndicatorFeed", "LIVE");
 
+    const signals = [];
+    if (active.has("ema") && e9 !== null && e21 !== null) signals.push(e9 > e21 ? 1 : -1);
+    if (active.has("rsi") && r !== null) signals.push(r > 55 ? 1 : r < 45 ? -1 : 0);
+    if (active.has("momentum") && m !== null) signals.push(m > 0 ? 1 : m < 0 ? -1 : 0);
+    if (active.has("alligator")) signals.push(a === "BULLISH" ? 1 : a === "BEARISH" ? -1 : 0);
+    if (active.has("macd")) signals.push(mc === "BULLISH" ? 1 : mc === "BEARISH" ? -1 : 0);
+    const score = signals.reduce((sum, value) => sum + value, 0);
+    const direction = score >= 2 ? "BUY" : score <= -2 ? "SELL" : "HOLD";
+    const confidence = Math.min(99, Math.max(0, Math.round(Math.max(
+      signals.filter(v => v > 0).length,
+      signals.filter(v => v < 0).length
+    ) / Math.max(1, signals.length) * 100)));
+    const snapshot = { symbol: window.GTXSignalControls?.getState?.().symbol || "BTCUSDT", timeframe: window.GTXSignalControls?.getState?.().timeframe || "1m", direction, confidence, ema9: e9, ema21: e21, rsi: r, momentum: m, alligator: a, fractals: f, macd: mc, time: Date.now() };
+
     const direction = $("analysisDirection");
     const confidence = $("analysisConfidence");
 
     if (direction) {
-      let score = 0;
-      if (active.has("ema") && e9 !== null && e21 !== null) score += e9 > e21 ? 1 : -1;
-      if (active.has("rsi") && r !== null) score += r > 55 ? 1 : r < 45 ? -1 : 0;
-      if (active.has("momentum") && m !== null) score += m > 0 ? 1 : m < 0 ? -1 : 0;
-      if (active.has("alligator")) score += a === "BULLISH" ? 1 : a === "BEARISH" ? -1 : 0;
-      if (active.has("macd")) score += mc === "BULLISH" ? 1 : mc === "BEARISH" ? -1 : 0;
-
-      direction.textContent = score >= 2 ? "BUY" : score <= -2 ? "SELL" : "HOLD";
+      direction.textContent = directionValue(snapshot);
     }
 
     if (confidence) {
@@ -146,9 +153,12 @@
       if (active.has("macd") && mc === "BULLISH") bullish++;
       const bearish = activeCount - bullish;
       const strength = Math.round(Math.max(bullish, bearish) / activeCount * 100);
-      confidence.textContent = Math.min(99, Math.max(0, strength)) + "%";
+      confidence.textContent = snapshot.confidence + "%";
     }
+    return snapshot;
   }
+
+  function directionValue(snapshot) { return snapshot.direction; }
 
   function bind() {
     const run = () => analyze();
@@ -170,6 +180,7 @@
 
   window.GTXMarketAnalysis = {
     refresh: analyze,
+    snapshot: analyze,
     ema,
     rsi,
     momentum
