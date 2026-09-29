@@ -5753,6 +5753,9 @@ function connectBybitOrderbookStream() {
     if ($("gtxOrderbookStatus")) $("gtxOrderbookStatus").textContent = "N/A";
     if ($("gtxOrderbookBids")) $("gtxOrderbookBids").innerHTML = '<div class="gtx-orderbook-empty">Depth feed is available for Bybit crypto markets.</div>';
     if ($("gtxOrderbookAsks")) $("gtxOrderbookAsks").innerHTML = '<div class="gtx-orderbook-empty">Use the live quote for this market.</div>';
+    const live = Number(state.markets?.[symbol]?.price);
+    if ($("gtxMobileBidPrice")) $("gtxMobileBidPrice").textContent = Number.isFinite(live) && live > 0 ? formatPrice(live) : "—";
+    if ($("gtxMobileAskPrice")) $("gtxMobileAskPrice").textContent = Number.isFinite(live) && live > 0 ? formatPrice(live) : "—";
     renderBybitOrderbook();
     return;
   }
