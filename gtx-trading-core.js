@@ -11,7 +11,7 @@
   const recentOrders = new Map();
 
   const defaults = {
-    masterTrading: false,
+    masterTrading: true,
     signalMode: "monitor",
     robotEnabled: false,
     emergencyStop: false,
