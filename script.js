@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.37";
+const APP_VERSION = "3.0.38";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -25,7 +25,7 @@ const CONFIG = {
     "https://api.bybit.com",
 
   DERIV_PUBLIC_WS:
-    "wss://ws.binaryws.com/websockets/v3"
+    "wss://api.derivws.com/trading/v1/options/ws/public"
 };
 
 
@@ -1842,29 +1842,90 @@ async function fetchDerivCandles(internalSymbol, timeframe, limit = 80) {
   return Array.from(buckets.values()).slice(-limit);
 }
 
+function aggregateCandles(candles, seconds, limit = 80) {
+  const bucketMs = seconds * 1000;
+  const map = new Map();
+  for (const c of candles) {
+    const time = Math.floor(Number(c.time) / bucketMs) * bucketMs;
+    const priceOpen = Number(c.open);
+    const priceHigh = Number(c.high);
+    const priceLow = Number(c.low);
+    const priceClose = Number(c.close);
+    if (![time, priceOpen, priceHigh, priceLow, priceClose].every(Number.isFinite)) continue;
+    const existing = map.get(time);
+    if (!existing) {
+      map.set(time, {
+        time,
+        open: priceOpen,
+        high: priceHigh,
+        low: priceLow,
+        close: priceClose,
+        volume: Number(c.volume) || 0
+      });
+    } else {
+      existing.high = Math.max(existing.high, priceHigh);
+      existing.low = Math.min(existing.low, priceLow);
+      existing.close = priceClose;
+      existing.volume += Number(c.volume) || 0;
+    }
+  }
+  return Array.from(map.values()).sort((a,b) => a.time - b.time).slice(-limit);
+}
+
 async function fetchBybitKlines(symbol, timeframe, limit = 80) {
   const intervalMap = {
-    "1m":"1","2m":"1","5m":"5","15m":"15","30m":"30",
+    "1m":"1","5m":"5","15m":"15","30m":"30",
     "1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"
   };
-  const interval = intervalMap[timeframe];
-  if (!interval) throw new Error("Bybit does not provide a native " + timeframe + " candle interval.");
-  const response = await fetch(
-    CONFIG.BYBIT_PUBLIC_API + "/v5/market/kline?category=spot&symbol=" +
-      encodeURIComponent(symbol) + "&interval=" + interval + "&limit=" + limit,
-    { cache: "no-store" }
-  );
-  if (!response.ok) throw new Error("Bybit chart request failed: " + response.status);
-  const data = await response.json();
-  const rows = data?.result?.list || [];
-  return rows.map(row => ({
-    time:Number(row[0]),
-    open:Number(row[1]),
-    high:Number(row[2]),
-    low:Number(row[3]),
-    close:Number(row[4]),
-    volume:Number(row[5])
-  })).filter(c => [c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)).reverse();
+  const native = intervalMap[timeframe];
+
+  if (native) {
+    const response = await fetch(
+      CONFIG.BYBIT_PUBLIC_API + "/v5/market/kline?category=spot&symbol=" +
+        encodeURIComponent(symbol) + "&interval=" + native + "&limit=" + limit,
+      { cache: "no-store" }
+    );
+    if (!response.ok) throw new Error("Bybit chart request failed: " + response.status);
+    const data = await response.json();
+    if (Number(data?.retCode) !== 0) throw new Error(data?.retMsg || "Bybit chart request failed.");
+    const rows = data?.result?.list || [];
+    return rows.map(row => ({
+      time:Number(row[0]),
+      open:Number(row[1]),
+      high:Number(row[2]),
+      low:Number(row[3]),
+      close:Number(row[4]),
+      volume:Number(row[5])
+    })).filter(c => [c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)).reverse();
+  }
+
+  if (timeframe === "2m") {
+    const base = await fetchBybitKlines(symbol, "1m", Math.min(1000, limit * 2 + 4));
+    return aggregateCandles(base, 120, limit);
+  }
+
+  if (["5s","15s","30s"].includes(timeframe)) {
+    const response = await fetch(
+      CONFIG.BYBIT_PUBLIC_API + "/v5/market/recent-trade?category=spot&symbol=" +
+        encodeURIComponent(symbol) + "&limit=1000",
+      { cache: "no-store" }
+    );
+    if (!response.ok) throw new Error("Bybit recent trades request failed: " + response.status);
+    const data = await response.json();
+    if (Number(data?.retCode) !== 0) throw new Error(data?.retMsg || "Bybit recent trades request failed.");
+    const seconds = {"5s":5,"15s":15,"30s":30}[timeframe];
+    const trades = (data?.result?.list || []).map(t => ({
+      time:Number(t.time),
+      open:Number(t.price),
+      high:Number(t.price),
+      low:Number(t.price),
+      close:Number(t.price),
+      volume:Number(t.size) || 0
+    })).filter(t => [t.time,t.open,t.high,t.low,t.close].every(Number.isFinite));
+    return aggregateCandles(trades, seconds, limit);
+  }
+
+  throw new Error("Bybit does not provide a supported " + timeframe + " candle interval.");
 }
 
 async function fetchMarketCandles(symbol, timeframe, limit = 80) {
@@ -2319,9 +2380,22 @@ async function createChart() {
   try {
     candles = await fetchChartCandles(symbol, timeframe, 80);
   } catch (error) {
-    console.warn("Live chart candles unavailable; using local candle engine:", error);
-    candles = createSyntheticChartPoints(currentPrice, timeframe, 80);
-  }  if (!candles.length) return;
+    console.warn("Live chart candles unavailable:", error);
+    showToast("Live chart data is temporarily unavailable for " + symbol + ".", "error");
+  }
+  if (!candles.length) {
+    return;
+  }
+
+  const latestClose = Number(candles[candles.length - 1]?.close);
+  if (Number.isFinite(latestClose) && latestClose > 0) {
+    state.markets[symbol] = {
+      ...(state.markets[symbol] || {}),
+      symbol,
+      price: latestClose,
+      timestamp: candles[candles.length - 1].time
+    };
+  }
 
   const wrapper = canvas.parentElement;
   let toolbar = wrapper?.querySelector(".own-chart-toolbar");
@@ -2480,7 +2554,7 @@ async function selectMarketSymbol(symbol) {
 
 async function fetchSignalKlines(symbol) {
   if (!state.markets?.[symbol]) return [];
-  try { return await fetchChartCandles(symbol, "1h", 60); }
+  try { return await fetchChartCandles(symbol, "1H", 60); }
   catch (error) { console.warn("Live signal candles unavailable:", error); return []; }
 }
 
@@ -5130,25 +5204,42 @@ function connectBybitPublicStream() {
   if (typeof WebSocket === "undefined") return;
   const symbol = state.currentSymbol || "BTCUSDT";
   const timeframe = state.currentTimeframe || "1H";
-  const interval = {
-    "1m":"1","2m":"1","5s":"1","15s":"15","30s":"30","5m":"5",
-    "15m":"15","30m":"30","1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"
-  }[timeframe] || "60";
-
+  const shortTimeframe = ["5s","15s","30s"].includes(timeframe);
   const socket = new WebSocket("wss://stream.bybit.com/v5/public/spot");
   state.liveMarketSocket = socket;
+
   socket.onopen = () => {
-    socket.send(JSON.stringify({
-      op:"subscribe",
-      args:["kline." + interval + "." + symbol]
-    }));
+    const topic = shortTimeframe
+      ? "publicTrade." + symbol
+      : "kline." + ({"1m":"1","2m":"1","5m":"5","15m":"15","30m":"30","1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"}[timeframe] || "60") + "." + symbol;
+    socket.send(JSON.stringify({op:"subscribe", args:[topic]}));
   };
+
   socket.onmessage = event => {
     try {
       const data = JSON.parse(event.data);
-      if (!String(data?.topic || "").startsWith("kline.")) return;
+      const topic = String(data?.topic || "");
+
+      if (shortTimeframe && topic.startsWith("publicTrade.")) {
+        for (const trade of (data?.data || [])) {
+          const price = Number(trade?.p);
+          const timestamp = Number(trade?.T);
+          if (Number.isFinite(price) && Number.isFinite(timestamp)) {
+            handleLivePriceUpdate(price, timestamp, symbol);
+          }
+        }
+        return;
+      }
+
+      if (!topic.startsWith("kline.")) return;
       const candle = data?.data?.[0];
       if (!candle) return;
+
+      if (timeframe === "2m") {
+        handleLivePriceUpdate(candle.close, Number(candle.start), symbol);
+        return;
+      }
+
       const current = state.chart?.candles?.[state.chart.candles.length - 1];
       if (current && Number(current.time) === Number(candle.start)) {
         current.open = Number(candle.open);
@@ -5160,8 +5251,11 @@ function connectBybitPublicStream() {
       } else {
         handleLivePriceUpdate(candle.close, Number(candle.start), symbol);
       }
-    } catch (error) { console.warn("Bybit chart stream message error:", error); }
+    } catch (error) {
+      console.warn("Bybit chart stream message error:", error);
+    }
   };
+
   socket.onerror = error => console.warn("Bybit chart stream error:", error);
   socket.onclose = () => {
     if (state.liveMarketSocket === socket && state.user) {
