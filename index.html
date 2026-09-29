@@ -606,16 +606,22 @@
                 Assets <span>⌄</span>
               </button>
               <div id="gtxDashboardAssetsMenu" class="gtx-assets-menu" hidden>
-              <div class="gtx-assets-menu-title">Select market</div>
-              <div class="gtx-assets-categories" role="tablist" aria-label="Asset categories">
-                <button type="button" class="gtx-asset-category active" data-dashboard-category="crypto">Crypto</button>
-                <button type="button" class="gtx-asset-category" data-dashboard-category="forex">Forex</button>
-                <button type="button" class="gtx-asset-category" data-dashboard-category="commodities">Commodities</button>
-                <button type="button" class="gtx-asset-category" data-dashboard-category="indices">Indices</button>
-                <button type="button" class="gtx-asset-category" data-dashboard-category="metals">Metals</button>
+                <div class="gtx-assets-menu-title">Select market</div>
+                <div class="gtx-assets-categories" role="tablist" aria-label="Asset categories">
+                  <button type="button" class="gtx-asset-category active" data-dashboard-category="crypto">Crypto</button>
+                  <button type="button" class="gtx-asset-category" data-dashboard-category="forex">Forex</button>
+                  <button type="button" class="gtx-asset-category" data-dashboard-category="commodities">Commodities</button>
+                  <button type="button" class="gtx-asset-category" data-dashboard-category="indices">Indices</button>
+                  <button type="button" class="gtx-asset-category" data-dashboard-category="metals">Metals</button>
+                </div>
+                <select id="gtxDashboardAssetSelect" class="gtx-assets-select" aria-label="Trading asset"></select>
               </div>
-              <select id="gtxDashboardAssetSelect" class="gtx-assets-select" aria-label="Trading asset"></select>
             </div>
+            <div class="gtx-trade-symbol">
+              <strong id="gtxDashboardChartSymbol">BTCUSDT</strong>
+              <span id="gtxDashboardChartPrice">—</span>
+            </div>
+
           </div>
         </div>
 
