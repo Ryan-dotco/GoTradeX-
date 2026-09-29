@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.45";
+const APP_VERSION = "3.0.46";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -126,6 +126,15 @@ const state = {
   liveMarketSocket: null,
 
   liveMarketReconnectTimer: null,
+
+  bybitOrderbookSocket: null,
+  bybitOrderbookReconnectTimer: null,
+  orderbook: {
+    symbol: "",
+    bids: [],
+    asks: [],
+    updatedAt: 0
+  },
 
   derivMarketSocket: null,
   derivMarketSymbols: null,
@@ -5918,6 +5927,156 @@ function connectDerivPublicStream() {
   };
 }
 
+function closeBybitOrderbookStream() {
+  clearTimeout(state.bybitOrderbookReconnectTimer);
+  state.bybitOrderbookReconnectTimer = null;
+  const socket = state.bybitOrderbookSocket;
+  state.bybitOrderbookSocket = null;
+  if (socket) {
+    try { clearInterval(socket.__gtxHeartbeat); } catch {}
+    try { socket.close(); } catch {}
+  }
+}
+
+function formatOrderbookQuantity(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 1000) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (n >= 1) return n.toFixed(3);
+  return n.toFixed(6);
+}
+
+function renderBybitOrderbook() {
+  const bidsEl = $("gtxOrderbookBids");
+  const asksEl = $("gtxOrderbookAsks");
+  if (!bidsEl || !asksEl) return;
+
+  const bids = Array.isArray(state.orderbook?.bids) ? state.orderbook.bids.slice(0, 7) : [];
+  const asks = Array.isArray(state.orderbook?.asks) ? state.orderbook.asks.slice(0, 7) : [];
+
+  if (!bids.length && !asks.length) {
+    bidsEl.innerHTML = '<div class="gtx-orderbook-empty">Waiting for live depth…</div>';
+    asksEl.innerHTML = '<div class="gtx-orderbook-empty">Waiting for live depth…</div>';
+    return;
+  }
+
+  const row = (item, side) => {
+    const price = Number(item[0]);
+    const qty = Number(item[1]);
+    return '<div class="gtx-orderbook-row ' + side + '">' +
+      '<span>' + formatOrderbookQuantity(qty) + '</span>' +
+      '<strong>' + formatPrice(price) + '</strong>' +
+      '<i aria-hidden="true"></i>' +
+    '</div>';
+  };
+
+  bidsEl.innerHTML = bids.map(item => row(item, "bid")).join("");
+  asksEl.innerHTML = asks.map(item => row(item, "ask")).join("");
+
+  const bestBid = Number(bids[0]?.[0]);
+  const bestAsk = Number(asks[0]?.[0]);
+  const mid = Number.isFinite(bestBid) && Number.isFinite(bestAsk)
+    ? (bestBid + bestAsk) / 2
+    : (Number.isFinite(bestBid) ? bestBid : bestAsk);
+  const spread = Number.isFinite(bestBid) && Number.isFinite(bestAsk)
+    ? bestAsk - bestBid
+    : null;
+
+  if ($("gtxOrderbookMidPrice")) $("gtxOrderbookMidPrice").textContent = Number.isFinite(mid) ? formatPrice(mid) : "—";
+  if ($("gtxOrderbookSpread")) $("gtxOrderbookSpread").textContent = Number.isFinite(spread) ? formatPrice(spread) : "—";
+  if ($("gtxMobileBidPrice")) $("gtxMobileBidPrice").textContent = Number.isFinite(bestBid) ? formatPrice(bestBid) : "—";
+  if ($("gtxMobileAskPrice")) $("gtxMobileAskPrice").textContent = Number.isFinite(bestAsk) ? formatPrice(bestAsk) : "—";
+}
+
+function applyBybitOrderbookMessage(message) {
+  const data = message?.data;
+  if (!data) return;
+
+  if (message.type === "snapshot" || message?.data?.u === 1) {
+    state.orderbook.bids = Array.isArray(data.b) ? data.b.filter(item => Number(item?.[1]) > 0) : [];
+    state.orderbook.asks = Array.isArray(data.a) ? data.a.filter(item => Number(item?.[1]) > 0) : [];
+  } else {
+    const apply = (book, updates, descending) => {
+      const map = new Map(book.map(item => [String(item[0]), Number(item[1])]));
+      for (const item of (updates || [])) {
+        const price = String(item?.[0] ?? "");
+        const qty = Number(item?.[1]);
+        if (!price || !Number.isFinite(qty)) continue;
+        if (qty <= 0) map.delete(price);
+        else map.set(price, qty);
+      }
+      return Array.from(map.entries())
+        .map(([price, qty]) => [price, String(qty)])
+        .sort((a,b) => descending ? Number(b[0]) - Number(a[0]) : Number(a[0]) - Number(b[0]))
+        .slice(0, 50);
+    };
+    state.orderbook.bids = apply(state.orderbook.bids, data.b, true);
+    state.orderbook.asks = apply(state.orderbook.asks, data.a, false);
+  }
+
+  state.orderbook.symbol = String(data.s || state.currentSymbol);
+  state.orderbook.updatedAt = Date.now();
+  if ($("gtxOrderbookStatus")) $("gtxOrderbookStatus").textContent = "LIVE";
+  renderBybitOrderbook();
+}
+
+function connectBybitOrderbookStream() {
+  closeBybitOrderbookStream();
+
+  const symbol = state.currentSymbol || "BTCUSDT";
+  const isCrypto = marketCatalog.crypto.some(([item]) => item === symbol);
+  if (!isCrypto || typeof WebSocket === "undefined") {
+    if ($("gtxOrderbookStatus")) $("gtxOrderbookStatus").textContent = "N/A";
+    if ($("gtxOrderbookBids")) $("gtxOrderbookBids").innerHTML = '<div class="gtx-orderbook-empty">Depth feed is available for Bybit crypto markets.</div>';
+    if ($("gtxOrderbookAsks")) $("gtxOrderbookAsks").innerHTML = '<div class="gtx-orderbook-empty">Use the live quote for this market.</div>';
+    renderBybitOrderbook();
+    return;
+  }
+
+  state.orderbook = { symbol, bids: [], asks: [], updatedAt: 0 };
+  if ($("gtxOrderbookStatus")) $("gtxOrderbookStatus").textContent = "CONNECTING";
+
+  const socket = new WebSocket("wss://stream.bybit.com/v5/public/spot");
+  state.bybitOrderbookSocket = socket;
+
+  socket.onopen = () => {
+    if (state.bybitOrderbookSocket !== socket) return;
+    socket.send(JSON.stringify({
+      op: "subscribe",
+      args: ["orderbook.50." + symbol]
+    }));
+    clearInterval(socket.__gtxHeartbeat);
+    socket.__gtxHeartbeat = setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ op: "ping", req_id: "gtx-orderbook-heartbeat" }));
+      }
+    }, 20000);
+  };
+
+  socket.onmessage = event => {
+    try {
+      const data = JSON.parse(event.data);
+      if (String(data?.topic || "").startsWith("orderbook.50.")) {
+        applyBybitOrderbookMessage(data);
+      }
+    } catch (error) {
+      console.warn("Bybit orderbook message error:", error);
+    }
+  };
+
+  socket.onerror = () => {
+    if ($("gtxOrderbookStatus")) $("gtxOrderbookStatus").textContent = "RETRYING";
+  };
+
+  socket.onclose = () => {
+    if (state.bybitOrderbookSocket !== socket || !state.user) return;
+    state.bybitOrderbookSocket = null;
+    clearInterval(socket.__gtxHeartbeat);
+    clearTimeout(state.bybitOrderbookReconnectTimer);
+    state.bybitOrderbookReconnectTimer = setTimeout(connectBybitOrderbookStream, 2000);
+  };
+}
+
 function connectLiveMarketStream() {
   if (typeof WebSocket === "undefined") return;
   clearTimeout(state.liveMarketReconnectTimer);
@@ -5927,6 +6086,7 @@ function connectLiveMarketStream() {
   state.derivMarketSocket = null;
 
   const symbol = state.currentSymbol || "BTCUSDT";
+  connectBybitOrderbookStream();
   if (marketCatalog.crypto.some(([item]) => item === symbol)) {
     connectBybitPublicStream();
   } else {
@@ -7546,8 +7706,8 @@ if (
    MANUAL TRADE TICKET
    ========================================================= */
 document.addEventListener("click", (event) => {
-  const buy = event.target.closest?.("#manualBuyButton");
-  const sell = event.target.closest?.("#manualSellButton");
+  const buy = event.target.closest?.("#manualBuyButton, #gtxMobileBuyButton");
+  const sell = event.target.closest?.("#manualSellButton, #gtxMobileSellButton");
   const close = event.target.closest?.(".manual-close-position");
 
   if (buy || sell) {
@@ -7571,6 +7731,29 @@ document.addEventListener("click", (event) => {
     event.preventDefault();
     closeManualPosition(close.dataset.tradeId);
   }
+}, true);
+
+/* =========================================================
+   MOBILE EXCHANGE TERMINAL NAVIGATION
+   ========================================================= */
+document.addEventListener("click", (event) => {
+  const tab = event.target.closest?.(".gtx-mobile-terminal-tab");
+  if (!tab) return;
+  event.preventDefault();
+
+  document.querySelectorAll(".gtx-mobile-terminal-tab").forEach(item => item.classList.remove("active"));
+  tab.classList.add("active");
+
+  const target = tab.dataset.terminalTarget;
+  const targetEl = target === "chart"
+    ? document.querySelector(".chart-panel")
+    : target === "overview"
+      ? document.querySelector(".signal-panel")
+      : target === "orderbook"
+        ? $("gtxOrderbookPanel")
+        : $("dashboardMarkets");
+
+  targetEl?.scrollIntoView({ behavior: "smooth", block: "start" });
 }, true);
 
 /* =========================================================
