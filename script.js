@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.33";
+const APP_VERSION = "3.0.34";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -85,6 +85,18 @@ const state = {
     openTrades: 0,
     lastHeartbeat: null,
     lastError: ""
+  },
+
+  demo: {
+    startingBalance: 0,
+    balance: 0,
+    equity: 0,
+    dailyPL: 0,
+    openTrades: [],
+    tradeHistory: [],
+    lastSignalKey: "",
+    lastTradeAt: 0,
+    initialized: false
   },
 
   lastQueuedSignalKey: "",
@@ -2398,6 +2410,238 @@ function generateSignal(symbol = "BTCUSDT") {
 }
 
 
+
+function demoStorageKey() {
+  return state.user && state.deriv.selectedAccountId
+    ? "gotradex_demo_" + state.user.id + "_" + state.deriv.selectedAccountId
+    : "";
+}
+
+function saveDemoState() {
+  const key = demoStorageKey();
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      startingBalance: state.demo.startingBalance,
+      balance: state.demo.balance,
+      dailyPL: state.demo.dailyPL,
+      openTrades: state.demo.openTrades,
+      tradeHistory: state.demo.tradeHistory.slice(0, 50),
+      lastSignalKey: state.demo.lastSignalKey,
+      lastTradeAt: state.demo.lastTradeAt,
+      savedAt: Date.now()
+    }));
+  } catch (error) {
+    console.warn("Demo state save warning:", error);
+  }
+}
+
+function loadDemoState() {
+  const account = state.deriv.selectedAccount;
+  const liveBalance = Number(account?.balance);
+  const key = demoStorageKey();
+  let saved = null;
+
+  if (key) {
+    try {
+      saved = JSON.parse(localStorage.getItem(key) || "null");
+    } catch (_) {
+      saved = null;
+    }
+  }
+
+  if (saved && Number.isFinite(Number(saved.balance)) && saved.startingBalance > 0) {
+    state.demo.startingBalance = Number(saved.startingBalance);
+    state.demo.balance = Number(saved.balance);
+    state.demo.dailyPL = Number(saved.dailyPL) || 0;
+    state.demo.openTrades = Array.isArray(saved.openTrades) ? saved.openTrades : [];
+    state.demo.tradeHistory = Array.isArray(saved.tradeHistory) ? saved.tradeHistory : [];
+    state.demo.lastSignalKey = saved.lastSignalKey || "";
+    state.demo.lastTradeAt = Number(saved.lastTradeAt) || 0;
+  } else if (Number.isFinite(liveBalance) && liveBalance > 0) {
+    state.demo.startingBalance = liveBalance;
+    state.demo.balance = liveBalance;
+    state.demo.dailyPL = 0;
+    state.demo.openTrades = [];
+    state.demo.tradeHistory = [];
+    state.demo.lastSignalKey = "";
+    state.demo.lastTradeAt = 0;
+  }
+
+  state.demo.initialized = true;
+  updateDemoMetrics();
+}
+
+function updateDemoMetrics() {
+  let unrealized = 0;
+
+  state.demo.openTrades.forEach(trade => {
+    const price = Number(state.markets?.[trade.symbol]?.price);
+    if (!Number.isFinite(price) || price <= 0) return;
+    trade.current = price;
+    trade.unrealizedPL =
+      trade.direction === "BUY"
+        ? (price - trade.entry) * trade.quantity
+        : (trade.entry - price) * trade.quantity;
+    unrealized += trade.unrealizedPL;
+  });
+
+  state.demo.equity = state.demo.balance + unrealized;
+  state.robotStatus.balance = state.demo.balance;
+  state.robotStatus.equity = state.demo.equity;
+  state.robotStatus.dailyPL = state.demo.dailyPL + unrealized;
+  state.robotStatus.openTrades = state.demo.openTrades.length;
+  state.robotStatus.lastHeartbeat = new Date().toISOString();
+}
+
+function demoRiskPercent() {
+  return state.robotRisk === "aggressive" ? 0.02 :
+    state.robotRisk === "moderate" ? 0.01 : 0.005;
+}
+
+function evaluateDemoDrawdown() {
+  if (!state.demo.startingBalance) return false;
+  const drawdown = Math.max(
+    0,
+    ((state.demo.startingBalance - state.demo.equity) / state.demo.startingBalance) * 100
+  );
+  if (drawdown >= Number(state.maxDrawdown || 10)) {
+    state.robotRunning = false;
+    state.robotStatus.lastError = "Maximum demo drawdown reached.";
+    renderRobotStatus();
+    saveDemoState();
+    showToast("Demo AutoBot stopped: maximum drawdown reached.", "error");
+    return true;
+  }
+  return false;
+}
+
+function closeDemoTrade(trade, exitPrice, reason) {
+  const price = Number(exitPrice);
+  if (!Number.isFinite(price) || price <= 0) return;
+
+  const pnl =
+    trade.direction === "BUY"
+      ? (price - trade.entry) * trade.quantity
+      : (trade.entry - price) * trade.quantity;
+
+  state.demo.balance += pnl;
+  state.demo.dailyPL += pnl;
+
+  const closed = {
+    ...trade,
+    exit: price,
+    pnl,
+    closeReason: reason,
+    closedAt: new Date().toISOString(),
+    status: "CLOSED"
+  };
+
+  state.demo.tradeHistory.unshift(closed);
+  state.demo.tradeHistory = state.demo.tradeHistory.slice(0, 50);
+  state.demo.openTrades = state.demo.openTrades.filter(t => t.id !== trade.id);
+
+  showToast(
+    trade.symbol + " " + trade.direction + " closed " +
+      (pnl >= 0 ? "with profit " : "with loss ") + formatMoney(pnl),
+    pnl >= 0 ? "success" : "error"
+  );
+}
+
+function manageDemoTrades() {
+  if (!state.demo.openTrades.length) return;
+
+  [...state.demo.openTrades].forEach(trade => {
+    const price = Number(state.markets?.[trade.symbol]?.price);
+    if (!Number.isFinite(price) || price <= 0) return;
+
+    if (
+      (trade.direction === "BUY" && price <= trade.stop) ||
+      (trade.direction === "SELL" && price >= trade.stop)
+    ) {
+      closeDemoTrade(trade, trade.stop, "STOP LOSS");
+    } else if (
+      (trade.direction === "BUY" && price >= trade.target) ||
+      (trade.direction === "SELL" && price <= trade.target)
+    ) {
+      closeDemoTrade(trade, trade.target, "TAKE PROFIT");
+    }
+  });
+
+  updateDemoMetrics();
+  saveDemoState();
+}
+
+function openDemoTrade(symbol, signal) {
+  if (!state.robotRunning || !state.deriv.connected) return false;
+  if (!signal || !["BUY", "SELL"].includes(signal.direction)) return false;
+  if (Number(signal.confidence) < 65) return false;
+
+  const price = Number(signal.entry || state.markets?.[symbol]?.price);
+  const stop = Number(signal.stop);
+  const target = Number(signal.target);
+  if (![price, stop, target].every(Number.isFinite) || price <= 0) return false;
+
+  const signalKey = symbol + "|" + signal.direction + "|" + Math.round(price);
+  if (state.demo.lastSignalKey === signalKey && Date.now() - state.demo.lastTradeAt < 120000) {
+    return false;
+  }
+
+  if (state.demo.openTrades.some(t => t.symbol === symbol)) return false;
+
+  const riskAmount = Math.max(1, state.demo.balance * demoRiskPercent());
+  const stopDistance = Math.abs(price - stop);
+  if (!stopDistance || !Number.isFinite(stopDistance)) return false;
+
+  const quantity = Math.max(0.000001, riskAmount / stopDistance);
+  const maxNotional = Math.max(1, state.demo.balance * 0.25);
+  const cappedQuantity = Math.min(quantity, maxNotional / price);
+
+  const trade = {
+    id: "demo_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+    symbol,
+    direction: signal.direction,
+    confidence: Number(signal.confidence) || 0,
+    entry: price,
+    current: price,
+    stop,
+    target,
+    quantity: cappedQuantity,
+    riskAmount,
+    openedAt: new Date().toISOString(),
+    status: "OPEN",
+    unrealizedPL: 0
+  };
+
+  state.demo.openTrades.unshift(trade);
+  state.demo.lastSignalKey = signalKey;
+  state.demo.lastTradeAt = Date.now();
+
+  showToast(
+    "Demo " + signal.direction + " opened: " + symbol +
+      " at " + formatPrice(price),
+    "success"
+  );
+
+  updateDemoMetrics();
+  saveDemoState();
+  return true;
+}
+
+function runDemoEngine(signal) {
+  if (!state.robotRunning || !state.deriv.connected || !state.deriv.selectedAccountId) return;
+  manageDemoTrades();
+  if (evaluateDemoDrawdown()) return;
+
+  const symbol = state.currentSymbol || "BTCUSDT";
+  openDemoTrade(symbol, signal);
+
+  updateDemoMetrics();
+  if (evaluateDemoDrawdown()) return;
+
+  renderRobotStatus();
+}
+
 async function updateSignalFromMarket() {
   const symbol = state.currentSymbol || "BTCUSDT";
   const signal = await generateLiveSignal(symbol);
@@ -2423,6 +2667,7 @@ async function updateSignalFromMarket() {
     state.signals[0] = { ...latest, ...signal, symbol, time: now };
   }
   renderSignals();
+  runDemoEngine(signal);
 }
 
 /* =========================================================
@@ -2547,6 +2792,7 @@ function setRobotRisk(risk) {
 
   state.robotRisk =
     risk;
+  if (state.demo.initialized) saveDemoState();
 
 
   document
@@ -2801,53 +3047,42 @@ async function saveRobotControl(running) {
 
 
 async function startRobot() {
-
   try {
-
-    if (!state.user) {
-      throw new Error("Please log in before starting AutoBot.");
-    }
-
+    if (!state.user) throw new Error("Please log in before starting AutoBot.");
     if (!state.deriv.connected || !state.deriv.selectedAccountId) {
       throw new Error("Connect a Deriv trading account before starting the demo robot.");
     }
 
+    if (!state.demo.initialized || state.demo.startingBalance <= 0) {
+      loadDemoState();
+    }
+
     state.robotRunning = true;
+    state.robotStatus.lastError = "";
+    updateDemoMetrics();
     renderRobotStatus();
 
     showToast(
-      "Demo AutoBot started for " +
-        state.deriv.selectedAccountId +
-        ". Live execution remains locked.",
+      "Demo AutoBot started for " + state.deriv.selectedAccountId +
+      ". Live execution remains locked.",
       "success"
     );
 
+    await updateSignalFromMarket();
   } catch (error) {
-
     state.robotRunning = false;
     renderRobotStatus();
-
     console.error("Start robot error:", error);
-
-    showToast(
-      error.message || "Unable to start the robot.",
-      "error"
-    );
-
+    showToast(error.message || "Unable to start the robot.", "error");
   }
-
 }
 
 async function stopRobot() {
-
   state.robotRunning = false;
+  updateDemoMetrics();
+  saveDemoState();
   renderRobotStatus();
-
-  showToast(
-    "AutoBot stopped.",
-    "success"
-  );
-
+  showToast("AutoBot stopped. Demo positions remain tracked.", "success");
 }
 
 async function queueRobotSignal(signal) {
@@ -4240,10 +4475,18 @@ function renderDerivAccountSummary() {
   }
 
   state.robotStatus.connected = Boolean(state.deriv.connected && account);
-  state.robotStatus.balance = Number(account?.balance) || 0;
-  state.robotStatus.equity = Number(account?.balance) || 0;
-  state.robotStatus.dailyPL = 0;
-  state.robotStatus.openTrades = 0;
+
+  if (state.deriv.connected && account) {
+    if (!state.demo.initialized || state.demo.startingBalance <= 0) {
+      loadDemoState();
+    }
+    updateDemoMetrics();
+  } else {
+    state.robotStatus.balance = 0;
+    state.robotStatus.equity = 0;
+    state.robotStatus.dailyPL = 0;
+    state.robotStatus.openTrades = 0;
+  }
   state.robotStatus.lastHeartbeat =
     state.deriv.connected && account
       ? new Date().toISOString()
@@ -4320,6 +4563,7 @@ async function loadDerivConnection(options = {}) {
           : [];
 
     renderDerivAccounts(accounts);
+    loadDemoState();
     renderDerivConnectionButton();
     updatePortfolio();
 
