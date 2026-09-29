@@ -112,9 +112,13 @@
     if (!state.demo.robotActivity) state.demo.robotActivity = [];
     load();
     patch();
-    const robotPage = document.querySelector('[data-page="robot"], [data-page="trading-robot"], #robotPage, #tradingRobotPage');
-    if (robotPage && !document.getElementById("gtxRobotHistoryPanel")) {
-      const p = document.createElement("div"); p.id = "gtxRobotHistoryPanel"; robotPage.appendChild(p);
+    const robotPage = document.querySelector("#page-robot, [data-page="robot"], [data-page="trading-robot"], #robotPage, #tradingRobotPage");
+    const robotGrid = robotPage ? robotPage.querySelector(".robot-grid") : null;
+    if (robotGrid && !document.getElementById("gtxRobotHistoryPanel")) {
+      const p = document.createElement("div");
+      p.id = "gtxRobotHistoryPanel";
+      p.className = "robot-history-layout-slot";
+      robotGrid.appendChild(p);
     }
     render();
     clearInterval(timer);
