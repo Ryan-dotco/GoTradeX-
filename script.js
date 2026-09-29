@@ -2423,7 +2423,6 @@ async function updateSignalFromMarket() {
     state.signals[0] = { ...latest, ...signal, symbol, time: now };
   }
   renderSignals();
-  await queueRobotSignal({ symbol, ...signal });
 }
 
 /* =========================================================
@@ -2952,6 +2951,10 @@ async function queueRobotSignal(signal) {
    ========================================================= */
 
 function isBrokerStatusFresh() {
+
+  if (state.deriv.connected && state.deriv.selectedAccount) {
+    return true;
+  }
 
   const heartbeat =
     state.robotStatus.lastHeartbeat
@@ -4216,6 +4219,16 @@ function renderDerivAccountSummary() {
         : "—";
   }
 
+  state.robotStatus.connected = Boolean(state.deriv.connected && account);
+  state.robotStatus.balance = Number(account?.balance) || 0;
+  state.robotStatus.equity = Number(account?.balance) || 0;
+  state.robotStatus.dailyPL = 0;
+  state.robotStatus.openTrades = 0;
+  state.robotStatus.lastHeartbeat =
+    state.deriv.connected && account
+      ? new Date().toISOString()
+      : null;
+
   if ($("brokerStatus")) {
     $("brokerStatus").textContent =
       state.deriv.connected
@@ -4285,6 +4298,7 @@ async function loadDerivConnection(options = {}) {
           : [];
 
     renderDerivAccounts(accounts);
+    updatePortfolio();
 
     if (message) {
       message.textContent =
@@ -4575,6 +4589,8 @@ async function refreshApplication() {
 
   try {
 
+    await loadDerivConnection({ silent: true });
+
     await loadLiveMarkets();
 
     await createChart();
@@ -4636,9 +4652,7 @@ async function initializeLiveApp() {
 
   subscribeToSupportChat();
 
-  await loadRobotState();
-
-  startRobotStatusRefresh();
+  await loadDerivConnection({ silent: true });
 
   await loadLiveMarkets();
 
