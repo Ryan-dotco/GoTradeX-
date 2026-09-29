@@ -3835,3 +3835,13 @@ select {
 .gtx-mobile-order-actions{position:sticky;top:8px;z-index:115}
 @media(max-width:850px){#page-dashboard .chart-wrapper{height:min(60vh,560px);min-height:430px}.chart-panel{overflow:visible}}
 @media(max-width:520px){#page-dashboard .chart-wrapper{height:460px;min-height:460px}.chart-market-toggle{min-width:125px;max-width:170px;font-size:11px}}
+
+
+/* GTX CHART CONTAINER FIT — keep the live chart strictly inside its panel */
+.chart-panel{min-width:0!important;width:100%!important;box-sizing:border-box!important}
+.chart-panel .chart-wrapper{width:100%!important;max-width:100%!important;box-sizing:border-box!important;position:relative!important;contain:layout paint!important;overflow:hidden!important}
+#mainChart.gtx-live-chart{width:100%!important;max-width:100%!important;height:100%!important;min-height:0!important;max-height:100%!important;box-sizing:border-box!important;overflow:hidden!important}
+#mainChart.gtx-live-chart>div{max-width:100%!important;box-sizing:border-box!important}
+#mainChart.gtx-live-chart canvas{max-width:100%!important}
+@media(max-width:850px){#page-dashboard .chart-wrapper{width:100%!important;max-width:100%!important;height:min(58vh,500px)!important;min-height:340px!important;max-height:500px!important}}
+@media(max-width:520px){#page-dashboard .chart-wrapper{height:min(52vh,430px)!important;min-height:330px!important;max-height:430px!important}}
