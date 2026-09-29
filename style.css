@@ -3673,3 +3673,62 @@ select {
     font-size:14px!important;
   }
 }
+
+
+/* DASHBOARD ONLY — FINAL ASSETS POSITION
+   Put Assets immediately left of BTCUSDT on the first Dashboard screen. */
+#page-dashboard.gtx-trading-dashboard .gtx-trade-topbar{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  width:100%!important;
+  position:relative!important;
+  overflow:visible!important;
+}
+#page-dashboard.gtx-trading-dashboard .gtx-trade-left{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:6px!important;
+  width:auto!important;
+  margin:0!important;
+  flex:0 0 auto!important;
+  position:static!important;
+}
+#page-dashboard.gtx-trading-dashboard .gtx-trade-left .gtx-trade-top-actions{
+  position:static!important;
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+  margin:0!important;
+  flex:0 0 auto!important;
+}
+#page-dashboard.gtx-trading-dashboard .gtx-trade-left .gtx-trade-control-button{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  position:static!important;
+  min-width:64px!important;
+  width:auto!important;
+  height:30px!important;
+  padding:5px 8px!important;
+  margin:0!important;
+}
+#page-dashboard.gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol{
+  position:static!important;
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+  margin:0!important;
+  max-width:110px!important;
+  min-width:0!important;
+  flex:0 1 auto!important;
+}
+#page-dashboard.gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol strong{
+  white-space:nowrap!important;
+  font-size:14px!important;
+}
+#page-dashboard.gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol span{
+  margin-top:1px!important;
+  font-size:9px!important;
+}
