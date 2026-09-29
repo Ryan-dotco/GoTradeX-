@@ -4199,3 +4199,260 @@ select {
 .gtx-dashboard-live-chart{margin-top:0}.gtx-dashboard-live-chart .gtx-chart-wrap{height:420px;min-height:300px}.gtx-dashboard-live-chart canvas{width:100%;height:100%;display:block;}
 @media(max-width:700px){.gtx-kenghi-chat-hero{grid-template-columns:82px minmax(0,1fr);gap:11px;min-height:130px;padding:12px}.gtx-kenghi-hero-face{width:78px;height:78px}.gtx-kenghi-avatar{width:60px;height:60px}.gtx-kenghi-eyes{gap:10px}.gtx-kenghi-eyes i{width:7px;height:9px}.gtx-kenghi-smile{width:20px;bottom:15px}.gtx-kenghi-orbit-one{width:74px;height:32px}.gtx-kenghi-orbit-two{width:32px;height:74px}.gtx-kenghi-chat-button{grid-column:1/-1;width:100%}.gtx-dashboard-live-chart .gtx-chart-wrap{height:360px;min-height:260px}.gtx-dashboard-controls{grid-template-columns:1fr;gap:12px;}}
 .gtx-swipe-next-hint{color:#ff9f43!important;border-color:rgba(255,159,67,.78)!important;background:linear-gradient(135deg,rgba(255,159,67,.22),rgba(10,30,35,.96))!important}.gtx-swipe-next-hint b{background:#ff9f43!important;color:#2b1600!important}.gtx-swipe-next-hint:hover{border-color:#ff9f43!important}
+
+
+/* =========================================================
+   CLEAN MOBILE TRADING SCREEN
+   No surrounding chart/control frame.
+   Inspired by common trading-terminal patterns: compact
+   instrument selector, timeframe strip, live chart, and
+   quick trade bar.
+   ========================================================= */
+
+.gtx-trading-dashboard{
+  padding:0!important;
+  margin:0!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+
+.gtx-trading-dashboard > *{
+  border:0!important;
+  box-shadow:none!important;
+}
+
+.gtx-trade-topbar{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:48px;
+  padding:2px 0 8px;
+  background:transparent;
+}
+
+.gtx-trade-symbol{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.gtx-trade-symbol strong{font-size:16px;line-height:1.1}
+.gtx-trade-symbol span{margin-top:4px;color:var(--muted);font-size:12px;font-weight:800}
+
+.gtx-trade-top-actions{position:relative}
+.gtx-trade-control-button{
+  min-width:92px;
+  padding:9px 12px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#0b1729;
+  color:var(--text);
+  font-size:11px;
+  font-weight:900;
+}
+.gtx-trade-control-button span{margin-left:5px;color:var(--muted)}
+
+.gtx-assets-menu{
+  position:absolute;
+  right:0;
+  top:44px;
+  z-index:50;
+  width:min(310px,calc(100vw - 28px));
+  padding:10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#081322;
+  box-shadow:0 16px 40px rgba(0,0,0,.38);
+}
+.gtx-assets-menu[hidden]{display:none}
+.gtx-assets-menu-title{padding:3px 4px 9px;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.6px}
+.gtx-assets-categories{
+  display:flex;
+  gap:5px;
+  overflow-x:auto;
+  padding-bottom:7px;
+  scrollbar-width:none;
+}
+.gtx-assets-categories::-webkit-scrollbar{display:none}
+.gtx-asset-category{
+  flex:0 0 auto;
+  padding:7px 9px;
+  border:1px solid var(--border);
+  border-radius:7px;
+  background:#0b1729;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+}
+.gtx-asset-category.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+.gtx-assets-select{
+  width:100%;
+  margin-top:5px;
+  padding:10px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#0b1729;
+  color:var(--text);
+  font-size:11px;
+  font-weight:800;
+}
+
+.gtx-trade-timeframe-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-height:38px;
+  overflow-x:auto;
+  padding:0 0 7px;
+  scrollbar-width:none;
+}
+.gtx-trade-timeframe-row::-webkit-scrollbar{display:none}
+.gtx-trade-timeframe-row > span:first-child{
+  flex:0 0 auto;
+  margin-right:2px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+}
+.gtx-trade-timeframe{
+  flex:0 0 auto;
+  min-width:42px;
+  padding:7px 9px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+}
+.gtx-trade-timeframe.active{
+  background:#17345e;
+  color:#fff;
+}
+.gtx-chart-feed-label{
+  display:inline-flex!important;
+  align-items:center;
+  gap:5px;
+  margin-left:auto!important;
+  flex:0 0 auto;
+  color:var(--muted)!important;
+  font-size:9px!important;
+}
+.gtx-chart-feed-label strong{font-size:9px;color:var(--green)}
+
+.gtx-trade-chart{
+  width:100%;
+  margin:0;
+  background:transparent;
+}
+.gtx-trade-chart-meta{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:3px 0 5px;
+  color:var(--muted);
+  font-size:9px;
+}
+.gtx-trade-chart-meta span:first-child{color:var(--text);font-weight:800}
+.gtx-trade-chart-wrap{
+  position:relative;
+  width:100%;
+  height:clamp(330px,58vh,620px);
+  min-height:300px;
+  overflow:hidden;
+  background:#07111f;
+}
+.gtx-trade-chart-wrap canvas{display:block;width:100%;height:100%}
+
+.gtx-trade-order-bar{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  padding:10px 0 8px;
+  background:transparent;
+}
+.gtx-trade-input label{
+  display:block;
+  margin:0 0 5px;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+.gtx-trade-input select,
+.gtx-amount-field{
+  width:100%;
+  min-height:42px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#0b1729;
+  color:var(--text);
+  font-size:12px;
+  font-weight:800;
+}
+.gtx-trade-input select{padding:0 10px}
+.gtx-amount-field{display:flex;align-items:center;padding:0 10px;gap:5px}
+.gtx-amount-field span{color:var(--muted);font-weight:900}
+.gtx-amount-field input{
+  width:100%;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--text);
+  font:inherit;
+}
+
+.gtx-trade-buy-sell{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  padding-bottom:2px;
+}
+.gtx-trade-buy,
+.gtx-trade-sell{
+  min-height:62px;
+  border:1px solid;
+  border-radius:9px;
+  font-weight:900;
+}
+.gtx-trade-buy span,.gtx-trade-buy strong,
+.gtx-trade-sell span,.gtx-trade-sell strong{display:block}
+.gtx-trade-buy span,.gtx-trade-sell span{font-size:17px;letter-spacing:.4px}
+.gtx-trade-buy strong,.gtx-trade-sell strong{margin-top:3px;font-size:10px}
+.gtx-trade-buy{background:rgba(32,201,151,.13);border-color:rgba(32,201,151,.6);color:#63e6bd}
+.gtx-trade-sell{background:rgba(255,92,108,.13);border-color:rgba(255,92,108,.6);color:#ff8b96}
+
+/* Keep Kenghi available only in Support. */
+.gtx-support-kenghi{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:10px 0 14px;
+  background:transparent;
+}
+.gtx-support-kenghi .gtx-kenghi-stage{width:76px;height:76px;flex:0 0 76px}
+.gtx-support-kenghi .gtx-kenghi-avatar{width:54px;height:54px}
+.gtx-support-kenghi .gtx-kenghi-orbit-one{width:68px;height:28px}
+.gtx-support-kenghi .gtx-kenghi-orbit-two{width:28px;height:68px}
+.gtx-support-kenghi h3{margin:5px 0 2px;font-size:15px}
+.gtx-support-kenghi p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+
+@media(max-width:700px){
+  .gtx-trading-dashboard{padding:0!important}
+  .gtx-trade-topbar{min-height:46px}
+  .gtx-assets-menu{right:-2px}
+  .gtx-trade-chart-wrap{height:clamp(300px,54vh,500px);min-height:280px}
+  .gtx-support-kenghi{padding-top:6px}
+}
+
+@media(min-width:851px){
+  .gtx-trading-dashboard{max-width:none}
+  .gtx-trade-chart-wrap{height:520px}
+}
