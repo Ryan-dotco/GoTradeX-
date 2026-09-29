@@ -1059,30 +1059,7 @@ select {
   color: #fff;
 }
 
-.chart-wrapper {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 430px;
-  min-height: 430px;
-  overflow: hidden;
-  background: #081321;
-  border-radius: 8px;
-}
-
-.chart-wrapper .own-chart-toolbar {
-  flex: 0 0 auto;
-}
-
-.chart-wrapper canvas {
-  display: block;
-  flex: 1 1 auto;
-  width: 100% !important;
-  min-height: 0;
-  height: auto !important;
-}
-
-.signal-live,
+/.signal-live,
 .analysis-badge {
   padding: 5px 8px;
 
@@ -2695,166 +2672,6 @@ select {
 
 
 /* =========================================================
-   CHART TOOLS PORTAL — TOUCH / OVERFLOW FIX
-   ========================================================= */
-.chart-wrapper {
-  overflow: visible !important;
-}
-.chart-wrapper .own-chart-toolbar {
-  position: absolute !important;
-  left: 8px !important;
-  top: 8px !important;
-  z-index: 100 !important;
-  pointer-events: auto !important;
-}
-.chart-wrapper .chart-tools-toggle {
-  min-height: 44px !important;
-  min-width: 118px !important;
-  padding: 10px 14px !important;
-  font-size: 12px !important;
-  touch-action: manipulation !important;
-  cursor: pointer !important;
-  pointer-events: auto !important;
-}
-.chart-wrapper .chart-tools-menu {
-  z-index: 110 !important;
-  pointer-events: auto !important;
-  max-height: min(70vh, 420px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.chart-wrapper .chart-tool {
-  min-height: 42px !important;
-  padding: 9px 12px !important;
-  font-size: 11px !important;
-  touch-action: manipulation !important;
-  cursor: pointer !important;
-}
-
-
-/* =========================================================
-   CHART TOOLS — GUARANTEED TOUCH LAYER
-   ========================================================= */
-.chart-wrapper {
-  position: relative !important;
-  isolation: isolate;
-}
-.chart-wrapper canvas {
-  position: relative !important;
-  z-index: 1 !important;
-}
-.chart-wrapper .own-chart-toolbar {
-  position: absolute !important;
-  left: 8px !important;
-  top: 8px !important;
-  width: max-content !important;
-  max-width: calc(100% - 16px) !important;
-  height: auto !important;
-  overflow: visible !important;
-  z-index: 1000 !important;
-  pointer-events: auto !important;
-}
-.chart-wrapper .chart-tools-toggle {
-  position: relative !important;
-  z-index: 1001 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-height: 46px !important;
-  min-width: 126px !important;
-  pointer-events: auto !important;
-  -webkit-user-select: none;
-  user-select: none;
-}
-.chart-wrapper .chart-tools-menu {
-  position: absolute !important;
-  left: 0 !important;
-  top: calc(100% + 6px) !important;
-  z-index: 1002 !important;
-  width: min(290px, calc(100vw - 24px)) !important;
-  pointer-events: auto !important;
-}
-
-
-/* =========================================================
-   TIMEFRAME PORTAL — SAME TOUCH LAYER AS CHART TOOLS
-   ========================================================= */
-.chart-wrapper .chart-timeframe-control {
-  position: absolute !important;
-  right: 8px !important;
-  top: 8px !important;
-  z-index: 1000 !important;
-  width: max-content !important;
-  max-width: calc(100% - 16px) !important;
-  height: auto !important;
-  overflow: visible !important;
-  pointer-events: auto !important;
-}
-.chart-wrapper .chart-control-toggle {
-  position: relative !important;
-  z-index: 1001 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-width: 126px !important;
-  min-height: 46px !important;
-  padding: 10px 14px !important;
-  touch-action: manipulation !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-}
-.chart-wrapper .chart-timeframe-control .timeframes {
-  position: absolute !important;
-  right: 0 !important;
-  top: calc(100% + 6px) !important;
-  z-index: 1002 !important;
-  width: min(360px, calc(100vw - 24px)) !important;
-  min-height: 190px !important;
-  max-height: none !important;
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 9px !important;
-  padding: 14px !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
-  background: #0b1729 !important;
-  box-shadow: 0 16px 40px rgba(0,0,0,.38) !important;
-  overflow: visible !important;
-  pointer-events: auto !important;
-}
-.chart-wrapper .chart-timeframe-control .timeframes[hidden] {
-  display: none !important;
-}
-.chart-wrapper .chart-timeframe-control .timeframe {
-  width: 100% !important;
-  min-width: 0 !important;
-  min-height: 42px !important;
-  padding: 9px 5px !important;
-  border-radius: 8px !important;
-  font-size: 11px !important;
-  line-height: 1 !important;
-  font-weight: 800 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  touch-action: manipulation !important;
-  cursor: pointer !important;
-}
-@media (max-width: 600px) {
-  .chart-wrapper .chart-timeframe-control .timeframes {
-    width: min(350px, calc(100vw - 24px)) !important;
-    gap: 8px !important;
-    padding: 13px !important;
-    min-height: 188px !important;
-  }
-  .chart-wrapper .chart-timeframe-control .timeframe {
-    min-height: 40px !important;
-    font-size: 11px !important;
-  }
-}
-
-
-/* =========================================================
    DERIV CONNECTION UI
    ========================================================= */
 
@@ -3144,12 +2961,6 @@ select {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.015);
-}
-
-.chart-wrapper canvas {
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0;
 }
 
 @media (max-width: 1100px) {
@@ -3827,67 +3638,49 @@ select {
   }
 }
 
-/* GTX 3.0.47 — real live market chart workspace */
-.gtx-live-chart{width:100%;height:100%;min-height:390px;overflow:hidden;background:transparent;border-radius:10px}
-.chart-panel .chart-wrapper{min-height:430px;background:rgba(4,12,22,.92)}
-.chart-market-toggle{min-width:150px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chart-market-menu{min-width:min(430px,calc(100vw - 20px))}
-.gtx-mobile-order-actions{position:sticky;top:8px;z-index:115}
-@media(max-width:850px){#page-dashboard .chart-wrapper{height:min(60vh,560px);min-height:430px}.chart-panel{overflow:visible}}
-@media(max-width:520px){#page-dashboard .chart-wrapper{height:460px;min-height:460px}.chart-market-toggle{min-width:125px;max-width:170px;font-size:11px}}
-
 
 /* =========================================================
-   CANONICAL LIVE BYBIT CHART — FINAL RENDER LAYER
-   The chart frame and surrounding dashboard remain unchanged.
-   Only the contents of #mainChart are controlled here.
+   GoTradeX — CLEAN LIVE CHART RENDER LAYER
+   Only the chart frame and #mainChart rendering surface live here.
+   Header controls and panels outside the frame are untouched.
    ========================================================= */
-#page-dashboard .chart-wrapper {
-  position: relative !important;
-  display: block !important;
-  width: 100% !important;
-  height: 430px !important;
-  min-height: 430px !important;
-  overflow: hidden !important;
-  background: #07111d !important;
+#page-dashboard .chart-wrapper{
+  position:relative;
+  display:block;
+  width:100%;
+  height:430px;
+  min-height:430px;
+  margin-top:2px;
+  overflow:hidden;
+  border:1px solid rgba(32,54,83,.75);
+  border-radius:12px;
+  background:#07111d;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);
 }
-#page-dashboard #mainChart.gtx-live-chart {
-  position: relative !important;
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-width: 320px !important;
-  min-height: 430px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-  background: #07111d !important;
+#page-dashboard #mainChart.gtx-live-chart{
+  position:relative;
+  display:block;
+  width:100%;
+  height:100%;
+  min-width:320px;
+  min-height:0;
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:#07111d;
+  border:0;
+  border-radius:0;
+  touch-action:none;
 }
-#page-dashboard #mainChart.gtx-live-chart canvas {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  max-width: none !important;
-  max-height: none !important;
-  background: #07111d !important;
-}
-@media (max-width: 850px) {
-  #page-dashboard .chart-wrapper {
-    height: 460px !important;
-    min-height: 460px !important;
-  }
-  #page-dashboard #mainChart.gtx-live-chart {
-    min-height: 460px !important;
+@media(max-width:850px){
+  #page-dashboard .chart-wrapper{
+    height:460px;
+    min-height:460px;
   }
 }
-@media (max-width: 520px) {
-  #page-dashboard .chart-wrapper {
-    height: 410px !important;
-    min-height: 410px !important;
-  }
-  #page-dashboard #mainChart.gtx-live-chart {
-    min-height: 410px !important;
+@media(max-width:520px){
+  #page-dashboard .chart-wrapper{
+    height:410px;
+    min-height:410px;
   }
 }
