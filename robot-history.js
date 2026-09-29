@@ -8,5 +8,4 @@
     document.head.appendChild(s);
   }
   load("robot-history-core.js");
-  load("gtx-live-chart-fix.js");
 })();
