@@ -1278,6 +1278,28 @@
 
         </div>
 
+        <div class="panel gtx-robot-runtime-panel" id="gtxRobotRuntimePanel">
+          <div class="panel-header">
+            <div>
+              <h3>Central Robot Control</h3>
+              <span>Robot decisions pass through Trade Control and the execution guard.</span>
+            </div>
+            <span id="gtxRobotRuntimeStatus" class="demo-badge">STOPPED</span>
+          </div>
+          <div class="gtx-command-grid gtx-command-metrics">
+            <div class="account-status"><span>Signal mode</span><strong id="gtxRobotSignalMode">MONITOR</strong></div>
+            <div class="account-status"><span>Min confidence</span><strong id="gtxRobotMinConfidence">70%</strong></div>
+            <div class="account-status"><span>Cooldown</span><strong>30s</strong></div>
+            <div class="account-status"><span>Execution</span><strong>SIMULATION</strong></div>
+          </div>
+          <div class="robot-actions-row">
+            <button id="gtxRobotRuntimeStart" type="button" class="primary-button">Start Robot</button>
+            <button id="gtxRobotRuntimeStop" type="button" class="danger-button">Stop Robot</button>
+            <button id="gtxRobotRuntimeCheck" type="button" class="small-button">Check Signal</button>
+          </div>
+          <div id="gtxRobotRuntimeMessage" class="muted" aria-live="polite">Waiting for central control.</div>
+        </div>
+
         <div class="robot-grid">
 
           <div class="panel">
