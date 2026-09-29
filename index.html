@@ -1072,6 +1072,28 @@
 
         </div>
 
+        <div class="panel gtx-chart-panel" id="gtxFreshChartPanel">
+          <div class="panel-header">
+            <div>
+              <h3>Live Chart</h3>
+              <span id="gtxChartSubtitle">Real market candles</span>
+            </div>
+            <div class="gtx-chart-status">
+              <span id="gtxChartStatusDot" class="gtx-live-dot"></span>
+              <strong id="gtxChartStatus">CONNECTING</strong>
+            </div>
+          </div>
+          <div class="gtx-chart-toolbar">
+            <strong id="gtxChartSymbol">BTCUSDT</strong>
+            <span id="gtxChartPrice">—</span>
+            <span id="gtxChartFeed">Bybit</span>
+          </div>
+          <div class="gtx-chart-wrap">
+            <canvas id="gtxFreshChart" aria-label="Live candlestick chart"></canvas>
+            <div id="gtxChartEmpty" class="gtx-chart-empty">Loading real market candles…</div>
+          </div>
+        </div>
+
         <div class="panel analyzer-result gtx-signal-result">
           <div class="analysis-badge">LIVE ANALYSIS</div>
           <div class="gtx-result-topline">
