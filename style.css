@@ -3282,3 +3282,84 @@ select {
 @media (max-width:520px){.chart-panel .panel-header{grid-template-columns:1fr 1fr}.chart-market-menu,.timeframes,.chart-tools-menu{width:min(360px,calc(100vw - 34px))}.timeframes{grid-template-columns:repeat(3,minmax(58px,1fr));min-width:0}.chart-wrapper{height:410px;min-height:410px}}
 @media (orientation:landscape) and (max-height:700px){.chart-panel .panel-header{gap:8px}.chart-wrapper{height:64vh;min-height:330px}.chart-market-menu,.timeframes,.chart-tools-menu{max-height:68vh}}
 @media (orientation:portrait) and (max-width:850px){.chart-wrapper{height:min(58vh,470px);min-height:390px}}
+
+/* =========================================================
+   GTX 3.0.45 — MARKET PORTAL + CHART GESTURE FIX
+   ========================================================= */
+
+.chart-panel,
+.chart-panel .panel-header,
+.chart-market-control {
+  overflow: visible !important;
+}
+
+.chart-market-control,
+.chart-timeframe-control,
+.chart-panel .own-chart-toolbar {
+  z-index: 3000 !important;
+}
+
+.chart-market-menu,
+.chart-timeframe-control .timeframes,
+.chart-panel .chart-tools-menu {
+  z-index: 9999 !important;
+  max-width: calc(100vw - 20px) !important;
+}
+
+/* On phones the market portal opens inward from the left edge of its
+   full-width control, so Forex/Commodities/Indices/Metals cannot disappear
+   off the right side of the screen. */
+@media (max-width: 850px) {
+  .chart-market-control {
+    position: relative !important;
+  }
+
+  .chart-market-menu {
+    left: 0 !important;
+    right: auto !important;
+    width: min(420px, calc(100vw - 20px)) !important;
+    max-height: min(70vh, 520px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .chart-market-categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .chart-market-category {
+    min-height: 48px !important;
+    font-size: 12px !important;
+  }
+
+  .chart-market-select {
+    min-height: 50px !important;
+    font-size: 15px !important;
+  }
+}
+
+/* Extra-wide phones / landscape: keep the portal fully inside the viewport. */
+@media (min-width: 851px) {
+  .chart-market-menu {
+    right: 0 !important;
+    left: auto !important;
+  }
+}
+
+/* The canvas must own the touch gesture area. */
+#mainChart {
+  touch-action: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  cursor: grab;
+}
+
+#mainChart:active {
+  cursor: grabbing;
+}
+
+/* Never let a live-price label become a rectangle over the signal/price area. */
+.gtx-live-price-label,
+.gtx-current-price-box {
+  display: none !important;
+}
