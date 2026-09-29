@@ -129,7 +129,46 @@
     if(mode)mode.textContent=ps.liveOrdersBlocked?"SIMULATION":"LIVE";
     if(list)list.innerHTML=runtime.audit.slice(0,8).map(e=>"<div><span>"+e.type.replaceAll("_"," ")+"</span><strong>"+new Date(e.time).toLocaleTimeString()+"</strong></div>").join("")||"<div><span>No events</span><strong>—</strong></div>";
   }
-  function init(){startRobotLoop();setInterval(()=>{renderAdminOps();renderAdminOpsState();},1000);audit("RUNTIME_READY",{execution:"simulation",liveOrdersBlocked:true});}
+  function renderRobotPanel(){
+    const core=window.GTXTradingCore?.snapshot?.()||{};
+    const status=document.getElementById("gtxRobotRuntimeStatus");
+    const mode=document.getElementById("gtxRobotSignalMode");
+    const msg=document.getElementById("gtxRobotRuntimeMessage");
+    if(status) status.textContent=core.robotEnabled?"RUNNING":"STOPPED";
+    if(mode) mode.textContent=(core.signalMode||"monitor").toUpperCase();
+    if(msg) msg.textContent=core.emergencyStop?"Emergency stop is active.":core.robotEnabled?"Robot is armed and waiting for a qualifying signal.":"Robot is stopped.";
+  }
+
+  function bindRobotPanel(){
+    document.getElementById("gtxRobotRuntimeStart")?.addEventListener("click",()=>{
+      const core=window.GTXTradingCore?.snapshot?.()||{};
+      if(core.emergencyStop){ document.getElementById("gtxRobotRuntimeMessage").textContent="Clear the emergency stop before starting the robot."; return; }
+      window.GTXTradingCore?.setControl?.({masterTrading:true,robotEnabled:true,signalMode:"armed"},"Robot started from Robot Control");
+      audit("ROBOT_STARTED",{source:"robot-control"});
+      renderRobotPanel();
+    });
+    document.getElementById("gtxRobotRuntimeStop")?.addEventListener("click",()=>{
+      window.GTXTradingCore?.setControl?.({robotEnabled:false},"Robot stopped from Robot Control");
+      audit("ROBOT_STOPPED",{source:"robot-control"});
+      renderRobotPanel();
+    });
+    document.getElementById("gtxRobotRuntimeCheck")?.addEventListener("click",()=>{
+      const result=robotTick();
+      const msg=document.getElementById("gtxRobotRuntimeMessage");
+      if(msg) msg.textContent=result?.ok ? "Robot execution created a simulation position." : (result?.reason||"No qualifying robot action.");
+      renderRobotPanel();
+    });
+  }
+
+  function renderPortfolio(){
+    const open= document.getElementById("gtxPortfolioPositions");
+    const history=document.getElementById("gtxPortfolioHistory");
+    const s=appState(), trades=Array.isArray(s.demo?.openTrades)?s.demo.openTrades:[], done=Array.isArray(s.demo?.tradeHistory)?s.demo.tradeHistory:[];
+    if(open) open.innerHTML=trades.length?trades.map(t=>"<div class='market-row'><div><strong>"+String(t.symbol)+"</strong><span>"+String(t.direction)+" • "+String(t.source||"manual")+"</span></div><div><span>Entry</span><strong>"+Number(t.entry).toFixed(2)+"</strong></div><div><span>Current</span><strong>"+Number(t.current||t.entry).toFixed(2)+"</strong></div><div><span>Risk</span><strong>$"+Number(t.riskAmount||0).toFixed(2)+"</strong></div></div>").join(""):"<div class='empty-state'>No open positions.</div>";
+    if(history) history.innerHTML=done.length?done.slice(0,20).map(t=>"<div class='market-row'><div><strong>"+String(t.symbol)+"</strong><span>"+String(t.direction)+" • "+String(t.closeReason||"Closed")+"</span></div><div><span>P/L</span><strong class='"+(Number(t.pnl)>=0?"positive":"negative")+"'>$"+Number(t.pnl||0).toFixed(2)+"</strong></div><div><span>Exit</span><strong>"+Number(t.exit||0).toFixed(2)+"</strong></div><div><span>Time</span><strong>"+new Date(t.closedAt||Date.now()).toLocaleTimeString()+"</strong></div></div>").join(""):"<div class='empty-state'>No completed trades yet.</div>";
+  }
+
+  function init(){startRobotLoop();bindRobotPanel();setInterval(()=>{renderAdminOps();renderAdminOpsState();renderRobotPanel();renderPortfolio();},1000);audit("RUNTIME_READY",{execution:"simulation",liveOrdersBlocked:true});}
   window.GTXExecution={execute,close,riskCheck,productionStatus,audit,getRuntime:()=>JSON.parse(JSON.stringify(runtime))};
   window.GTXRobotRuntime={tick:robotTick,start:startRobotLoop};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
