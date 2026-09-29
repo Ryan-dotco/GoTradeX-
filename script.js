@@ -3409,6 +3409,14 @@ function renderManualPositions() {
 
 async function submitManualTrade(direction) {
   const symbol = state.currentSymbol || "BTCUSDT";
+  const executionGuard = window.GTXTradingCore?.canAcceptOrder?.({
+    source: "manual",
+    symbol,
+    direction
+  });
+  if (executionGuard && !executionGuard.ok) {
+    throw new Error(executionGuard.reason || "Duplicate order blocked.");
+  }
   const market = state.markets?.[symbol] || {};
   const price = Number(market.price);
   const amount = Number($("manualTradeAmount")?.value);
@@ -3444,6 +3452,13 @@ async function submitManualTrade(direction) {
   };
 
   state.demo.openTrades.unshift(trade);
+  window.GTXTradingCore?.recordOrder?.({
+    source: "manual",
+    symbol,
+    direction,
+    status: "OPEN",
+    price
+  });
   updateDemoMetrics();
   saveDemoState();
   renderRobotStatus();
