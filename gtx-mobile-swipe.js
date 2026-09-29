@@ -10,11 +10,10 @@
   const MAX_VERTICAL_DRIFT = 90;
 
   const sequence = [
-    { page: "support", title: "Signal Analyzer" },
+    { page: "dashboard", title: "Signal Analyzer" },
     { page: "signals", title: "Markets & Assets" },
     { page: "markets", title: "Trading Robot" },
-    { page: "robot", title: "Dashboard" },
-    { page: "dashboard", title: "Live Chat" }
+    { page: "robot", title: "Dashboard" }
   ];
 
   let startX = 0;
@@ -76,6 +75,13 @@
     window.showPage(item.page);
 
     requestAnimationFrame(() => {
+      const active = getActivePage();
+      if (active) {
+        active.classList.remove("gtx-swipe-enter");
+        void active.offsetWidth;
+        active.classList.add("gtx-swipe-enter");
+        setTimeout(() => active.classList.remove("gtx-swipe-enter"), 320);
+      }
       updateHint();
     });
   }
