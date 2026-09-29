@@ -2741,6 +2741,7 @@ async function createChart() {
     chartCanvas.addEventListener("pointerup", endPointer);
     chartCanvas.addEventListener("pointercancel", endPointer);
     chartCanvas.addEventListener("dblclick", () => setChartViewport(1, 0));
+  }
 
   const canvas = $("mainChart");
   if (!canvas) return;
