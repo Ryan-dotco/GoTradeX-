@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.41";
+const APP_VERSION = "3.0.42";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -1670,7 +1670,15 @@ function chooseDerivSymbol(internalSymbol, activeSymbols) {
   if (exact) return derivSymbolValue(exact);
 
   const candidates = {
-    EURUSD: ["EUR/USD","EURUSD"],
+    EURUSD: ["EUR/USD","EURUSD","frxEURUSD"],
+    GBPUSD: ["GBP/USD","GBPUSD","frxGBPUSD"],
+    USDJPY: ["USD/JPY","USDJPY","frxUSDJPY"],
+    USDCHF: ["USD/CHF","USDCHF","frxUSDCHF"],
+    AUDUSD: ["AUD/USD","AUDUSD","frxAUDUSD"],
+    USDCAD: ["USD/CAD","USDCAD","frxUSDCAD"],
+    NZDUSD: ["NZD/USD","NZDUSD","frxNZDUSD"],
+    EURGBP: ["EUR/GBP","EURGBP","frxEURGBP"],
+    EURJPY: ["EUR/JPY","EURJPY","frxEURJPY"],
     GBPUSD: ["GBP/USD","GBPUSD"],
     USDJPY: ["USD/JPY","USDJPY"],
     USDCHF: ["USD/CHF","USDCHF"],
@@ -1788,6 +1796,13 @@ async function fetchDerivCandles(internalSymbol, timeframe, limit = 80) {
   const active = await getDerivActiveSymbols();
   const symbol = chooseDerivSymbol(internalSymbol, active);
   if (!symbol) throw new Error("Deriv does not currently expose " + internalSymbol + ".");
+  // Keep the selected market explicitly tied to the real Deriv symbol.
+  state.markets[internalSymbol] = {
+    ...(state.markets[internalSymbol] || {}),
+    derivSymbol: symbol,
+    source: "Deriv Live",
+    live: true
+  };
 
   const seconds = chartSecondsForTimeframe(timeframe);
 
@@ -1966,14 +1981,16 @@ async function loadLiveMarkets() {
 
   for (const [symbol,name,type] of nonCryptoEntries) {
     const derivSymbol = chooseDerivSymbol(symbol, activeSymbols);
+    const existing = previous[symbol] || {};
     results[symbol] = buildMarketEntry(
       symbol,
       name,
       type,
-      previous[symbol] || null
+      existing
     );
-    results[symbol].source = derivSymbol ? "Deriv" : "Unavailable";
     results[symbol].derivSymbol = derivSymbol;
+    results[symbol].source = derivSymbol ? "Deriv Live" : "Deriv unavailable";
+    results[symbol].live = Boolean(derivSymbol);
   }
 
   state.markets = results;
@@ -2154,6 +2171,102 @@ function calculateRSIValues(values, period = 14) {
   return result;
 }
 
+function calculateSMAValues(values, period) {
+  const result = new Array(values.length).fill(null);
+  if (values.length < period) return result;
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    sum += Number(values[i]) || 0;
+    if (i >= period) sum -= Number(values[i - period]) || 0;
+    if (i >= period - 1) result[i] = sum / period;
+  }
+  return result;
+}
+
+function calculateSMMAValues(values, period) {
+  const result = new Array(values.length).fill(null);
+  if (values.length < period) return result;
+  let sum = 0;
+  for (let i = 0; i < period; i++) sum += Number(values[i]) || 0;
+  let smma = sum / period;
+  result[period - 1] = smma;
+  for (let i = period; i < values.length; i++) {
+    smma = ((smma * (period - 1)) + (Number(values[i]) || 0)) / period;
+    result[i] = smma;
+  }
+  return result;
+}
+
+function calculateBollinger(values, period = 20, multiplier = 2) {
+  const middle = calculateSMAValues(values, period);
+  const upper = new Array(values.length).fill(null);
+  const lower = new Array(values.length).fill(null);
+  for (let i = period - 1; i < values.length; i++) {
+    const mean = middle[i];
+    let variance = 0;
+    for (let j = i - period + 1; j <= i; j++) variance += Math.pow((Number(values[j]) || 0) - mean, 2);
+    const deviation = Math.sqrt(variance / period);
+    upper[i] = mean + multiplier * deviation;
+    lower[i] = mean - multiplier * deviation;
+  }
+  return { middle, upper, lower };
+}
+
+function calculateVWAPValues(candles) {
+  const result = new Array(candles.length).fill(null);
+  let cumulativePV = 0;
+  let cumulativeVolume = 0;
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    const volume = Number(c.volume) || 0;
+    const typical = (Number(c.high) + Number(c.low) + Number(c.close)) / 3;
+    if (volume > 0) {
+      cumulativePV += typical * volume;
+      cumulativeVolume += volume;
+    }
+    result[i] = cumulativeVolume > 0 ? cumulativePV / cumulativeVolume : typical;
+  }
+  return result;
+}
+
+function calculateMACDValues(values, fast = 12, slow = 26, signal = 9) {
+  const fastEma = calculateEMAValues(values, fast);
+  const slowEma = calculateEMAValues(values, slow);
+  const macd = values.map((_, i) => fastEma[i] - slowEma[i]);
+  const signalLine = calculateEMAValues(macd, signal);
+  const histogram = macd.map((v, i) => v - signalLine[i]);
+  return { macd, signalLine, histogram };
+}
+
+function calculateStochasticValues(candles, period = 14, smooth = 3) {
+  const k = new Array(candles.length).fill(null);
+  for (let i = period - 1; i < candles.length; i++) {
+    let high = -Infinity, low = Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      high = Math.max(high, Number(candles[j].high) || -Infinity);
+      low = Math.min(low, Number(candles[j].low) || Infinity);
+    }
+    const close = Number(candles[i].close) || 0;
+    k[i] = high === low ? 50 : ((close - low) / (high - low)) * 100;
+  }
+  return { k, d: calculateSMAValues(k.map(v => v ?? 0), smooth) };
+}
+
+function drawIndicatorLine(ctx, values, color, width, priceY, padding, slot, chartWidth) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  let started = false;
+  values.forEach((value, i) => {
+    if (!Number.isFinite(value)) return;
+    const x = padding.left + slot * i + slot / 2;
+    const y = priceY(value);
+    if (!started) { ctx.moveTo(x, y); started = true; }
+    else ctx.lineTo(x, y);
+  });
+  if (started) ctx.stroke();
+}
+
 function drawOwnTradingChart(canvas, candles, options = {}) {
   const ctx = canvas.getContext("2d");
   if (!ctx || !candles.length) return;
@@ -2168,10 +2281,12 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, width, height);
 
+  const oscillatorCount = [options.showRSI, options.showMACD, options.showStochastic, options.showATR].filter(Boolean).length;
   const volumeHeight = options.showVolume ? 46 : 0;
+  const oscillatorHeight = oscillatorCount ? Math.min(150, oscillatorCount * 42) : 0;
   const padding = { top: 14, right: 68, bottom: 25, left: 8 };
   const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom - volumeHeight;
+  const chartHeight = Math.max(120, height - padding.top - padding.bottom - volumeHeight - oscillatorHeight);
 
   const mode = options.mode || "candles";
   const displayCandles = mode === "heikin" ? buildHeikinAshi(candles) : candles;
@@ -2282,6 +2397,47 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     });
   }
 
+  if (options.showBollinger) {
+    const bands = calculateBollinger(closes, 20, 2);
+    drawIndicatorLine(ctx, bands.upper, "#c084fc", 1, priceY, padding, slot, chartWidth);
+    drawIndicatorLine(ctx, bands.middle, "rgba(192,132,252,0.65)", 1, priceY, padding, slot, chartWidth);
+    drawIndicatorLine(ctx, bands.lower, "#c084fc", 1, priceY, padding, slot, chartWidth);
+  }
+
+  if (options.showSMA50) {
+    drawIndicatorLine(ctx, calculateSMAValues(closes, 50), "#f97316", 1.15, priceY, padding, slot, chartWidth);
+  }
+
+  if (options.showSMA200) {
+    drawIndicatorLine(ctx, calculateSMAValues(closes, 200), "#ec4899", 1.2, priceY, padding, slot, chartWidth);
+  }
+
+  if (options.showVWAP) {
+    drawIndicatorLine(ctx, calculateVWAPValues(displayCandles), "#38bdf8", 1.15, priceY, padding, slot, chartWidth);
+  }
+
+  if (options.showAlligator) {
+    // Bill Williams Alligator: SMMA 13/8, 8/5, 5/3 with forward shifts.
+    const jaw = calculateSMMAValues(closes, 13);
+    const teeth = calculateSMMAValues(closes, 8);
+    const lips = calculateSMMAValues(closes, 5);
+    const drawShifted = (values, shift, color) => {
+      ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.beginPath();
+      let started = false;
+      values.forEach((value, i) => {
+        const target = i + shift;
+        if (!Number.isFinite(value) || target >= displayCandles.length) return;
+        const x = padding.left + slot * target + slot / 2;
+        const y = priceY(value);
+        if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      });
+      if (started) ctx.stroke();
+    };
+    drawShifted(jaw, 8, "#2563eb");
+    drawShifted(teeth, 5, "#ef4444");
+    drawShifted(lips, 3, "#22c55e");
+  }
+
   const last = displayCandles[displayCandles.length - 1];
   const latestY = priceY(last.close);
   ctx.strokeStyle = "rgba(79,124,255,0.7)";
@@ -2335,33 +2491,53 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
     );
   }
 
-  if (options.showRSI) {
-    const rsiValues = calculateRSIValues(closes, 14);
-    const stripTop = height - padding.bottom - volumeHeight + 2;
-    const stripHeight = 38;
-
+  const panelBase = height - padding.bottom - oscillatorHeight;
+  let panelIndex = 0;
+  const drawPanelFrame = (label, color) => {
+    const topPanel = panelBase + panelIndex * (oscillatorHeight / Math.max(1, oscillatorCount));
+    const panelH = oscillatorHeight / Math.max(1, oscillatorCount);
     ctx.strokeStyle = "rgba(145,164,189,0.18)";
-    ctx.beginPath();
-    ctx.moveTo(padding.left, stripTop);
-    ctx.lineTo(width - padding.right, stripTop);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padding.left, topPanel); ctx.lineTo(width - padding.right, topPanel); ctx.stroke();
+    ctx.fillStyle = color; ctx.font = "9px Arial"; ctx.fillText(label, padding.left + 4, topPanel + 11);
+    panelIndex++;
+    return {topPanel, panelH};
+  };
 
-    ctx.strokeStyle = "#a78bfa";
-    ctx.lineWidth = 1.1;
-    ctx.beginPath();
-    rsiValues.forEach((value, i) => {
-      if (value === null) return;
-      const x = padding.left + slot * i + slot / 2;
-      const y = stripTop + stripHeight - (value / 100) * stripHeight;
-      if (i === 14) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    ctx.fillStyle = "#a78bfa";
-    ctx.font = "9px Arial";
-    ctx.fillText("RSI 14", padding.left + 4, stripTop + 11);
+  if (options.showRSI) {
+    const p = drawPanelFrame("RSI 14", "#a78bfa");
+    const values = calculateRSIValues(closes, 14);
+    ctx.strokeStyle = "#a78bfa"; ctx.lineWidth = 1.1; ctx.beginPath();
+    values.forEach((v,i)=>{ if(!Number.isFinite(v)) return; const x=padding.left+slot*i+slot/2; const y=p.topPanel+p.panelH-(v/100)*p.panelH; if(i===14)ctx.moveTo(x,y);else ctx.lineTo(x,y); }); ctx.stroke();
+    ctx.strokeStyle="rgba(255,255,255,0.12)";
+    [30,70].forEach(level=>{const y=p.topPanel+p.panelH-(level/100)*p.panelH;ctx.beginPath();ctx.moveTo(padding.left,y);ctx.lineTo(width-padding.right,y);ctx.stroke();});
   }
+
+  if (options.showMACD) {
+    const p = drawPanelFrame("MACD 12/26/9", "#f59e0b");
+    const m = calculateMACDValues(closes);
+    const all = [...m.macd,...m.signalLine,0]; const min=Math.min(...all), max=Math.max(...all), range=Math.max(max-min,1e-9);
+    const yFor=v=>p.topPanel+p.panelH-((v-min)/range)*p.panelH;
+    m.histogram.forEach((v,i)=>{const x=padding.left+slot*i+slot/2;const y0=yFor(0);const y=yFor(v);ctx.fillStyle=v>=0?"rgba(32,201,151,.45)":"rgba(255,92,108,.45)";ctx.fillRect(x-1,Math.min(y,y0),2,Math.max(1,Math.abs(y-y0)));});
+    ctx.strokeStyle="#f59e0b";ctx.beginPath();m.macd.forEach((v,i)=>{const x=padding.left+slot*i+slot/2;const y=yFor(v);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+    ctx.strokeStyle="#60a5fa";ctx.beginPath();m.signalLine.forEach((v,i)=>{const x=padding.left+slot*i+slot/2;const y=yFor(v);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  }
+
+  if (options.showStochastic) {
+    const p = drawPanelFrame("Stochastic 14/3", "#38bdf8");
+    const st = calculateStochasticValues(displayCandles);
+    const yFor=v=>p.topPanel+p.panelH-(v/100)*p.panelH;
+    ctx.strokeStyle="#38bdf8";ctx.beginPath();st.k.forEach((v,i)=>{if(!Number.isFinite(v))return;const x=padding.left+slot*i+slot/2;const y=yFor(v);if(i===13)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+    ctx.strokeStyle="#f472b6";ctx.beginPath();st.d.forEach((v,i)=>{if(!Number.isFinite(v))return;const x=padding.left+slot*i+slot/2;const y=yFor(v);if(i===13)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  }
+
+  if (options.showATR) {
+    const p = drawPanelFrame("ATR 14", "#fb923c");
+    const trs=displayCandles.map((c,i)=>{if(i===0)return Number(c.high)-Number(c.low);const prev=Number(displayCandles[i-1].close);return Math.max(Number(c.high)-Number(c.low),Math.abs(Number(c.high)-prev),Math.abs(Number(c.low)-prev));});
+    const atr=calculateSMAValues(trs,14); const max=Math.max(...atr.filter(Number.isFinite),1e-9);
+    ctx.strokeStyle="#fb923c";ctx.beginPath();atr.forEach((v,i)=>{if(!Number.isFinite(v))return;const x=padding.left+slot*i+slot/2;const y=p.topPanel+p.panelH-(v/max)*p.panelH;if(i===13)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  }
+
+
 }
 
 async function createChart() {
@@ -2400,9 +2576,10 @@ async function createChart() {
   }
 
   const wrapper = canvas.parentElement;
-  let toolbar = wrapper?.querySelector(".own-chart-toolbar");
+  const toolbarHost = wrapper?.closest(".chart-panel")?.querySelector(".panel-header") || wrapper;
+  let toolbar = toolbarHost?.querySelector(".own-chart-toolbar");
 
-  if (!toolbar && wrapper) {
+  if (!toolbar && toolbarHost) {
     toolbar = document.createElement("div");
     toolbar.className = "own-chart-toolbar";
     toolbar.innerHTML = `
@@ -2416,14 +2593,25 @@ async function createChart() {
           <button type="button" data-chart-mode="heikin" class="chart-tool">Heikin-Ashi</button>
         </div>
         <div class="chart-tools-group">
-          <span>Indicators</span>
-          <button type="button" data-chart-toggle="ema" class="chart-tool active">EMA</button>
+          <span>Overlays</span>
+          <button type="button" data-chart-toggle="ema" class="chart-tool active">EMA 9/21</button>
+          <button type="button" data-chart-toggle="alligator" class="chart-tool active">Alligator</button>
+          <button type="button" data-chart-toggle="bollinger" class="chart-tool">Bollinger</button>
+          <button type="button" data-chart-toggle="sma50" class="chart-tool">SMA 50</button>
+          <button type="button" data-chart-toggle="sma200" class="chart-tool">SMA 200</button>
+          <button type="button" data-chart-toggle="vwap" class="chart-tool">VWAP</button>
+        </div>
+        <div class="chart-tools-group">
+          <span>Sub-panels</span>
           <button type="button" data-chart-toggle="volume" class="chart-tool active">Volume</button>
           <button type="button" data-chart-toggle="rsi" class="chart-tool">RSI</button>
+          <button type="button" data-chart-toggle="macd" class="chart-tool">MACD</button>
+          <button type="button" data-chart-toggle="stochastic" class="chart-tool">Stochastic</button>
+          <button type="button" data-chart-toggle="atr" class="chart-tool">ATR</button>
         </div>
       </div>
     `;
-    wrapper.insertBefore(toolbar, canvas);
+    toolbarHost.appendChild(toolbar);
   }
 
   const chartState = state.chartView || {
@@ -2431,9 +2619,27 @@ async function createChart() {
     ema: true,
     volume: true,
     rsi: false,
+    alligator: true,
+    bollinger: false,
+    sma50: false,
+    sma200: false,
+    vwap: false,
+    macd: false,
+    stochastic: false,
+    atr: false,
     crosshairX: null
   };
   state.chartView = chartState;
+  Object.assign(chartState, {
+    alligator: chartState.alligator ?? true,
+    bollinger: chartState.bollinger ?? false,
+    sma50: chartState.sma50 ?? false,
+    sma200: chartState.sma200 ?? false,
+    vwap: chartState.vwap ?? false,
+    macd: chartState.macd ?? false,
+    stochastic: chartState.stochastic ?? false,
+    atr: chartState.atr ?? false
+  });
 
   const syncToolbar = () => {
     toolbar?.querySelectorAll("[data-chart-mode]").forEach(button => {
@@ -2477,6 +2683,14 @@ async function createChart() {
     showEMA: chartState.ema,
     showVolume: chartState.volume,
     showRSI: chartState.rsi,
+    showAlligator: chartState.alligator,
+    showBollinger: chartState.bollinger,
+    showSMA50: chartState.sma50,
+    showSMA200: chartState.sma200,
+    showVWAP: chartState.vwap,
+    showMACD: chartState.macd,
+    showStochastic: chartState.stochastic,
+    showATR: chartState.atr,
     crosshairX: chartState.crosshairX
   });
 
@@ -2530,13 +2744,17 @@ function estimatedSignalDuration(timeframe = state.currentTimeframe || "1H") {
 
 function updateSelectedMarketHeader() {
   const symbol = state.currentSymbol || "BTCUSDT";
-  const market = state.markets?.[symbol];
+  const market = state.markets?.[symbol] || {};
   const title = $("chartSymbol");
-  if (title) title.textContent = market?.name || symbol;
+  if (title) title.textContent = market.name || symbol;
   const price = $("btcPrice");
-  if (price && market?.price) {
-    const liveLabel = market?.source ? " • " + market.source.toUpperCase() : "";
-    price.textContent = "$" + formatPrice(market.price) + liveLabel;
+  if (!price) return;
+  const livePrice = Number(market.price);
+  if (Number.isFinite(livePrice) && livePrice > 0) {
+    const source = market.derivSymbol ? "DERIV LIVE" : (market.source || "LIVE");
+    price.textContent = "$" + formatPrice(livePrice) + " • " + source.toUpperCase();
+  } else {
+    price.textContent = "Waiting for live feed…";
   }
 }
 
@@ -6584,15 +6802,9 @@ function bindEvents() {
     );
 
 
-  // Put the Timeframe control inside the chart wrapper, alongside Chart Tools.
-  // This keeps the portal in the same reliable touch layer as the working Chart Tools menu.
-  const timeframeControl = document.querySelector(".chart-timeframe-control");
-  const chartWrapper = document.querySelector(".chart-wrapper");
-  if (timeframeControl && chartWrapper && !chartWrapper.contains(timeframeControl)) {
-    chartWrapper.appendChild(timeframeControl);
-  }
-
-  // Delegated handlers keep the Timeframe portal working even after chart redraws.
+  // Timeframe stays in the chart header so it never covers the live candle area.
+  // Chart Tools is also mounted in the header by createChart().
+  // Delegated handlers keep both portals working without touching the canvas.
   document.addEventListener("click", (event) => {
     const toggle = event.target.closest?.(".chart-control-toggle");
     if (toggle) {
