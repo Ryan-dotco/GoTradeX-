@@ -67,6 +67,23 @@
         symbol
       });
     },
+    async order({apiKey, apiSecret, environment = "demo", category = "spot", symbol, side, orderType = "Market", qty, price, takeProfit, stopLoss, orderLinkId}) {
+      return request({
+        action: "order",
+        api_key: apiKey,
+        api_secret: apiSecret,
+        environment,
+        category,
+        symbol,
+        side,
+        orderType,
+        qty,
+        price,
+        takeProfit,
+        stopLoss,
+        orderLinkId
+      });
+    },
     async market(symbol = "BTCUSDT", category = "spot") {
       const session = window.gotradexSupabaseSession;
       if (!session?.access_token) throw new Error("GoTradeX session is not available.");
