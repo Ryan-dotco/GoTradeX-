@@ -679,12 +679,7 @@
         </div>
 
 
-        <div class="gtx-mobile-terminal-tabs" role="tablist" aria-label="Trading view">
-  <button type="button" class="gtx-mobile-terminal-tab active" data-terminal-target="chart">Chart</button>
-  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="overview">Overview</button>
-  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="orderbook">Data</button>
-  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="feed">Feed</button>
-</div>
+        
 
 <div class="dashboard-grid">
 
@@ -705,7 +700,7 @@
 
 
               <div class="chart-market-control">
-                <button type="button" class="chart-market-toggle" aria-expanded="false">☰ Markets</button>
+                <button type="button" class="chart-market-toggle" aria-expanded="false"><span id="chartMarketToggleLabel">BTC/USDT</span> ▾</button>
                 <div class="chart-market-menu" hidden>
                   <div class="chart-market-categories" role="tablist" aria-label="Market categories">
                     <button type="button" class="chart-market-category active" data-chart-category="crypto">Crypto</button>
@@ -714,8 +709,8 @@
                     <button type="button" class="chart-market-category" data-chart-category="indices">Indices</button>
                     <button type="button" class="chart-market-category" data-chart-category="metals">Metals</button>
                   </div>
-                  <label class="chart-market-select-label" for="chartAssetSelect">Asset</label>
-                  <select id="chartAssetSelect" class="chart-market-select"></select>
+                  <div class="chart-market-select-label">Select market</div>
+                  <select id="chartAssetSelect" class="chart-market-select" aria-label="Select market"></select>
                 </div>
               </div>
 
@@ -743,14 +738,32 @@
 
             </div>
 
+<div class="gtx-mobile-terminal-tabs" role="tablist" aria-label="Trading view">
+  <button type="button" class="gtx-mobile-terminal-tab active" data-terminal-target="chart">Chart</button>
+  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="overview">Overview</button>
+  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="orderbook">Data</button>
+  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="feed">Feed</button>
+</div>
+
 
             <div class="chart-wrapper">
 
-              <canvas id="mainChart"></canvas>
+              <div id="mainChart" class="gtx-live-chart"></div>
 
             </div>
 
           </div>
+
+<div class="gtx-mobile-order-actions">
+          <button id="gtxMobileBuyButton" type="button" class="gtx-mobile-buy">
+            <span>BUY</span>
+            <strong id="gtxMobileBidPrice">—</strong>
+          </button>
+          <button id="gtxMobileSellButton" type="button" class="gtx-mobile-sell">
+            <span>SELL</span>
+            <strong id="gtxMobileAskPrice">—</strong>
+          </button>
+        </div>
 
 
           <div class="panel signal-panel">
@@ -877,16 +890,7 @@
           </div>
         </div>
 
-        <div class="gtx-mobile-order-actions">
-          <button id="gtxMobileBuyButton" type="button" class="gtx-mobile-buy">
-            <span>BUY</span>
-            <strong id="gtxMobileBidPrice">—</strong>
-          </button>
-          <button id="gtxMobileSellButton" type="button" class="gtx-mobile-sell">
-            <span>SELL</span>
-            <strong id="gtxMobileAskPrice">—</strong>
-          </button>
-        </div>
+        
 
         <div class="panel manual-trading-panel">
           <div class="panel-header">
@@ -2561,8 +2565,9 @@
 
 
   <!-- JavaScript MUST load last -->
+  <script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js"></script>
   <script src="bybit-connector.js?v=1.0.0"></script>
-  <script src="script.js?v=3.0.45"></script>
+  <script src="script.js?v=3.0.47"></script>
   <script src="robot-history.js?v=1.0.0"></script>
 
 
