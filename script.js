@@ -2990,8 +2990,8 @@ async function executeBybitDemoOrder(symbol, signal, quantity, price, stop, targ
   if (!state.bybit.connected || state.bybit.environment !== "demo") throw new Error("A connected Bybit DEMO account is required.");
   const result = await window.GTXBybit.order({
     apiKey:state.bybit.apiKey, apiSecret:state.bybit.apiSecret, environment:"demo",
-    category:"spot", symbol, side:signal.direction==="BUY"?"Buy":"Sell",
-    orderType:"Market", qty:String(Math.max(0.000001,quantity)), takeProfit:target, stopLoss:stop
+    category:"linear", symbol, side:signal.direction==="BUY"?"Buy":"Sell",
+    orderType:"Market", qty:String(Math.max(0.001,quantity)), takeProfit:target, stopLoss:stop
   });
   return {broker:"bybit",mode:"demo",orderId:result?.orderId||null,orderLinkId:result?.orderLinkId||null,entry:price};
 }
