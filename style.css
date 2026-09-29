@@ -3593,3 +3593,83 @@ select {
     font-size:15px;
   }
 }
+
+
+/* FINAL DASHBOARD ASSET PLACEMENT
+   Assets is directly to the left of the BTC/USDT symbol.
+   The yellow Next button is not affected. */
+.gtx-trading-dashboard .gtx-trade-topbar{
+  justify-content:flex-start!important;
+  overflow:visible!important;
+}
+.gtx-trading-dashboard .gtx-trade-left{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:7px!important;
+  width:auto!important;
+  max-width:100%!important;
+  flex:0 1 auto!important;
+  min-width:0!important;
+}
+.gtx-trading-dashboard .gtx-trade-left .gtx-trade-top-actions{
+  position:relative!important;
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+  margin:0!important;
+  flex:0 0 auto!important;
+}
+.gtx-trading-dashboard .gtx-trade-left .gtx-trade-control-button{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  visibility:visible!important;
+  opacity:1!important;
+  min-width:68px!important;
+  width:auto!important;
+  padding:6px 9px!important;
+  font-size:10px!important;
+}
+.gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol{
+  position:static!important;
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+  display:flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+  flex:0 1 auto!important;
+  min-width:0!important;
+  max-width:130px!important;
+}
+.gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol strong{
+  font-size:15px!important;
+  line-height:1.1!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol span{
+  margin-top:2px!important;
+  font-size:10px!important;
+}
+@media(max-width:700px){
+  .gtx-trading-dashboard .gtx-trade-left{
+    gap:5px!important;
+    max-width:calc(100vw - 8px)!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-left .gtx-trade-control-button{
+    min-width:64px!important;
+    min-height:30px!important;
+    height:30px!important;
+    padding:5px 7px!important;
+    font-size:9px!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol{
+    max-width:105px!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-left .gtx-trade-symbol strong{
+    font-size:14px!important;
+  }
+}
