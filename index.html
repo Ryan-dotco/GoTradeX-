@@ -1241,7 +1241,7 @@
 
             <p class="muted">
               Connect Bybit to GoTradeX for market data and account testing.
-              API credentials are kept only in the current browser session.
+              Demo API credentials are used only for the current browser session and are never saved by GoTradeX.
             </p>
 
             <div class="account-status">
@@ -1252,8 +1252,7 @@
             <div class="field">
               <label for="bybitEnvironment">Bybit Environment</label>
               <select id="bybitEnvironment">
-                <option value="demo">DEMO / TEST</option>
-                <option value="live">LIVE</option>
+                <option value="demo">DEMO ONLY</option>
               </select>
             </div>
 
@@ -1316,6 +1315,15 @@
               <strong id="derivTradingMode">DEMO / TEST</strong>
             </div>
 
+            <div class="field" style="margin-top:12px;">
+              <label for="demoExecutionMode">Demo execution</label>
+              <select id="demoExecutionMode">
+                <option value="simulation">GTX Simulation</option>
+                <option value="broker-demo">Broker DEMO account</option>
+              </select>
+              <small class="muted">Broker DEMO sends orders only to Deriv DEMO or Bybit DEMO. Live execution is locked.</small>
+            </div>
+
             <div class="risk-options">
               <button type="button" class="risk-button active" data-risk="conservative">Conservative</button>
               <button type="button" class="risk-button" data-risk="moderate">Moderate</button>
@@ -1346,7 +1354,7 @@
 
             <div class="robot-health" style="margin-top:14px;">
               <span>Status</span>
-              <strong id="robotErrorMessage">Connect a Deriv account to begin.</strong>
+              <strong id="robotErrorMessage">Connect Deriv or Bybit to begin.</strong>
             </div>
 
           </div>
