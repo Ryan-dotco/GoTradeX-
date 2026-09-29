@@ -2720,3 +2720,42 @@ select {
     font-size: 11px !important;
   }
 }
+
+
+/* =========================================================
+   DERIV CONNECTION UI
+   ========================================================= */
+
+.robot-actions-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+#derivAccountSelect {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+#derivConnectionMessage {
+  min-height: 22px;
+  margin-top: 10px;
+}
+
+@media (max-width: 700px) {
+  .robot-actions-row {
+    grid-template-columns: 1fr;
+  }
+
+  #derivAccountSelect {
+    min-height: 52px;
+    font-size: 16px;
+  }
+}
