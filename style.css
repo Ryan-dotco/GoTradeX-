@@ -3629,3 +3629,38 @@ select {
 }
 
 
+
+
+/* =========================================================
+   FRESH TRADING CONTROL PLANE
+   Chart intentionally excluded until its clean rebuild.
+   ========================================================= */
+.gtx-admin-command-panel { margin-top: 20px; }
+.gtx-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.gtx-command-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+.gtx-command-card > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.gtx-command-card > strong {
+  font-size: 17px;
+}
+.gtx-command-metrics { margin-top: 12px; }
+.gtx-admin-signal-monitor,
+.gtx-admin-order-monitor { margin-top: 12px; }
+@media (max-width: 1000px) {
+  .gtx-command-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .gtx-command-grid { grid-template-columns: 1fr; }
+}
