@@ -3298,6 +3298,15 @@ function isBrokerStatusFresh() {
     return true;
   }
 
+  if (state.bybit.connected) {
+    state.robotStatus.balance = Number(state.bybit.totalWalletBalance) || 0;
+    state.robotStatus.equity = Number(state.bybit.totalEquity) || 0;
+    state.robotStatus.dailyPL = 0;
+    state.robotStatus.openTrades = 0;
+    state.robotStatus.lastHeartbeat = new Date().toISOString();
+    return true;
+  }
+
   const heartbeat =
     state.robotStatus.lastHeartbeat
       ? new Date(state.robotStatus.lastHeartbeat).getTime()
@@ -4603,7 +4612,9 @@ function renderDerivAccountSummary() {
     $("brokerStatus").textContent =
       state.deriv.connected
         ? "Deriv Connected"
-        : "Not Connected";
+        : state.bybit.connected
+          ? "Bybit Connected"
+          : "Not Connected";
   }
 
   if ($("derivConnectionStatus")) {
@@ -4615,12 +4626,13 @@ function renderDerivAccountSummary() {
 
   if ($("robotConnectionHealth")) {
     $("robotConnectionHealth").textContent =
-      state.deriv.connected ? "Ready" : "Waiting";
+      state.deriv.connected || state.bybit.connected ? "Ready" : "Waiting";
   }
 
   if ($("startRobotButton")) {
     $("startRobotButton").disabled =
-      !state.deriv.connected || !state.deriv.selectedAccountId;
+      !(state.deriv.connected || state.bybit.connected) ||
+      (state.deriv.connected && !state.deriv.selectedAccountId);
   }
 
   if ($("derivTradingMode")) {
