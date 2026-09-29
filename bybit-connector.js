@@ -7,6 +7,9 @@
   const ENDPOINT =
     "https://glffecggusetzklmyukv.supabase.co/functions/v1/gotradex-bybit";
 
+  const MARKET_ENDPOINT =
+    "https://glffecggusetzklmyukv.supabase.co/functions/v1/gotradex-bybit-market";
+
   async function request(payload) {
     if (!window.GOTRADEX_CONFIG?.SUPABASE_URL || !window.GOTRADEX_CONFIG?.SUPABASE_KEY) {
       throw new Error("GoTradeX Supabase configuration is missing.");
@@ -65,11 +68,20 @@
       });
     },
     async market(symbol = "BTCUSDT", category = "spot") {
-      return request({
-        action: "market",
-        symbol,
-        category
+      const session = window.gotradexSupabaseSession;
+      if (!session?.access_token) throw new Error("GoTradeX session is not available.");
+      const response = await fetch(MARKET_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + session.access_token,
+          "apikey": window.GOTRADEX_CONFIG.SUPABASE_KEY
+        },
+        body: JSON.stringify({ symbol, category })
       });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Bybit market request failed.");
+      return data;
     }
   };
 })();
