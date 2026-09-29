@@ -2642,7 +2642,7 @@ function renderCurrentChart() {
   });
 }
 
-async async function createChart() {
+async function createChart() {
   const requestId=(state.chartRequestId||0)+1; state.chartRequestId=requestId;
   const container=$("mainChart"); if(!container)return;
   const timeframe=state.currentTimeframe||"1H",symbol=state.currentSymbol||"BTCUSDT";
@@ -5822,7 +5822,7 @@ function connectLiveMarketStream() {
    REFRESH
    ========================================================= */
 
-async async function refreshChartDataInPlace(){
+async function refreshChartDataInPlace(){
   const symbol=state.currentSymbol||"BTCUSDT",timeframe=state.currentTimeframe||"1H";
   try{const candles=await fetchChartCandles(symbol,timeframe,250);if(!Array.isArray(candles)||candles.length<2)return false;if(!state.chart?.series?.primary){await createChart();return Boolean(state.chart?.series?.primary);}state.chart.candles=candles;const data=candles.map(c=>({time:Math.floor(Number(c.time)/1000),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)}));if(state.chartView.mode==="line")state.chart.series.primary.setData(data.map(c=>({time:c.time,value:c.close})));else state.chart.series.primary.setData(data);state.chart.series.volume?.setData(candles.map(c=>({time:Math.floor(Number(c.time)/1000),value:Number(c.volume)||0,color:Number(c.close)>=Number(c.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"})));const latest=candles[candles.length-1],latestClose=Number(latest.close);if(Number.isFinite(latestClose)&&latestClose>0){state.markets[symbol]={...(state.markets[symbol]||{}),symbol,price:latestClose,timestamp:latest.time,source:marketCatalog.crypto.some(([s])=>s===symbol)?"Bybit Live":(state.markets[symbol]?.source||"Deriv Live"),live:true};updateSelectedMarketHeader();}return true;}catch(error){console.warn("In-place live chart refresh skipped:",error);return false;}
 }
