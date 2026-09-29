@@ -1,60 +1,77 @@
-/* GoTradeX first dashboard controls */
+/* GoTradeX clean chart trading controls */
 (function(){
   "use strict";
 
   const groups = {
-    commodities:[["USOIL","US Oil"],["UKOIL","UK Oil"],["NATGAS","Natural Gas"]],
-    forex:[["EURUSD","EUR / USD"],["GBPUSD","GBP / USD"],["USDJPY","USD / JPY"],["AUDUSD","AUD / USD"],["USDCHF","USD / CHF"]],
-    indices:[["US30","US 30"],["US500","US 500"],["NAS100","Nasdaq 100"],["GER40","Germany 40"]],
     crypto:[["BTCUSDT","BTC / USDT"],["ETHUSDT","ETH / USDT"],["SOLUSDT","SOL / USDT"],["XRPUSDT","XRP / USDT"]],
+    forex:[["EURUSD","EUR / USD"],["GBPUSD","GBP / USD"],["USDJPY","USD / JPY"],["AUDUSD","AUD / USD"],["USDCHF","USD / CHF"]],
+    commodities:[["USOIL","US Oil"],["UKOIL","UK Oil"],["NATGAS","Natural Gas"]],
+    indices:[["US30","US 30"],["US500","US 500"],["NAS100","Nasdaq 100"],["GER40","Germany 40"]],
     metals:[["XAUUSD","Gold / USD"],["XAGUSD","Silver / USD"],["XPTUSD","Platinum / USD"]]
   };
 
-  const timeframes = ["5s","15s","30s","1m","5m","15m","1h","4h","1D"];
-  let category = "commodities";
-  let symbol = "USOIL";
-  let timeframe = "1m";
+  const chartTimeframes = ["1m","5m","15m","30m","1h","4h"];
+  let category = "crypto";
+  let symbol = "BTCUSDT";
+  let timeframe = "5m";
 
   function state(){ return window.state || {}; }
+
   function setState(){
     if (!window.state) return;
     window.state.currentSymbol = symbol;
     window.state.currentTimeframe = timeframe;
+    window.state.currentTradeDuration = document.getElementById("gtxDashboardTradeDuration")?.value || "5m";
   }
 
   function renderAssets(){
     const select = document.getElementById("gtxDashboardAssetSelect");
     if (!select) return;
-    select.innerHTML = (groups[category] || []).map(([value,label]) =>
-      '<option value="'+value+'">'+label+'</option>'
-    ).join("");
-    const found = (groups[category] || []).some(x => x[0] === symbol);
-    if (!found) symbol = groups[category]?.[0]?.[0] || "BTCUSDT";
+    const list = groups[category] || [];
+    if (!list.some(x => x[0] === symbol)) symbol = list[0]?.[0] || "BTCUSDT";
+    select.innerHTML = list.map(([value,label]) => '<option value="'+value+'">'+label+'</option>').join("");
     select.value = symbol;
     setState();
     renderSummary();
   }
 
   function renderSummary(){
-    const s = state();
-    const market = s.markets?.[symbol] || {};
+    const market = state().markets?.[symbol] || {};
     const price = Number(market.price);
-    const priceText = Number.isFinite(price) && price > 0 ? price.toLocaleString(undefined,{maximumFractionDigits:8}) : "—";
-    const ids = {
-      market:"gtxDashboardSelectedMarket",
-      timeframe:"gtxDashboardSelectedTimeframe",
-      signal:"gtxDashboardSignal",
-      bid:"gtxDashboardBidPrice",
-      ask:"gtxDashboardAskPrice"
-    };
-    const el = id => document.getElementById(id);
-    if(el(ids.market)) el(ids.market).textContent = symbol;
-    if(el(ids.timeframe)) el(ids.timeframe).textContent = timeframe;
-    if(el(ids.bid)) el(ids.bid).textContent = priceText;
-    if(el(ids.ask)) el(ids.ask).textContent = priceText;
+    const text = Number.isFinite(price) && price > 0
+      ? price.toLocaleString(undefined,{maximumFractionDigits:8})
+      : "—";
+
+    const priceEl = document.getElementById("gtxDashboardChartPrice");
+    const symbolEl = document.getElementById("gtxDashboardChartSymbol");
+    const bidEl = document.getElementById("gtxDashboardBidPrice");
+    const askEl = document.getElementById("gtxDashboardAskPrice");
+    if (symbolEl) symbolEl.textContent = symbol;
+    if (priceEl) priceEl.textContent = text;
+    if (bidEl) bidEl.textContent = text;
+    if (askEl) askEl.textContent = text;
+  }
+
+  function setMenu(open){
+    const menu = document.getElementById("gtxDashboardAssetsMenu");
+    const button = document.getElementById("gtxDashboardAssetsButton");
+    if (!menu || !button) return;
+    menu.hidden = !open;
+    button.setAttribute("aria-expanded", String(open));
   }
 
   function bind(){
+    const assetButton = document.getElementById("gtxDashboardAssetsButton");
+    assetButton?.addEventListener("click", function(event){
+      event.stopPropagation();
+      const menu = document.getElementById("gtxDashboardAssetsMenu");
+      setMenu(Boolean(menu?.hidden));
+    });
+
+    document.addEventListener("click", function(event){
+      if (!event.target.closest(".gtx-trade-top-actions")) setMenu(false);
+    });
+
     document.querySelectorAll("[data-dashboard-category]").forEach(btn => {
       btn.addEventListener("click", function(){
         category = this.dataset.dashboardCategory;
@@ -63,11 +80,12 @@
       });
     });
 
-    const select = document.getElementById("gtxDashboardAssetSelect");
-    select?.addEventListener("change", function(){
+    document.getElementById("gtxDashboardAssetSelect")?.addEventListener("change", function(){
       symbol = this.value;
       setState();
       renderSummary();
+      setMenu(false);
+      window.GTXFreshChart?.reload?.();
     });
 
     document.querySelectorAll("[data-dashboard-timeframe]").forEach(btn => {
@@ -75,23 +93,22 @@
         timeframe = this.dataset.dashboardTimeframe;
         document.querySelectorAll("[data-dashboard-timeframe]").forEach(b => b.classList.toggle("active", b === this));
         setState();
-        renderSummary();
+        window.GTXFreshChart?.reload?.();
       });
     });
 
-    document.getElementById("gtxKenghiChatButton")?.addEventListener("click", function(){
-      if(typeof window.showPage === "function") window.showPage("support");
-    });
-
+    document.getElementById("gtxDashboardTradeDuration")?.addEventListener("change", setState);
     document.getElementById("gtxDashboardBuyButton")?.addEventListener("click", function(){
-      if(typeof window.submitManualTrade === "function") window.submitManualTrade("BUY").catch(e => window.showToast?.(e.message || "BUY failed","error"));
+      window.submitManualTrade?.("BUY").catch?.(e => window.showToast?.(e.message || "BUY failed","error"));
     });
     document.getElementById("gtxDashboardSellButton")?.addEventListener("click", function(){
-      if(typeof window.submitManualTrade === "function") window.submitManualTrade("SELL").catch(e => window.showToast?.(e.message || "SELL failed","error"));
+      window.submitManualTrade?.("SELL").catch?.(e => window.showToast?.(e.message || "SELL failed","error"));
     });
 
+    // The Kenghi UI belongs to Support, not the trading screen.
+    setState();
     renderAssets();
-    setInterval(renderSummary, 1000);
+    setInterval(renderSummary,1000);
   }
 
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded",bind,{once:true});
