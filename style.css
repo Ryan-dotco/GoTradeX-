@@ -4069,3 +4069,27 @@ select {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+/* =========================================================
+   GOTRADEX PHASES 6-11 — EXECUTION / ROBOT / ADMIN UI
+   ========================================================= */
+.gtx-robot-runtime-panel,
+.gtx-admin-ops-panel,
+#gtxReadinessPanel {
+  width: 100%;
+}
+.gtx-admin-ops-panel .panel,
+.gtx-robot-runtime-panel .panel {
+  margin-bottom: 0;
+}
+#gtxAuditList.info-list > div {
+  align-items: center;
+}
+.gtx-production-locked {
+  opacity: .75;
+}
+@media (max-width: 700px) {
+  .gtx-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
