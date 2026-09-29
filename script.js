@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.44";
+const APP_VERSION = "3.0.45";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -2468,18 +2468,16 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Small live-price marker: visible but never blocks the candle area.
+  // Tiny live-price direction marker. Keep the price scale clear:
+  // the axis already shows the exact number, so no filled price box/text
+  // is painted over the right side of the chart.
   ctx.fillStyle = "#4f7cff";
   ctx.beginPath();
   ctx.moveTo(plotRight + 2, latestY);
-  ctx.lineTo(plotRight + 11, latestY - 7);
-  ctx.lineTo(plotRight + 11, latestY + 7);
+  ctx.lineTo(plotRight + 11, latestY - 5);
+  ctx.lineTo(plotRight + 11, latestY + 5);
   ctx.closePath();
   ctx.fill();
-
-  ctx.fillStyle = "#cfe0ff";
-  ctx.font = "bold 9px Arial";
-  ctx.fillText(chartPriceLabel(last.close), Math.min(width - 58, plotRight + 15), latestY + 3);
 
   ctx.fillStyle = "#91a4bd";
   ctx.font = "9px Arial";
@@ -2567,22 +2565,45 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
 
 }
 
-function setChartViewport(zoom, pan) {
-  const chartState = state.chartView || (state.chartView = {});
-  chartState.zoom = Math.max(0.55, Math.min(4, Number(zoom) || 1));
+function getChartViewportMetrics(zoom) {
   const count = state.chart?.candles?.length || 1;
-  const visible = Math.max(12, Math.min(count, Math.round(count / chartState.zoom)));
-  chartState.pan = Math.max(0, Math.min(Math.max(0, count - visible), Number(pan) || 0));
+  const safeZoom = Math.max(0.55, Math.min(4, Number(zoom) || 1));
+  const visible = Math.max(12, Math.min(count, Math.round(count / safeZoom)));
+  return { count, zoom: safeZoom, visible, maxPan: Math.max(0, count - visible) };
+}
+
+function setChartViewport(zoom, pan) {
+  const metrics = getChartViewportMetrics(zoom);
+  const chartState = state.chartView || (state.chartView = {});
+  chartState.zoom = metrics.zoom;
+  chartState.pan = Math.max(0, Math.min(metrics.maxPan, Number(pan) || 0));
   state.chartView = chartState;
 
-  // Coalesce rapid wheel/pinch/pan events so the UI never queues dozens of
-  // full canvas redraws behind the user's fingers.
   if (!state.chartRenderFrame) {
     state.chartRenderFrame = requestAnimationFrame(() => {
       state.chartRenderFrame = null;
       renderCurrentChart();
     });
   }
+}
+
+function zoomChartAt(nextZoom, focalX) {
+  const current = state.chartView || {};
+  const old = getChartViewportMetrics(current.zoom || 1);
+  if (!old.count) return;
+
+  const canvas = $("mainChart");
+  const width = Math.max(1, canvas?.getBoundingClientRect().width || 600);
+  const paddingLeft = 8;
+  const futureSpace = Math.max(34, Math.min(72, width * 0.075));
+  const plotRight = width - 68 - futureSpace;
+  const chartWidth = Math.max(180, plotRight - paddingLeft);
+  const xRatio = Math.max(0, Math.min(1, (Number(focalX) - paddingLeft) / chartWidth));
+  const focalIndex = Number(current.pan || 0) + xRatio * old.visible;
+
+  const next = getChartViewportMetrics(nextZoom);
+  const nextPan = focalIndex - xRatio * next.visible;
+  setChartViewport(next.zoom, nextPan);
 }
 
 function renderCurrentChart() {
@@ -2618,58 +2639,108 @@ async function createChart() {
     const pointers = new Map();
     let panStart = null;
     let pinchStart = null;
+
     const distance = () => {
       const pts = [...pointers.values()];
       if (pts.length < 2) return 0;
       return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
     };
+
+    const midpointX = () => {
+      const pts = [...pointers.values()];
+      if (pts.length < 2) return 0;
+      return (pts[0].x + pts[1].x) / 2;
+    };
+
     chartCanvas.addEventListener("wheel", event => {
       event.preventDefault();
-      const current = state.chartView || {};
-      const nextZoom = (Number(current.zoom) || 1) * (event.deltaY < 0 ? 1.18 : 0.85);
-      setChartViewport(nextZoom, Number(current.pan) || 0);
-    }, {passive:false});
+      const rect = chartCanvas.getBoundingClientRect();
+      const focalX = event.clientX - rect.left;
+      const currentZoom = Number(state.chartView?.zoom) || 1;
+      const nextZoom = currentZoom * (event.deltaY < 0 ? 1.12 : 0.89);
+      zoomChartAt(nextZoom, focalX);
+    }, { passive: false });
+
     chartCanvas.addEventListener("pointerdown", event => {
       chartCanvas.setPointerCapture?.(event.pointerId);
-      pointers.set(event.pointerId, {x:event.clientX, y:event.clientY});
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
       if (pointers.size === 1) {
-        panStart = {x:event.clientX, pan:Number(state.chartView?.pan)||0};
+        panStart = {
+          x: event.clientX,
+          pan: Number(state.chartView?.pan) || 0
+        };
         pinchStart = null;
       } else if (pointers.size === 2) {
-        pinchStart = {distance:distance(), zoom:Number(state.chartView?.zoom)||1, pan:Number(state.chartView?.pan)||0};
+        const rect = chartCanvas.getBoundingClientRect();
+        const focalX = midpointX() - rect.left;
+        const metrics = getChartViewportMetrics(state.chartView?.zoom || 1);
+        const width = Math.max(1, rect.width);
+        const futureSpace = Math.max(34, Math.min(72, width * 0.075));
+        const plotRight = width - 68 - futureSpace;
+        const chartWidth = Math.max(180, plotRight - 8);
+        const ratio = Math.max(0, Math.min(1, (focalX - 8) / chartWidth));
+
+        pinchStart = {
+          distance: Math.max(1, distance()),
+          zoom: metrics.zoom,
+          pan: Number(state.chartView?.pan) || 0,
+          focalX,
+          focalIndex: (Number(state.chartView?.pan) || 0) + ratio * metrics.visible
+        };
         panStart = null;
       }
     });
+
     chartCanvas.addEventListener("pointermove", event => {
       if (!pointers.has(event.pointerId)) return;
-      pointers.set(event.pointerId, {x:event.clientX, y:event.clientY});
-      const zoom = Number(state.chartView?.zoom)||1;
-      const count = state.chart?.candles?.length || 1;
-      const visible = Math.max(12, Math.min(count, Math.round(count / zoom)));
-      const width = Math.max(1, chartCanvas.getBoundingClientRect().width);
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      const rect = chartCanvas.getBoundingClientRect();
+      const width = Math.max(1, rect.width);
+      const currentZoom = Number(state.chartView?.zoom) || 1;
+      const metrics = getChartViewportMetrics(currentZoom);
 
       if (pointers.size >= 2 && pinchStart) {
         const ratio = distance() / Math.max(1, pinchStart.distance);
-        setChartViewport(pinchStart.zoom * ratio, pinchStart.pan);
+        const next = getChartViewportMetrics(pinchStart.zoom * ratio);
+        const focalX = midpointX() - rect.left;
+        const futureSpace = Math.max(34, Math.min(72, width * 0.075));
+        const plotRight = width - 68 - futureSpace;
+        const chartWidth = Math.max(180, plotRight - 8);
+        const xRatio = Math.max(0, Math.min(1, (focalX - 8) / chartWidth));
+        const nextPan = pinchStart.focalIndex - xRatio * next.visible;
+        setChartViewport(next.zoom, nextPan);
       } else if (pointers.size === 1 && panStart) {
         const dx = event.clientX - panStart.x;
-        setChartViewport(zoom, panStart.pan - (dx / width) * visible);
+        setChartViewport(
+          metrics.zoom,
+          panStart.pan - (dx / width) * metrics.visible
+        );
       }
     });
+
     const endPointer = event => {
       pointers.delete(event.pointerId);
-      if (pointers.size < 2) pinchStart = null;
+
+      if (pointers.size < 2) {
+        pinchStart = null;
+      }
+
       if (pointers.size === 1) {
         const remaining = [...pointers.values()][0];
-        panStart = {x:remaining.x, pan:Number(state.chartView?.pan)||0};
+        panStart = {
+          x: remaining.x,
+          pan: Number(state.chartView?.pan) || 0
+        };
       } else if (!pointers.size) {
         panStart = null;
       }
     };
+
     chartCanvas.addEventListener("pointerup", endPointer);
     chartCanvas.addEventListener("pointercancel", endPointer);
     chartCanvas.addEventListener("dblclick", () => setChartViewport(1, 0));
-  }
 
   const canvas = $("mainChart");
   if (!canvas) return;
@@ -2680,7 +2751,7 @@ async function createChart() {
 
   let candles = [];
   try {
-    candles = await fetchChartCandles(symbol, timeframe, 80);
+    candles = await fetchChartCandles(symbol, timeframe, 180);
     if (chartRequestId !== state.chartRequestId || symbol !== state.currentSymbol || timeframe !== state.currentTimeframe) return;
   } catch (error) {
     if (chartRequestId !== state.chartRequestId || symbol !== state.currentSymbol || timeframe !== state.currentTimeframe) return;
