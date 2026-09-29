@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.40";
+const APP_VERSION = "3.0.41";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -2368,11 +2368,6 @@ async function createChart() {
   const canvas = $("mainChart");
   if (!canvas) return;
 
-  if (state.chart?.destroy) {
-    state.chart.destroy();
-    state.chart = null;
-  }
-
   const timeframe = state.currentTimeframe || "1H";
   const symbol = state.currentSymbol || "BTCUSDT";
   const currentPrice = state.markets?.[symbol]?.price || 0;
@@ -2384,8 +2379,14 @@ async function createChart() {
     console.warn("Live chart candles unavailable:", error);
     showToast("Live chart data is temporarily unavailable for " + symbol + ".", "error");
   }
-  if (!candles.length) {
+  if (candles.length < 2) {
+    // Keep the previous chart if the live endpoint temporarily returns no/partial data.
     return;
+  }
+
+  if (state.chart?.destroy) {
+    state.chart.destroy();
+    state.chart = null;
   }
 
   const latestClose = Number(candles[candles.length - 1]?.close);
@@ -5287,6 +5288,12 @@ function connectBybitPublicStream() {
       ? "publicTrade." + symbol
       : "kline." + ({"1m":"1","2m":"1","5m":"5","15m":"15","30m":"30","1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"}[timeframe] || "60") + "." + symbol;
     socket.send(JSON.stringify({op:"subscribe", args:[topic]}));
+    clearInterval(socket.__gtxHeartbeat);
+    socket.__gtxHeartbeat = setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({op:"ping", req_id:"gtx-heartbeat"}));
+      }
+    }, 20000);
   };
 
   socket.onmessage = event => {
@@ -5332,6 +5339,7 @@ function connectBybitPublicStream() {
 
   socket.onerror = error => console.warn("Bybit chart stream error:", error);
   socket.onclose = () => {
+    clearInterval(socket.__gtxHeartbeat);
     if (state.liveMarketSocket === socket && state.user) {
       state.liveMarketSocket = null;
       clearTimeout(state.liveMarketReconnectTimer);
@@ -5395,6 +5403,42 @@ function connectLiveMarketStream() {
    REFRESH
    ========================================================= */
 
+async function refreshChartDataInPlace() {
+  const symbol = state.currentSymbol || "BTCUSDT";
+  const timeframe = state.currentTimeframe || "1H";
+  try {
+    const candles = await fetchChartCandles(symbol, timeframe, 80);
+    if (!Array.isArray(candles) || candles.length < 2) return false;
+
+    const latest = candles[candles.length - 1];
+    if (!latest) return false;
+
+    const existing = state.chart?.candles;
+    if (Array.isArray(existing)) {
+      existing.splice(0, existing.length, ...candles);
+      state.chart.render?.();
+    } else {
+      await createChart();
+    }
+
+    const latestClose = Number(latest.close);
+    if (Number.isFinite(latestClose) && latestClose > 0) {
+      state.markets[symbol] = {
+        ...(state.markets[symbol] || {}),
+        symbol,
+        price: latestClose,
+        timestamp: latest.time
+      };
+      updateSelectedMarketHeader();
+    }
+    return true;
+  } catch (error) {
+    console.warn("In-place chart refresh skipped:", error);
+    // Keep the last valid chart visible. Never clear the canvas on a transient API failure.
+    return false;
+  }
+}
+
 async function refreshApplication() {
 
   const button =
@@ -5416,7 +5460,10 @@ async function refreshApplication() {
 
     await loadLiveMarkets();
 
-    await createChart();
+    const chartRefreshed = await refreshChartDataInPlace();
+    if (!chartRefreshed && !state.chart?.candles?.length) {
+      await createChart();
+    }
 
     updatePortfolio();
 
@@ -5517,9 +5564,7 @@ function startLiveRefresh() {
           state.currentPage ===
           "dashboard"
         ) {
-
-          await createChart();
-
+          await refreshChartDataInPlace();
         }
 
       },
