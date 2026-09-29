@@ -2775,6 +2775,7 @@ function saveDemoState() {
       tradeHistory: state.demo.tradeHistory.slice(0, 50),
       lastSignalKey: state.demo.lastSignalKey,
       lastTradeAt: state.demo.lastTradeAt,
+      executionMode: state.demo.executionMode,
       savedAt: Date.now()
     }));
   } catch (error) {
@@ -2806,6 +2807,8 @@ function loadDemoState() {
     state.demo.tradeHistory = Array.isArray(saved.tradeHistory) ? saved.tradeHistory : [];
     state.demo.lastSignalKey = saved.lastSignalKey || "";
     state.demo.lastTradeAt = Number(saved.lastTradeAt) || 0;
+    state.demo.executionMode = saved.executionMode === "broker-demo" ? "broker-demo" : "simulation";
+    if ($("demoExecutionMode")) $("demoExecutionMode").value = state.demo.executionMode;
   } else if (Number.isFinite(liveBalance) && liveBalance > 0) {
     state.demo.startingBalance = liveBalance;
     state.demo.balance = liveBalance;
