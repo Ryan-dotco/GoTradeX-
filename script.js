@@ -2818,6 +2818,38 @@ function setRobotRisk(risk) {
 }
 
 
+function renderDemoTrades() {
+  const open = $("demoOpenTradesList");
+  const history = $("demoTradeHistoryList");
+  if (open) {
+    open.innerHTML = state.demo.openTrades.length
+      ? state.demo.openTrades.map(trade => {
+          const pl = Number(trade.unrealizedPL) || 0;
+          return '<div class="market-row">' +
+            '<div><strong>' + escapeHTML(trade.symbol) + '</strong><span>' +
+            escapeHTML(trade.direction) + ' • ' + Number(trade.confidence).toFixed(0) + '%</span></div>' +
+            '<div><span>Entry</span><strong>' + formatPrice(trade.entry) + '</strong></div>' +
+            '<div><span>Current</span><strong>' + formatPrice(trade.current) + '</strong></div>' +
+            '<div><span>Unrealized</span><strong class="' + (pl >= 0 ? 'positive' : 'negative') + '">' + formatMoney(pl) + '</strong></div>' +
+          '</div>';
+        }).join("")
+      : '<div class="empty-state">No open demo trades.</div>';
+  }
+  if (history) {
+    history.innerHTML = state.demo.tradeHistory.length
+      ? state.demo.tradeHistory.slice(0, 10).map(trade =>
+          '<div class="market-row">' +
+          '<div><strong>' + escapeHTML(trade.symbol) + '</strong><span>' +
+          escapeHTML(trade.direction) + ' • ' + escapeHTML(trade.closeReason || "Closed") + '</span></div>' +
+          '<div><span>P/L</span><strong class="' + (Number(trade.pnl) >= 0 ? 'positive' : 'negative') + '">' + formatMoney(trade.pnl) + '</strong></div>' +
+          '<div><span>Exit</span><strong>' + formatPrice(trade.exit) + '</strong></div>' +
+          '<div><span>Time</span><strong>' + new Date(trade.closedAt).toLocaleTimeString() + '</strong></div>' +
+          '</div>'
+        ).join("")
+      : '<div class="empty-state">No completed demo trades yet.</div>';
+  }
+}
+
 function renderRobotStatus() {
 
   const running = state.robotRunning === true;
@@ -2853,6 +2885,8 @@ function renderRobotStatus() {
     $("robotDailyPL").textContent =
       formatMoney(state.robotStatus.dailyPL || 0);
   }
+
+  renderDemoTrades();
 
   if ($("robotErrorMessage")) {
     $("robotErrorMessage").textContent =
@@ -4667,6 +4701,8 @@ function handleDerivAccountChange() {
     state.deriv.accounts.find(account =>
       String(account.account_id) === String(id)
     ) || null;
+  state.demo.initialized = false;
+  loadDemoState();
   renderDerivAccountSummary();
 }
 
