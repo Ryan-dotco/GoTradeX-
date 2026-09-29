@@ -3754,25 +3754,48 @@ select {
     position: absolute;
     top: 8px;
     right: 12px;
-    z-index: 20;
+    z-index: 200;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    max-width: 48%;
-    padding: 4px 7px;
+    gap: 6px;
+    max-width: 58%;
+    min-height: 34px;
+    padding: 6px 9px 6px 11px;
+    border: 1px solid rgba(32, 201, 151, .72);
     border-radius: 999px;
-    background: rgba(15, 23, 42, .72);
-    color: rgba(255,255,255,.78);
+    background: linear-gradient(135deg, rgba(32, 201, 151, .22), rgba(10, 30, 35, .96));
+    color: #eafff7;
+    box-shadow: 0 0 0 1px rgba(32, 201, 151, .08), 0 5px 18px rgba(32, 201, 151, .20);
     font-size: 9px;
+    font-weight: 800;
     line-height: 1.1;
-    pointer-events: none;
+    cursor: pointer;
+    pointer-events: auto;
     white-space: nowrap;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(32, 201, 151, .25);
+  }
+
+  .gtx-swipe-next-hint:hover {
+    background: linear-gradient(135deg, rgba(32, 201, 151, .34), rgba(10, 30, 35, .98));
+    border-color: var(--green);
+  }
+
+  .gtx-swipe-next-hint:active {
+    transform: scale(.96);
   }
 
   .gtx-swipe-next-hint b {
-    font-size: 17px;
-    font-weight: 400;
-    line-height: .7;
+    display: grid;
+    place-items: center;
+    min-width: 18px;
+    min-height: 18px;
+    border-radius: 50%;
+    background: var(--green);
+    color: #062116;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
   }
 
   #page-support.active-page .gtx-swipe-next-hint {
