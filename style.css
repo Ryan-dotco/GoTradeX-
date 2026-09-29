@@ -4611,3 +4611,64 @@ select {
     min-width:112px!important;
   }
 }
+
+
+/* FINAL MOBILE DASHBOARD FIT */
+@media(max-width:700px){
+  .main-area{overflow:hidden!important;}
+  .topbar{min-height:50px!important;height:50px!important;padding:6px 10px!important;}
+  .gtx-trading-dashboard{
+    height:calc(100dvh - 108px)!important;
+    min-height:0!important;
+    max-height:calc(100dvh - 108px)!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-topbar{
+    flex:0 0 38px!important;min-height:38px!important;height:38px!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-timeframe-row{
+    flex:0 0 29px!important;min-height:29px!important;height:29px!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-chart-meta{
+    flex:0 0 17px!important;min-height:17px!important;height:17px!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-order-bar{
+    flex:0 0 52px!important;min-height:52px!important;height:52px!important;
+    padding:4px 0!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-input label{font-size:8px!important;margin-bottom:2px!important;}
+  .gtx-trading-dashboard .gtx-trade-input select,
+  .gtx-trading-dashboard .gtx-amount-field{
+    min-height:30px!important;height:30px!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-buy-sell{
+    flex:0 0 50px!important;min-height:50px!important;height:50px!important;
+    padding:2px 0 0!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-buy,
+  .gtx-trading-dashboard .gtx-trade-sell{
+    min-height:46px!important;height:46px!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-chart-wrap{
+    min-height:0!important;height:auto!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-symbol{
+    left:48px!important;
+    max-width:92px!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    text-overflow:ellipsis!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-top-actions{
+    left:50%!important;top:50%!important;
+    transform:translate(-50%,-50%)!important;
+  }
+  .gtx-trading-dashboard .gtx-trade-control-button{
+    min-width:106px!important;padding:6px 10px!important;
+  }
+  .gtx-page-logo{
+    top:7px!important;left:8px!important;
+    width:34px!important;height:25px!important;
+  }
+}
