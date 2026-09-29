@@ -3363,3 +3363,153 @@ select {
 .gtx-current-price-box {
   display: none !important;
 }
+
+/* =========================================================
+   GTX MANUAL TRADING TICKET
+   ========================================================= */
+.manual-trading-panel,
+.manual-positions-panel {
+  min-width: 0;
+}
+.demo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(37,99,235,.18);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.trade-ticket-grid {
+  display: grid;
+  gap: 14px;
+}
+.trade-ticket-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+}
+.trade-ticket-summary > div {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0b192d;
+}
+.trade-ticket-summary span,
+.manual-position-card span,
+.trade-ticket-note span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.trade-ticket-summary strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.manual-trade-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 12px;
+}
+.manual-trade-form .field {
+  margin: 0;
+}
+.manual-trade-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.trade-buy-button,
+.trade-sell-button {
+  min-height: 54px;
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.trade-buy-button { background: #168a55; }
+.trade-sell-button { background: #c83f4c; }
+.trade-buy-button:disabled,
+.trade-sell-button:disabled { opacity: .55; cursor: wait; }
+.trade-ticket-note {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255,255,255,.025);
+}
+.trade-ticket-note strong {
+  color: var(--text);
+  font-size: 11px;
+}
+#manualTradeMessage {
+  grid-column: 1 / -1;
+  min-height: 20px;
+}
+.manual-positions-list {
+  display: grid;
+  gap: 9px;
+}
+.manual-position-card {
+  display: grid;
+  grid-template-columns: minmax(110px,1.4fr) repeat(3,minmax(85px,1fr)) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0b192d;
+}
+.manual-position-main {
+  display: grid;
+  gap: 3px;
+}
+.manual-position-main strong { color: var(--text); }
+.manual-position-main span { margin: 0; font-weight: 900; }
+@media (max-width: 850px) {
+  .trade-ticket-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .trade-ticket-summary > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .manual-trade-form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .manual-position-card {
+    grid-template-columns: 1fr 1fr;
+  }
+  .manual-position-card .manual-close-position {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 42px;
+  }
+}
+@media (max-width: 520px) {
+  .manual-trade-form {
+    grid-template-columns: 1fr;
+  }
+  .manual-trade-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .trade-ticket-summary {
+    grid-template-columns: 1fr;
+  }
+  .trade-ticket-summary > div:last-child {
+    grid-column: auto;
+  }
+}

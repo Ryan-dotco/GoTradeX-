@@ -3674,6 +3674,108 @@ function setRobotRisk(risk) {
 }
 
 
+function getManualTradeDefaults(direction, price) {
+  const p = Number(price);
+  if (!Number.isFinite(p) || p <= 0) return { stop: 0, target: 0 };
+  const distance = p * 0.005;
+  return direction === "BUY"
+    ? { stop: p - distance, target: p + distance * 1.5 }
+    : { stop: p + distance, target: p - distance * 1.5 };
+}
+
+function renderManualTradeTicket() {
+  const symbol = state.currentSymbol || "BTCUSDT";
+  const market = state.markets?.[symbol] || {};
+  const price = Number(market.price);
+  if ($("tradeTicketSymbol")) $("tradeTicketSymbol").textContent = symbol;
+  if ($("tradeTicketPrice")) $("tradeTicketPrice").textContent =
+    Number.isFinite(price) && price > 0 ? formatPrice(price) : "Waiting...";
+  renderManualPositions();
+}
+
+function renderManualPositions() {
+  const list = $("manualPositionsList");
+  if (!list) return;
+  const trades = state.demo.openTrades || [];
+  if ($("manualPositionCount")) $("manualPositionCount").textContent = String(trades.length);
+  if (!trades.length) {
+    list.innerHTML = '<div class="empty-state">No open positions.</div>';
+    return;
+  }
+  list.innerHTML = trades.map(trade => {
+    const pl = Number(trade.unrealizedPL) || 0;
+    return '<div class="manual-position-card">' +
+      '<div class="manual-position-main">' +
+        '<strong>' + escapeHTML(trade.symbol) + '</strong>' +
+        '<span class="' + (trade.direction === "BUY" ? "positive" : "negative") + '">' + escapeHTML(trade.direction) + '</span>' +
+      '</div>' +
+      '<div><span>Entry</span><strong>' + formatPrice(trade.entry) + '</strong></div>' +
+      '<div><span>Current</span><strong>' + formatPrice(trade.current) + '</strong></div>' +
+      '<div><span>P/L</span><strong class="' + (pl >= 0 ? "positive" : "negative") + '">' + formatMoney(pl) + '</strong></div>' +
+      '<button type="button" class="small-button manual-close-position" data-trade-id="' + escapeHTML(trade.id) + '">Close</button>' +
+    '</div>';
+  }).join("");
+}
+
+async function submitManualTrade(direction) {
+  const symbol = state.currentSymbol || "BTCUSDT";
+  const market = state.markets?.[symbol] || {};
+  const price = Number(market.price);
+  const amount = Number($("manualTradeAmount")?.value);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Waiting for a live price for " + symbol + ".");
+  if (!Number.isFinite(amount) || amount < 1) throw new Error("Enter a trade amount of at least $1.");
+
+  if (state.demo.openTrades.some(t => t.symbol === symbol)) {
+    throw new Error("There is already an open demo position for " + symbol + ".");
+  }
+
+  const defaults = getManualTradeDefaults(direction, price);
+  const stopInput = Number($("manualTradeStop")?.value);
+  const targetInput = Number($("manualTradeTarget")?.value);
+  const stop = Number.isFinite(stopInput) && stopInput > 0 ? stopInput : defaults.stop;
+  const target = Number.isFinite(targetInput) && targetInput > 0 ? targetInput : defaults.target;
+
+  if (direction === "BUY" && !(stop < price && target > price)) {
+    throw new Error("For BUY, stop loss must be below price and take profit above price.");
+  }
+  if (direction === "SELL" && !(stop > price && target < price)) {
+    throw new Error("For SELL, stop loss must be above price and take profit below price.");
+  }
+
+  const quantity = amount / price;
+  const trade = {
+    id: "manual_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+    symbol, broker: "gtx-simulation", executionMode: "simulation",
+    brokerOrderId: null, brokerTransactionId: null,
+    direction, confidence: 100, entry: price, current: price,
+    stop, target, quantity, riskAmount: Math.abs(price - stop) * quantity,
+    openedAt: new Date().toISOString(), status: "OPEN", unrealizedPL: 0,
+    source: "manual-ticket"
+  };
+
+  state.demo.openTrades.unshift(trade);
+  updateDemoMetrics();
+  saveDemoState();
+  renderRobotStatus();
+  renderManualTradeTicket();
+  showToast("Demo " + direction + " opened on " + symbol + " at " + formatPrice(price), "success");
+}
+
+function closeManualPosition(tradeId) {
+  const trade = state.demo.openTrades.find(t => t.id === tradeId);
+  if (!trade) return;
+  const price = Number(state.markets?.[trade.symbol]?.price);
+  if (!Number.isFinite(price) || price <= 0) {
+    showToast("Live price is unavailable; position was not closed.", "error");
+    return;
+  }
+  closeDemoTrade(trade, price, "MANUAL CLOSE");
+  updateDemoMetrics();
+  saveDemoState();
+  renderRobotStatus();
+  renderManualTradeTicket();
+}
+
 function renderDemoTrades() {
   const open = $("demoOpenTradesList");
   const history = $("demoTradeHistoryList");
@@ -3704,6 +3806,7 @@ function renderDemoTrades() {
         ).join("")
       : '<div class="empty-state">No completed demo trades yet.</div>';
   }
+  renderManualTradeTicket();
 }
 
 function renderRobotStatus() {
@@ -7438,6 +7541,37 @@ if (
   initializeApp();
 
 }
+
+/* =========================================================
+   MANUAL TRADE TICKET
+   ========================================================= */
+document.addEventListener("click", (event) => {
+  const buy = event.target.closest?.("#manualBuyButton");
+  const sell = event.target.closest?.("#manualSellButton");
+  const close = event.target.closest?.(".manual-close-position");
+
+  if (buy || sell) {
+    event.preventDefault();
+    const direction = buy ? "BUY" : "SELL";
+    const button = buy || sell;
+    button.disabled = true;
+    const message = $("manualTradeMessage");
+    if (message) message.textContent = "Opening demo " + direction + "...";
+    submitManualTrade(direction)
+      .then(() => { if (message) message.textContent = "Demo position opened."; })
+      .catch(error => {
+        if (message) message.textContent = error.message || "Unable to open demo position.";
+        showToast(error.message || "Unable to open demo position.", "error");
+      })
+      .finally(() => { button.disabled = false; });
+    return;
+  }
+
+  if (close) {
+    event.preventDefault();
+    closeManualPosition(close.dataset.tradeId);
+  }
+}, true);
 
 /* =========================================================
    MARKET CATEGORY PORTAL — MOBILE TOUCH FIX
