@@ -3742,3 +3742,14 @@ select {
 .app-page:not(#page-dashboard) .gtx-trade-left{
   display:none!important;
 }
+
+
+/* FINAL CLEANUP: remove the Assets/BTC header and generated Next-page portal everywhere. */
+.gtx-trade-topbar,
+.gtx-trade-left,
+.gtx-trade-top-actions,
+.gtx-trade-symbol,
+.gtx-swipe-next-hint,
+.gtx-dashboard-mobile-logo{
+  display:none!important;
+}
