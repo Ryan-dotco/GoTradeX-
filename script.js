@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.43";
+const APP_VERSION = "3.0.44";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -1793,7 +1793,13 @@ function chartSecondsForTimeframe(timeframe) {
 }
 
 async function fetchDerivCandles(internalSymbol, timeframe, limit = 80) {
-  const active = await getDerivActiveSymbols();
+  const cache = state.derivActiveSymbolsCache || (state.derivActiveSymbolsCache = { symbols: null, timestamp: 0 });
+  const cacheFresh = Array.isArray(cache.symbols) && (Date.now() - cache.timestamp) < 300000;
+  const active = cacheFresh ? cache.symbols : await getDerivActiveSymbols();
+  if (!cacheFresh && Array.isArray(active)) {
+    cache.symbols = active;
+    cache.timestamp = Date.now();
+  }
   const symbol = chooseDerivSymbol(internalSymbol, active);
   if (!symbol) throw new Error("Deriv does not currently expose " + internalSymbol + ".");
   // Keep the selected market explicitly tied to the real Deriv symbol.
@@ -2462,11 +2468,18 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // Small live-price marker: visible but never blocks the candle area.
   ctx.fillStyle = "#4f7cff";
-  ctx.fillRect(plotRight, latestY - 9, 62, 18);
-  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.moveTo(plotRight + 2, latestY);
+  ctx.lineTo(plotRight + 11, latestY - 7);
+  ctx.lineTo(plotRight + 11, latestY + 7);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#cfe0ff";
   ctx.font = "bold 9px Arial";
-  ctx.fillText(chartPriceLabel(last.close), width - padding.right + 4, latestY + 3);
+  ctx.fillText(chartPriceLabel(last.close), Math.min(width - 58, plotRight + 15), latestY + 3);
 
   ctx.fillStyle = "#91a4bd";
   ctx.font = "9px Arial";
@@ -2554,14 +2567,22 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
 
 }
 
-async function setChartViewport(zoom, pan) {
+function setChartViewport(zoom, pan) {
   const chartState = state.chartView || (state.chartView = {});
   chartState.zoom = Math.max(0.55, Math.min(4, Number(zoom) || 1));
   const count = state.chart?.candles?.length || 1;
   const visible = Math.max(12, Math.min(count, Math.round(count / chartState.zoom)));
   chartState.pan = Math.max(0, Math.min(Math.max(0, count - visible), Number(pan) || 0));
   state.chartView = chartState;
-  renderCurrentChart();
+
+  // Coalesce rapid wheel/pinch/pan events so the UI never queues dozens of
+  // full canvas redraws behind the user's fingers.
+  if (!state.chartRenderFrame) {
+    state.chartRenderFrame = requestAnimationFrame(() => {
+      state.chartRenderFrame = null;
+      renderCurrentChart();
+    });
+  }
 }
 
 function renderCurrentChart() {
@@ -2588,6 +2609,8 @@ function renderCurrentChart() {
 }
 
 async function createChart() {
+  const chartRequestId = (state.chartRequestId || 0) + 1;
+  state.chartRequestId = chartRequestId;
   const chartCanvas = $("mainChart");
   if (chartCanvas && !chartCanvas.dataset.gtxInteractions) {
     chartCanvas.dataset.gtxInteractions = "1";
@@ -2658,7 +2681,9 @@ async function createChart() {
   let candles = [];
   try {
     candles = await fetchChartCandles(symbol, timeframe, 80);
+    if (chartRequestId !== state.chartRequestId || symbol !== state.currentSymbol || timeframe !== state.currentTimeframe) return;
   } catch (error) {
+    if (chartRequestId !== state.chartRequestId || symbol !== state.currentSymbol || timeframe !== state.currentTimeframe) return;
     console.warn("Live chart candles unavailable:", error);
     showToast("Live chart data is temporarily unavailable for " + symbol + ".", "error");
   }
@@ -6959,7 +6984,14 @@ function bindEvents() {
     timeframeToggle?.setAttribute("aria-expanded", "false");
     if ($("signalDuration")) $("signalDuration").textContent = estimatedSignalDuration();
     if ($("analysisDuration")) $("analysisDuration").textContent = estimatedSignalDuration();
-    createChart();
+
+    // Start the new request immediately. The existing chart stays visible until
+    // valid candles for the new timeframe arrive, so the UI never freezes blank.
+    state.chartLoading = true;
+    updateSelectedMarketHeader();
+    createChart().finally(() => {
+      if (state.currentTimeframe === button.dataset.timeframe) state.chartLoading = false;
+    });
   }, true);
 
   const chartMarketToggle = $("chartSymbol")?.closest(".panel-header")?.querySelector(".chart-market-toggle");
