@@ -1,29 +1,31 @@
 /* =========================================================
-   GOTRADEX PHASE 2
-   MOBILE SWIPE NAVIGATION
+   GOTRADEX MOBILE PAGE NAVIGATION
+   TAP-ONLY NEXT PAGE CONTROL
    ========================================================= */
 
 (function () {
   "use strict";
 
-  const SWIPE_THRESHOLD = 64;
-  const MAX_VERTICAL_DRIFT = 90;
+  /*
+   The chart must keep all touch gestures for zooming/panning.
+   Navigation is therefore TAP-ONLY on the yellow next-page button.
+  */
 
   const sequence = [
-    { page: "dashboard", title: "Signal Analyzer" },
-    { page: "signals", title: "Markets & Assets" },
-    { page: "markets", title: "Trading Robot" },
-    { page: "robot", title: "Dashboard" }
+    { page: "dashboard", title: "Dashboard" },
+    { page: "signals", title: "Signal Analyzer" },
+    { page: "markets", title: "Markets & Assets" },
+    { page: "robot", title: "Trading Robot" }
   ];
 
-  let startX = 0;
-  let startY = 0;
-  let tracking = false;
-
   function currentIndex() {
-    const page = window.GloDateXSwipePage || window.GTXSwipePage || null;
     const active = document.querySelector(".app-page.active-page");
-    const name = page || active?.id?.replace(/^page-/, "") || "";
+    const name =
+      window.GloDateXSwipePage ||
+      window.GTXSwipePage ||
+      active?.id?.replace(/^page-/, "") ||
+      "";
+
     return sequence.findIndex(item => item.page === name);
   }
 
@@ -44,17 +46,23 @@
     if (!active || window.innerWidth > 850) return;
 
     let hint = active.querySelector(".gtx-swipe-next-hint");
+
     if (!hint) {
       hint = document.createElement("button");
       hint.className = "gtx-swipe-next-hint";
       hint.type = "button";
       hint.setAttribute("aria-label", "Open next page");
+
       hint.addEventListener("click", function (event) {
         event.preventDefault();
         event.stopPropagation();
+
         const index = currentIndex();
-        if (index >= 0) goTo((index + 1) % sequence.length);
+        if (index >= 0) {
+          goTo((index + 1) % sequence.length);
+        }
       });
+
       active.appendChild(hint);
     }
 
@@ -62,8 +70,9 @@
     if (index < 0) return;
 
     const next = nextItem(index);
+
     hint.innerHTML =
-      "<span>Swipe / tap for " +
+      "<span>Next: " +
       next.title +
       "</span><b aria-hidden=\"true\">›</b>";
   }
@@ -76,70 +85,40 @@
 
     requestAnimationFrame(() => {
       const active = getActivePage();
+
       if (active) {
         active.classList.remove("gtx-swipe-enter");
         void active.offsetWidth;
         active.classList.add("gtx-swipe-enter");
-        setTimeout(() => active.classList.remove("gtx-swipe-enter"), 320);
+
+        setTimeout(() => {
+          active.classList.remove("gtx-swipe-enter");
+        }, 320);
       }
+
       updateHint();
     });
   }
 
-  function handleStart(event) {
-    if (window.innerWidth > 850) return;
-    if (!event.touches || event.touches.length !== 1) {
-      tracking = false;
-      return;
-    }
-
-    const touch = event.touches[0];
-    startX = touch.clientX;
-    startY = touch.clientY;
-    tracking = true;
-  }
-
-  function handleEnd(event) {
-    if (!tracking || window.innerWidth > 850) return;
-    tracking = false;
-
-    const touch = event.changedTouches && event.changedTouches[0];
-    if (!touch) return;
-
-    const deltaX = touch.clientX - startX;
-    const deltaY = touch.clientY - startY;
-
-    if (
-      Math.abs(deltaX) < SWIPE_THRESHOLD ||
-      Math.abs(deltaY) > MAX_VERTICAL_DRIFT ||
-      Math.abs(deltaX) <= Math.abs(deltaY)
-    ) {
-      return;
-    }
-
-    const index = currentIndex();
-    if (index < 0) return;
-
-    if (deltaX < 0) {
-      goTo((index + 1) % sequence.length);
-    } else {
-      goTo((index - 1 + sequence.length) % sequence.length);
-    }
-  }
-
   function bind() {
-    document.addEventListener("touchstart", handleStart, { passive: true });
-    document.addEventListener("touchend", handleEnd, { passive: true });
-    document.addEventListener("touchcancel", () => {
-      tracking = false;
-    }, { passive: true });
+    /*
+     * IMPORTANT:
+     * No touchstart/touchend swipe listeners are registered.
+     * This prevents chart zoom/pan gestures from accidentally
+     * changing pages.
+     */
 
     const originalShowPage = window.showPage;
-    if (typeof originalShowPage === "function" && !originalShowPage.__gtxSwipeWrapped) {
+
+    if (
+      typeof originalShowPage === "function" &&
+      !originalShowPage.__gtxSwipeWrapped
+    ) {
       const wrapped = function (page) {
         originalShowPage(page);
         requestAnimationFrame(updateHint);
       };
+
       wrapped.__gtxSwipeWrapped = true;
       window.showPage = wrapped;
     }
@@ -156,12 +135,18 @@
   window.GTXSwipe = {
     next: function () {
       const index = currentIndex();
-      if (index >= 0) goTo((index + 1) % sequence.length);
+      if (index >= 0) {
+        goTo((index + 1) % sequence.length);
+      }
     },
+
     previous: function () {
       const index = currentIndex();
-      if (index >= 0) goTo((index - 1 + sequence.length) % sequence.length);
+      if (index >= 0) {
+        goTo((index - 1 + sequence.length) % sequence.length);
+      }
     },
+
     refresh: updateHint
   };
 })();
