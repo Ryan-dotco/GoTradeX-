@@ -599,313 +599,84 @@
 
       <section
         id="page-dashboard"
-        class="app-page active-page"
+        class="app-page active-page gtx-first-dashboard"
       >
 
-        <div class="welcome-row">
-
+        <div class="welcome-row gtx-dashboard-welcome">
           <div>
-
-            <h2>
-              Welcome back,
-              <span id="welcomeName">Trader</span>
-            </h2>
-
-            <p>
-              Your live trading command centre.
-            </p>
-
+            <h2>Welcome back, <span id="welcomeName">Trader</span></h2>
+            <p>Your GoTradeX trading command centre.</p>
           </div>
-
-          <div class="live-market-label">
-            ● LIVE DATA
-          </div>
-
+          <div class="live-market-label">● LIVE DATA</div>
         </div>
 
-
-        <div class="stat-grid">
-
-          <div class="stat-card">
-
-            <div class="stat-icon">💰</div>
-
-            <div>
-              <span>Account Balance</span>
-              <strong id="balanceValue">$0.00</strong>
+        <div class="gtx-kenghi-portal panel">
+          <div class="gtx-kenghi-stage" aria-label="Kenghi trading assistant">
+            <div class="gtx-kenghi-orbit gtx-kenghi-orbit-one"></div>
+            <div class="gtx-kenghi-orbit gtx-kenghi-orbit-two"></div>
+            <div class="gtx-kenghi-avatar" aria-hidden="true">
+              <span class="gtx-kenghi-eyes"><i></i><i></i></span>
+              <span class="gtx-kenghi-smile"></span>
             </div>
-
           </div>
-
-
-          <div class="stat-card">
-
-            <div class="stat-icon">↗</div>
-
-            <div>
-              <span>Daily P/L</span>
-              <strong id="dailyProfitValue">$0.00</strong>
-            </div>
-
+          <div class="gtx-kenghi-copy">
+            <div class="gtx-kenghi-badge">KENGHI • LIVE ASSISTANT</div>
+            <h2>Kenghi</h2>
+            <p>Your market assistant is ready. Choose an asset and timeframe below to begin.</p>
           </div>
-
-
-          <div class="stat-card">
-
-            <div class="stat-icon">⚡</div>
-
-            <div>
-              <span>Robot Status</span>
-              <strong id="robotStatusValue">Stopped</strong>
-            </div>
-
-          </div>
-
-
-          <div class="stat-card">
-
-            <div class="stat-icon">⌁</div>
-
-            <div>
-              <span>Active Signals</span>
-              <strong id="activeSignalsValue">0</strong>
-            </div>
-
-          </div>
-
+          <button id="gtxKenghiChatButton" type="button" class="gtx-kenghi-chat-button">
+            <span>◉</span><strong>Chat with Kenghi</strong>
+          </button>
         </div>
 
-
-        
-
-<div class="dashboard-grid">
-
-
-          <div class="panel chart-panel" id="chartPanelPlaceholder" style="display:none"></div>
-
-            <div class="panel signal-panel">
-
-            <div class="panel-header">
-
-              <div>
-
-                <h3>AI Signal</h3>
-
-                <span>
-                  Technical market analysis
-                </span>
-
-              </div>
-
-              <span class="signal-live">
-                LIVE
-              </span>
-
+        <div class="gtx-dashboard-controls panel">
+          <div class="gtx-dashboard-control-column">
+            <div class="gtx-control-title">
+              <strong>Assets</strong>
+              <span>Choose what you want to trade</span>
             </div>
-
-
-            <div class="signal-main">
-
-              <div
-                id="signalDirection"
-                class="signal-direction hold"
-              >
-                HOLD
-              </div>
-
-              <div
-                id="signalConfidence"
-                class="signal-confidence"
-              >
-                0%
-              </div>
-
+            <div class="gtx-dashboard-asset-row" role="tablist" aria-label="Dashboard assets">
+              <button type="button" class="gtx-dashboard-asset active" data-dashboard-category="commodities">Commodities</button>
+              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="forex">Forex</button>
+              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="crypto">Crypto</button>
+              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="indices">Indices</button>
+              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="metals">Metals</button>
             </div>
-
-
-            <div class="signal-levels">
-
-              <div>
-                <span>Entry</span>
-                <strong id="signalEntry">—</strong>
-              </div>
-
-              <div>
-                <span>Target</span>
-                <strong id="signalTarget">—</strong>
-              </div>
-
-              <div>
-                <span>Stop</span>
-                <strong id="signalStop">—</strong>
-              </div>
-
-            </div>
-
-
-            <button
-              type="button"
-              class="indicator-toggle"
-              aria-expanded="false"
-            >
-              📊 Indicators
-            </button>
-
-            <div class="indicator-list" hidden>
-
-              <div>
-                <span>EMA 9 / 21</span>
-                <strong id="emaSignal">Waiting</strong>
-              </div>
-
-              <div>
-                <span>RSI</span>
-                <strong id="rsiSignal">Waiting</strong>
-              </div>
-
-              <div>
-                <span>Momentum</span>
-                <strong id="momentumSignal">Waiting</strong>
-              </div>
-
-            </div>
-
+            <select id="gtxDashboardAssetSelect" class="gtx-dashboard-select" aria-label="Dashboard instrument"></select>
           </div>
 
-        </div>
-
-        <div id="gtxOrderbookPanel" class="panel gtx-orderbook-panel">
-          <div class="panel-header">
-            <div>
-              <h3>Order Book</h3>
-              <span>Live Bybit market depth</span>
+          <div class="gtx-dashboard-control-column">
+            <div class="gtx-control-title">
+              <strong>Timeframe</strong>
+              <span>Select the trading interval</span>
             </div>
-            <div class="gtx-orderbook-status">
-              <span class="gtx-live-dot"></span>
-              <strong id="gtxOrderbookStatus">CONNECTING</strong>
-            </div>
-          </div>
-
-          <div class="gtx-orderbook-head">
-            <span>Bid / Qty</span>
-            <span>Price</span>
-            <span>Ask / Qty</span>
-          </div>
-
-          <div class="gtx-orderbook-columns">
-            <div id="gtxOrderbookBids" class="gtx-orderbook-side gtx-bids">
-              <div class="gtx-orderbook-empty">Waiting for live depth…</div>
-            </div>
-            <div id="gtxOrderbookMid" class="gtx-orderbook-mid">
-              <strong id="gtxOrderbookMidPrice">—</strong>
-              <span>SPREAD</span>
-              <small id="gtxOrderbookSpread">—</small>
-            </div>
-            <div id="gtxOrderbookAsks" class="gtx-orderbook-side gtx-asks">
-              <div class="gtx-orderbook-empty">Waiting for live depth…</div>
+            <div class="gtx-dashboard-timeframe-row" role="tablist" aria-label="Dashboard timeframe">
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="5s">5s</button>
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="15s">15s</button>
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="30s">30s</button>
+              <button type="button" class="gtx-dashboard-timeframe active" data-dashboard-timeframe="1m">1m</button>
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="5m">5m</button>
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="15m">15m</button>
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="1h">1h</button>
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="4h">4h</button>
+              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="1D">1D</button>
             </div>
           </div>
         </div>
 
-        
-
-        <div class="panel manual-trading-panel">
-          <div class="panel-header">
-            <div>
-              <h3>Trade Ticket</h3>
-              <span>Manual demo trading using the same live market feed as the chart.</span>
-            </div>
-            <span class="demo-badge">DEMO ONLY</span>
-          </div>
-
-          <div class="trade-ticket-grid">
-            <div class="trade-ticket-summary">
-              <div>
-                <span>Market</span>
-                <strong id="tradeTicketSymbol">BTCUSDT</strong>
-              </div>
-              <div>
-                <span>Live price</span>
-                <strong id="tradeTicketPrice">—</strong>
-              </div>
-              <div>
-                <span>Execution</span>
-                <strong>GTX Simulation</strong>
-              </div>
-            </div>
-
-            <form id="manualTradeForm" class="manual-trade-form">
-              <div class="field">
-                <label for="manualTradeAmount">Trade amount (USD)</label>
-                <input id="manualTradeAmount" type="number" min="1" step="0.01"
-                  inputmode="decimal" value="10" placeholder="10.00" required>
-              </div>
-
-              <div class="field">
-                <label for="manualTradeStop">Stop loss</label>
-                <input id="manualTradeStop" type="number" min="0" step="any"
-                  inputmode="decimal" placeholder="Auto">
-              </div>
-
-              <div class="field">
-                <label for="manualTradeTarget">Take profit</label>
-                <input id="manualTradeTarget" type="number" min="0" step="any"
-                  inputmode="decimal" placeholder="Auto">
-              </div>
-
-              <div class="manual-trade-actions">
-                <button id="manualBuyButton" type="button" class="trade-buy-button">BUY</button>
-                <button id="manualSellButton" type="button" class="trade-sell-button">SELL</button>
-              </div>
-
-              <div class="trade-ticket-note">
-                <span>Risk protection</span>
-                <strong>Auto SL/TP is calculated from the live price when fields are left blank.</strong>
-              </div>
-
-              <div id="manualTradeMessage" class="muted" aria-live="polite"></div>
-            </form>
-          </div>
+        <div class="gtx-dashboard-signal-strip">
+          <div><span>Selected market</span><strong id="gtxDashboardSelectedMarket">USOIL</strong></div>
+          <div><span>Timeframe</span><strong id="gtxDashboardSelectedTimeframe">1m</strong></div>
+          <div><span>Signal</span><strong id="gtxDashboardSignal">HOLD</strong></div>
         </div>
 
-        <div class="panel manual-positions-panel">
-          <div class="panel-header">
-            <div>
-              <h3>Open Positions</h3>
-              <span>Live unrealized P/L updates from the same market feed.</span>
-            </div>
-            <strong id="manualPositionCount">0</strong>
-          </div>
-          <div id="manualPositionsList" class="manual-positions-list">
-            <div class="empty-state">No open positions.</div>
-          </div>
-        </div>
-
-        <div class="panel">
-
-          <div class="panel-header">
-
-            <div>
-              <h3>Live Market Overview</h3>
-              <span>Connected market feeds</span>
-            </div>
-
-            <button
-              type="button"
-              class="small-button"
-              data-page-link="markets"
-            >
-              View All
-            </button>
-
-          </div>
-
-
-          <div
-            id="dashboardMarkets"
-            class="market-grid"
-          ></div>
-
+        <div class="gtx-dashboard-order-actions" aria-label="Trade actions">
+          <button id="gtxDashboardBuyButton" type="button" class="gtx-dashboard-buy">
+            <span>BUY</span><strong id="gtxDashboardBidPrice">—</strong>
+          </button>
+          <button id="gtxDashboardSellButton" type="button" class="gtx-dashboard-sell">
+            <span>SELL</span><strong id="gtxDashboardAskPrice">—</strong>
+          </button>
         </div>
 
       </section>
@@ -2575,11 +2346,12 @@
   <!-- JavaScript MUST load last -->
     <script src="bybit-connector.js?v=1.0.0"></script>
   <script src="script.js?v=3.0.47"></script>
-  <script src="gtx-trading-core.js?v=1.0.0"></script>\n  <script src="gtx-mobile-swipe.js?v=1.0.0"></script>
+  <script src="gtx-trading-core.js?v=1.0.0"></script>\n  <script src="gtx-mobile-swipe.js?v=1.1.0"></script>
   <script src="gtx-signal-controls.js?v=1.0.0"></script>
   <script src="gtx-fresh-chart.js?v=1.0.0"></script>
   <script src="gtx-market-analysis.js?v=1.0.0"></script>
   <script src="gtx-execution-runtime.js?v=1.0.0"></script>
+  <script src="gtx-dashboard-controls.js?v=1.0.0"></script>
   <script src="robot-history.js?v=1.0.0"></script>
 
 
