@@ -1979,6 +1979,7 @@ async function loadLiveMarkets() {
 
   marketCatalog.crypto.forEach(([symbol,name]) => {
     results[symbol] = buildMarketEntry(symbol,name,"crypto",cryptoTickers[symbol]);
+    results[symbol].source = Number(results[symbol].price) > 0 ? "Bybit Live" : "Bybit unavailable";
   });
 
   let activeSymbols = [];
@@ -1991,6 +1992,7 @@ async function loadLiveMarkets() {
   const nonCryptoEntries = [
     ...marketCatalog.forex.map(symbol => [symbol, `${symbol.slice(0,3)} / ${symbol.slice(3,6)}`, "forex"]),
     ...marketCatalog.commodities.map(([symbol,name]) => [symbol,name,"commodity"]),
+    ...marketCatalog.metals.map(([symbol,name]) => [symbol,name,"metal"]),
     ...marketCatalog.indices.map(([symbol,name]) => [symbol,name,"index"])
   ];
 
@@ -2029,7 +2031,8 @@ const marketCatalog={
     ["MANAUSDT","Decentraland / USD"],["PEPEUSDT","Pepe / USD"]
   ],
   forex:["EURUSD","GBPUSD","USDJPY","USDCHF","AUDUSD","USDCAD","NZDUSD","EURGBP","EURJPY","EURCHF","EURAUD","EURCAD","EURNZD","GBPJPY","GBPCHF","GBPAUD","GBPCAD","GBPNZD","AUDJPY","AUDCHF","AUDCAD","AUDNZD","CADJPY","CADCHF","NZDJPY","NZDCHF","CHFJPY","USDZAR","USDMXN","USDTRY","USDSEK","USDNOK","USDDKK","USDPLN","USDHUF","USDCZK","EURSEK","EURNOK","EURDKK","EURPLN","EURHUF","EURCZK","EURZAR","GBPSEK","GBPNOK","GBPPLN","GBPZAR","AUDSGD","AUDZAR","CADZAR","NZDSEK","NZDZAR"],
-  commodities:[["XAUUSD","Gold / USD"],["XAGUSD","Silver / USD"],["WTIUSD","WTI Crude Oil"],["BRENTUSD","Brent Crude Oil"],["NATGASUSD","Natural Gas"],["COPPERUSD","Copper"],["PLATINUMUSD","Platinum"],["PALLADIUMUSD","Palladium"]],
+  commodities:[["WTIUSD","WTI Crude Oil"],["BRENTUSD","Brent Crude Oil"],["NATGASUSD","Natural Gas"],["COPPERUSD","Copper"]],
+  metals:[["XAUUSD","Gold / USD"],["XAGUSD","Silver / USD"],["PLATINUMUSD","Platinum / USD"],["PALLADIUMUSD","Palladium / USD"]],
   indices:[["US500","S&P 500"],["NAS100","Nasdaq 100"],["US30","Dow Jones"],["GER40","DAX 40"],["UK100","FTSE 100"],["JPN225","Nikkei 225"],["FRA40","CAC 40"],["AUS200","ASX 200"],["HK50","Hang Seng"],["CHINA50","China A50"]]
 };
 
@@ -2040,8 +2043,9 @@ const demoMarketPrices={
 };
 
 function buildMarketEntry(symbol,name,type,live){
-  const livePrice=Number(live?.price),fallback=Number(demoMarketPrices[symbol]),price=Number.isFinite(livePrice)&&livePrice>0?livePrice:fallback;
-  return {symbol,name,type,price,change:Number.isFinite(Number(live?.change))?Number(live.change):0,source:Number.isFinite(livePrice)&&livePrice>0?(live.source||"Live API"):"Demo fallback"};
+  const livePrice=Number(live?.price);
+  const price=Number.isFinite(livePrice)&&livePrice>0?livePrice:0;
+  return {symbol,name,type,price,change:Number.isFinite(Number(live?.change))?Number(live.change):0,source:Number.isFinite(livePrice)&&livePrice>0?(live.source||"Live API"):"Waiting for live feed",live:Boolean(Number.isFinite(livePrice)&&livePrice>0)};
 }
 
 function renderDashboardMarkets(){
@@ -2638,317 +2642,39 @@ function renderCurrentChart() {
   });
 }
 
-async function createChart() {
-  const chartRequestId = (state.chartRequestId || 0) + 1;
-  state.chartRequestId = chartRequestId;
-  const chartCanvas = $("mainChart");
-  if (chartCanvas && !chartCanvas.dataset.gtxInteractions) {
-    chartCanvas.dataset.gtxInteractions = "1";
-    chartCanvas.style.touchAction = "none";
-    const pointers = new Map();
-    let panStart = null;
-    let pinchStart = null;
-
-    const distance = () => {
-      const pts = [...pointers.values()];
-      if (pts.length < 2) return 0;
-      return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-    };
-
-    const midpointX = () => {
-      const pts = [...pointers.values()];
-      if (pts.length < 2) return 0;
-      return (pts[0].x + pts[1].x) / 2;
-    };
-
-    chartCanvas.addEventListener("wheel", event => {
-      event.preventDefault();
-      const rect = chartCanvas.getBoundingClientRect();
-      const focalX = event.clientX - rect.left;
-      const currentZoom = Number(state.chartView?.zoom) || 1;
-      const nextZoom = currentZoom * (event.deltaY < 0 ? 1.12 : 0.89);
-      zoomChartAt(nextZoom, focalX);
-    }, { passive: false });
-
-    chartCanvas.addEventListener("pointerdown", event => {
-      chartCanvas.setPointerCapture?.(event.pointerId);
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-
-      if (pointers.size === 1) {
-        panStart = {
-          x: event.clientX,
-          pan: Number(state.chartView?.pan) || 0
-        };
-        pinchStart = null;
-      } else if (pointers.size === 2) {
-        const rect = chartCanvas.getBoundingClientRect();
-        const focalX = midpointX() - rect.left;
-        const metrics = getChartViewportMetrics(state.chartView?.zoom || 1);
-        const width = Math.max(1, rect.width);
-        const futureSpace = Math.max(34, Math.min(72, width * 0.075));
-        const plotRight = width - 68 - futureSpace;
-        const chartWidth = Math.max(180, plotRight - 8);
-        const ratio = Math.max(0, Math.min(1, (focalX - 8) / chartWidth));
-
-        pinchStart = {
-          distance: Math.max(1, distance()),
-          zoom: metrics.zoom,
-          pan: Number(state.chartView?.pan) || 0,
-          focalX,
-          focalIndex: (Number(state.chartView?.pan) || 0) + ratio * metrics.visible
-        };
-        panStart = null;
-      }
-    });
-
-    chartCanvas.addEventListener("pointermove", event => {
-      if (!pointers.has(event.pointerId)) return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-
-      const rect = chartCanvas.getBoundingClientRect();
-      const width = Math.max(1, rect.width);
-      const currentZoom = Number(state.chartView?.zoom) || 1;
-      const metrics = getChartViewportMetrics(currentZoom);
-
-      if (pointers.size >= 2 && pinchStart) {
-        const ratio = distance() / Math.max(1, pinchStart.distance);
-        const next = getChartViewportMetrics(pinchStart.zoom * ratio);
-        const focalX = midpointX() - rect.left;
-        const futureSpace = Math.max(34, Math.min(72, width * 0.075));
-        const plotRight = width - 68 - futureSpace;
-        const chartWidth = Math.max(180, plotRight - 8);
-        const xRatio = Math.max(0, Math.min(1, (focalX - 8) / chartWidth));
-        const nextPan = pinchStart.focalIndex - xRatio * next.visible;
-        setChartViewport(next.zoom, nextPan);
-      } else if (pointers.size === 1 && panStart) {
-        const dx = event.clientX - panStart.x;
-        setChartViewport(
-          metrics.zoom,
-          panStart.pan - (dx / width) * metrics.visible
-        );
-      }
-    });
-
-    const endPointer = event => {
-      pointers.delete(event.pointerId);
-
-      if (pointers.size < 2) {
-        pinchStart = null;
-      }
-
-      if (pointers.size === 1) {
-        const remaining = [...pointers.values()][0];
-        panStart = {
-          x: remaining.x,
-          pan: Number(state.chartView?.pan) || 0
-        };
-      } else if (!pointers.size) {
-        panStart = null;
-      }
-    };
-
-    chartCanvas.addEventListener("pointerup", endPointer);
-    chartCanvas.addEventListener("pointercancel", endPointer);
-    chartCanvas.addEventListener("dblclick", () => setChartViewport(1, 0));
-  }
-
-  const canvas = $("mainChart");
-  if (!canvas) return;
-
-  const timeframe = state.currentTimeframe || "1H";
-  const symbol = state.currentSymbol || "BTCUSDT";
-  const currentPrice = state.markets?.[symbol]?.price || 0;
-
-  let candles = [];
-  try {
-    candles = await fetchChartCandles(symbol, timeframe, 180);
-    if (chartRequestId !== state.chartRequestId || symbol !== state.currentSymbol || timeframe !== state.currentTimeframe) return;
-  } catch (error) {
-    if (chartRequestId !== state.chartRequestId || symbol !== state.currentSymbol || timeframe !== state.currentTimeframe) return;
-    console.warn("Live chart candles unavailable:", error);
-    showToast("Live chart data is temporarily unavailable for " + symbol + ".", "error");
-  }
-  if (candles.length < 2) {
-    // Keep the previous chart if the live endpoint temporarily returns no/partial data.
-    return;
-  }
-
-  if (state.chart?.destroy) {
-    state.chart.destroy();
-    state.chart = null;
-  }
-
-  const latestClose = Number(candles[candles.length - 1]?.close);
-  if (Number.isFinite(latestClose) && latestClose > 0) {
-    state.markets[symbol] = {
-      ...(state.markets[symbol] || {}),
-      symbol,
-      price: latestClose,
-      timestamp: candles[candles.length - 1].time
-    };
-  }
-
-  const wrapper = canvas.parentElement;
-  const toolbarHost = wrapper?.closest(".chart-panel")?.querySelector(".panel-header") || wrapper;
-  let toolbar = toolbarHost?.querySelector(".own-chart-toolbar");
-
-  if (!toolbar && toolbarHost) {
-    toolbar = document.createElement("div");
-    toolbar.className = "own-chart-toolbar";
-    toolbar.innerHTML = `
-      <button type="button" data-chart-tools-toggle class="chart-tools-toggle">☰ Chart Tools</button>
-      <div class="chart-tools-menu" hidden>
-        <div class="chart-tools-group">
-          <span>Chart</span>
-          <button type="button" data-chart-mode="line" class="chart-tool">Line</button>
-          <button type="button" data-chart-mode="candles" class="chart-tool active">Candles</button>
-          <button type="button" data-chart-mode="bars" class="chart-tool">Bars</button>
-          <button type="button" data-chart-mode="heikin" class="chart-tool">Heikin-Ashi</button>
-        </div>
-        <div class="chart-tools-group">
-          <span>Overlays</span>
-          <button type="button" data-chart-toggle="ema" class="chart-tool active">EMA 9/21</button>
-          <button type="button" data-chart-toggle="alligator" class="chart-tool active">Alligator</button>
-          <button type="button" data-chart-toggle="bollinger" class="chart-tool">Bollinger</button>
-          <button type="button" data-chart-toggle="sma50" class="chart-tool">SMA 50</button>
-          <button type="button" data-chart-toggle="sma200" class="chart-tool">SMA 200</button>
-          <button type="button" data-chart-toggle="vwap" class="chart-tool">VWAP</button>
-        </div>
-        <div class="chart-tools-group">
-          <span>Sub-panels</span>
-          <button type="button" data-chart-toggle="volume" class="chart-tool active">Volume</button>
-          <button type="button" data-chart-toggle="rsi" class="chart-tool">RSI</button>
-          <button type="button" data-chart-toggle="macd" class="chart-tool">MACD</button>
-          <button type="button" data-chart-toggle="stochastic" class="chart-tool">Stochastic</button>
-          <button type="button" data-chart-toggle="atr" class="chart-tool">ATR</button>
-        </div>
-      </div>
-    `;
-    toolbarHost.appendChild(toolbar);
-  }
-
-  const chartState = state.chartView || {
-    mode: "candles",
-    ema: true,
-    volume: true,
-    rsi: false,
-    alligator: true,
-    bollinger: false,
-    sma50: false,
-    sma200: false,
-    vwap: false,
-    macd: false,
-    stochastic: false,
-    atr: false,
-    crosshairX: null,
-    zoom: 1,
-    pan: 0
-  };
-  state.chartView = chartState;
-  Object.assign(chartState, {
-    alligator: chartState.alligator ?? true,
-    bollinger: chartState.bollinger ?? false,
-    sma50: chartState.sma50 ?? false,
-    sma200: chartState.sma200 ?? false,
-    vwap: chartState.vwap ?? false,
-    macd: chartState.macd ?? false,
-    stochastic: chartState.stochastic ?? false,
-    atr: chartState.atr ?? false
-  });
-
-  const syncToolbar = () => {
-    toolbar?.querySelectorAll("[data-chart-mode]").forEach(button => {
-      button.classList.toggle("active", button.dataset.chartMode === chartState.mode);
-    });
-    toolbar?.querySelectorAll("[data-chart-toggle]").forEach(button => {
-      const key = button.dataset.chartToggle;
-      button.classList.toggle("active", Boolean(chartState[key]));
-    });
-  };
-
-  if (toolbar && !toolbar.dataset.bound) {
-    toolbar.dataset.bound = "1";
-    const toolsToggle = toolbar.querySelector("[data-chart-tools-toggle]");
-    const toolsMenu = toolbar.querySelector(".chart-tools-menu");
-    toolsToggle?.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const open = !toolsMenu?.hidden;
-
-      document.querySelectorAll(".chart-market-menu,.timeframes").forEach(menu => { menu.hidden = true; });
-      document.querySelectorAll(".chart-market-toggle,.chart-control-toggle").forEach(button => button.setAttribute("aria-expanded", "false"));
-
-      if (toolsMenu) toolsMenu.hidden = open;
-      toolsToggle.setAttribute("aria-expanded", String(!open));
-    });
-    toolbar.querySelectorAll("[data-chart-mode]").forEach(button => {
-      button.addEventListener("click", () => {
-        chartState.mode = button.dataset.chartMode;
-        chartState.crosshairX = null;
-        syncToolbar();
-        render();
-      });
-    });
-    toolbar.querySelectorAll("[data-chart-toggle]").forEach(button => {
-      button.addEventListener("click", () => {
-        const key = button.dataset.chartToggle;
-        chartState[key] = !chartState[key];
-        syncToolbar();
-        render();
-      });
-    });
-  }
-
-  const render = () => drawOwnTradingChart(canvas, candles, {
-    mode: chartState.mode,
-    showEMA: chartState.ema,
-    showVolume: chartState.volume,
-    showRSI: chartState.rsi,
-    showAlligator: chartState.alligator,
-    showBollinger: chartState.bollinger,
-    showSMA50: chartState.sma50,
-    showSMA200: chartState.sma200,
-    showVWAP: chartState.vwap,
-    showMACD: chartState.macd,
-    showStochastic: chartState.stochastic,
-    showATR: chartState.atr,
-    crosshairX: chartState.crosshairX,
-    zoom: chartState.zoom,
-    pan: chartState.pan
-  });
-
-  canvas.onmousemove = event => {
-    const rect = canvas.getBoundingClientRect();
-    chartState.crosshairX = event.clientX - rect.left;
-    render();
-  };
-
-  canvas.onmouseleave = () => {
-    chartState.crosshairX = null;
-    render();
-  };
-
-  syncToolbar();
-  render();
-
-  const resizeObserver = typeof ResizeObserver !== "undefined"
-    ? new ResizeObserver(render)
-    : null;
-  resizeObserver?.observe(wrapper || canvas);
-
-  state.chart = {
-    type: "own-trading-chart",
-    candles,
-    render,
-    destroy() {
-      resizeObserver?.disconnect();
-      canvas.onmousemove = null;
-      canvas.onmouseleave = null;
-      const ctx = canvas.getContext("2d");
-      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  };
+async async function createChart() {
+  const requestId=(state.chartRequestId||0)+1; state.chartRequestId=requestId;
+  const container=$("mainChart"); if(!container)return;
+  const timeframe=state.currentTimeframe||"1H",symbol=state.currentSymbol||"BTCUSDT";
+  let candles=[];
+  try{candles=await fetchChartCandles(symbol,timeframe,250);}catch(error){console.warn("Live chart data unavailable:",error);showToast("Live chart data is temporarily unavailable for "+symbol+".","error");return;}
+  if(requestId!==state.chartRequestId||symbol!==state.currentSymbol||timeframe!==state.currentTimeframe||candles.length<2)return;
+  state.chartView=state.chartView||{};
+  Object.assign(state.chartView,{mode:state.chartView.mode||"candles",ema:state.chartView.ema??true,volume:state.chartView.volume??true,rsi:state.chartView.rsi??false,alligator:state.chartView.alligator??true,bollinger:state.chartView.bollinger??false,sma50:state.chartView.sma50??false,sma200:state.chartView.sma200??false,vwap:state.chartView.vwap??false,macd:state.chartView.macd??false,stochastic:state.chartView.stochastic??false,atr:state.chartView.atr??false});
+  if(state.chart?.destroy){try{state.chart.destroy();}catch{}}
+  const latestClose=Number(candles[candles.length-1]?.close);
+  if(Number.isFinite(latestClose)&&latestClose>0)state.markets[symbol]={...(state.markets[symbol]||{}),symbol,price:latestClose,timestamp:candles[candles.length-1].time,source:marketCatalog.crypto.some(([s])=>s===symbol)?"Bybit Live":(state.markets[symbol]?.source||"Deriv Live"),live:true};
+  updateSelectedMarketHeader();updateChartMarketPortal();
+  const toolbarHost=container.closest(".chart-panel")?.querySelector(".panel-header");let toolbar=toolbarHost?.querySelector(".own-chart-toolbar");
+  if(!toolbar&&toolbarHost){toolbar=document.createElement("div");toolbar.className="own-chart-toolbar";toolbar.innerHTML='<button type="button" data-chart-tools-toggle class="chart-tools-toggle">☰ Chart Tools</button><div class="chart-tools-menu" hidden><div class="chart-tools-group"><span>Chart</span><button type="button" data-chart-mode="line" class="chart-tool">Line</button><button type="button" data-chart-mode="candles" class="chart-tool active">Candles</button><button type="button" data-chart-mode="bars" class="chart-tool">Bars</button><button type="button" data-chart-mode="heikin" class="chart-tool">Heikin-Ashi</button></div><div class="chart-tools-group"><span>Overlays</span><button type="button" data-chart-toggle="ema" class="chart-tool active">EMA 9/21</button><button type="button" data-chart-toggle="alligator" class="chart-tool active">Alligator</button><button type="button" data-chart-toggle="bollinger" class="chart-tool">Bollinger</button><button type="button" data-chart-toggle="sma50" class="chart-tool">SMA 50</button><button type="button" data-chart-toggle="sma200" class="chart-tool">SMA 200</button><button type="button" data-chart-toggle="vwap" class="chart-tool">VWAP</button></div><div class="chart-tools-group"><span>Sub-panels</span><button type="button" data-chart-toggle="volume" class="chart-tool active">Volume</button><button type="button" data-chart-toggle="rsi" class="chart-tool">RSI</button><button type="button" data-chart-toggle="macd" class="chart-tool">MACD</button><button type="button" data-chart-toggle="stochastic" class="chart-tool">Stochastic</button><button type="button" data-chart-toggle="atr" class="chart-tool">ATR</button></div></div>';toolbarHost.appendChild(toolbar);}
+  const lw=window.LightweightCharts;if(!lw?.createChart){showToast("Live chart engine failed to load.","error");return;}
+  container.innerHTML="";
+  const chart=lw.createChart(container,{autoSize:true,layout:{textColor:"#9aa9bc",background:{type:"solid",color:"transparent"},attributionLogo:true,panes:{separatorColor:"rgba(148,163,184,.16)",separatorHoverColor:"rgba(148,163,184,.25)",enableResize:false}},grid:{vertLines:{color:"rgba(148,163,184,.08)"},horzLines:{color:"rgba(148,163,184,.08)"}},rightPriceScale:{borderColor:"rgba(148,163,184,.18)",scaleMargins:{top:.08,bottom:.12}},timeScale:{borderColor:"rgba(148,163,184,.18)",rightOffset:8,barSpacing:9,minBarSpacing:3,fixLeftEdge:false,lockVisibleTimeRangeOnResize:true,rightBarStaysOnScroll:true},crosshair:{mode:lw.CrosshairMode?.Normal??0,vertLine:{color:"rgba(255,255,255,.28)",width:1,style:2,labelBackgroundColor:"#2563eb"},horzLine:{color:"rgba(255,255,255,.20)",width:1,style:2,labelBackgroundColor:"#2563eb"}},handleScroll:true,handleScale:true});
+  const seriesStore={primary:null,volume:null,overlays:[]},candleData=candles.map(c=>({time:Math.floor(Number(c.time)/1000),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})),lineData=candleData.map(c=>({time:c.time,value:c.close})),heikin=[];
+  for(let i=0;i<candleData.length;i++){const c=candleData[i],close=(c.open+c.high+c.low+c.close)/4,open=i===0?(c.open+c.close)/2:(heikin[i-1].open+heikin[i-1].close)/2;heikin.push({time:c.time,open,high:Math.max(c.high,open,close),low:Math.min(c.low,open,close),close});}
+  if(state.chartView.mode==="line"){seriesStore.primary=chart.addSeries(lw.LineSeries,{color:"#4f7cff",lineWidth:2,priceLineVisible:false});seriesStore.primary.setData(lineData);}else if(state.chartView.mode==="bars"){seriesStore.primary=chart.addSeries(lw.BarSeries,{upColor:"#10c878",downColor:"#ef4444",thinBars:false,priceLineVisible:false});seriesStore.primary.setData(candleData);}else{seriesStore.primary=chart.addSeries(lw.CandlestickSeries,{upColor:"#10c878",downColor:"#ef4444",borderUpColor:"#10c878",borderDownColor:"#ef4444",wickUpColor:"#10c878",wickDownColor:"#ef4444",priceLineVisible:false});seriesStore.primary.setData(state.chartView.mode==="heikin"?heikin:candleData);}
+  const closes=candles.map(c=>Number(c.close)),times=candles.map(c=>Math.floor(Number(c.time)/1000)),makeLine=(data,color,width=1,pane=0)=>{const s=chart.addSeries(lw.LineSeries,{color,lineWidth:width,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},pane);s.setData(data);seriesStore.overlays.push(s);return s;},ema=(v,p)=>{const out=[],m=2/(p+1);let x=null;for(const n of v){x=x===null?n:(n-x)*m+x;out.push(x);}return out;},sma=(v,p)=>v.map((_,i)=>i+1<p?null:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p),pairs=v=>v.map((x,i)=>x==null?null:{time:times[i],value:x}).filter(Boolean);
+  if(state.chartView.ema){makeLine(pairs(ema(closes,9)),"#f5c542",1.5);makeLine(pairs(ema(closes,21)),"#62a4ff",1.5);}if(state.chartView.sma50)makeLine(pairs(sma(closes,50)),"#d084ff",1);if(state.chartView.sma200)makeLine(pairs(sma(closes,200)),"#ff8a65",1);if(state.chartView.alligator){makeLine(pairs(sma(closes,13)),"#35d07f",1);makeLine(pairs(sma(closes,8)),"#ffb84d",1);makeLine(pairs(sma(closes,5)),"#55b7ff",1);}if(state.chartView.bollinger){const mid=sma(closes,20),sd=closes.map((_,i)=>i<19?null:Math.sqrt(closes.slice(i-19,i+1).reduce((a,b)=>a+(b-mid[i])**2,0)/20));makeLine(pairs(mid.map((v,i)=>v==null?null:v+2*sd[i])),"#a78bfa",1);makeLine(pairs(mid.map((v,i)=>v==null?null:v-2*sd[i])),"#a78bfa",1);}if(state.chartView.vwap){let pv=0,vv=0;const vals=candles.map(c=>{const vol=Number(c.volume)||0;pv+=((Number(c.high)+Number(c.low)+Number(c.close))/3)*vol;vv+=vol;return vv?pv/vv:null;});makeLine(pairs(vals),"#f59e0b",1.2);}
+  if(state.chartView.volume){seriesStore.volume=chart.addSeries(lw.HistogramSeries,{priceFormat:{type:"volume"},priceScaleId:"volume",color:"#2563eb",priceLineVisible:false},1);seriesStore.volume.setData(candles.map(c=>({time:Math.floor(Number(c.time)/1000),value:Number(c.volume)||0,color:Number(c.close)>=Number(c.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"})));chart.panes()[1]?.setHeight(95);}
+  const rsiCalc=(v,p=14)=>{const out=[];let g=0,l=0;for(let i=1;i<v.length;i++){const d=v[i]-v[i-1];g+=Math.max(d,0);l+=Math.max(-d,0);if(i===p){g/=p;l/=p;}if(i>=p){if(i>p){g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p;}const rs=l===0?100:g/l;out.push({time:times[i],value:100-(100/(1+rs))});}}return out;},tr=candles.map((c,i)=>i===0?Number(c.high)-Number(c.low):Math.max(Number(c.high)-Number(c.low),Math.abs(Number(c.high)-Number(c.close)),Math.abs(Number(c.low)-Number(c.close)))),atrCalc=(v,p=14)=>v.map((_,i)=>i<p-1?null:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p);
+  if(state.chartView.rsi)makeLine(rsiCalc(closes),"#c084fc",1.2,2);if(state.chartView.atr)makeLine(pairs(atrCalc(tr,14)),"#fb923c",1.2,2);if(state.chartView.macd){const e12=ema(closes,12),e26=ema(closes,26),m=e12.map((v,i)=>v-e26[i]),sig=ema(m,9);makeLine(pairs(m),"#60a5fa",1.1,2);makeLine(pairs(sig),"#f59e0b",1.1,2);}if(state.chartView.stochastic){const k=candles.map((c,i)=>{if(i<13)return null;const lo=Math.min(...candles.slice(i-13,i+1).map(x=>Number(x.low))),hi=Math.max(...candles.slice(i-13,i+1).map(x=>Number(x.high)));return hi===lo?50:((Number(c.close)-lo)/(hi-lo))*100;}),d=sma(k.map(x=>x??0),3);makeLine(pairs(k),"#22d3ee",1.1,2);makeLine(pairs(d),"#f472b6",1.1,2);}if(state.chartView.rsi||state.chartView.atr||state.chartView.macd||state.chartView.stochastic)chart.panes()[2]?.setHeight(95);
+  chart.timeScale().fitContent();
+  const syncToolbar=()=>{toolbar?.querySelectorAll("[data-chart-mode]").forEach(b=>b.classList.toggle("active",b.dataset.chartMode===state.chartView.mode));toolbar?.querySelectorAll("[data-chart-toggle]").forEach(b=>b.classList.toggle("active",Boolean(state.chartView[b.dataset.chartToggle])));};
+  if(toolbar&&!toolbar.dataset.bound){toolbar.dataset.bound="1";const toggle=toolbar.querySelector("[data-chart-tools-toggle]"),menu=toolbar.querySelector(".chart-tools-menu");toggle?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const open=!menu?.hidden;if(menu)menu.hidden=open;toggle?.setAttribute("aria-expanded",String(!open));});toolbar.querySelectorAll("[data-chart-mode]").forEach(b=>b.addEventListener("click",()=>{state.chartView.mode=b.dataset.chartMode;syncToolbar();createChart();}));toolbar.querySelectorAll("[data-chart-toggle]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.chartToggle;state.chartView[k]=!state.chartView[k];syncToolbar();createChart();}));}
+  syncToolbar();const resizeObserver=typeof ResizeObserver!=="undefined"?new ResizeObserver(()=>chart.resize(container.clientWidth,container.clientHeight)):null;resizeObserver?.observe(container);
+  state.chart={type:"lightweight-live",candles,chart,series:seriesStore,render(){},updateCandle(c){updateLightweightSeries(c);},destroy(){resizeObserver?.disconnect();try{chart.remove();}catch{}}};
 }
+function updateLightweightSeries(candle){const chart=state.chart;if(!chart?.series?.primary||!candle)return;const time=Math.floor(Number(candle.time)/1000),c={time,open:Number(candle.open),high:Number(candle.high),low:Number(candle.low),close:Number(candle.close)};try{if(state.chartView.mode==="line")chart.series.primary.update({time,value:c.close});else chart.series.primary.update(c);chart.series.volume?.update({time,value:Number(candle.volume)||0,color:Number(candle.close)>=Number(candle.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"});}catch{}}
 
 function estimatedSignalDuration(timeframe = state.currentTimeframe || "1H") {
   const map = {
@@ -5865,17 +5591,12 @@ function connectBybitPublicStream() {
         return;
       }
 
-      const current = state.chart?.candles?.[state.chart.candles.length - 1];
-      if (current && Number(current.time) === Number(candle.start)) {
-        current.open = Number(candle.open);
-        current.high = Number(candle.high);
-        current.low = Number(candle.low);
-        current.close = Number(candle.close);
-        current.volume = Number(candle.volume) || current.volume;
-        state.chart.render?.();
-      } else {
-        handleLivePriceUpdate(candle.close, Number(candle.start), symbol);
-      }
+      const liveCandle={time:Number(candle.start),open:Number(candle.open),high:Number(candle.high),low:Number(candle.low),close:Number(candle.close),volume:Number(candle.volume)||0,confirmed:Boolean(candle.confirm)};
+      const current=state.chart?.candles?.[state.chart.candles.length-1];
+      if(current&&Number(current.time)===liveCandle.time)Object.assign(current,liveCandle);
+      else if(current&&liveCandle.time>Number(current.time)){state.chart.candles.push(liveCandle);if(state.chart.candles.length>250)state.chart.candles.shift();}
+      updateLightweightSeries(liveCandle);
+      handleLivePriceUpdate(liveCandle.close,Number(candle.timestamp||candle.start),symbol);
     } catch (error) {
       console.warn("Bybit chart stream message error:", error);
     }
@@ -6098,40 +5819,9 @@ function connectLiveMarketStream() {
    REFRESH
    ========================================================= */
 
-async function refreshChartDataInPlace() {
-  const symbol = state.currentSymbol || "BTCUSDT";
-  const timeframe = state.currentTimeframe || "1H";
-  try {
-    const candles = await fetchChartCandles(symbol, timeframe, 80);
-    if (!Array.isArray(candles) || candles.length < 2) return false;
-
-    const latest = candles[candles.length - 1];
-    if (!latest) return false;
-
-    const existing = state.chart?.candles;
-    if (Array.isArray(existing)) {
-      existing.splice(0, existing.length, ...candles);
-      state.chart.render?.();
-    } else {
-      await createChart();
-    }
-
-    const latestClose = Number(latest.close);
-    if (Number.isFinite(latestClose) && latestClose > 0) {
-      state.markets[symbol] = {
-        ...(state.markets[symbol] || {}),
-        symbol,
-        price: latestClose,
-        timestamp: latest.time
-      };
-      updateSelectedMarketHeader();
-    }
-    return true;
-  } catch (error) {
-    console.warn("In-place chart refresh skipped:", error);
-    // Keep the last valid chart visible. Never clear the canvas on a transient API failure.
-    return false;
-  }
+async async function refreshChartDataInPlace(){
+  const symbol=state.currentSymbol||"BTCUSDT",timeframe=state.currentTimeframe||"1H";
+  try{const candles=await fetchChartCandles(symbol,timeframe,250);if(!Array.isArray(candles)||candles.length<2)return false;if(!state.chart?.series?.primary){await createChart();return Boolean(state.chart?.series?.primary);}state.chart.candles=candles;const data=candles.map(c=>({time:Math.floor(Number(c.time)/1000),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)}));if(state.chartView.mode==="line")state.chart.series.primary.setData(data.map(c=>({time:c.time,value:c.close})));else state.chart.series.primary.setData(data);state.chart.series.volume?.setData(candles.map(c=>({time:Math.floor(Number(c.time)/1000),value:Number(c.volume)||0,color:Number(c.close)>=Number(c.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"})));const latest=candles[candles.length-1],latestClose=Number(latest.close);if(Number.isFinite(latestClose)&&latestClose>0){state.markets[symbol]={...(state.markets[symbol]||{}),symbol,price:latestClose,timestamp:latest.time,source:marketCatalog.crypto.some(([s])=>s===symbol)?"Bybit Live":(state.markets[symbol]?.source||"Deriv Live"),live:true};updateSelectedMarketHeader();}return true;}catch(error){console.warn("In-place live chart refresh skipped:",error);return false;}
 }
 
 async function refreshApplication() {
@@ -7090,25 +6780,18 @@ async function logout() {
 }
 
 
-function updateChartMarketPortal() {
-  const select = $("chartAssetSelect");
-  if (!select) return;
-  const category = state.chartMarketCategory || "crypto";
-  let entries = [];
-  if (category === "crypto") entries = marketCatalog.crypto.map(([symbol,name]) => ({symbol,name}));
-  else if (category === "forex") entries = marketCatalog.forex.map(symbol => ({symbol,name:`${symbol.slice(0,3)} / ${symbol.slice(3,6)}`}));
-  else if (category === "commodities" || category === "metals") entries = marketCatalog.commodities.map(([symbol,name]) => ({symbol,name}));
-  else if (category === "indices") entries = marketCatalog.indices.map(([symbol,name]) => ({symbol,name}));
-
-  select.innerHTML = entries.map(entry =>
-    `<option value="${escapeHTML(entry.symbol)}">${escapeHTML(entry.name)} (${escapeHTML(entry.symbol)})</option>`
-  ).join("");
-  if (entries.some(entry => entry.symbol === state.currentSymbol)) {
-    select.value = state.currentSymbol;
-  }
-  document.querySelectorAll(".chart-market-category").forEach(button => {
-    button.classList.toggle("active", button.dataset.chartCategory === category);
-  });
+function updateChartMarketPortal(){
+  const select=$("chartAssetSelect");if(!select)return;
+  const category=state.chartMarketCategory||"crypto";let entries=[];
+  if(category==="crypto")entries=marketCatalog.crypto.map(([symbol,name])=>({symbol,name}));
+  else if(category==="forex")entries=marketCatalog.forex.map(symbol=>({symbol,name:symbol.slice(0,3)+" / "+symbol.slice(3,6)}));
+  else if(category==="commodities")entries=marketCatalog.commodities.map(([symbol,name])=>({symbol,name}));
+  else if(category==="metals")entries=marketCatalog.metals.map(([symbol,name])=>({symbol,name}));
+  else if(category==="indices")entries=marketCatalog.indices.map(([symbol,name])=>({symbol,name}));
+  select.innerHTML=entries.map(entry=>'<option value="'+escapeHTML(entry.symbol)+'">'+escapeHTML(entry.name)+'</option>').join("");
+  if(entries.some(entry=>entry.symbol===state.currentSymbol))select.value=state.currentSymbol;
+  const selected=state.markets?.[state.currentSymbol]||{},toggle=$("chartMarketToggleLabel");if(toggle)toggle.textContent=selected.name||state.currentSymbol||"Market";
+  document.querySelectorAll(".chart-market-category").forEach(button=>button.classList.toggle("active",button.dataset.chartCategory===category));
 }
 
 async function selectChartMarketCategory(category) {
