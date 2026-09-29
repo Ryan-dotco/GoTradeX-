@@ -24,7 +24,7 @@
     };
   </script>
 
-  <link rel="stylesheet" href="style.css?v=3.0.26">
+  <link rel="stylesheet" href="style.css?v=3.0.32">
 </head>
 
 <body>
@@ -1141,132 +1141,118 @@
 
           <div>
             <h2>Trading Robot</h2>
-            <p>Automated trading control centre.</p>
+            <p>Deriv connection and automated trading control centre.</p>
           </div>
 
           <div class="robot-status">
-
-            <span
-              id="robotIndicator"
-              class="status-dot"
-            ></span>
-
-            <span id="robotLabel">
-              STOPPED
-            </span>
-
+            <span id="robotIndicator" class="status-dot"></span>
+            <span id="robotLabel">STOPPED</span>
           </div>
 
         </div>
-
 
         <div class="robot-grid">
 
           <div class="panel">
 
-            <h3>Robot Control</h3>
+            <h3>Deriv Broker Connection</h3>
 
             <p class="muted">
-              AvaTrade MT5 automated trading bridge. The robot keeps
-              running through MT5/VPS after GoTradeX is closed.
+              Connect your GoTradeX account to Deriv using secure OAuth.
+              Your Deriv access token stays on the server and is never placed in the browser.
             </p>
 
-            <div class="field">
-              <label for="avatradeAccountId">AvaTrade Account ID</label>
-              <input
-                id="avatradeAccountId"
-                type="number"
-                inputmode="numeric"
-                min="1"
-                placeholder="Enter your AvaTrade account ID"
-                autocomplete="off"
-              >
-              <small class="muted">Your AvaTrade account identifier.</small>
+            <div class="account-status">
+              <span>Broker</span>
+              <strong>Deriv</strong>
+            </div>
+
+            <div class="account-status">
+              <span>Connection</span>
+              <strong id="derivConnectionStatus">Not Connected</strong>
             </div>
 
             <div class="field">
-              <label for="mt5LoginId">MT5 Login ID</label>
-              <input
-                id="mt5LoginId"
-                type="number"
-                inputmode="numeric"
-                min="1"
-                placeholder="Enter your MT5 login number"
-                autocomplete="off"
-              >
-              <small class="muted">The MT5 login used by the AvaTrade MT5 terminal.</small>
+              <label for="derivAccountSelect">Deriv Trading Account</label>
+              <select id="derivAccountSelect">
+                <option value="">Connect Deriv first</option>
+              </select>
+              <small class="muted">Demo and real accounts returned by your Deriv account are shown here.</small>
             </div>
 
-            <div class="field">
-              <label for="mt5BridgeToken">GoTradeX MT5 Bridge Token</label>
-              <input
-                id="mt5BridgeToken"
-                type="text"
-                readonly
-                placeholder="Generate a secure bridge token"
-                autocomplete="off"
-              >
-              <small class="muted">Copy this token into the GoTradeX MT5 Bridge EA on Windows/VPS.</small>
+            <div class="robot-actions-row">
+              <button id="connectDerivButton" type="button" class="primary-button">
+                🔗 Connect Deriv
+              </button>
+
+              <button id="refreshDerivButton" type="button" class="small-button">
+                ↻ Refresh
+              </button>
+
+              <button id="disconnectDerivButton" type="button" class="danger-button">
+                Disconnect
+              </button>
             </div>
 
-            <button
-              id="generateMt5BridgeTokenButton"
-              type="button"
-              class="primary-button full-button"
-              style="min-height:52px;font-size:1rem;font-weight:800;margin:8px 0 12px;"
-            >
-              🔐 Generate MT5 Bridge Token
-            </button>
+            <div class="panel" style="margin-top:14px;padding:14px;">
+              <div class="info-list">
+                <div>
+                  <span>Selected account</span>
+                  <strong id="derivSelectedAccount">—</strong>
+                </div>
+                <div>
+                  <span>Account type</span>
+                  <strong id="derivAccountType">—</strong>
+                </div>
+                <div>
+                  <span>Balance</span>
+                  <strong id="derivBalance">—</strong>
+                </div>
+                <div>
+                  <span>Currency</span>
+                  <strong id="derivCurrency">—</strong>
+                </div>
+              </div>
+            </div>
 
-            <div id="mt5BridgeTokenStatus" class="muted" aria-live="polite"></div>
+            <div id="derivConnectionMessage" class="muted" aria-live="polite"></div>
 
+          </div>
+
+
+          <div class="panel">
+
+            <h3>AutoBot Control</h3>
+
+            <p class="muted">
+              Demo mode is the safe starting point. The Deriv connection can be tested
+              before any real-money execution is enabled.
+            </p>
+
+            <div class="account-status">
+              <span>Trading mode</span>
+              <strong id="derivTradingMode">DEMO / TEST</strong>
+            </div>
 
             <div class="risk-options">
-
-              <button
-                type="button"
-                class="risk-button active"
-                data-risk="conservative"
-              >
-                Conservative
-              </button>
-
-              <button
-                type="button"
-                class="risk-button"
-                data-risk="moderate"
-              >
-                Moderate
-              </button>
-
-              <button
-                type="button"
-                class="risk-button"
-                data-risk="aggressive"
-              >
-                Aggressive
-              </button>
-
+              <button type="button" class="risk-button active" data-risk="conservative">Conservative</button>
+              <button type="button" class="risk-button" data-risk="moderate">Moderate</button>
+              <button type="button" class="risk-button" data-risk="aggressive">Aggressive</button>
             </div>
-
 
             <div class="robot-limit">
-
               <span>Maximum drawdown</span>
-
               <strong>10%</strong>
-
             </div>
-
 
             <button
               id="startRobotButton"
               type="button"
               class="primary-button full-button"
+              disabled
             >
-              Start Robot
+              Start Demo Robot
             </button>
-
 
             <button
               id="stopRobotButton"
@@ -1276,67 +1262,48 @@
               Stop Robot
             </button>
 
+            <div class="robot-health" style="margin-top:14px;">
+              <span>Status</span>
+              <strong id="robotErrorMessage">Connect a Deriv account to begin.</strong>
+            </div>
+
           </div>
 
 
           <div class="panel">
 
-            <h3>Robot Information</h3>
+            <h3>Deriv Account Information</h3>
 
             <div class="info-list">
-
-              <div>
-                <span>Execution</span>
-                <strong>MT5 Bridge</strong>
-              </div>
-
-              <div>
-                <span>Strategy</span>
-                <strong>AI Technical</strong>
-              </div>
-
-              <div>
-                <span>Risk</span>
-                <strong id="robotRiskText">Conservative</strong>
-              </div>
-
               <div>
                 <span>Broker</span>
-                <strong id="brokerStatus">
-                  Not Connected
-                </strong>
+                <strong id="brokerStatus">Not Connected</strong>
               </div>
-
               <div>
-                <span>MT5 Account</span>
+                <span>Account</span>
                 <strong id="robotAccountStatus">Not Set</strong>
               </div>
-
               <div>
                 <span>Connection</span>
                 <strong id="robotConnectionHealth">Waiting</strong>
               </div>
-
               <div>
-                <span>Last Heartbeat</span>
-                <strong id="robotHeartbeat">—</strong>
+                <span>Balance</span>
+                <strong id="robotBalance">—</strong>
               </div>
-
               <div>
                 <span>Open Trades</span>
                 <strong id="robotOpenTrades">0</strong>
               </div>
-
               <div>
                 <span>Today's P/L</span>
                 <strong id="robotDailyPL">$0.00</strong>
               </div>
-
             </div>
 
             <div class="robot-health">
-              <span>Bridge message</span>
-              <strong id="robotErrorMessage">Waiting for MT5/VPS connection.</strong>
+              <span>Last check</span>
+              <strong id="robotHeartbeat">—</strong>
             </div>
 
           </div>
@@ -1344,7 +1311,6 @@
         </div>
 
       </section>
-
 
       <!-- =================================================
            AFFILIATES
