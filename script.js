@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.38";
+const APP_VERSION = "3.0.39";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -110,7 +110,8 @@ const state = {
     lastTradeAt: 0,
     initialized: false,
     scannerTimer: null,
-    monitorTimer: null
+    monitorTimer: null,
+    executionMode: "simulation"
   },
 
   lastQueuedSignalKey: "",
@@ -2919,60 +2920,131 @@ function manageDemoTrades() {
   saveDemoState();
 }
 
-function openDemoTrade(symbol, signal) {
+async function executeDerivDemoContract(symbol, signal, stake) {
+  if (!state.deriv.connected || !state.deriv.selectedAccountId) throw new Error("A connected Deriv demo account is required.");
+  const installationId = state.deriv.installationId;
+  if (!installationId) throw new Error("Deriv installation ID is missing.");
+
+  const endpoint = (CONFIG.SUPABASE_URL || "").replace(/\/$/, "") + "/functions/v1/deriv-oauth";
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + (window.gotradexSupabaseSession?.access_token || ""),
+    "apikey": CONFIG.SUPABASE_KEY
+  };
+  const otpResponse = await fetch(endpoint + "?action=otp&installation_id=" + encodeURIComponent(installationId) +
+    "&account_id=" + encodeURIComponent(state.deriv.selectedAccountId), {method:"GET",headers});
+  const otpData = await otpResponse.json().catch(() => ({}));
+  if (!otpResponse.ok) throw new Error(otpData?.error || "Unable to open the Deriv demo trading session.");
+
+  const wsUrl = otpData?.data?.url || otpData?.url;
+  if (!wsUrl) throw new Error("Deriv did not return a demo WebSocket URL.");
+
+  const market = state.markets?.[symbol] || {};
+  const underlying = market.derivSymbol;
+  if (!underlying) throw new Error("Deriv symbol is unavailable for " + symbol + ".");
+
+  const currency = String(state.deriv.selectedAccount?.currency || state.deriv.selectedAccount?.currency_code || "USD").toUpperCase();
+  const durationMap = {"5s":[5,"s"],"15s":[15,"s"],"30s":[30,"s"],"1m":[1,"m"],"2m":[2,"m"],"5m":[5,"m"],"15m":[15,"m"],"30m":[30,"m"],"1H":[1,"h"]};
+  const [duration,durationUnit] = durationMap[state.currentTimeframe] || [5,"m"];
+  const contractType = signal.direction === "BUY" ? "CALL" : "PUT";
+
+  return new Promise((resolve,reject)=>{
+    const ws = new WebSocket(wsUrl);
+    let settled=false;
+    const timeout=setTimeout(()=>{ if(!settled){settled=true;try{ws.close();}catch{}reject(new Error("Deriv demo order timed out."));}},15000);
+
+    ws.onopen=()=>ws.send(JSON.stringify({
+      proposal:1, amount:Number(stake.toFixed(2)), basis:"stake", contract_type:contractType,
+      currency, duration, duration_unit:durationUnit, underlying_symbol:underlying, req_id:7001
+    }));
+
+    ws.onmessage=event=>{
+      try{
+        const data=JSON.parse(event.data);
+        if(data?.error){
+          clearTimeout(timeout);
+          if(!settled){settled=true;try{ws.close();}catch{}reject(new Error(data.error.message||"Deriv demo order failed."));}
+          return;
+        }
+        if(data?.msg_type==="proposal" && data?.proposal?.id){
+          ws.send(JSON.stringify({buy:String(data.proposal.id),price:Number(data.proposal.ask_price||stake),req_id:7002}));
+          return;
+        }
+        if(data?.msg_type==="buy" && data?.buy){
+          clearTimeout(timeout);
+          if(!settled){settled=true;try{ws.close();}catch{}resolve({
+            broker:"deriv",mode:"demo",contractId:data.buy.contract_id||null,
+            transactionId:data.buy.transaction_id||null,entry:Number(data.buy.buy_price||market.price)||Number(market.price)
+          });}
+        }
+      }catch(error){
+        clearTimeout(timeout);
+        if(!settled){settled=true;try{ws.close();}catch{}reject(error);}
+      }
+    };
+    ws.onerror=()=>{clearTimeout(timeout);if(!settled){settled=true;reject(new Error("Deriv demo trading WebSocket failed."));}};
+  });
+}
+
+async function executeBybitDemoOrder(symbol, signal, quantity, price, stop, target) {
+  if (!state.bybit.connected || state.bybit.environment !== "demo") throw new Error("A connected Bybit DEMO account is required.");
+  const result = await window.GTXBybit.order({
+    apiKey:state.bybit.apiKey, apiSecret:state.bybit.apiSecret, environment:"demo",
+    category:"spot", symbol, side:signal.direction==="BUY"?"Buy":"Sell",
+    orderType:"Market", qty:String(Math.max(0.000001,quantity)), takeProfit:target, stopLoss:stop
+  });
+  return {broker:"bybit",mode:"demo",orderId:result?.orderId||null,orderLinkId:result?.orderLinkId||null,entry:price};
+}
+
+async function openDemoTrade(symbol, signal) {
   if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return false;
-  if (!signal || !["BUY", "SELL"].includes(signal.direction)) return false;
-  if (Number(signal.confidence) < 65) return false;
+  if (!signal || !["BUY","SELL"].includes(signal.direction) || Number(signal.confidence)<65) return false;
+  const price=Number(signal.entry||state.markets?.[symbol]?.price), stop=Number(signal.stop), target=Number(signal.target);
+  if (![price,stop,target].every(Number.isFinite)||price<=0) return false;
 
-  const price = Number(signal.entry || state.markets?.[symbol]?.price);
-  const stop = Number(signal.stop);
-  const target = Number(signal.target);
-  if (![price, stop, target].every(Number.isFinite) || price <= 0) return false;
+  const signalKey=symbol+"|"+signal.direction+"|"+Math.round(price);
+  if(state.demo.lastSignalKey===signalKey && Date.now()-state.demo.lastTradeAt<120000) return false;
+  if(state.demo.openTrades.some(t=>t.symbol===symbol)) return false;
 
-  const signalKey = symbol + "|" + signal.direction + "|" + Math.round(price);
-  if (state.demo.lastSignalKey === signalKey && Date.now() - state.demo.lastTradeAt < 120000) {
-    return false;
+  const riskAmount=Math.max(1,state.demo.balance*demoRiskPercent());
+  const stopDistance=Math.abs(price-stop);
+  if(!stopDistance||!Number.isFinite(stopDistance)) return false;
+  const quantity=Math.max(0.000001,riskAmount/stopDistance);
+  const maxNotional=Math.max(1,state.demo.balance*0.25);
+  const cappedQuantity=Math.min(quantity,maxNotional/price);
+
+  let brokerExecution=null;
+  if(state.demo.executionMode==="broker-demo"){
+    try{
+      if(marketCatalog.crypto.some(([item])=>item===symbol)){
+        brokerExecution=await executeBybitDemoOrder(symbol,signal,cappedQuantity,price,stop,target);
+      }else{
+        const stake=Math.max(0.35,Math.min(riskAmount,state.demo.balance*0.02));
+        brokerExecution=await executeDerivDemoContract(symbol,signal,stake);
+      }
+    }catch(error){
+      state.robotStatus.lastError=error.message||"Broker demo execution failed.";
+      renderRobotStatus();showToast(state.robotStatus.lastError,"error");return false;
+    }
   }
 
-  if (state.demo.openTrades.some(t => t.symbol === symbol)) return false;
-
-  const riskAmount = Math.max(1, state.demo.balance * demoRiskPercent());
-  const stopDistance = Math.abs(price - stop);
-  if (!stopDistance || !Number.isFinite(stopDistance)) return false;
-
-  const quantity = Math.max(0.000001, riskAmount / stopDistance);
-  const maxNotional = Math.max(1, state.demo.balance * 0.25);
-  const cappedQuantity = Math.min(quantity, maxNotional / price);
-
-  const trade = {
-    id: "demo_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
-    symbol,
-    direction: signal.direction,
-    confidence: Number(signal.confidence) || 0,
-    entry: price,
-    current: price,
-    stop,
-    target,
-    quantity: cappedQuantity,
-    riskAmount,
-    openedAt: new Date().toISOString(),
-    status: "OPEN",
-    unrealizedPL: 0
+  const trade={
+    id:"demo_"+Date.now()+"_"+Math.random().toString(36).slice(2,8), symbol,
+    broker:brokerExecution?.broker||"gtx-simulation",
+    executionMode:state.demo.executionMode,
+    brokerOrderId:brokerExecution?.orderId||brokerExecution?.contractId||null,
+    brokerTransactionId:brokerExecution?.transactionId||null,
+    direction:signal.direction,confidence:Number(signal.confidence)||0,
+    entry:Number(brokerExecution?.entry||price),current:Number(brokerExecution?.entry||price),
+    stop,target,quantity:cappedQuantity,riskAmount,openedAt:new Date().toISOString(),
+    status:"OPEN",unrealizedPL:0
   };
 
   state.demo.openTrades.unshift(trade);
-  state.demo.lastSignalKey = signalKey;
-  state.demo.lastTradeAt = Date.now();
-
-  showToast(
-    "Demo " + signal.direction + " opened: " + symbol +
-      " at " + formatPrice(price),
-    "success"
-  );
-
-  updateDemoMetrics();
-  saveDemoState();
-  return true;
+  state.demo.lastSignalKey=signalKey;
+  state.demo.lastTradeAt=Date.now();
+  showToast((state.demo.executionMode==="broker-demo"?"Broker demo ":"Simulated demo ")+signal.direction+" opened: "+symbol+" at "+formatPrice(trade.entry),"success");
+  updateDemoMetrics();saveDemoState();return true;
 }
 
 function runDemoEngine(signal) {
@@ -2982,7 +3054,7 @@ function runDemoEngine(signal) {
   if (evaluateDemoDrawdown()) return;
 
   const symbol = state.currentSymbol || "BTCUSDT";
-  openDemoTrade(symbol, signal);
+  await openDemoTrade(symbol, signal);
 
   updateDemoMetrics();
   if (evaluateDemoDrawdown()) return;
@@ -3387,7 +3459,7 @@ async function scanDemoMarkets() {
       const signal = await generateLiveSignal(symbol);
 
       if (signal && ["BUY", "SELL"].includes(signal.direction) && Number(signal.confidence) >= 65) {
-        openDemoTrade(symbol, signal);
+        await openDemoTrade(symbol, signal);
       }
     } catch (error) {
       console.warn("Demo scanner skipped " + symbol + ":", error);
