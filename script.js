@@ -2581,56 +2581,6 @@ function drawOwnTradingChart(canvas, candles, options = {}) {
 
 }
 
-function getChartViewportMetrics(zoom) {
-  const count = state.chart?.candles?.length || 1;
-  const safeZoom = Math.max(0.55, Math.min(4, Number(zoom) || 1));
-  const visible = Math.max(12, Math.min(count, Math.round(count / safeZoom)));
-  return { count, zoom: safeZoom, visible, maxPan: Math.max(0, count - visible) };
-}
-
-function setChartViewport(zoom, pan) {
-  const metrics = getChartViewportMetrics(zoom);
-  const chartState = state.chartView || (state.chartView = {});
-  chartState.zoom = metrics.zoom;
-  chartState.pan = Math.max(0, Math.min(metrics.maxPan, Number(pan) || 0));
-  state.chartView = chartState;
-
-  if (!state.chartRenderFrame) {
-    state.chartRenderFrame = requestAnimationFrame(() => {
-      state.chartRenderFrame = null;
-      renderCurrentChart();
-    });
-  }
-}
-
-function zoomChartAt(nextZoom, focalX) {
-  const current = state.chartView || {};
-  const old = getChartViewportMetrics(current.zoom || 1);
-  if (!old.count) return;
-
-  const canvas = $("mainChart");
-  const width = Math.max(1, canvas?.getBoundingClientRect().width || 600);
-  const paddingLeft = 8;
-  const futureSpace = Math.max(34, Math.min(72, width * 0.075));
-  const plotRight = width - 68 - futureSpace;
-  const chartWidth = Math.max(180, plotRight - paddingLeft);
-  const xRatio = Math.max(0, Math.min(1, (Number(focalX) - paddingLeft) / chartWidth));
-  const focalIndex = Number(current.pan || 0) + xRatio * old.visible;
-
-  const next = getChartViewportMetrics(nextZoom);
-  const nextPan = focalIndex - xRatio * next.visible;
-  setChartViewport(next.zoom, nextPan);
-}
-
-function renderCurrentChart() { /* Legacy renderer disabled: gtx-live-chart-fix.js owns #mainChart. */ }
-
-async function createChart() {
-  // Chart portal intentionally removed. Rebuild will be added later.
-  return false;
-}
-
-function updateLightweightSeries(candle){const chart=state.chart;if(!chart?.series?.primary||!candle)return;const time=Math.floor(Number(candle.time)/1000),c={time,open:Number(candle.open),high:Number(candle.high),low:Number(candle.low),close:Number(candle.close)};try{if(state.chartView.mode==="line")chart.series.primary.update({time,value:c.close});else chart.series.primary.update(c);chart.series.volume?.update({time,value:Number(candle.volume)||0,color:Number(candle.close)>=Number(candle.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"});}catch{}}
-
 function estimatedSignalDuration(timeframe = state.currentTimeframe || "1H") {
   const map = {
     "5s":"~5 seconds","15s":"~15 seconds","30s":"~30 seconds",
@@ -7377,29 +7327,6 @@ document.addEventListener("click", (event) => {
     event.preventDefault();
     closeManualPosition(close.dataset.tradeId);
   }
-}, true);
-
-/* =========================================================
-   MOBILE EXCHANGE TERMINAL NAVIGATION
-   ========================================================= */
-document.addEventListener("click", (event) => {
-  const tab = event.target.closest?.(".gtx-mobile-terminal-tab");
-  if (!tab) return;
-  event.preventDefault();
-
-  document.querySelectorAll(".gtx-mobile-terminal-tab").forEach(item => item.classList.remove("active"));
-  tab.classList.add("active");
-
-  const target = tab.dataset.terminalTarget;
-  const targetEl = target === "chart"
-    ? document.querySelector(".chart-panel")
-    : target === "overview"
-      ? document.querySelector(".signal-panel")
-      : target === "orderbook"
-        ? $("gtxOrderbookPanel")
-        : $("dashboardMarkets");
-
-  targetEl?.scrollIntoView({ behavior: "smooth", block: "start" });
 }, true);
 
 /* =========================================================
