@@ -38,6 +38,8 @@
   }
   function openTrades() { return Array.isArray(appState().demo?.openTrades) ? appState().demo.openTrades : []; }
   function riskCheck({ amount, price, stop }) {
+    const dailyPL = Number(appState().demo?.dailyPL || 0);
+    if (dailyPL <= -Math.abs(Number(runtime.risk.maxDailyLossUsd || 100))) return {ok:false,reason:"Risk limit: maximum daily loss has been reached."};
     if (openTrades().length >= Number(runtime.risk.maxOpenTrades || 1)) return { ok:false, reason:"Risk limit: maximum open positions reached." };
     const risk = Math.abs(Number(price) - Number(stop)) * (Number(amount) / Number(price));
     if (!Number.isFinite(risk) || risk <= 0) return { ok:false, reason:"Invalid risk calculation." };
@@ -110,6 +112,28 @@
   }
   function startRobotLoop(){if(!robotTimer)robotTimer=setInterval(robotTick,Number(runtime.robot.intervalMs));}
   function productionStatus(){return {liveExecutionEnabled:Boolean(runtime.production.liveExecutionEnabled),brokerReady:Boolean(runtime.production.brokerReady),liveOrdersBlocked:!runtime.production.liveExecutionEnabled||!runtime.production.brokerReady};}
+  function renderReadiness(){
+    if(!appState().isAdmin) return;
+    const host=document.querySelector('[data-admin-section="overview"]');
+    if(!host||document.getElementById("gtxReadinessPanel")) return;
+    const panel=document.createElement("div");
+    panel.id="gtxReadinessPanel";panel.className="panel";
+    panel.innerHTML='<div class="section-header"><div><h3>Phase 11 Production Readiness</h3><p class="muted">Final gate before any real-money execution is considered.</p></div><span class="demo-badge">LIVE LOCKED</span></div><div id="gtxReadinessList" class="info-list"></div>';
+    host.appendChild(panel); updateReadiness();
+  }
+  function updateReadiness(){
+    const list=document.getElementById("gtxReadinessList"); if(!list) return;
+    const checks=[
+      ["Authentication",Boolean(appState().user)],
+      ["Central control",Boolean(window.GTXTradingCore)],
+      ["Live candle engine",Boolean(window.GTXFreshChart)],
+      ["Market analysis",Boolean(window.GTXMarketAnalysis?.snapshot)],
+      ["Execution guard",Boolean(window.GTXExecution)],
+      ["Live order gate",false]
+    ];
+    list.innerHTML=checks.map(x=>"<div><span>"+x[0]+"</span><strong class='"+(x[1]?"positive":"negative")+"'>"+(x[1]?"READY":"LOCKED")+"</strong></div>").join("");
+  }
+
   function renderAdminOps(){
     if(!appState().isAdmin)return;
     const host=document.querySelector('[data-admin-section="trade-control"]');
@@ -168,7 +192,7 @@
     if(history) history.innerHTML=done.length?done.slice(0,20).map(t=>"<div class='market-row'><div><strong>"+String(t.symbol)+"</strong><span>"+String(t.direction)+" • "+String(t.closeReason||"Closed")+"</span></div><div><span>P/L</span><strong class='"+(Number(t.pnl)>=0?"positive":"negative")+"'>$"+Number(t.pnl||0).toFixed(2)+"</strong></div><div><span>Exit</span><strong>"+Number(t.exit||0).toFixed(2)+"</strong></div><div><span>Time</span><strong>"+new Date(t.closedAt||Date.now()).toLocaleTimeString()+"</strong></div></div>").join(""):"<div class='empty-state'>No completed trades yet.</div>";
   }
 
-  function init(){startRobotLoop();bindRobotPanel();setInterval(()=>{renderAdminOps();renderAdminOpsState();renderRobotPanel();renderPortfolio();},1000);audit("RUNTIME_READY",{execution:"simulation",liveOrdersBlocked:true});}
+  function init(){startRobotLoop();bindRobotPanel();setInterval(()=>{renderReadiness();updateReadiness();renderAdminOps();renderAdminOpsState();renderRobotPanel();renderPortfolio();},1000);audit("RUNTIME_READY",{execution:"simulation",liveOrdersBlocked:true});}
   window.GTXExecution={execute,close,riskCheck,productionStatus,audit,getRuntime:()=>JSON.parse(JSON.stringify(runtime))};
   window.GTXRobotRuntime={tick:robotTick,start:startRobotLoop};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
