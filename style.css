@@ -3793,3 +3793,155 @@ select {
     padding-bottom: calc(18px + env(safe-area-inset-bottom));
   }
 }
+
+
+/* =========================================================
+   PHASE 3 — SIGNAL ANALYZER CONTROL SURFACE
+   ========================================================= */
+.gtx-signal-page {
+  --gtx-control-gap: 12px;
+}
+
+.gtx-signal-header {
+  align-items: center;
+}
+
+.gtx-signal-controls {
+  display: grid;
+  gap: 16px;
+}
+
+.gtx-control-group {
+  display: grid;
+  gap: 8px;
+}
+
+.gtx-control-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gtx-control-title strong {
+  font-size: 13px;
+}
+
+.gtx-control-title span {
+  font-size: 11px;
+  opacity: .65;
+}
+
+.gtx-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.gtx-choice,
+.gtx-indicator {
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid rgba(148,163,184,.22);
+  border-radius: 10px;
+  background: rgba(15,23,42,.45);
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.gtx-choice.active,
+.gtx-indicator.active {
+  border-color: rgba(37,99,235,.85);
+  background: rgba(37,99,235,.18);
+}
+
+.gtx-signal-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,.22);
+  background: rgba(15,23,42,.65);
+  color: inherit;
+}
+
+.gtx-indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 7px;
+}
+
+.gtx-signal-result {
+  display: grid;
+  gap: 12px;
+}
+
+.gtx-result-topline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.gtx-result-topline > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(148,163,184,.07);
+}
+
+.gtx-result-topline strong {
+  font-size: 13px;
+}
+
+@media (max-width: 850px) {
+  #page-signals.active-page {
+    min-height: calc(100dvh - 58px);
+  }
+
+  #page-signals.active-page .section-header {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  #page-signals.active-page .gtx-signal-controls,
+  #page-signals.active-page .gtx-signal-result,
+  #page-signals.active-page > .panel:not(.gtx-signal-controls):not(.gtx-signal-result) {
+    border-radius: 0;
+    margin-left: -1px;
+    margin-right: -1px;
+  }
+
+  .gtx-choice-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gtx-choice-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gtx-choice {
+    flex: 0 0 auto;
+  }
+
+  .gtx-indicator-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .gtx-control-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .gtx-signal-order-actions {
+    margin-top: 0;
+  }
+}
