@@ -53,10 +53,39 @@
   function price(v) { return Number(v || 0).toLocaleString("en-US", {minimumFractionDigits:2,maximumFractionDigits:6}); }
   function esc(v) { return String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }
 
+
+  function updateCapitalDisplay() {
+    // The demo broker balance is realized cash. While trades are open,
+    // live capital is equity = realized balance + unrealized P/L.
+    // Show that live equity in the Deriv account card so open demo trades
+    // visibly affect the account value without double-counting P/L.
+    try {
+      const balanceEl = document.getElementById("derivBalance");
+      if (!balanceEl) return;
+
+      const label = balanceEl.previousElementSibling;
+      const demoReady = Boolean(state.demo?.initialized && state.deriv?.connected);
+      const equity = Number(state.demo?.equity);
+      const balance = Number(state.demo?.balance);
+
+      if (demoReady && Number.isFinite(equity)) {
+        if (label) label.textContent = "Live Equity";
+        balanceEl.textContent = money(equity);
+
+        const card = balanceEl.closest(".market-row, .stat-card, .account-row, .info-row, .account-info-row, div");
+        if (card) card.setAttribute("title", "Live demo capital: realized balance plus unrealized profit/loss.");
+      } else if (Number.isFinite(balance) && balance > 0) {
+        if (label) label.textContent = "Balance";
+        balanceEl.textContent = money(balance);
+      }
+    } catch (_) {}
+  }
+
   function render() {
     const panel = document.getElementById("gtxRobotHistoryPanel");
     if (!panel) return;
     const s = stats();
+    updateCapitalDisplay();
     const cards = [
       ["Total Trades", s.total], ["Win Rate", s.winRate.toFixed(1) + "%"], ["Realized P/L", money(s.realized)],
       ["Unrealized P/L", money(s.unrealized)], ["Total P/L", money(s.totalPL)], ["Equity", money(s.equity)],
@@ -125,7 +154,7 @@
     timer = setInterval(function () { patch(); render(); save(); }, 3000);
   }
 
-  window.GTXRobotHistory = { load, save, add, render, stats };
+  window.GTXRobotHistory = { load, save, add, render, stats, updateCapitalDisplay };
   window.addEventListener("DOMContentLoaded", init);
   setTimeout(init, 300);
 })();
