@@ -5474,27 +5474,9 @@ function chartTimeBucket(timeframe, timestamp) {
   return Math.floor(time / 3600000) * 3600000;
 }
 
-function updateLiveChartCandle(price, timestamp = Date.now()) {
-  const chart = state.chart;
-  const value = Number(price);
-  if (!Number.isFinite(value)) return;
-  if (!chart?.candles?.length) return;
-
-  const bucket = chartTimeBucket(state.currentTimeframe || "1H", timestamp);
-  let candle = chart.candles[chart.candles.length - 1];
-
-  if (!candle || Number(candle.time) !== bucket) {
-    candle = { time: bucket, open: value, high: value, low: value, close: value, volume: 0 };
-    chart.candles.push(candle);
-    if (chart.candles.length > 250) chart.candles.shift();
-  } else {
-    candle.high = Math.max(Number(candle.high) || value, value);
-    candle.low = Math.min(Number(candle.low) || value, value);
-    candle.close = value;
-  }
-
-  chart.candles[chart.candles.length - 1] = candle;
-  updateLightweightSeries(candle);
+function updateLiveChartCandle() {
+  // The canonical live Bybit chart engine owns candle rendering.
+  // This legacy path intentionally does not mutate #mainChart.
 }
 
 function handleLivePriceUpdate(price, timestamp = Date.now(), symbol = state.currentSymbol) {
@@ -5567,7 +5549,6 @@ function connectBybitPublicStream() {
       const current=state.chart?.candles?.[state.chart.candles.length-1];
       if(current&&Number(current.time)===liveCandle.time)Object.assign(current,liveCandle);
       else if(current&&liveCandle.time>Number(current.time)){state.chart.candles.push(liveCandle);if(state.chart.candles.length>250)state.chart.candles.shift();}
-      updateLightweightSeries(liveCandle);
       handleLivePriceUpdate(liveCandle.close,Number(candle.timestamp||candle.start),symbol);
     } catch (error) {
       console.warn("Bybit chart stream message error:", error);
@@ -5795,8 +5776,13 @@ function connectLiveMarketStream() {
    ========================================================= */
 
 async function refreshChartDataInPlace(){
-  const symbol=state.currentSymbol||"BTCUSDT",timeframe=state.currentTimeframe||"1H";
-  try{const candles=await fetchChartCandles(symbol,timeframe,250);if(!Array.isArray(candles)||candles.length<2)return false;if(!state.chart?.series?.primary){await createChart();return Boolean(state.chart?.series?.primary);}state.chart.candles=candles;const data=candles.map(c=>({time:Math.floor(Number(c.time)/1000),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)}));if(state.chartView.mode==="line")state.chart.series.primary.setData(data.map(c=>({time:c.time,value:c.close})));else state.chart.series.primary.setData(data);state.chart.series.volume?.setData(candles.map(c=>({time:Math.floor(Number(c.time)/1000),value:Number(c.volume)||0,color:Number(c.close)>=Number(c.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"})));const latest=candles[candles.length-1],latestClose=Number(latest.close);if(Number.isFinite(latestClose)&&latestClose>0){state.markets[symbol]={...(state.markets[symbol]||{}),symbol,price:latestClose,timestamp:latest.time,source:marketCatalog.crypto.some(([s])=>s===symbol)?"Bybit Live":(state.markets[symbol]?.source||"Deriv Live"),live:true};updateSelectedMarketHeader();}return true;}catch(error){console.warn("In-place live chart refresh skipped:",error);return false;}
+  try {
+    await createChart();
+    return Boolean(state.chart?.type === "bybit-candles" && state.chart?.chart);
+  } catch (error) {
+    console.warn("Live chart refresh unavailable:", error);
+    return false;
+  }
 }
 
 async function refreshApplication() {
