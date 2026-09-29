@@ -32,11 +32,34 @@
     return document.getElementById(id);
   }
 
+  function chartEls() {
+    const dashboard = $("gtxDashboardChart");
+    if (dashboard && dashboard.offsetParent !== null) {
+      return {
+        canvas: dashboard,
+        status: $("gtxDashboardChartStatus"),
+        dot: $("gtxDashboardChartDot"),
+        symbol: $("gtxDashboardChartSymbol"),
+        price: $("gtxDashboardChartPrice"),
+        subtitle: $("gtxDashboardChartSubtitle"),
+        empty: null
+      };
+    }
+    return {
+      canvas: $("gtxFreshChart"),
+      status: $("gtxChartStatus"),
+      dot: $("gtxChartStatusDot"),
+      symbol: $("gtxChartSymbol"),
+      price: $("gtxChartPrice"),
+      subtitle: $("gtxChartSubtitle"),
+      empty: $("gtxChartEmpty")
+    };
+  }
+
   function setStatus(text, live) {
-    const label = $("gtxChartStatus");
-    const dot = $("gtxChartStatusDot");
-    if (label) label.textContent = text;
-    if (dot) dot.style.opacity = live ? "1" : ".45";
+    const els = chartEls();
+    if (els.status) els.status.textContent = text;
+    if (els.dot) els.dot.style.opacity = live ? "1" : ".45";
   }
 
   function normalizeTimeframe(value) {
@@ -44,10 +67,17 @@
   }
 
   function getSelectedState() {
+    const dashboard = $("gtxDashboardChart");
+    const dashboardActive = dashboard && dashboard.offsetParent !== null;
     const controls = window.GTXSignalControls?.getState?.();
+    const app = window.state || {};
     return {
-      symbol: controls?.symbol || $("signalAsset")?.value || "BTCUSDT",
-      timeframe: normalizeTimeframe(controls?.timeframe || "1m")
+      symbol: dashboardActive
+        ? (app.currentSymbol || "BTCUSDT")
+        : (controls?.symbol || $("signalAsset")?.value || app.currentSymbol || "BTCUSDT"),
+      timeframe: dashboardActive
+        ? normalizeTimeframe(app.currentTimeframe || "1m")
+        : normalizeTimeframe(controls?.timeframe || app.currentTimeframe || "1m")
     };
   }
 
@@ -60,7 +90,7 @@
   }
 
   function setEmpty(message) {
-    const el = $("gtxChartEmpty");
+    const el = chartEls().empty;
     if (el) {
       el.textContent = message;
       el.style.display = "grid";
@@ -68,7 +98,7 @@
   }
 
   function hideEmpty() {
-    const el = $("gtxChartEmpty");
+    const el = chartEls().empty;
     if (el) el.style.display = "none";
   }
 
@@ -77,8 +107,9 @@
     symbol = getSelectedState().symbol;
     timeframe = getSelectedState().timeframe;
 
-    $("gtxChartSymbol") && ($("gtxChartSymbol").textContent = symbol);
-    $("gtxChartSubtitle") && ($("gtxChartSubtitle").textContent = "Real Bybit candles • " + timeframe);
+    const els = chartEls();
+    if (els.symbol) els.symbol.textContent = symbol;
+    if (els.subtitle) els.subtitle.textContent = "Real Bybit candles • " + timeframe;
 
     if (!SUPPORTED[timeframe]) {
       candles = [];
@@ -210,12 +241,12 @@
   }
 
   function updatePrice(price) {
-    const el = $("gtxChartPrice");
+    const el = chartEls().price;
     if (el) el.textContent = formatPrice(price);
   }
 
   function draw() {
-    const canvas = $("gtxFreshChart");
+    const canvas = chartEls().canvas;
     const wrap = canvas?.parentElement;
     if (!canvas || !wrap) return;
 
@@ -298,15 +329,18 @@
   }
 
   function bind() {
-    const canvas = $("gtxFreshChart");
+    const canvas = chartEls().canvas;
     if (!canvas) return;
 
     document.addEventListener("click", event => {
       const category = event.target.closest("[data-signal-category]");
       const tf = event.target.closest("[data-signal-timeframe]");
       const asset = event.target.closest("#signalAsset");
+      const dashboardCategory = event.target.closest("[data-dashboard-category]");
+      const dashboardTf = event.target.closest("[data-dashboard-timeframe]");
+      const dashboardAsset = event.target.closest("#gtxDashboardAssetSelect");
 
-      if (category || tf || asset) {
+      if (category || tf || asset || dashboardCategory || dashboardTf || dashboardAsset) {
         setTimeout(loadHistory, 0);
       }
     });
