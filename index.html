@@ -684,77 +684,9 @@
 <div class="dashboard-grid">
 
 
-          <div class="panel chart-panel">
+          <div class="panel chart-panel" id="chartPanelPlaceholder" style="display:none"></div>
 
-            <div class="panel-header">
-
-              <div>
-
-                <h3 id="chartSymbol">BTC / USD</h3>
-
-                <span id="btcPrice">
-                  Loading live price...
-                </span>
-
-              </div>
-
-
-              <div class="chart-market-control">
-                <button type="button" class="chart-market-toggle" aria-expanded="false"><span id="chartMarketToggleLabel">BTC/USDT</span> ▾</button>
-                <div class="chart-market-menu" hidden>
-                  <div class="chart-market-categories" role="tablist" aria-label="Market categories">
-                    <button type="button" class="chart-market-category active" data-chart-category="crypto">Crypto</button>
-                    <button type="button" class="chart-market-category" data-chart-category="forex">Forex</button>
-                    <button type="button" class="chart-market-category" data-chart-category="commodities">Commodities</button>
-                    <button type="button" class="chart-market-category" data-chart-category="indices">Indices</button>
-                    <button type="button" class="chart-market-category" data-chart-category="metals">Metals</button>
-                  </div>
-                  <div class="chart-market-select-label">Select market</div>
-                  <select id="chartAssetSelect" class="chart-market-select" aria-label="Select market"></select>
-                </div>
-              </div>
-
-              <div class="chart-timeframe-control">
-                <button type="button" class="chart-control-toggle" aria-expanded="false">⏱ Timeframe</button>
-                <div class="timeframes" hidden>
-                  <button type="button" class="timeframe" data-timeframe="5s">5s</button>
-                  <button type="button" class="timeframe" data-timeframe="15s">15s</button>
-                  <button type="button" class="timeframe" data-timeframe="30s">30s</button>
-                  <button type="button" class="timeframe" data-timeframe="1m">1m</button>
-                  <button type="button" class="timeframe" data-timeframe="2m">2m</button>
-                  <button type="button" class="timeframe" data-timeframe="5m">5m</button>
-                  <button type="button" class="timeframe" data-timeframe="15m">15m</button>
-                  <button type="button" class="timeframe" data-timeframe="30m">30m</button>
-                  <button type="button" class="timeframe active" data-timeframe="1H">1H</button>
-                  <button type="button" class="timeframe" data-timeframe="4H">4H</button>
-                  <button type="button" class="timeframe" data-timeframe="12H">12H</button>
-                  <button type="button" class="timeframe" data-timeframe="1D">1D</button>
-                  <button type="button" class="timeframe" data-timeframe="1W">1W</button>
-                  <button type="button" class="timeframe" data-timeframe="1M">1M</button>
-                  <button type="button" class="timeframe" data-timeframe="6M">6M</button>
-                  <button type="button" class="timeframe" data-timeframe="1Y">1Y</button>
-                </div>
-              </div>
-
-            </div>
-
-<div class="gtx-mobile-terminal-tabs" role="tablist" aria-label="Trading view">
-  <button type="button" class="gtx-mobile-terminal-tab active" data-terminal-target="chart">Chart</button>
-  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="overview">Overview</button>
-  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="orderbook">Data</button>
-  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="feed">Feed</button>
-</div>
-
-
-            <div class="chart-wrapper">
-
-              <div id="mainChart" class="gtx-live-chart"></div>
-
-            </div>
-
-          </div>
-
-<div class="gtx-mobile-order-actions">
+          <div class="gtx-mobile-order-actions">
           <button id="gtxMobileBuyButton" type="button" class="gtx-mobile-buy">
             <span>BUY</span>
             <strong id="gtxMobileBidPrice">—</strong>
