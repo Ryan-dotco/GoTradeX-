@@ -3050,7 +3050,7 @@ async function openDemoTrade(symbol, signal) {
   updateDemoMetrics();saveDemoState();return true;
 }
 
-function runDemoEngine(signal) {
+async function runDemoEngine(signal) {
   if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return;
   if (state.deriv.connected && !state.deriv.selectedAccountId) return;
   manageDemoTrades();
