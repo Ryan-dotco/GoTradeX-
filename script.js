@@ -2625,22 +2625,8 @@ function zoomChartAt(nextZoom, focalX) {
 function renderCurrentChart() { /* Legacy renderer disabled: gtx-live-chart-fix.js owns #mainChart. */ }
 
 async function createChart() {
-  // Canonical chart engine lives in gtx-live-chart-fix.js.
-  // This delegator prevents two chart engines from rendering into #mainChart.
-  if (window.GTXForceLiveChart?.install) {
-    return window.GTXForceLiveChart.install();
-  }
-  await new Promise(resolve => {
-    const started = Date.now();
-    const timer = setInterval(() => {
-      if (window.GTXForceLiveChart?.install || Date.now() - started > 5000) {
-        clearInterval(timer);
-        resolve();
-      }
-    }, 50);
-  });
-  if (window.GTXForceLiveChart?.install) return window.GTXForceLiveChart.install();
-  throw new Error("Canonical live chart engine is not available.");
+  // Chart portal intentionally removed. Rebuild will be added later.
+  return false;
 }
 
 function updateLightweightSeries(candle){const chart=state.chart;if(!chart?.series?.primary||!candle)return;const time=Math.floor(Number(candle.time)/1000),c={time,open:Number(candle.open),high:Number(candle.high),low:Number(candle.low),close:Number(candle.close)};try{if(state.chartView.mode==="line")chart.series.primary.update({time,value:c.close});else chart.series.primary.update(c);chart.series.volume?.update({time,value:Number(candle.volume)||0,color:Number(candle.close)>=Number(candle.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"});}catch{}}
