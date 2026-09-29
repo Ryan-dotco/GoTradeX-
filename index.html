@@ -838,6 +838,78 @@
         </div>
 
 
+        <div class="panel manual-trading-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Trade Ticket</h3>
+              <span>Manual demo trading using the same live market feed as the chart.</span>
+            </div>
+            <span class="demo-badge">DEMO ONLY</span>
+          </div>
+
+          <div class="trade-ticket-grid">
+            <div class="trade-ticket-summary">
+              <div>
+                <span>Market</span>
+                <strong id="tradeTicketSymbol">BTCUSDT</strong>
+              </div>
+              <div>
+                <span>Live price</span>
+                <strong id="tradeTicketPrice">—</strong>
+              </div>
+              <div>
+                <span>Execution</span>
+                <strong>GTX Simulation</strong>
+              </div>
+            </div>
+
+            <form id="manualTradeForm" class="manual-trade-form">
+              <div class="field">
+                <label for="manualTradeAmount">Trade amount (USD)</label>
+                <input id="manualTradeAmount" type="number" min="1" step="0.01"
+                  inputmode="decimal" value="10" placeholder="10.00" required>
+              </div>
+
+              <div class="field">
+                <label for="manualTradeStop">Stop loss</label>
+                <input id="manualTradeStop" type="number" min="0" step="any"
+                  inputmode="decimal" placeholder="Auto">
+              </div>
+
+              <div class="field">
+                <label for="manualTradeTarget">Take profit</label>
+                <input id="manualTradeTarget" type="number" min="0" step="any"
+                  inputmode="decimal" placeholder="Auto">
+              </div>
+
+              <div class="manual-trade-actions">
+                <button id="manualBuyButton" type="button" class="trade-buy-button">BUY</button>
+                <button id="manualSellButton" type="button" class="trade-sell-button">SELL</button>
+              </div>
+
+              <div class="trade-ticket-note">
+                <span>Risk protection</span>
+                <strong>Auto SL/TP is calculated from the live price when fields are left blank.</strong>
+              </div>
+
+              <div id="manualTradeMessage" class="muted" aria-live="polite"></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="panel manual-positions-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Open Positions</h3>
+              <span>Live unrealized P/L updates from the same market feed.</span>
+            </div>
+            <strong id="manualPositionCount">0</strong>
+          </div>
+          <div id="manualPositionsList" class="manual-positions-list">
+            <div class="empty-state">No open positions.</div>
+          </div>
+        </div>
+
         <div class="panel">
 
           <div class="panel-header">
