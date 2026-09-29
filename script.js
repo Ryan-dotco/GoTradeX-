@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.32";
+const APP_VERSION = "3.0.33";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -4178,6 +4178,26 @@ function renderDerivAccounts(accounts = []) {
   renderDerivAccountSummary();
 }
 
+function renderDerivConnectionButton() {
+  const button = $("connectDerivButton");
+  if (!button) return;
+
+  if (state.deriv.loading) {
+    button.disabled = true;
+    button.textContent = "Opening Deriv...";
+    return;
+  }
+
+  if (state.deriv.connected) {
+    button.disabled = true;
+    button.textContent = "✓ Connected";
+    return;
+  }
+
+  button.disabled = false;
+  button.textContent = "🔗 Connect Deriv";
+}
+
 function renderDerivAccountSummary() {
   const account = state.deriv.selectedAccount;
 
@@ -4276,6 +4296,7 @@ async function loadDerivConnection(options = {}) {
     const status = await derivRequest("status");
 
     state.deriv.connected = Boolean(status.connected);
+    renderDerivConnectionButton();
     state.deriv.expiresAt = status.expires_at || null;
     state.deriv.updatedAt = status.updated_at || null;
 
@@ -4286,6 +4307,7 @@ async function loadDerivConnection(options = {}) {
       renderDerivAccounts([]);
       if (message) message.textContent = "Deriv is not connected.";
       renderDerivAccountSummary();
+      renderDerivConnectionButton();
       return;
     }
 
@@ -4298,6 +4320,7 @@ async function loadDerivConnection(options = {}) {
           : [];
 
     renderDerivAccounts(accounts);
+    renderDerivConnectionButton();
     updatePortfolio();
 
     if (message) {
@@ -4310,6 +4333,7 @@ async function loadDerivConnection(options = {}) {
   } catch (error) {
     console.warn("Deriv connection load warning:", error);
     state.deriv.connected = false;
+    renderDerivConnectionButton();
     if (message) {
       message.textContent =
         error.message || "Unable to check the Deriv connection.";
@@ -4317,6 +4341,7 @@ async function loadDerivConnection(options = {}) {
     renderDerivAccountSummary();
   } finally {
     state.deriv.loading = false;
+    renderDerivConnectionButton();
     if ($("robotHeartbeat")) {
       $("robotHeartbeat").textContent = new Date().toLocaleTimeString();
     }
@@ -4360,11 +4385,13 @@ async function disconnectDeriv() {
     await derivRequest("disconnect");
 
     state.deriv.connected = false;
+    state.deriv.loading = false;
     state.deriv.accounts = [];
     state.deriv.selectedAccount = null;
     state.deriv.selectedAccountId = "";
 
     renderDerivAccounts([]);
+    renderDerivConnectionButton();
     renderDerivAccountSummary();
 
     if ($("derivConnectionMessage")) {
