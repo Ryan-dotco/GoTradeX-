@@ -597,78 +597,84 @@
            DASHBOARD
            ================================================= -->
 
-      <section id="page-dashboard" class="app-page active-page gtx-first-dashboard">
+      <section id="page-dashboard" class="app-page active-page gtx-trading-dashboard">
 
-        <div class="welcome-row">
-          <div>
-            <h2>Welcome back, <span id="welcomeName">Trader</span></h2>
-            <p>Your live trading command centre.</p>
-          </div>
-          <div class="live-market-label">● LIVE DATA</div>
-        </div>
-
-        <div class="gtx-kenghi-chat-hero panel">
-          <div class="gtx-kenghi-hero-face" aria-hidden="true">
-            <div class="gtx-kenghi-orbit gtx-kenghi-orbit-one"></div>
-            <div class="gtx-kenghi-orbit gtx-kenghi-orbit-two"></div>
-            <div class="gtx-kenghi-avatar"><span class="gtx-kenghi-eyes"><i></i><i></i></span><span class="gtx-kenghi-smile"></span></div>
-          </div>
-          <div class="gtx-kenghi-hero-copy">
-            <span class="gtx-kenghi-badge">KENGHI AI</span>
-            <h2>Kenghi is here</h2>
-            <p>Chat with your GoTradeX AI assistant while you watch the live market.</p>
-          </div>
-          <button id="gtxKenghiChatButton" type="button" class="gtx-kenghi-chat-button">💬 Chat with Kenghi</button>
-        </div>
-
-        <div class="gtx-dashboard-controls panel">
-          <div class="gtx-dashboard-control-column">
-            <div class="gtx-control-title"><strong>Assets</strong><span>Choose an asset</span></div>
-            <div class="gtx-dashboard-asset-row" role="tablist" aria-label="Dashboard assets">
-              <button type="button" class="gtx-dashboard-asset active" data-dashboard-category="commodities">Commodities</button>
-              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="forex">Forex</button>
-              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="indices">Indices</button>
-              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="crypto">Crypto</button>
-              <button type="button" class="gtx-dashboard-asset" data-dashboard-category="metals">Metals</button>
-            </div>
-            <select id="gtxDashboardAssetSelect" class="gtx-dashboard-select" aria-label="Dashboard instrument"></select>
-          </div>
-          <div class="gtx-dashboard-control-column">
-            <div class="gtx-control-title"><strong>Timeframe</strong><span>Choose the chart interval</span></div>
-            <div class="gtx-dashboard-timeframe-row" role="tablist" aria-label="Dashboard timeframe">
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="5s">5s</button>
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="15s">15s</button>
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="30s">30s</button>
-              <button type="button" class="gtx-dashboard-timeframe active" data-dashboard-timeframe="1m">1m</button>
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="5m">5m</button>
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="15m">15m</button>
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="1h">1h</button>
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="4h">4h</button>
-              <button type="button" class="gtx-dashboard-timeframe" data-dashboard-timeframe="1D">1D</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel gtx-chart-panel gtx-dashboard-live-chart">
-          <div class="panel-header">
-            <div><h3>Live Chart</h3><span id="gtxDashboardChartSubtitle">Real market candles</span></div>
-            <div class="gtx-chart-status"><span id="gtxDashboardChartDot" class="gtx-live-dot"></span><strong id="gtxDashboardChartStatus">BYBIT</strong></div>
-          </div>
-          <div class="gtx-chart-toolbar">
+        <div class="gtx-trade-topbar">
+          <div class="gtx-trade-symbol">
             <strong id="gtxDashboardChartSymbol">BTCUSDT</strong>
             <span id="gtxDashboardChartPrice">—</span>
-            <span>Bybit</span>
           </div>
-          <div class="gtx-chart-wrap"><canvas id="gtxDashboardChart" aria-label="Live Bybit candlestick chart"></canvas></div>
+          <div class="gtx-trade-top-actions">
+            <button id="gtxDashboardAssetsButton" type="button" class="gtx-trade-control-button" aria-expanded="false">
+              Assets <span>⌄</span>
+            </button>
+            <div id="gtxDashboardAssetsMenu" class="gtx-assets-menu" hidden>
+              <div class="gtx-assets-menu-title">Select market</div>
+              <div class="gtx-assets-categories" role="tablist" aria-label="Asset categories">
+                <button type="button" class="gtx-asset-category active" data-dashboard-category="crypto">Crypto</button>
+                <button type="button" class="gtx-asset-category" data-dashboard-category="forex">Forex</button>
+                <button type="button" class="gtx-asset-category" data-dashboard-category="commodities">Commodities</button>
+                <button type="button" class="gtx-asset-category" data-dashboard-category="indices">Indices</button>
+                <button type="button" class="gtx-asset-category" data-dashboard-category="metals">Metals</button>
+              </div>
+              <select id="gtxDashboardAssetSelect" class="gtx-assets-select" aria-label="Trading asset"></select>
+            </div>
+          </div>
         </div>
 
-        <div class="gtx-dashboard-order-actions" aria-label="Trade actions">
-          <button id="gtxDashboardBuyButton" type="button" class="gtx-dashboard-buy"><span>BUY</span><strong id="gtxDashboardBidPrice">—</strong></button>
-          <button id="gtxDashboardSellButton" type="button" class="gtx-dashboard-sell"><span>SELL</span><strong id="gtxDashboardAskPrice">—</strong></button>
+        <div class="gtx-trade-timeframe-row" aria-label="Chart timeframe">
+          <span>Time</span>
+          <button type="button" class="gtx-trade-timeframe" data-dashboard-timeframe="1m">1m</button>
+          <button type="button" class="gtx-trade-timeframe active" data-dashboard-timeframe="5m">5m</button>
+          <button type="button" class="gtx-trade-timeframe" data-dashboard-timeframe="15m">15m</button>
+          <button type="button" class="gtx-trade-timeframe" data-dashboard-timeframe="30m">30m</button>
+          <button type="button" class="gtx-trade-timeframe" data-dashboard-timeframe="1h">1H</button>
+          <button type="button" class="gtx-trade-timeframe" data-dashboard-timeframe="4h">4H</button>
+          <span class="gtx-chart-feed-label"><span id="gtxDashboardChartDot" class="gtx-live-dot"></span><strong id="gtxDashboardChartStatus">BYBIT</strong></span>
+        </div>
+
+        <div class="gtx-trade-chart">
+          <div class="gtx-trade-chart-meta">
+            <span id="gtxDashboardChartSubtitle">Bybit live market</span>
+            <span>Spot</span>
+          </div>
+          <div class="gtx-trade-chart-wrap">
+            <canvas id="gtxDashboardChart" aria-label="Live Bybit candlestick chart"></canvas>
+          </div>
+        </div>
+
+        <div class="gtx-trade-order-bar">
+          <div class="gtx-trade-input">
+            <label for="gtxDashboardTradeDuration">Trade time</label>
+            <select id="gtxDashboardTradeDuration">
+              <option value="1m">1 minute</option>
+              <option value="5m" selected>5 minutes</option>
+              <option value="15m">15 minutes</option>
+              <option value="30m">30 minutes</option>
+              <option value="1h">1 hour</option>
+            </select>
+          </div>
+          <div class="gtx-trade-input">
+            <label for="manualTradeAmount">Amount</label>
+            <div class="gtx-amount-field">
+              <span>$</span>
+              <input id="manualTradeAmount" type="number" min="1" step="1" value="10" inputmode="decimal" aria-label="Trade amount">
+            </div>
+          </div>
+        </div>
+
+        <div class="gtx-trade-buy-sell">
+          <button id="gtxDashboardBuyButton" type="button" class="gtx-trade-buy">
+            <span>BUY</span>
+            <strong id="gtxDashboardBidPrice">—</strong>
+          </button>
+          <button id="gtxDashboardSellButton" type="button" class="gtx-trade-sell">
+            <span>SELL</span>
+            <strong id="gtxDashboardAskPrice">—</strong>
+          </button>
         </div>
 
       </section>
-
 
       <!-- =================================================
            MARKETS
@@ -1429,6 +1435,19 @@
 
         </div>
 
+
+        <div class="gtx-support-kenghi">
+          <div class="gtx-kenghi-stage" aria-hidden="true">
+            <div class="gtx-kenghi-orbit gtx-kenghi-orbit-one"></div>
+            <div class="gtx-kenghi-orbit gtx-kenghi-orbit-two"></div>
+            <div class="gtx-kenghi-avatar"><span class="gtx-kenghi-eyes"><i></i><i></i></span><span class="gtx-kenghi-smile"></span></div>
+          </div>
+          <div>
+            <span class="gtx-kenghi-badge">KENGHI AI</span>
+            <h3>Kenghi AI Support</h3>
+            <p>Your AI assistant is available here. Trading stays focused on the chart.</p>
+          </div>
+        </div>
 
         <div class="chat-panel">
 
