@@ -3511,39 +3511,50 @@ select {
 }
 
 
-/* Dashboard mobile GTX logo beside the three-line menu. */
-.gtx-dashboard-mobile-logo{
-  display:none;
-  flex:0 0 auto;
-  width:38px;
-  height:32px;
-  border-radius:9px;
-  margin-left:2px;
-  margin-right:2px;
-  color:#fff;
-  font-size:10px;
-  font-weight:900;
-  letter-spacing:.8px;
-  box-shadow:0 5px 16px rgba(37,99,235,.28);
-  pointer-events:none;
+/* Dashboard GTX logo beside the three-line menu. */
+.topbar .gtx-dashboard-mobile-logo{
+  display:grid!important;
+  flex:0 0 42px!important;
+  width:42px!important;
+  min-width:42px!important;
+  height:32px!important;
+  min-height:32px!important;
+  margin:0 4px 0 2px!important;
+  padding:0!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-sizing:border-box!important;
+  border:2px solid #2563eb!important;
+  border-radius:9px!important;
+  background:linear-gradient(135deg,#1b4fa3,#0b2450)!important;
+  color:#fff!important;
+  font-size:11px!important;
+  line-height:1!important;
+  font-weight:1000!important;
+  letter-spacing:1px!important;
+  box-shadow:0 4px 14px rgba(37,99,235,.45)!important;
+  opacity:1!important;
+  visibility:visible!important;
+  position:relative!important;
+  z-index:20!important;
+  pointer-events:none!important;
 }
 
-@media (max-width:700px){
-  .gtx-dashboard-mobile-logo{
-    display:grid;
-    place-items:center;
-  }
+.topbar .page-heading{
+  min-width:0;
+  flex:1 1 auto;
+  overflow:hidden;
+}
 
-  .topbar .page-heading{
-    min-width:0;
-    flex:1 1 auto;
-    overflow:hidden;
-  }
+.topbar .page-heading h1,
+.topbar .page-heading p{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 
-  .topbar .page-heading h1,
-  .topbar .page-heading p{
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
+@media (min-width:701px){
+  .topbar .gtx-dashboard-mobile-logo{
+    display:none!important;
   }
 }
