@@ -136,14 +136,14 @@
     ) / Math.max(1, signals.length) * 100)));
     const snapshot = { symbol: window.GTXSignalControls?.getState?.().symbol || "BTCUSDT", timeframe: window.GTXSignalControls?.getState?.().timeframe || "1m", direction, confidence, ema9: e9, ema21: e21, rsi: r, momentum: m, alligator: a, fractals: f, macd: mc, time: Date.now() };
 
-    const direction = $("analysisDirection");
-    const confidence = $("analysisConfidence");
+    const directionEl = $("analysisDirection");
+    const confidenceEl = $("analysisConfidence");
 
-    if (direction) {
-      direction.textContent = directionValue(snapshot);
+    if (directionEl) {
+      directionEl.textContent = directionValue(snapshot);
     }
 
-    if (confidence) {
+    if (confidenceEl) {
       const activeCount = Math.max(1, active.size);
       let bullish = 0;
       if (active.has("ema") && e9 > e21) bullish++;
@@ -153,7 +153,7 @@
       if (active.has("macd") && mc === "BULLISH") bullish++;
       const bearish = activeCount - bullish;
       const strength = Math.round(Math.max(bullish, bearish) / activeCount * 100);
-      confidence.textContent = snapshot.confidence + "%";
+      confidenceEl.textContent = snapshot.confidence + "%";
     }
     return snapshot;
   }
