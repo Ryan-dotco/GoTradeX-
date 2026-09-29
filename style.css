@@ -2806,3 +2806,44 @@ select {
     font-size: 16px;
   }
 }
+
+
+/* =========================================================
+   CHART MARKET PORTAL — DERIV + BYBIT
+   ========================================================= */
+.chart-market-control { position: relative; flex: 0 0 auto; z-index: 60; }
+.chart-market-toggle {
+  min-height: 46px; min-width: 126px; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: #172941; color: var(--text); font-size: 11px; font-weight: 800;
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.chart-market-toggle:hover { border-color: var(--accent); }
+.chart-market-menu[hidden] { display: none !important; }
+.chart-market-menu {
+  position: absolute; right: 0; top: calc(100% + 7px); z-index: 1200;
+  width: min(420px, calc(100vw - 24px));
+  padding: 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: #0b1729; box-shadow: 0 16px 40px rgba(0,0,0,.38);
+}
+.chart-market-categories {
+  display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px;
+  margin-bottom: 10px;
+}
+.chart-market-category {
+  min-height: 42px; padding: 9px 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: #172941; color: var(--muted);
+  font-size: 11px; font-weight: 800; cursor: pointer; touch-action: manipulation;
+}
+.chart-market-category.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chart-market-select-label { display: block; margin: 8px 0 6px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.chart-market-select {
+  width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 8px; background: #172941; color: var(--text); font: inherit; font-size: 13px;
+}
+@media (max-width: 600px) {
+  .chart-market-toggle { min-width: 112px; min-height: 46px; font-size: 11px; }
+  .chart-market-menu { width: min(390px, calc(100vw - 16px)); }
+  .chart-market-category { min-height: 46px; font-size: 12px; }
+  .chart-market-select { min-height: 50px; font-size: 15px; }
+}

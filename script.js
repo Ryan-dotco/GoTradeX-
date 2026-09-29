@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.36";
+const APP_VERSION = "3.0.37";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -21,11 +21,11 @@ const CONFIG = {
   SUPABASE_KEY:
     window.GOTRADEX_CONFIG?.SUPABASE_KEY || "",
 
-  BINANCE_API:
-    "https://api.binance.com/api/v3",
+  BYBIT_PUBLIC_API:
+    "https://api.bybit.com",
 
-  FRANKFURTER_API:
-    "https://api.frankfurter.app"
+  DERIV_PUBLIC_WS:
+    "wss://ws.binaryws.com/websockets/v3"
 };
 
 
@@ -47,6 +47,8 @@ const state = {
 
   currentCategory: "crypto",
 
+  chartMarketCategory: "crypto",
+
   currentSymbol: "BTCUSDT",
 
   currentTimeframe: "1H",
@@ -62,8 +64,6 @@ const state = {
   robotRisk: "conservative",
 
   maxDrawdown: 10,
-
-  mt5AccountId: "",
 
   deriv: {
     installationId: "",
@@ -125,6 +125,10 @@ const state = {
   liveMarketSocket: null,
 
   liveMarketReconnectTimer: null,
+
+  derivMarketSocket: null,
+  derivMarketSymbols: null,
+  derivMarketSymbolsAt: 0,
 
   liveSignalTimer: null,
 
@@ -1587,26 +1591,337 @@ function bindPasswordToggle(
    ========================================================= */
 
 
-async function fetchBinanceTicker(symbol) {
-  const response=await fetch(`${CONFIG.BINANCE_API}/ticker/24hr?symbol=${encodeURIComponent(symbol)}`,{cache:"no-store"});
-  if(!response.ok)throw new Error(`Market request failed: ${response.status}`);
-  const data=await response.json();
-  return {symbol,price:Number(data.lastPrice),change:Number(data.priceChangePercent),volume:Number(data.volume),source:"Binance"};
+async function fetchBybitTicker(symbol) {
+  const response = await fetch(
+    CONFIG.BYBIT_PUBLIC_API + "/v5/market/tickers?category=spot&symbol=" + encodeURIComponent(symbol),
+    { cache: "no-store" }
+  );
+  if (!response.ok) throw new Error("Bybit ticker request failed: " + response.status);
+  const data = await response.json();
+  const item = data?.result?.list?.[0];
+  if (!item) throw new Error("Bybit returned no ticker for " + symbol);
+  return {
+    symbol,
+    price: Number(item.lastPrice),
+    change: Number(item.price24hPcnt) * 100,
+    volume: Number(item.volume24h),
+    source: "Bybit"
+  };
 }
 
-async function fetchBinanceAllTickers() {
-  const response=await fetch(`${CONFIG.BINANCE_API}/ticker/24hr`,{cache:"no-store"});
-  if(!response.ok)throw new Error(`Binance market request failed: ${response.status}`);
-  const data=await response.json(),map={};
-  if(Array.isArray(data))data.forEach(item=>{if(item?.symbol)map[item.symbol]={symbol:item.symbol,price:Number(item.lastPrice),change:Number(item.priceChangePercent),volume:Number(item.volume),source:"Binance"};});
+async function fetchBybitAllTickers() {
+  const response = await fetch(
+    CONFIG.BYBIT_PUBLIC_API + "/v5/market/tickers?category=spot",
+    { cache: "no-store" }
+  );
+  if (!response.ok) throw new Error("Bybit market request failed: " + response.status);
+  const data = await response.json();
+  const map = {};
+  (data?.result?.list || []).forEach(item => {
+    if (item?.symbol) {
+      map[item.symbol] = {
+        symbol: item.symbol,
+        price: Number(item.lastPrice),
+        change: Number(item.price24hPcnt) * 100,
+        volume: Number(item.volume24h),
+        source: "Bybit"
+      };
+    }
+  });
   return map;
 }
 
-async function fetchForexRates() {
-  const response=await fetch(`${CONFIG.FRANKFURTER_API}/latest?from=USD`,{cache:"no-store"});
-  if(!response.ok)throw new Error("Forex feed unavailable.");
-  const data=await response.json();
-  return data.rates||{};
+function derivSymbolValue(item) {
+  return item?.underlying_symbol || item?.symbol || "";
+}
+
+function derivSymbolName(item) {
+  return item?.underlying_symbol_name || item?.display_name || "";
+}
+
+function normalizeMarketText(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+async function getDerivActiveSymbols(force = false) {
+  if (!force && Array.isArray(state.derivMarketSymbols) &&
+      Date.now() - state.derivMarketSymbolsAt < 10 * 60 * 1000) {
+    return state.derivMarketSymbols;
+  }
+
+  const result = await derivPublicRequest({
+    active_symbols: "brief",
+    req_id: 1
+  });
+
+  const symbols = Array.isArray(result?.active_symbols) ? result.active_symbols : [];
+  state.derivMarketSymbols = symbols;
+  state.derivMarketSymbolsAt = Date.now();
+  return symbols;
+}
+
+function chooseDerivSymbol(internalSymbol, activeSymbols) {
+  const wanted = normalizeMarketText(internalSymbol);
+  const exact = activeSymbols.find(item => {
+    const symbol = derivSymbolValue(item);
+    return normalizeMarketText(symbol) === wanted;
+  });
+  if (exact) return derivSymbolValue(exact);
+
+  const candidates = {
+    EURUSD: ["EUR/USD","EURUSD"],
+    GBPUSD: ["GBP/USD","GBPUSD"],
+    USDJPY: ["USD/JPY","USDJPY"],
+    USDCHF: ["USD/CHF","USDCHF"],
+    AUDUSD: ["AUD/USD","AUDUSD"],
+    USDCAD: ["USD/CAD","USDCAD"],
+    NZDUSD: ["NZD/USD","NZDUSD"],
+    EURGBP: ["EUR/GBP","EURGBP"],
+    EURJPY: ["EUR/JPY","EURJPY"],
+    XAUUSD: ["GOLD","XAU/USD","GOLD/USD"],
+    XAGUSD: ["SILVER","XAG/USD","SILVER/USD"],
+    WTIUSD: ["WTI","CRUDE OIL","WTI CRUDE"],
+    BRENTUSD: ["BRENT","BRENT CRUDE"],
+    NATGASUSD: ["NATURAL GAS","NATGAS"],
+    COPPERUSD: ["COPPER"],
+    PLATINUMUSD: ["PLATINUM"],
+    PALLADIUMUSD: ["PALLADIUM"],
+    US500: ["S&P 500","US500","SP 500"],
+    NAS100: ["NASDAQ 100","NAS100","NASDAQ"],
+    US30: ["WALL STREET 30","US30","DOW JONES"],
+    GER40: ["GERMANY 40","GER40","DAX"],
+    UK100: ["FTSE 100","UK100"],
+    JPN225: ["JAPAN 225","JPN225","NIKKEI"],
+    FRA40: ["FRANCE 40","FRA40","CAC"],
+    AUS200: ["AUSTRALIA 200","AUS200","ASX"],
+    HK50: ["HONG KONG 50","HK50","HANG SENG"],
+    CHINA50: ["CHINA 50","CHINA A50"]
+  };
+
+  const wantedNames = candidates[internalSymbol] || [internalSymbol];
+  for (const candidate of wantedNames) {
+    const normalized = normalizeMarketText(candidate);
+    const found = activeSymbols.find(item => {
+      const name = normalizeMarketText(derivSymbolName(item));
+      const symbol = normalizeMarketText(derivSymbolValue(item));
+      return name === normalized || symbol === normalized ||
+        name.includes(normalized) || normalized.includes(name);
+    });
+    if (found) return derivSymbolValue(found);
+  }
+  return "";
+}
+
+function derivPublicRequest(payload, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const socket = new WebSocket(CONFIG.DERIV_PUBLIC_WS);
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try { socket.close(); } catch {}
+      reject(new Error("Deriv market data request timed out."));
+    }, timeoutMs);
+
+    socket.onopen = () => {
+      try {
+        socket.send(JSON.stringify(payload));
+      } catch (error) {
+        clearTimeout(timer);
+        settled = true;
+        try { socket.close(); } catch {}
+        reject(error);
+      }
+    };
+
+    socket.onmessage = event => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data?.error) {
+          clearTimeout(timer);
+          if (!settled) {
+            settled = true;
+            try { socket.close(); } catch {}
+            reject(new Error(data.error.message || "Deriv market data error."));
+          }
+          return;
+        }
+        if (["active_symbols","history","candles","tick"].includes(data?.msg_type)) {
+          clearTimeout(timer);
+          if (!settled) {
+            settled = true;
+            try { socket.close(); } catch {}
+            resolve(data);
+          }
+        }
+      } catch (error) {
+        clearTimeout(timer);
+        if (!settled) {
+          settled = true;
+          try { socket.close(); } catch {}
+          reject(error);
+        }
+      }
+    };
+
+    socket.onerror = () => {
+      clearTimeout(timer);
+      if (!settled) {
+        settled = true;
+        reject(new Error("Deriv public market connection failed."));
+      }
+    };
+  });
+}
+
+function chartSecondsForTimeframe(timeframe) {
+  return {
+    "5s": 5, "15s": 15, "30s": 30,
+    "1m": 60, "2m": 120, "5m": 300, "15m": 900,
+    "30m": 1800, "1H": 3600, "4H": 14400, "12H": 43200,
+    "1D": 86400, "1W": 604800
+  }[timeframe] || 3600;
+}
+
+async function fetchDerivCandles(internalSymbol, timeframe, limit = 80) {
+  const active = await getDerivActiveSymbols();
+  const symbol = chooseDerivSymbol(internalSymbol, active);
+  if (!symbol) throw new Error("Deriv does not currently expose " + internalSymbol + ".");
+
+  const seconds = chartSecondsForTimeframe(timeframe);
+
+  if (seconds >= 60) {
+    const response = await derivPublicRequest({
+      ticks_history: symbol,
+      end: "latest",
+      count: limit,
+      style: "candles",
+      granularity: seconds,
+      subscribe: 0,
+      req_id: 2
+    });
+    const candles = response?.candles || [];
+    return candles.map(c => ({
+      time: Number(c.epoch) * 1000,
+      open: Number(c.open),
+      high: Number(c.high),
+      low: Number(c.low),
+      close: Number(c.close),
+      volume: 0
+    })).filter(c => [c.time,c.open,c.high,c.low,c.close].every(Number.isFinite));
+  }
+
+  // For 5s/15s/30s, pull ticks and aggregate them locally.
+  const response = await derivPublicRequest({
+    ticks_history: symbol,
+    end: "latest",
+    count: Math.min(2000, Math.max(300, limit * 30)),
+    style: "ticks",
+    subscribe: 0,
+    req_id: 3
+  });
+  const prices = response?.history?.prices || [];
+  const times = response?.history?.times || [];
+  const buckets = new Map();
+
+  prices.forEach((price, index) => {
+    const p = Number(price);
+    const epoch = Number(times[index]);
+    if (!Number.isFinite(p) || !Number.isFinite(epoch)) return;
+    const bucket = Math.floor(epoch / seconds) * seconds;
+    const existing = buckets.get(bucket);
+    if (!existing) buckets.set(bucket, {time:bucket*1000,open:p,high:p,low:p,close:p,volume:1});
+    else {
+      existing.high = Math.max(existing.high,p);
+      existing.low = Math.min(existing.low,p);
+      existing.close = p;
+      existing.volume += 1;
+    }
+  });
+
+  return Array.from(buckets.values()).slice(-limit);
+}
+
+async function fetchBybitKlines(symbol, timeframe, limit = 80) {
+  const intervalMap = {
+    "1m":"1","2m":"1","5m":"5","15m":"15","30m":"30",
+    "1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"
+  };
+  const interval = intervalMap[timeframe];
+  if (!interval) throw new Error("Bybit does not provide a native " + timeframe + " candle interval.");
+  const response = await fetch(
+    CONFIG.BYBIT_PUBLIC_API + "/v5/market/kline?category=spot&symbol=" +
+      encodeURIComponent(symbol) + "&interval=" + interval + "&limit=" + limit,
+    { cache: "no-store" }
+  );
+  if (!response.ok) throw new Error("Bybit chart request failed: " + response.status);
+  const data = await response.json();
+  const rows = data?.result?.list || [];
+  return rows.map(row => ({
+    time:Number(row[0]),
+    open:Number(row[1]),
+    high:Number(row[2]),
+    low:Number(row[3]),
+    close:Number(row[4]),
+    volume:Number(row[5])
+  })).filter(c => [c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)).reverse();
+}
+
+async function fetchMarketCandles(symbol, timeframe, limit = 80) {
+  if (marketCatalog.crypto.some(([item]) => item === symbol)) {
+    return fetchBybitKlines(symbol, timeframe, limit);
+  }
+  return fetchDerivCandles(symbol, timeframe, limit);
+}
+
+async function loadLiveMarkets() {
+  const previous = {...state.markets};
+  const results = {...previous};
+
+  let cryptoTickers = {};
+  try {
+    cryptoTickers = await fetchBybitAllTickers();
+  } catch (error) {
+    console.warn("Bybit market feed unavailable.", error);
+  }
+
+  marketCatalog.crypto.forEach(([symbol,name]) => {
+    results[symbol] = buildMarketEntry(symbol,name,"crypto",cryptoTickers[symbol]);
+  });
+
+  let activeSymbols = [];
+  try {
+    activeSymbols = await getDerivActiveSymbols();
+  } catch (error) {
+    console.warn("Deriv public symbols unavailable.", error);
+  }
+
+  const nonCryptoEntries = [
+    ...marketCatalog.forex.map(symbol => [symbol, `${symbol.slice(0,3)} / ${symbol.slice(3,6)}`, "forex"]),
+    ...marketCatalog.commodities.map(([symbol,name]) => [symbol,name,"commodity"]),
+    ...marketCatalog.indices.map(([symbol,name]) => [symbol,name,"index"])
+  ];
+
+  for (const [symbol,name,type] of nonCryptoEntries) {
+    const derivSymbol = chooseDerivSymbol(symbol, activeSymbols);
+    results[symbol] = buildMarketEntry(
+      symbol,
+      name,
+      type,
+      previous[symbol] || null
+    );
+    results[symbol].source = derivSymbol ? "Deriv" : "Unavailable";
+    results[symbol].derivSymbol = derivSymbol;
+  }
+
+  state.markets = results;
+  state.marketsUpdatedAt = new Date().toISOString();
+  renderDashboardMarkets();
+  renderMarketsList();
+  updateDashboardPrice();
+  updateSelectedMarketHeader();
+  updateChartMarketPortal();
+  updateSignalFromMarket();
 }
 
 const marketCatalog={
@@ -1633,42 +1948,6 @@ const demoMarketPrices={
 function buildMarketEntry(symbol,name,type,live){
   const livePrice=Number(live?.price),fallback=Number(demoMarketPrices[symbol]),price=Number.isFinite(livePrice)&&livePrice>0?livePrice:fallback;
   return {symbol,name,type,price,change:Number.isFinite(Number(live?.change))?Number(live.change):0,source:Number.isFinite(livePrice)&&livePrice>0?(live.source||"Live API"):"Demo fallback"};
-}
-
-async function loadLiveMarkets(){
-  const previous={...state.markets},results={...previous};
-  let cryptoTickers={},forexRates={};
-  try{cryptoTickers=await fetchBinanceAllTickers();}catch(error){console.warn("Crypto feed unavailable; using fallback data.",error);}
-  try{forexRates=await fetchForexRates();}catch(error){console.warn("Forex feed unavailable; using fallback data.",error);}
-
-  marketCatalog.crypto.forEach(([symbol,name])=>{results[symbol]=buildMarketEntry(symbol,name,"crypto",cryptoTickers[symbol]);});
-
-  marketCatalog.forex.forEach(symbol=>{
-    const base=symbol.slice(0,3),quote=symbol.slice(3,6),baseRate=base==="USD"?1:Number(forexRates[base]),quoteRate=quote==="USD"?1:Number(forexRates[quote]);
-    let live=null;
-    if(baseRate>0&&quoteRate>0){const price=quoteRate/baseRate;live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Frankfurter"};}
-    results[symbol]=buildMarketEntry(symbol,`${base} / ${quote}`,"forex",live);
-  });
-
-  for(const [symbol,name] of marketCatalog.commodities){
-    let live=null;
-    if(symbol==="XAUUSD"||symbol==="XAGUSD"){
-      try{
-        const metal=symbol==="XAUUSD"?"XAU":"XAG",response=await fetch(`https://api.gold-api.com/price/${metal}`,{cache:"no-store"});
-        if(response.ok){const data=await response.json(),price=Number(data?.price);if(price>0)live={price,change:previous[symbol]?.price?((price-previous[symbol].price)/previous[symbol].price)*100:0,source:"Gold API"};}
-      }catch(error){console.warn(symbol+" live feed unavailable.");}
-    }
-    results[symbol]=buildMarketEntry(symbol,name,"commodity",live);
-  }
-
-  for(const [symbol,name] of marketCatalog.indices)results[symbol]=buildMarketEntry(symbol,name,"index",null);
-
-  state.markets=results;
-  state.marketsUpdatedAt=new Date().toISOString();
-  renderDashboardMarkets();
-  renderMarketsList();
-  updateDashboardPrice();
-  updateSignalFromMarket();
 }
 
 function renderDashboardMarkets(){
@@ -1721,33 +2000,8 @@ function updateDashboardPrice(){
   if(btc&&$("btcPrice"))$("btcPrice").textContent=`$${formatPrice(btc.price)}`;
 }
 
-async function fetchBinanceKlines(symbol,interval,limit=60){
-  const response=await fetch(`${CONFIG.BINANCE_API}/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`,{cache:"no-store"});
-  if(!response.ok)throw new Error(`Chart request failed: ${response.status}`);
-  const rows=await response.json();
-  if(!Array.isArray(rows)) throw new Error("Invalid candle response.");
-  return rows.map(row=>({
-    time:Number(row[0]),
-    open:Number(row[1]),
-    high:Number(row[2]),
-    low:Number(row[3]),
-    close:Number(row[4]),
-    volume:Number(row[5]),
-    closeTime:Number(row[6]),
-    quoteVolume:Number(row[7]),
-    trades:Number(row[8])
-  })).filter(c=>
-    Number.isFinite(c.time)&&
-    Number.isFinite(c.open)&&
-    Number.isFinite(c.high)&&
-    Number.isFinite(c.low)&&
-    Number.isFinite(c.close)
-  );
-}
-
-function chartIntervalForTimeframe(timeframe){
-  const intervals={"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1H":"1h","4H":"4h","12H":"12h","1D":"1d","1W":"1w","1M":"1M"};
-  return intervals[timeframe]||null;
+async function fetchChartCandles(symbol, timeframe, limit=80) {
+  return fetchMarketCandles(symbol, timeframe, limit);
 }
 
 function createSyntheticChartPoints(currentPrice,timeframe="1H",count=60){
@@ -2060,19 +2314,14 @@ async function createChart() {
   const timeframe = state.currentTimeframe || "1H";
   const symbol = state.currentSymbol || "BTCUSDT";
   const currentPrice = state.markets?.[symbol]?.price || 0;
-  const interval = chartIntervalForTimeframe(timeframe);
 
   let candles = [];
   try {
-    if (!interval) throw new Error("Synthetic timeframe");
-    if (!/USDT$/.test(symbol)) throw new Error("Non-crypto live candle provider");
-    candles = await fetchBinanceKlines(symbol, interval, 80);
+    candles = await fetchChartCandles(symbol, timeframe, 80);
   } catch (error) {
-    console.warn("Live candles unavailable; using local candle engine:", error);
+    console.warn("Live chart candles unavailable; using local candle engine:", error);
     candles = createSyntheticChartPoints(currentPrice, timeframe, 80);
-  }
-
-  if (!candles.length) return;
+  }  if (!candles.length) return;
 
   const wrapper = canvas.parentElement;
   let toolbar = wrapper?.querySelector(".own-chart-toolbar");
@@ -2210,7 +2459,7 @@ function updateSelectedMarketHeader() {
   if (title) title.textContent = market?.name || symbol;
   const price = $("btcPrice");
   if (price && market?.price) {
-    const liveLabel = /USDT$/.test(symbol) ? " • LIVE" : "";
+    const liveLabel = market?.source ? " • " + market.source.toUpperCase() : "";
     price.textContent = "$" + formatPrice(market.price) + liveLabel;
   }
 }
@@ -2230,8 +2479,8 @@ async function selectMarketSymbol(symbol) {
 }
 
 async function fetchSignalKlines(symbol) {
-  if (!["BTCUSDT", "ETHUSDT"].includes(symbol)) return [];
-  try { return await fetchBinanceKlines(symbol, "1h", 60); }
+  if (!state.markets?.[symbol]) return [];
+  try { return await fetchChartCandles(symbol, "1h", 60); }
   catch (error) { console.warn("Live signal candles unavailable:", error); return []; }
 }
 
@@ -2275,7 +2524,7 @@ async function generateLiveSignal(symbol = "BTCUSDT") {
   if (Number.isFinite(livePrice) && livePrice > 0) {
     closes[closes.length - 1] = livePrice;
   }
-  const price = closes[closes.length - 1];
+  const price = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : closes[closes.length - 1];
   const ema9 = calculateEMA(closes.slice(-40), 9);
   const ema21 = calculateEMA(closes.slice(-40), 21);
   const rsiValue = calculateRSI(closes, 14);
@@ -2429,9 +2678,14 @@ function generateSignal(symbol = "BTCUSDT") {
 
 
 function demoStorageKey() {
-  return state.user && state.deriv.selectedAccountId
-    ? "gotradex_demo_" + state.user.id + "_" + state.deriv.selectedAccountId
-    : "";
+  if (!state.user) return "";
+  if (state.deriv.selectedAccountId) {
+    return "gotradex_demo_" + state.user.id + "_deriv_" + state.deriv.selectedAccountId;
+  }
+  if (state.bybit.connected) {
+    return "gotradex_demo_" + state.user.id + "_bybit_" + state.bybit.environment;
+  }
+  return "gotradex_demo_" + state.user.id + "_local";
 }
 
 function saveDemoState() {
@@ -2455,7 +2709,9 @@ function saveDemoState() {
 
 function loadDemoState() {
   const account = state.deriv.selectedAccount;
-  const liveBalance = Number(account?.balance);
+  const derivBalance = Number(account?.balance);
+  const bybitBalance = Number(state.bybit.totalEquity);
+  const liveBalance = derivBalance > 0 ? derivBalance : bybitBalance > 0 ? bybitBalance : 10000;
   const key = demoStorageKey();
   let saved = null;
 
@@ -2918,7 +3174,7 @@ function renderRobotStatus() {
   if ($("startRobotButton")) {
     $("startRobotButton").classList.toggle("hidden", running);
     $("startRobotButton").disabled =
-      !connected || !state.deriv.selectedAccountId;
+      !connected || (state.deriv.connected && !state.deriv.selectedAccountId && !state.bybit.connected);
   }
 
   if ($("stopRobotButton")) {
@@ -2948,14 +3204,6 @@ async function loadRobotState() {
       state.robotRunning = Boolean(control.running);
       state.robotRisk = control.risk || "conservative";
       state.maxDrawdown = Number(control.max_drawdown) || 10;
-      state.mt5AccountId =
-        control.mt5_account_id
-          ? String(control.mt5_account_id)
-          : "";
-
-      if ($("mt5AccountId")) {
-        $("mt5AccountId").value = state.mt5AccountId;
-      }
     }
 
     const { data: status, error: statusError } =
@@ -3003,7 +3251,7 @@ async function refreshRobotStatus() {
     ] = await Promise.all([
       state.supabase
         .from("gotradex_bot_control")
-        .select("running,risk,max_drawdown,mt5_account_id")
+        .select("running,risk,max_drawdown")
         .eq("user_id", state.user.id)
         .maybeSingle(),
 
@@ -3022,14 +3270,6 @@ async function refreshRobotStatus() {
       state.robotRisk = control.risk || state.robotRisk;
       state.maxDrawdown =
         Number(control.max_drawdown) || state.maxDrawdown;
-      state.mt5AccountId =
-        control.mt5_account_id
-          ? String(control.mt5_account_id)
-          : state.mt5AccountId;
-
-      if ($("mt5AccountId")) {
-        $("mt5AccountId").value = state.mt5AccountId;
-      }
     }
 
     if (status) {
@@ -3063,41 +3303,6 @@ function startRobotStatusRefresh() {
 }
 
 
-async function saveRobotControl(running) {
-
-  if (!state.supabase || !state.user) {
-    throw new Error("Trading account session is not available.");
-  }
-
-  const accountId =
-    Number($("mt5AccountId")?.value || state.mt5AccountId);
-
-  if (!Number.isInteger(accountId) || accountId <= 0) {
-    throw new Error("Enter your AvaTrade MT5 Account ID first.");
-  }
-
-  state.mt5AccountId = String(accountId);
-
-  const payload = {
-    user_id: state.user.id,
-    broker: "AvaTrade MT5",
-    mode: "LIVE",
-    running,
-    risk: state.robotRisk,
-    max_drawdown: state.maxDrawdown,
-    mt5_account_id: accountId,
-    updated_at: new Date().toISOString()
-  };
-
-  const { error } =
-    await state.supabase
-      .from("gotradex_bot_control")
-      .upsert(payload, { onConflict: "user_id" });
-
-  if (error) throw error;
-}
-
-
 async function scanDemoMarkets() {
   if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return;
 
@@ -3105,9 +3310,7 @@ async function scanDemoMarkets() {
   for (const symbol of symbols) {
     if (!state.robotRunning) break;
     try {
-      const signal = /USDT$/.test(symbol)
-        ? await generateLiveSignal(symbol)
-        : generateSignal(symbol);
+      const signal = await generateLiveSignal(symbol);
 
       if (signal && ["BUY", "SELL"].includes(signal.direction) && Number(signal.confidence) >= 65) {
         openDemoTrade(symbol, signal);
@@ -3155,8 +3358,8 @@ async function startRobot() {
     if (!state.deriv.connected && !state.bybit.connected) {
       throw new Error("Connect Deriv or Bybit before starting the demo robot.");
     }
-    if (state.deriv.connected && !state.deriv.selectedAccountId) {
-      throw new Error("Select a Deriv trading account before using the Deriv demo engine.");
+    if (state.deriv.connected && !state.deriv.selectedAccountId && !state.bybit.connected) {
+      throw new Error("Select a Deriv trading account or connect Bybit before starting the demo robot.");
     }
 
     if (!state.demo.initialized || state.demo.startingBalance <= 0) {
@@ -3191,102 +3394,6 @@ async function stopRobot() {
   renderRobotStatus();
   showToast("AutoBot stopped. Demo positions remain tracked.", "success");
 }
-
-async function queueRobotSignal(signal) {
-
-  if (!state.robotRunning || !state.user) {
-    return;
-  }
-
-  const lastHeartbeat =
-    state.robotStatus.lastHeartbeat
-      ? new Date(state.robotStatus.lastHeartbeat).getTime()
-      : 0;
-
-  const heartbeatAge =
-    lastHeartbeat
-      ? Date.now() - lastHeartbeat
-      : Infinity;
-
-  if (
-    state.robotStatus.connected !== true ||
-    heartbeatAge > 30000
-  ) {
-    return;
-  }
-
-  const accountId =
-    Number(state.mt5AccountId);
-
-  if (!Number.isInteger(accountId) || accountId <= 0) {
-    return;
-  }
-
-  if (!signal || !["BUY", "SELL"].includes(signal.direction)) {
-    return;
-  }
-
-  if (Number(signal.confidence) < 70) {
-    return;
-  }
-
-  const brokerSymbol =
-    signal.symbol === "BTCUSDT"
-      ? "BTCUSD"
-      : signal.symbol;
-
-  const now = Date.now();
-  const key =
-    [
-      brokerSymbol,
-      signal.direction,
-      Number(signal.entry).toFixed(2),
-      Number(signal.stop).toFixed(2),
-      Number(signal.target).toFixed(2)
-    ].join(":");
-
-  if (
-    key === state.lastQueuedSignalKey &&
-    now - state.lastQueuedAt < 300000
-  ) {
-    return;
-  }
-
-  const { error } =
-    await state.supabase
-      .from("gotradex_trade_commands")
-      .insert({
-        user_id: state.user.id,
-        mt5_account_id: accountId,
-        symbol: brokerSymbol,
-        direction: signal.direction,
-        entry: signal.entry,
-        stop_loss: signal.stop,
-        take_profit: signal.target,
-        confidence: signal.confidence,
-        risk: state.robotRisk
-      });
-
-  if (error) {
-    console.error("Robot signal queue error:", error);
-    return;
-  }
-
-  state.lastQueuedSignalKey = key;
-  state.lastQueuedAt = now;
-
-  showToast(
-    "AutoBot queued " +
-      signal.direction +
-      " " +
-      brokerSymbol +
-      " (" +
-      signal.confidence +
-      "% confidence).",
-    "success"
-  );
-}
-
 
 /* =========================================================
    PORTFOLIO
@@ -3388,9 +3495,9 @@ function updatePortfolio() {
     positionsEmpty.textContent =
       fresh
         ? openTrades > 0
-          ? openTrades + " open trade" + (openTrades === 1 ? "" : "s") + " reported by AvaTrade MT5. Detailed position data will appear when the bridge provides position details."
-          : "No open trades reported by AvaTrade MT5."
-        : "Waiting for a fresh AvaTrade MT5 connection.";
+          ? openTrades + " open trade" + (openTrades === 1 ? "" : "s") + " reported by the connected Deriv or Bybit account."
+          : "No open trades reported by the connected account."
+        : "Waiting for a fresh Deriv or Bybit connection.";
   }
 
 }
@@ -4378,61 +4485,6 @@ async function changePassword(event) {
 }
 
 
-async function generateMt5BridgeToken() {
-  if (!state.supabase || !state.user) {
-    showToast("Please log in first.", "error");
-    return;
-  }
-
-  const accountId = Number($("mt5AccountId")?.value || state.mt5AccountId);
-
-  if (!Number.isInteger(accountId) || accountId <= 0) {
-    showToast("Enter your AvaTrade MT5 Account ID first.", "error");
-    return;
-  }
-
-  const button = $("generateMt5BridgeTokenButton");
-  const input = $("mt5BridgeToken");
-  const status = $("mt5BridgeTokenStatus");
-
-  if (button) {
-    button.disabled = true;
-    button.textContent = "Generating...";
-  }
-  if (status) status.textContent = "Creating a new secure bridge token...";
-
-  try {
-    const { data, error } = await state.supabase.functions.invoke(
-      "issue-mt5-bridge-token",
-      {
-        body: { mt5_account_id: accountId }
-      }
-    );
-
-    if (error) throw error;
-
-    const token = data?.token || "";
-    if (!token) throw new Error("The bridge token was not returned.");
-
-    if (input) input.value = token;
-    if (status) {
-      status.textContent =
-        "Token created. Copy it now; generating another token will revoke this one.";
-    }
-
-    showToast("MT5 bridge token created.", "success");
-  } catch (error) {
-    console.error("MT5 bridge token error:", error);
-    if (status) status.textContent = error.message || "Token generation failed.";
-    showToast(error.message || "MT5 bridge token generation failed.", "error");
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = "Generate MT5 Bridge Token";
-    }
-  }
-}
-
 /* =========================================================
    DERIV BROKER CONNECTION
    ========================================================= */
@@ -4579,15 +4631,17 @@ function renderDerivAccountSummary() {
 
   if ($("robotAccountStatus")) {
     $("robotAccountStatus").textContent =
-      account?.account_id || "Not Set";
+      account?.account_id ||
+      (state.bybit.connected ? "Bybit " + state.bybit.environment.toUpperCase() : "Not Set");
   }
 
   if ($("robotBalance")) {
     const balance = Number(account?.balance);
+    const unifiedBalance = Number.isFinite(balance) && balance > 0
+      ? balance
+      : Number(state.bybit.totalEquity) || 0;
     $("robotBalance").textContent =
-      Number.isFinite(balance)
-        ? formatMoney(balance)
-        : "—";
+      unifiedBalance > 0 ? formatMoney(unifiedBalance) : "—";
   }
 
   state.robotStatus.connected = Boolean((state.deriv.connected && account) || state.bybit.connected);
@@ -4610,11 +4664,13 @@ function renderDerivAccountSummary() {
 
   if ($("brokerStatus")) {
     $("brokerStatus").textContent =
-      state.deriv.connected
-        ? "Deriv Connected"
-        : state.bybit.connected
-          ? "Bybit Connected"
-          : "Not Connected";
+      state.deriv.connected && state.bybit.connected
+        ? "Deriv + Bybit Connected"
+        : state.deriv.connected
+          ? "Deriv Connected"
+          : state.bybit.connected
+            ? "Bybit Connected"
+            : "Not Connected";
   }
 
   if ($("derivConnectionStatus")) {
@@ -4632,7 +4688,7 @@ function renderDerivAccountSummary() {
   if ($("startRobotButton")) {
     $("startRobotButton").disabled =
       !(state.deriv.connected || state.bybit.connected) ||
-      (state.deriv.connected && !state.deriv.selectedAccountId);
+      (state.deriv.connected && !state.deriv.selectedAccountId && !state.bybit.connected);
   }
 
   if ($("derivTradingMode")) {
@@ -5050,51 +5106,121 @@ function updateLiveChartCandle(price, timestamp = Date.now()) {
   chart.render?.();
 }
 
-function handleLiveMarketTrade(message) {
-  const streamSymbol = message?.s || "";
-  if (streamSymbol && streamSymbol !== state.currentSymbol) return;
-  const price = Number(message?.p);
-  const timestamp = Number(message?.T || message?.E || Date.now());
-  if (!Number.isFinite(price)) return;
-  const symbol = state.currentSymbol || "BTCUSDT";
-  state.markets[symbol] = {...(state.markets[symbol] || {}),symbol,price,timestamp};
+function handleLivePriceUpdate(price, timestamp = Date.now(), symbol = state.currentSymbol) {
+  const value = Number(price);
+  if (!Number.isFinite(value)) return;
+  const market = state.markets?.[symbol] || {};
+  state.markets[symbol] = {...market, symbol, price:value, timestamp};
+
   updateSelectedMarketHeader();
-  updateLiveChartCandle(price, timestamp);
+  updateLiveChartCandle(value, timestamp);
+
   if (!state.liveSignalTimer) {
     state.liveSignalTimer = setTimeout(async () => {
       state.liveSignalTimer = null;
       if (Date.now() - state.lastLiveSignalAt < 4000) return;
       state.lastLiveSignalAt = Date.now();
-      try { await updateSignalFromMarket(); } catch (error) { console.warn("Live signal update skipped:", error); }
+      try { await updateSignalFromMarket(); }
+      catch (error) { console.warn("Live signal update skipped:", error); }
     }, 750);
   }
+}
+
+function connectBybitPublicStream() {
+  if (typeof WebSocket === "undefined") return;
+  const symbol = state.currentSymbol || "BTCUSDT";
+  const timeframe = state.currentTimeframe || "1H";
+  const interval = {
+    "1m":"1","2m":"1","5s":"1","15s":"15","30s":"30","5m":"5",
+    "15m":"15","30m":"30","1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"
+  }[timeframe] || "60";
+
+  const socket = new WebSocket("wss://stream.bybit.com/v5/public/spot");
+  state.liveMarketSocket = socket;
+  socket.onopen = () => {
+    socket.send(JSON.stringify({
+      op:"subscribe",
+      args:["kline." + interval + "." + symbol]
+    }));
+  };
+  socket.onmessage = event => {
+    try {
+      const data = JSON.parse(event.data);
+      if (!String(data?.topic || "").startsWith("kline.")) return;
+      const candle = data?.data?.[0];
+      if (!candle) return;
+      const current = state.chart?.candles?.[state.chart.candles.length - 1];
+      if (current && Number(current.time) === Number(candle.start)) {
+        current.open = Number(candle.open);
+        current.high = Number(candle.high);
+        current.low = Number(candle.low);
+        current.close = Number(candle.close);
+        current.volume = Number(candle.volume) || current.volume;
+        state.chart.render?.();
+      } else {
+        handleLivePriceUpdate(candle.close, Number(candle.start), symbol);
+      }
+    } catch (error) { console.warn("Bybit chart stream message error:", error); }
+  };
+  socket.onerror = error => console.warn("Bybit chart stream error:", error);
+  socket.onclose = () => {
+    if (state.liveMarketSocket === socket && state.user) {
+      state.liveMarketSocket = null;
+      clearTimeout(state.liveMarketReconnectTimer);
+      state.liveMarketReconnectTimer = setTimeout(connectLiveMarketStream, 3000);
+    }
+  };
+}
+
+function connectDerivPublicStream() {
+  if (typeof WebSocket === "undefined") return;
+  const symbol = state.markets?.[state.currentSymbol]?.derivSymbol;
+  if (!symbol) return;
+
+  const socket = new WebSocket(CONFIG.DERIV_PUBLIC_WS);
+  state.derivMarketSocket = socket;
+  socket.onopen = () => {
+    socket.send(JSON.stringify({
+      ticks: symbol,
+      subscribe: 1,
+      req_id: 101
+    }));
+  };
+  socket.onmessage = event => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data?.msg_type !== "tick" || !data?.tick) return;
+      handleLivePriceUpdate(
+        data.tick.quote,
+        Number(data.tick.epoch) * 1000,
+        state.currentSymbol
+      );
+    } catch (error) { console.warn("Deriv chart stream message error:", error); }
+  };
+  socket.onerror = error => console.warn("Deriv chart stream error:", error);
+  socket.onclose = () => {
+    if (state.derivMarketSocket === socket && state.user) {
+      state.derivMarketSocket = null;
+      clearTimeout(state.liveMarketReconnectTimer);
+      state.liveMarketReconnectTimer = setTimeout(connectLiveMarketStream, 3000);
+    }
+  };
 }
 
 function connectLiveMarketStream() {
   if (typeof WebSocket === "undefined") return;
   clearTimeout(state.liveMarketReconnectTimer);
   try { state.liveMarketSocket?.close(); } catch {}
+  try { state.derivMarketSocket?.close(); } catch {}
+  state.liveMarketSocket = null;
+  state.derivMarketSocket = null;
+
   const symbol = state.currentSymbol || "BTCUSDT";
-  if (!/USDT$/.test(symbol)) return;
-  const socket = new WebSocket("wss://stream.binance.com:9443/ws/" + symbol.toLowerCase() + "@trade");
-  state.liveMarketSocket = socket;
-  socket.onopen = () => {
-    console.log("GoTradeX live " + symbol + " stream connected.");
-    const current = state.markets[state.currentSymbol || "BTCUSDT"];
-    if ($("btcPrice") && current?.price) $("btcPrice").textContent = "$" + formatPrice(current.price) + " • LIVE";
-  };
-  socket.onmessage = event => {
-    try {
-      const message = JSON.parse(event.data);
-      if (message?.e === "trade") handleLiveMarketTrade(message);
-    } catch (error) { console.warn("Live BTC stream message error:", error); }
-  };
-  socket.onerror = error => console.warn("Live BTC stream error:", error);
-  socket.onclose = () => {
-    if (state.liveMarketSocket === socket) state.liveMarketSocket = null;
-    clearTimeout(state.liveMarketReconnectTimer);
-    state.liveMarketReconnectTimer = setTimeout(() => { if (state.user) connectLiveMarketStream(); }, 3000);
-  };
+  if (marketCatalog.crypto.some(([item]) => item === symbol)) {
+    connectBybitPublicStream();
+  } else {
+    connectDerivPublicStream();
+  }
 }
 
 /* =========================================================
@@ -6056,6 +6182,41 @@ async function logout() {
 }
 
 
+function updateChartMarketPortal() {
+  const select = $("chartAssetSelect");
+  if (!select) return;
+  const category = state.chartMarketCategory || "crypto";
+  let entries = [];
+  if (category === "crypto") entries = marketCatalog.crypto.map(([symbol,name]) => ({symbol,name}));
+  else if (category === "forex") entries = marketCatalog.forex.map(symbol => ({symbol,name:`${symbol.slice(0,3)} / ${symbol.slice(3,6)}`}));
+  else if (category === "commodities" || category === "metals") entries = marketCatalog.commodities.map(([symbol,name]) => ({symbol,name}));
+  else if (category === "indices") entries = marketCatalog.indices.map(([symbol,name]) => ({symbol,name}));
+
+  select.innerHTML = entries.map(entry =>
+    `<option value="${escapeHTML(entry.symbol)}">${escapeHTML(entry.name)} (${escapeHTML(entry.symbol)})</option>`
+  ).join("");
+  if (entries.some(entry => entry.symbol === state.currentSymbol)) {
+    select.value = state.currentSymbol;
+  }
+  document.querySelectorAll(".chart-market-category").forEach(button => {
+    button.classList.toggle("active", button.dataset.chartCategory === category);
+  });
+}
+
+async function selectChartMarketCategory(category) {
+  if (!category) return;
+  state.chartMarketCategory = category;
+  updateChartMarketPortal();
+  const select = $("chartAssetSelect");
+  const entries = Array.from(select?.options || []);
+  if (!entries.some(option => option.value === state.currentSymbol)) {
+    const next = entries[0]?.value;
+    if (next) state.currentSymbol = next;
+  }
+  updateChartMarketPortal();
+  await selectMarketSymbol(state.currentSymbol);
+}
+
 /* =========================================================
    EVENT BINDING
    ========================================================= */
@@ -6242,6 +6403,31 @@ function bindEvents() {
     createChart();
   }, true);
 
+  const chartMarketToggle = $("chartSymbol")?.closest(".panel-header")?.querySelector(".chart-market-toggle");
+  const chartMarketMenu = $("chartSymbol")?.closest(".panel-header")?.querySelector(".chart-market-menu");
+  chartMarketToggle?.addEventListener("click", (event) => {
+    event.preventDefault();
+    const open = chartMarketMenu ? chartMarketMenu.hidden : true;
+    if (chartMarketMenu) chartMarketMenu.hidden = !open;
+    chartMarketToggle.setAttribute("aria-expanded", String(open));
+    updateChartMarketPortal();
+  });
+
+  document.querySelectorAll(".chart-market-category").forEach(button => {
+    button.addEventListener("click", async () => {
+      await selectChartMarketCategory(button.dataset.chartCategory);
+    });
+  });
+
+  $("chartAssetSelect")?.addEventListener("change", async event => {
+    const value = event.target.value;
+    if (!value) return;
+    const menu = $("chartAssetSelect")?.closest(".chart-market-menu");
+    if (menu) menu.hidden = true;
+    chartMarketToggle?.setAttribute("aria-expanded", "false");
+    await selectMarketSymbol(value);
+  });
+
   document
     .querySelectorAll(".indicator-toggle")
     .forEach(toggle => {
@@ -6406,13 +6592,6 @@ function bindEvents() {
       "click",
       saveConnections
     );
-
-  $("generateMt5BridgeTokenButton")
-    ?.addEventListener(
-      "click",
-      generateMt5BridgeToken
-    );
-
 
   $("saveAdminFinanceButton")
     ?.addEventListener(
