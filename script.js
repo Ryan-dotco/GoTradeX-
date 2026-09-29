@@ -2646,8 +2646,8 @@ async async function createChart() {
   const requestId=(state.chartRequestId||0)+1; state.chartRequestId=requestId;
   const container=$("mainChart"); if(!container)return;
   const timeframe=state.currentTimeframe||"1H",symbol=state.currentSymbol||"BTCUSDT";
-  let candles=[];
-  try{candles=await fetchChartCandles(symbol,timeframe,250);}catch(error){console.warn("Live chart data unavailable:",error);showToast("Live chart data is temporarily unavailable for "+symbol+".","error");return;}
+  let candles=(state.chart?.candles?.length && state.chart.symbol===symbol && state.chart.timeframe===timeframe) ? state.chart.candles : [];
+  try{if(candles.length<2)candles=await fetchChartCandles(symbol,timeframe,250);}catch(error){console.warn("Live chart data unavailable:",error);showToast("Live chart data is temporarily unavailable for "+symbol+".","error");return;}
   if(requestId!==state.chartRequestId||symbol!==state.currentSymbol||timeframe!==state.currentTimeframe||candles.length<2)return;
   state.chartView=state.chartView||{};
   Object.assign(state.chartView,{mode:state.chartView.mode||"candles",ema:state.chartView.ema??true,volume:state.chartView.volume??true,rsi:state.chartView.rsi??false,alligator:state.chartView.alligator??true,bollinger:state.chartView.bollinger??false,sma50:state.chartView.sma50??false,sma200:state.chartView.sma200??false,vwap:state.chartView.vwap??false,macd:state.chartView.macd??false,stochastic:state.chartView.stochastic??false,atr:state.chartView.atr??false});
@@ -2672,7 +2672,7 @@ async async function createChart() {
   const syncToolbar=()=>{toolbar?.querySelectorAll("[data-chart-mode]").forEach(b=>b.classList.toggle("active",b.dataset.chartMode===state.chartView.mode));toolbar?.querySelectorAll("[data-chart-toggle]").forEach(b=>b.classList.toggle("active",Boolean(state.chartView[b.dataset.chartToggle])));};
   if(toolbar&&!toolbar.dataset.bound){toolbar.dataset.bound="1";const toggle=toolbar.querySelector("[data-chart-tools-toggle]"),menu=toolbar.querySelector(".chart-tools-menu");toggle?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const open=!menu?.hidden;if(menu)menu.hidden=open;toggle?.setAttribute("aria-expanded",String(!open));});toolbar.querySelectorAll("[data-chart-mode]").forEach(b=>b.addEventListener("click",()=>{state.chartView.mode=b.dataset.chartMode;syncToolbar();createChart();}));toolbar.querySelectorAll("[data-chart-toggle]").forEach(b=>b.addEventListener("click",()=>{const k=b.dataset.chartToggle;state.chartView[k]=!state.chartView[k];syncToolbar();createChart();}));}
   syncToolbar();const resizeObserver=typeof ResizeObserver!=="undefined"?new ResizeObserver(()=>chart.resize(container.clientWidth,container.clientHeight)):null;resizeObserver?.observe(container);
-  state.chart={type:"lightweight-live",candles,chart,series:seriesStore,render(){},updateCandle(c){updateLightweightSeries(c);},destroy(){resizeObserver?.disconnect();try{chart.remove();}catch{}}};
+  state.chart={type:"lightweight-live",symbol,timeframe,candles,chart,series:seriesStore,render(){},updateCandle(c){updateLightweightSeries(c);},destroy(){resizeObserver?.disconnect();try{chart.remove();}catch{}}};
 }
 function updateLightweightSeries(candle){const chart=state.chart;if(!chart?.series?.primary||!candle)return;const time=Math.floor(Number(candle.time)/1000),c={time,open:Number(candle.open),high:Number(candle.high),low:Number(candle.low),close:Number(candle.close)};try{if(state.chartView.mode==="line")chart.series.primary.update({time,value:c.close});else chart.series.primary.update(c);chart.series.volume?.update({time,value:Number(candle.volume)||0,color:Number(candle.close)>=Number(candle.open)?"rgba(16,200,120,.65)":"rgba(240,68,90,.65)"});}catch{}}
 
@@ -5507,22 +5507,25 @@ function chartTimeBucket(timeframe, timestamp) {
 
 function updateLiveChartCandle(price, timestamp = Date.now()) {
   const chart = state.chart;
-  if (!chart?.candles?.length) return;
   const value = Number(price);
   if (!Number.isFinite(value)) return;
+  if (!chart?.candles?.length) return;
+
   const bucket = chartTimeBucket(state.currentTimeframe || "1H", timestamp);
   let candle = chart.candles[chart.candles.length - 1];
+
   if (!candle || Number(candle.time) !== bucket) {
-    candle = {time:bucket,open:value,high:value,low:value,close:value,volume:0};
+    candle = { time: bucket, open: value, high: value, low: value, close: value, volume: 0 };
     chart.candles.push(candle);
-    if (chart.candles.length > 120) chart.candles.shift();
+    if (chart.candles.length > 250) chart.candles.shift();
   } else {
     candle.high = Math.max(Number(candle.high) || value, value);
     candle.low = Math.min(Number(candle.low) || value, value);
     candle.close = value;
   }
+
   chart.candles[chart.candles.length - 1] = candle;
-  chart.render?.();
+  updateLightweightSeries(candle);
 }
 
 function handleLivePriceUpdate(price, timestamp = Date.now(), symbol = state.currentSymbol) {
