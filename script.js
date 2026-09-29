@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.39";
+const APP_VERSION = "3.0.40";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -3313,8 +3313,8 @@ function renderRobotStatus() {
       running
         ? "Demo AutoBot is running. Live execution is locked."
         : connected
-          ? "Deriv is connected and ready for demo testing."
-          : "Connect a Deriv account to begin.";
+          ? "Demo trading is ready. Use Simulation or Broker DEMO execution."
+          : "Connect Deriv or Bybit to begin.";
   }
 
   if ($("startRobotButton")) {
@@ -4994,7 +4994,7 @@ function handleDerivAccountChange() {
 }
 
 function renderBybitConnection() {
-  const env = state.bybit.environment === "live" ? "LIVE" : "DEMO";
+  const env = "DEMO";
   if ($("bybitEnvironmentLabel")) $("bybitEnvironmentLabel").textContent = env;
   if ($("bybitConnectionStatus")) {
     $("bybitConnectionStatus").textContent = state.bybit.connected ? "Connected" : "Not Connected";
@@ -5028,7 +5028,7 @@ async function connectBybit() {
 
   const apiKey = $("bybitApiKey")?.value.trim() || "";
   const apiSecret = $("bybitApiSecret")?.value.trim() || "";
-  const environment = $("bybitEnvironment")?.value === "live" ? "live" : "demo";
+  const environment = "demo";
 
   if (!apiKey || !apiSecret) {
     showToast("Enter the Bybit API key and secret.", "error");
@@ -5036,7 +5036,7 @@ async function connectBybit() {
   }
 
   state.bybit.lastError = "";
-  state.bybit.environment = environment;
+  state.bybit.environment = "demo";
   renderBybitConnection();
 
   const button = $("connectBybitButton");
@@ -5093,12 +5093,9 @@ function disconnectBybit() {
 }
 
 function handleBybitEnvironmentChange() {
-  state.bybit.environment =
-    $("bybitEnvironment")?.value === "live" ? "live" : "demo";
+  state.bybit.environment = "demo";
   state.bybit.connected = false;
-  state.bybit.lastError = "";
-  renderBybitConnection();
-}
+  state.bybit.lastError = "Bybit live mode is locked. GoTradeX is using Bybit DEMO.";\n  renderBybitConnection();\n}
 
 async function refreshBybitConnection() {
   if (!state.bybit.apiKey || !state.bybit.apiSecret) {
@@ -6483,6 +6480,12 @@ function bindEvents() {
     "change",
     handleBybitEnvironmentChange
   );
+
+  $("demoExecutionMode")?.addEventListener("change", event => {
+    state.demo.executionMode = event.target.value === "broker-demo" ? "broker-demo" : "simulation";
+    if (state.demo.initialized) saveDemoState();
+    renderRobotStatus();
+  });
 
   $("refreshButton")
     ?.addEventListener(
