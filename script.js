@@ -3806,8 +3806,8 @@ function renderDemoTrades() {
         ).join("")
       : '<div class="empty-state">No completed demo trades yet.</div>';
   }
-}
   renderManualTradeTicket();
+}
 
 function renderRobotStatus() {
 
