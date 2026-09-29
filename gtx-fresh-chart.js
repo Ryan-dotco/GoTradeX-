@@ -42,7 +42,7 @@
         symbol: $("gtxDashboardChartSymbol"),
         price: $("gtxDashboardChartPrice"),
         subtitle: $("gtxDashboardChartSubtitle"),
-        empty: null
+        empty: $("gtxDashboardChartEmpty")
       };
     }
     return {
@@ -110,6 +110,16 @@
     const els = chartEls();
     if (els.symbol) els.symbol.textContent = symbol;
     if (els.subtitle) els.subtitle.textContent = "Real Bybit candles • " + timeframe;
+
+    const cryptoSymbols = new Set(["BTCUSDT","ETHUSDT","SOLUSDT","XRPUSDT"]);
+    if (!cryptoSymbols.has(symbol)) {
+      candles = [];
+      setStatus("BYBIT N/A", false);
+      setEmpty("Bybit Spot live candles are available here for Crypto. Select Crypto for the live Bybit chart.");
+      draw();
+      if (socket) { try { socket.close(); } catch (_) {} socket = null; }
+      return;
+    }
 
     if (!SUPPORTED[timeframe]) {
       candles = [];
