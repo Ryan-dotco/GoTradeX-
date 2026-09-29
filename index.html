@@ -997,101 +997,107 @@
            SIGNALS
            ================================================= -->
 
-      <section
-        id="page-signals"
-        class="app-page"
-      >
+      <section id="page-signals" class="app-page gtx-signal-page">
 
-        <div class="section-header">
-
+        <div class="section-header gtx-signal-header">
           <div>
             <h2>Signal Analyzer</h2>
-            <p>Live technical analysis.</p>
+            <p>Choose the market, timeframe and indicators, then analyze.</p>
           </div>
+          <span class="signal-live">LIVE</span>
+        </div>
+
+        <div class="gtx-signal-controls panel">
+
+          <div class="gtx-control-group">
+            <div class="gtx-control-title">
+              <strong>Assets</strong>
+              <span>Select market category</span>
+            </div>
+            <div class="gtx-choice-row gtx-asset-categories" role="tablist" aria-label="Asset categories">
+              <button type="button" class="gtx-choice active" data-signal-category="commodities">Commodities</button>
+              <button type="button" class="gtx-choice" data-signal-category="indices">Indices</button>
+              <button type="button" class="gtx-choice" data-signal-category="forex">Forex</button>
+              <button type="button" class="gtx-choice" data-signal-category="crypto">Crypto</button>
+              <button type="button" class="gtx-choice" data-signal-category="metals">Metals</button>
+            </div>
+          </div>
+
+          <div class="gtx-control-group">
+            <div class="gtx-control-title">
+              <strong>Instrument</strong>
+              <span>Choose the asset to analyze</span>
+            </div>
+            <select id="signalAsset" class="gtx-signal-select" aria-label="Trading instrument"></select>
+          </div>
+
+          <div class="gtx-control-group">
+            <div class="gtx-control-title">
+              <strong>Timeframe</strong>
+              <span>Analysis candle interval</span>
+            </div>
+            <div class="gtx-choice-row gtx-timeframes" role="tablist" aria-label="Timeframe">
+              <button type="button" class="gtx-choice" data-signal-timeframe="5s">5s</button>
+              <button type="button" class="gtx-choice" data-signal-timeframe="15s">15s</button>
+              <button type="button" class="gtx-choice" data-signal-timeframe="30s">30s</button>
+              <button type="button" class="gtx-choice active" data-signal-timeframe="1m">1m</button>
+              <button type="button" class="gtx-choice" data-signal-timeframe="5m">5m</button>
+              <button type="button" class="gtx-choice" data-signal-timeframe="15m">15m</button>
+              <button type="button" class="gtx-choice" data-signal-timeframe="1h">1h</button>
+              <button type="button" class="gtx-choice" data-signal-timeframe="4h">4h</button>
+              <button type="button" class="gtx-choice" data-signal-timeframe="1d">1D</button>
+            </div>
+          </div>
+
+          <div class="gtx-control-group">
+            <div class="gtx-control-title">
+              <strong>Technical tools</strong>
+              <span>Select indicators for the analysis view</span>
+            </div>
+            <div class="gtx-indicator-grid">
+              <button type="button" class="gtx-indicator active" data-indicator="ema">EMA 9 / 21</button>
+              <button type="button" class="gtx-indicator active" data-indicator="rsi">RSI</button>
+              <button type="button" class="gtx-indicator active" data-indicator="momentum">Momentum</button>
+              <button type="button" class="gtx-indicator" data-indicator="alligator">Alligator</button>
+              <button type="button" class="gtx-indicator" data-indicator="fractals">Fractals</button>
+              <button type="button" class="gtx-indicator" data-indicator="macd">MACD</button>
+              <button type="button" class="gtx-indicator" data-indicator="bollinger">Bollinger Bands</button>
+              <button type="button" class="gtx-indicator" data-indicator="atr">ATR</button>
+            </div>
+          </div>
+
+          <button id="analyzeButton" type="button" class="primary-button full-button">
+            Analyze Live Market
+          </button>
 
         </div>
 
-
-        <div class="analyzer-grid">
-
-          <div class="panel analyzer-control">
-
-            <h3>Analyze Asset</h3>
-
-            <div class="field">
-
-              <label for="signalAsset">
-                Asset
-              </label>
-
-              <select id="signalAsset">
-
-                <option value="BTCUSDT">BTCUSDT</option>
-                <option value="ETHUSDT">ETHUSDT</option>
-                <option value="EURUSD">EURUSD</option>
-                <option value="GBPUSD">GBPUSD</option>
-
-              </select>
-
+        <div class="panel analyzer-result gtx-signal-result">
+          <div class="analysis-badge">LIVE ANALYSIS</div>
+          <div class="gtx-result-topline">
+            <div>
+              <span class="muted">Instrument</span>
+              <strong id="gtxSignalInstrument">BTCUSDT</strong>
             </div>
-
-
-            <button
-              id="analyzeButton"
-              type="button"
-              class="primary-button full-button"
-            >
-              Analyze Live Market
-            </button>
-
+            <div>
+              <span class="muted">Timeframe</span>
+              <strong id="gtxSignalTimeframe">1m</strong>
+            </div>
           </div>
 
+          <h2 id="analysisDirection">HOLD</h2>
+          <div id="analysisConfidence" class="big-confidence">0%</div>
 
-          <div class="panel analyzer-result">
-
-            <div class="analysis-badge">
-              LIVE ANALYSIS
+          <div class="analysis-grid">
+            <div class="analysis-duration-box">
+              <span>Estimated duration</span>
+              <strong id="analysisDuration">~1 hour</strong>
             </div>
-
-            <h2 id="analysisDirection">
-              HOLD
-            </h2>
-
-            <div
-              id="analysisConfidence"
-              class="big-confidence"
-            >
-              0%
-            </div>
-
-            <div class="analysis-grid">
-
-              <div class="analysis-duration-box">
-                <span>Estimated duration</span>
-                <strong id="analysisDuration">~1 hour</strong>
-              </div>
-
-              <div>
-                <span>EMA</span>
-                <strong id="analysisEMA">—</strong>
-              </div>
-
-              <div>
-                <span>RSI</span>
-                <strong id="analysisRSI">—</strong>
-              </div>
-
-              <div>
-                <span>Momentum</span>
-                <strong id="analysisMomentum">—</strong>
-              </div>
-
-            </div>
-
+            <div><span>EMA</span><strong id="analysisEMA">—</strong></div>
+            <div><span>RSI</span><strong id="analysisRSI">—</strong></div>
+            <div><span>Momentum</span><strong id="analysisMomentum">—</strong></div>
           </div>
-
         </div>
-
 
         <div class="gtx-mobile-order-actions gtx-signal-order-actions">
           <button id="gtxMobileBuyButton" type="button" class="gtx-mobile-buy">
@@ -1104,20 +1110,14 @@
           </button>
         </div>
 
-
         <div class="panel">
-
           <div class="panel-header">
-
             <div>
               <h3>Recent Signals</h3>
               <span>Latest analysis generated by GoTradeX.</span>
             </div>
-
           </div>
-
           <div id="signalsList"></div>
-
         </div>
 
       </section>
