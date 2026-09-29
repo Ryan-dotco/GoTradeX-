@@ -3835,3 +3835,59 @@ select {
 .gtx-mobile-order-actions{position:sticky;top:8px;z-index:115}
 @media(max-width:850px){#page-dashboard .chart-wrapper{height:min(60vh,560px);min-height:430px}.chart-panel{overflow:visible}}
 @media(max-width:520px){#page-dashboard .chart-wrapper{height:460px;min-height:460px}.chart-market-toggle{min-width:125px;max-width:170px;font-size:11px}}
+
+
+/* =========================================================
+   CANONICAL LIVE BYBIT CHART — FINAL RENDER LAYER
+   The chart frame and surrounding dashboard remain unchanged.
+   Only the contents of #mainChart are controlled here.
+   ========================================================= */
+#page-dashboard .chart-wrapper {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 430px !important;
+  min-height: 430px !important;
+  overflow: hidden !important;
+  background: #07111d !important;
+}
+#page-dashboard #mainChart.gtx-live-chart {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 320px !important;
+  min-height: 430px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #07111d !important;
+}
+#page-dashboard #mainChart.gtx-live-chart canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  background: #07111d !important;
+}
+@media (max-width: 850px) {
+  #page-dashboard .chart-wrapper {
+    height: 460px !important;
+    min-height: 460px !important;
+  }
+  #page-dashboard #mainChart.gtx-live-chart {
+    min-height: 460px !important;
+  }
+}
+@media (max-width: 520px) {
+  #page-dashboard .chart-wrapper {
+    height: 410px !important;
+    min-height: 410px !important;
+  }
+  #page-dashboard #mainChart.gtx-live-chart {
+    min-height: 410px !important;
+  }
+}
