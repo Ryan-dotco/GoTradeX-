@@ -24,7 +24,7 @@
     };
   </script>
 
-  <link rel="stylesheet" href="style.css?v=3.0.45">
+  <link rel="stylesheet" href="style.css?v=3.0.46">
 </head>
 
 <body>
@@ -679,7 +679,14 @@
         </div>
 
 
-        <div class="dashboard-grid">
+        <div class="gtx-mobile-terminal-tabs" role="tablist" aria-label="Trading view">
+  <button type="button" class="gtx-mobile-terminal-tab active" data-terminal-target="chart">Chart</button>
+  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="overview">Overview</button>
+  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="orderbook">Data</button>
+  <button type="button" class="gtx-mobile-terminal-tab" data-terminal-target="feed">Feed</button>
+</div>
+
+<div class="dashboard-grid">
 
 
           <div class="panel chart-panel">
@@ -837,6 +844,49 @@
 
         </div>
 
+        <div id="gtxOrderbookPanel" class="panel gtx-orderbook-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Order Book</h3>
+              <span>Live Bybit market depth</span>
+            </div>
+            <div class="gtx-orderbook-status">
+              <span class="gtx-live-dot"></span>
+              <strong id="gtxOrderbookStatus">CONNECTING</strong>
+            </div>
+          </div>
+
+          <div class="gtx-orderbook-head">
+            <span>Bid / Qty</span>
+            <span>Price</span>
+            <span>Ask / Qty</span>
+          </div>
+
+          <div class="gtx-orderbook-columns">
+            <div id="gtxOrderbookBids" class="gtx-orderbook-side gtx-bids">
+              <div class="gtx-orderbook-empty">Waiting for live depth…</div>
+            </div>
+            <div id="gtxOrderbookMid" class="gtx-orderbook-mid">
+              <strong id="gtxOrderbookMidPrice">—</strong>
+              <span>SPREAD</span>
+              <small id="gtxOrderbookSpread">—</small>
+            </div>
+            <div id="gtxOrderbookAsks" class="gtx-orderbook-side gtx-asks">
+              <div class="gtx-orderbook-empty">Waiting for live depth…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gtx-mobile-order-actions">
+          <button id="gtxMobileBuyButton" type="button" class="gtx-mobile-buy">
+            <span>BUY</span>
+            <strong id="gtxMobileBidPrice">—</strong>
+          </button>
+          <button id="gtxMobileSellButton" type="button" class="gtx-mobile-sell">
+            <span>SELL</span>
+            <strong id="gtxMobileAskPrice">—</strong>
+          </button>
+        </div>
 
         <div class="panel manual-trading-panel">
           <div class="panel-header">
