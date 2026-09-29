@@ -11,7 +11,7 @@
    CONFIG
    ========================================================= */
 
-const APP_VERSION = "3.0.37";
+const APP_VERSION = "3.0.40";
 const APP_NAME = "GoTradeX";
 
 const CONFIG = {
@@ -25,7 +25,7 @@ const CONFIG = {
     "https://api.bybit.com",
 
   DERIV_PUBLIC_WS:
-    "wss://ws.binaryws.com/websockets/v3"
+    "wss://api.derivws.com/trading/v1/options/ws/public"
 };
 
 
@@ -110,7 +110,8 @@ const state = {
     lastTradeAt: 0,
     initialized: false,
     scannerTimer: null,
-    monitorTimer: null
+    monitorTimer: null,
+    executionMode: "simulation"
   },
 
   lastQueuedSignalKey: "",
@@ -1842,29 +1843,90 @@ async function fetchDerivCandles(internalSymbol, timeframe, limit = 80) {
   return Array.from(buckets.values()).slice(-limit);
 }
 
+function aggregateCandles(candles, seconds, limit = 80) {
+  const bucketMs = seconds * 1000;
+  const map = new Map();
+  for (const c of candles) {
+    const time = Math.floor(Number(c.time) / bucketMs) * bucketMs;
+    const priceOpen = Number(c.open);
+    const priceHigh = Number(c.high);
+    const priceLow = Number(c.low);
+    const priceClose = Number(c.close);
+    if (![time, priceOpen, priceHigh, priceLow, priceClose].every(Number.isFinite)) continue;
+    const existing = map.get(time);
+    if (!existing) {
+      map.set(time, {
+        time,
+        open: priceOpen,
+        high: priceHigh,
+        low: priceLow,
+        close: priceClose,
+        volume: Number(c.volume) || 0
+      });
+    } else {
+      existing.high = Math.max(existing.high, priceHigh);
+      existing.low = Math.min(existing.low, priceLow);
+      existing.close = priceClose;
+      existing.volume += Number(c.volume) || 0;
+    }
+  }
+  return Array.from(map.values()).sort((a,b) => a.time - b.time).slice(-limit);
+}
+
 async function fetchBybitKlines(symbol, timeframe, limit = 80) {
   const intervalMap = {
-    "1m":"1","2m":"1","5m":"5","15m":"15","30m":"30",
+    "1m":"1","5m":"5","15m":"15","30m":"30",
     "1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"
   };
-  const interval = intervalMap[timeframe];
-  if (!interval) throw new Error("Bybit does not provide a native " + timeframe + " candle interval.");
-  const response = await fetch(
-    CONFIG.BYBIT_PUBLIC_API + "/v5/market/kline?category=spot&symbol=" +
-      encodeURIComponent(symbol) + "&interval=" + interval + "&limit=" + limit,
-    { cache: "no-store" }
-  );
-  if (!response.ok) throw new Error("Bybit chart request failed: " + response.status);
-  const data = await response.json();
-  const rows = data?.result?.list || [];
-  return rows.map(row => ({
-    time:Number(row[0]),
-    open:Number(row[1]),
-    high:Number(row[2]),
-    low:Number(row[3]),
-    close:Number(row[4]),
-    volume:Number(row[5])
-  })).filter(c => [c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)).reverse();
+  const native = intervalMap[timeframe];
+
+  if (native) {
+    const response = await fetch(
+      CONFIG.BYBIT_PUBLIC_API + "/v5/market/kline?category=spot&symbol=" +
+        encodeURIComponent(symbol) + "&interval=" + native + "&limit=" + limit,
+      { cache: "no-store" }
+    );
+    if (!response.ok) throw new Error("Bybit chart request failed: " + response.status);
+    const data = await response.json();
+    if (Number(data?.retCode) !== 0) throw new Error(data?.retMsg || "Bybit chart request failed.");
+    const rows = data?.result?.list || [];
+    return rows.map(row => ({
+      time:Number(row[0]),
+      open:Number(row[1]),
+      high:Number(row[2]),
+      low:Number(row[3]),
+      close:Number(row[4]),
+      volume:Number(row[5])
+    })).filter(c => [c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)).reverse();
+  }
+
+  if (timeframe === "2m") {
+    const base = await fetchBybitKlines(symbol, "1m", Math.min(1000, limit * 2 + 4));
+    return aggregateCandles(base, 120, limit);
+  }
+
+  if (["5s","15s","30s"].includes(timeframe)) {
+    const response = await fetch(
+      CONFIG.BYBIT_PUBLIC_API + "/v5/market/recent-trade?category=spot&symbol=" +
+        encodeURIComponent(symbol) + "&limit=1000",
+      { cache: "no-store" }
+    );
+    if (!response.ok) throw new Error("Bybit recent trades request failed: " + response.status);
+    const data = await response.json();
+    if (Number(data?.retCode) !== 0) throw new Error(data?.retMsg || "Bybit recent trades request failed.");
+    const seconds = {"5s":5,"15s":15,"30s":30}[timeframe];
+    const trades = (data?.result?.list || []).map(t => ({
+      time:Number(t.time),
+      open:Number(t.price),
+      high:Number(t.price),
+      low:Number(t.price),
+      close:Number(t.price),
+      volume:Number(t.size) || 0
+    })).filter(t => [t.time,t.open,t.high,t.low,t.close].every(Number.isFinite));
+    return aggregateCandles(trades, seconds, limit);
+  }
+
+  throw new Error("Bybit does not provide a supported " + timeframe + " candle interval.");
 }
 
 async function fetchMarketCandles(symbol, timeframe, limit = 80) {
@@ -2319,9 +2381,22 @@ async function createChart() {
   try {
     candles = await fetchChartCandles(symbol, timeframe, 80);
   } catch (error) {
-    console.warn("Live chart candles unavailable; using local candle engine:", error);
-    candles = createSyntheticChartPoints(currentPrice, timeframe, 80);
-  }  if (!candles.length) return;
+    console.warn("Live chart candles unavailable:", error);
+    showToast("Live chart data is temporarily unavailable for " + symbol + ".", "error");
+  }
+  if (!candles.length) {
+    return;
+  }
+
+  const latestClose = Number(candles[candles.length - 1]?.close);
+  if (Number.isFinite(latestClose) && latestClose > 0) {
+    state.markets[symbol] = {
+      ...(state.markets[symbol] || {}),
+      symbol,
+      price: latestClose,
+      timestamp: candles[candles.length - 1].time
+    };
+  }
 
   const wrapper = canvas.parentElement;
   let toolbar = wrapper?.querySelector(".own-chart-toolbar");
@@ -2480,7 +2555,7 @@ async function selectMarketSymbol(symbol) {
 
 async function fetchSignalKlines(symbol) {
   if (!state.markets?.[symbol]) return [];
-  try { return await fetchChartCandles(symbol, "1h", 60); }
+  try { return await fetchChartCandles(symbol, "1H", 60); }
   catch (error) { console.warn("Live signal candles unavailable:", error); return []; }
 }
 
@@ -2700,6 +2775,7 @@ function saveDemoState() {
       tradeHistory: state.demo.tradeHistory.slice(0, 50),
       lastSignalKey: state.demo.lastSignalKey,
       lastTradeAt: state.demo.lastTradeAt,
+      executionMode: state.demo.executionMode,
       savedAt: Date.now()
     }));
   } catch (error) {
@@ -2731,6 +2807,8 @@ function loadDemoState() {
     state.demo.tradeHistory = Array.isArray(saved.tradeHistory) ? saved.tradeHistory : [];
     state.demo.lastSignalKey = saved.lastSignalKey || "";
     state.demo.lastTradeAt = Number(saved.lastTradeAt) || 0;
+    state.demo.executionMode = saved.executionMode === "broker-demo" ? "broker-demo" : "simulation";
+    if ($("demoExecutionMode")) $("demoExecutionMode").value = state.demo.executionMode;
   } else if (Number.isFinite(liveBalance) && liveBalance > 0) {
     state.demo.startingBalance = liveBalance;
     state.demo.balance = liveBalance;
@@ -2845,70 +2923,141 @@ function manageDemoTrades() {
   saveDemoState();
 }
 
-function openDemoTrade(symbol, signal) {
+async function executeDerivDemoContract(symbol, signal, stake) {
+  if (!state.deriv.connected || !state.deriv.selectedAccountId) throw new Error("A connected Deriv demo account is required.");
+  const installationId = state.deriv.installationId;
+  if (!installationId) throw new Error("Deriv installation ID is missing.");
+
+  const endpoint = (CONFIG.SUPABASE_URL || "").replace(/\/$/, "") + "/functions/v1/deriv-oauth";
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + (window.gotradexSupabaseSession?.access_token || ""),
+    "apikey": CONFIG.SUPABASE_KEY
+  };
+  const otpResponse = await fetch(endpoint + "?action=otp&installation_id=" + encodeURIComponent(installationId) +
+    "&account_id=" + encodeURIComponent(state.deriv.selectedAccountId), {method:"GET",headers});
+  const otpData = await otpResponse.json().catch(() => ({}));
+  if (!otpResponse.ok) throw new Error(otpData?.error || "Unable to open the Deriv demo trading session.");
+
+  const wsUrl = otpData?.data?.url || otpData?.url;
+  if (!wsUrl) throw new Error("Deriv did not return a demo WebSocket URL.");
+
+  const market = state.markets?.[symbol] || {};
+  const underlying = market.derivSymbol;
+  if (!underlying) throw new Error("Deriv symbol is unavailable for " + symbol + ".");
+
+  const currency = String(state.deriv.selectedAccount?.currency || state.deriv.selectedAccount?.currency_code || "USD").toUpperCase();
+  const durationMap = {"5s":[5,"s"],"15s":[15,"s"],"30s":[30,"s"],"1m":[1,"m"],"2m":[2,"m"],"5m":[5,"m"],"15m":[15,"m"],"30m":[30,"m"],"1H":[1,"h"]};
+  const [duration,durationUnit] = durationMap[state.currentTimeframe] || [5,"m"];
+  const contractType = signal.direction === "BUY" ? "CALL" : "PUT";
+
+  return new Promise((resolve,reject)=>{
+    const ws = new WebSocket(wsUrl);
+    let settled=false;
+    const timeout=setTimeout(()=>{ if(!settled){settled=true;try{ws.close();}catch{}reject(new Error("Deriv demo order timed out."));}},15000);
+
+    ws.onopen=()=>ws.send(JSON.stringify({
+      proposal:1, amount:Number(stake.toFixed(2)), basis:"stake", contract_type:contractType,
+      currency, duration, duration_unit:durationUnit, underlying_symbol:underlying, req_id:7001
+    }));
+
+    ws.onmessage=event=>{
+      try{
+        const data=JSON.parse(event.data);
+        if(data?.error){
+          clearTimeout(timeout);
+          if(!settled){settled=true;try{ws.close();}catch{}reject(new Error(data.error.message||"Deriv demo order failed."));}
+          return;
+        }
+        if(data?.msg_type==="proposal" && data?.proposal?.id){
+          ws.send(JSON.stringify({buy:String(data.proposal.id),price:Number(data.proposal.ask_price||stake),req_id:7002}));
+          return;
+        }
+        if(data?.msg_type==="buy" && data?.buy){
+          clearTimeout(timeout);
+          if(!settled){settled=true;try{ws.close();}catch{}resolve({
+            broker:"deriv",mode:"demo",contractId:data.buy.contract_id||null,
+            transactionId:data.buy.transaction_id||null,entry:Number(data.buy.buy_price||market.price)||Number(market.price)
+          });}
+        }
+      }catch(error){
+        clearTimeout(timeout);
+        if(!settled){settled=true;try{ws.close();}catch{}reject(error);}
+      }
+    };
+    ws.onerror=()=>{clearTimeout(timeout);if(!settled){settled=true;reject(new Error("Deriv demo trading WebSocket failed."));}};
+  });
+}
+
+async function executeBybitDemoOrder(symbol, signal, quantity, price, stop, target) {
+  if (!state.bybit.connected || state.bybit.environment !== "demo") throw new Error("A connected Bybit DEMO account is required.");
+  const result = await window.GTXBybit.order({
+    apiKey:state.bybit.apiKey, apiSecret:state.bybit.apiSecret, environment:"demo",
+    category:"linear", symbol, side:signal.direction==="BUY"?"Buy":"Sell",
+    orderType:"Market", qty:String(Math.max(0.001,quantity)), takeProfit:target, stopLoss:stop
+  });
+  return {broker:"bybit",mode:"demo",orderId:result?.orderId||null,orderLinkId:result?.orderLinkId||null,entry:price};
+}
+
+async function openDemoTrade(symbol, signal) {
   if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return false;
-  if (!signal || !["BUY", "SELL"].includes(signal.direction)) return false;
-  if (Number(signal.confidence) < 65) return false;
+  if (!signal || !["BUY","SELL"].includes(signal.direction) || Number(signal.confidence)<65) return false;
+  const price=Number(signal.entry||state.markets?.[symbol]?.price), stop=Number(signal.stop), target=Number(signal.target);
+  if (![price,stop,target].every(Number.isFinite)||price<=0) return false;
 
-  const price = Number(signal.entry || state.markets?.[symbol]?.price);
-  const stop = Number(signal.stop);
-  const target = Number(signal.target);
-  if (![price, stop, target].every(Number.isFinite) || price <= 0) return false;
+  const signalKey=symbol+"|"+signal.direction+"|"+Math.round(price);
+  if(state.demo.lastSignalKey===signalKey && Date.now()-state.demo.lastTradeAt<120000) return false;
+  if(state.demo.openTrades.some(t=>t.symbol===symbol)) return false;
 
-  const signalKey = symbol + "|" + signal.direction + "|" + Math.round(price);
-  if (state.demo.lastSignalKey === signalKey && Date.now() - state.demo.lastTradeAt < 120000) {
-    return false;
+  const riskAmount=Math.max(1,state.demo.balance*demoRiskPercent());
+  const stopDistance=Math.abs(price-stop);
+  if(!stopDistance||!Number.isFinite(stopDistance)) return false;
+  const quantity=Math.max(0.000001,riskAmount/stopDistance);
+  const maxNotional=Math.max(1,state.demo.balance*0.25);
+  const cappedQuantity=Math.min(quantity,maxNotional/price);
+
+  let brokerExecution=null;
+  if(state.demo.executionMode==="broker-demo"){
+    try{
+      if(marketCatalog.crypto.some(([item])=>item===symbol)){
+        brokerExecution=await executeBybitDemoOrder(symbol,signal,cappedQuantity,price,stop,target);
+      }else{
+        const stake=Math.max(0.35,Math.min(riskAmount,state.demo.balance*0.02));
+        brokerExecution=await executeDerivDemoContract(symbol,signal,stake);
+      }
+    }catch(error){
+      state.robotStatus.lastError=error.message||"Broker demo execution failed.";
+      renderRobotStatus();showToast(state.robotStatus.lastError,"error");return false;
+    }
   }
 
-  if (state.demo.openTrades.some(t => t.symbol === symbol)) return false;
-
-  const riskAmount = Math.max(1, state.demo.balance * demoRiskPercent());
-  const stopDistance = Math.abs(price - stop);
-  if (!stopDistance || !Number.isFinite(stopDistance)) return false;
-
-  const quantity = Math.max(0.000001, riskAmount / stopDistance);
-  const maxNotional = Math.max(1, state.demo.balance * 0.25);
-  const cappedQuantity = Math.min(quantity, maxNotional / price);
-
-  const trade = {
-    id: "demo_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
-    symbol,
-    direction: signal.direction,
-    confidence: Number(signal.confidence) || 0,
-    entry: price,
-    current: price,
-    stop,
-    target,
-    quantity: cappedQuantity,
-    riskAmount,
-    openedAt: new Date().toISOString(),
-    status: "OPEN",
-    unrealizedPL: 0
+  const trade={
+    id:"demo_"+Date.now()+"_"+Math.random().toString(36).slice(2,8), symbol,
+    broker:brokerExecution?.broker||"gtx-simulation",
+    executionMode:state.demo.executionMode,
+    brokerOrderId:brokerExecution?.orderId||brokerExecution?.contractId||null,
+    brokerTransactionId:brokerExecution?.transactionId||null,
+    direction:signal.direction,confidence:Number(signal.confidence)||0,
+    entry:Number(brokerExecution?.entry||price),current:Number(brokerExecution?.entry||price),
+    stop,target,quantity:cappedQuantity,riskAmount,openedAt:new Date().toISOString(),
+    status:"OPEN",unrealizedPL:0
   };
 
   state.demo.openTrades.unshift(trade);
-  state.demo.lastSignalKey = signalKey;
-  state.demo.lastTradeAt = Date.now();
-
-  showToast(
-    "Demo " + signal.direction + " opened: " + symbol +
-      " at " + formatPrice(price),
-    "success"
-  );
-
-  updateDemoMetrics();
-  saveDemoState();
-  return true;
+  state.demo.lastSignalKey=signalKey;
+  state.demo.lastTradeAt=Date.now();
+  showToast((state.demo.executionMode==="broker-demo"?"Broker demo ":"Simulated demo ")+signal.direction+" opened: "+symbol+" at "+formatPrice(trade.entry),"success");
+  updateDemoMetrics();saveDemoState();return true;
 }
 
-function runDemoEngine(signal) {
+async function runDemoEngine(signal) {
   if (!state.robotRunning || (!state.deriv.connected && !state.bybit.connected)) return;
   if (state.deriv.connected && !state.deriv.selectedAccountId) return;
   manageDemoTrades();
   if (evaluateDemoDrawdown()) return;
 
   const symbol = state.currentSymbol || "BTCUSDT";
-  openDemoTrade(symbol, signal);
+  await openDemoTrade(symbol, signal);
 
   updateDemoMetrics();
   if (evaluateDemoDrawdown()) return;
@@ -3167,8 +3316,8 @@ function renderRobotStatus() {
       running
         ? "Demo AutoBot is running. Live execution is locked."
         : connected
-          ? "Deriv is connected and ready for demo testing."
-          : "Connect a Deriv account to begin.";
+          ? "Demo trading is ready. Use Simulation or Broker DEMO execution."
+          : "Connect Deriv or Bybit to begin.";
   }
 
   if ($("startRobotButton")) {
@@ -3313,7 +3462,7 @@ async function scanDemoMarkets() {
       const signal = await generateLiveSignal(symbol);
 
       if (signal && ["BUY", "SELL"].includes(signal.direction) && Number(signal.confidence) >= 65) {
-        openDemoTrade(symbol, signal);
+        await openDemoTrade(symbol, signal);
       }
     } catch (error) {
       console.warn("Demo scanner skipped " + symbol + ":", error);
@@ -4848,7 +4997,7 @@ function handleDerivAccountChange() {
 }
 
 function renderBybitConnection() {
-  const env = state.bybit.environment === "live" ? "LIVE" : "DEMO";
+  const env = "DEMO";
   if ($("bybitEnvironmentLabel")) $("bybitEnvironmentLabel").textContent = env;
   if ($("bybitConnectionStatus")) {
     $("bybitConnectionStatus").textContent = state.bybit.connected ? "Connected" : "Not Connected";
@@ -4882,7 +5031,7 @@ async function connectBybit() {
 
   const apiKey = $("bybitApiKey")?.value.trim() || "";
   const apiSecret = $("bybitApiSecret")?.value.trim() || "";
-  const environment = $("bybitEnvironment")?.value === "live" ? "live" : "demo";
+  const environment = "demo";
 
   if (!apiKey || !apiSecret) {
     showToast("Enter the Bybit API key and secret.", "error");
@@ -4890,7 +5039,7 @@ async function connectBybit() {
   }
 
   state.bybit.lastError = "";
-  state.bybit.environment = environment;
+  state.bybit.environment = "demo";
   renderBybitConnection();
 
   const button = $("connectBybitButton");
@@ -4947,10 +5096,9 @@ function disconnectBybit() {
 }
 
 function handleBybitEnvironmentChange() {
-  state.bybit.environment =
-    $("bybitEnvironment")?.value === "live" ? "live" : "demo";
+  state.bybit.environment = "demo";
   state.bybit.connected = false;
-  state.bybit.lastError = "";
+  state.bybit.lastError = "Bybit live mode is locked. GoTradeX is using Bybit DEMO.";
   renderBybitConnection();
 }
 
@@ -5130,25 +5278,42 @@ function connectBybitPublicStream() {
   if (typeof WebSocket === "undefined") return;
   const symbol = state.currentSymbol || "BTCUSDT";
   const timeframe = state.currentTimeframe || "1H";
-  const interval = {
-    "1m":"1","2m":"1","5s":"1","15s":"15","30s":"30","5m":"5",
-    "15m":"15","30m":"30","1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"
-  }[timeframe] || "60";
-
+  const shortTimeframe = ["5s","15s","30s"].includes(timeframe);
   const socket = new WebSocket("wss://stream.bybit.com/v5/public/spot");
   state.liveMarketSocket = socket;
+
   socket.onopen = () => {
-    socket.send(JSON.stringify({
-      op:"subscribe",
-      args:["kline." + interval + "." + symbol]
-    }));
+    const topic = shortTimeframe
+      ? "publicTrade." + symbol
+      : "kline." + ({"1m":"1","2m":"1","5m":"5","15m":"15","30m":"30","1H":"60","4H":"240","12H":"720","1D":"D","1W":"W","1M":"M"}[timeframe] || "60") + "." + symbol;
+    socket.send(JSON.stringify({op:"subscribe", args:[topic]}));
   };
+
   socket.onmessage = event => {
     try {
       const data = JSON.parse(event.data);
-      if (!String(data?.topic || "").startsWith("kline.")) return;
+      const topic = String(data?.topic || "");
+
+      if (shortTimeframe && topic.startsWith("publicTrade.")) {
+        for (const trade of (data?.data || [])) {
+          const price = Number(trade?.p);
+          const timestamp = Number(trade?.T);
+          if (Number.isFinite(price) && Number.isFinite(timestamp)) {
+            handleLivePriceUpdate(price, timestamp, symbol);
+          }
+        }
+        return;
+      }
+
+      if (!topic.startsWith("kline.")) return;
       const candle = data?.data?.[0];
       if (!candle) return;
+
+      if (timeframe === "2m") {
+        handleLivePriceUpdate(candle.close, Number(candle.start), symbol);
+        return;
+      }
+
       const current = state.chart?.candles?.[state.chart.candles.length - 1];
       if (current && Number(current.time) === Number(candle.start)) {
         current.open = Number(candle.open);
@@ -5160,8 +5325,11 @@ function connectBybitPublicStream() {
       } else {
         handleLivePriceUpdate(candle.close, Number(candle.start), symbol);
       }
-    } catch (error) { console.warn("Bybit chart stream message error:", error); }
+    } catch (error) {
+      console.warn("Bybit chart stream message error:", error);
+    }
   };
+
   socket.onerror = error => console.warn("Bybit chart stream error:", error);
   socket.onclose = () => {
     if (state.liveMarketSocket === socket && state.user) {
@@ -6317,6 +6485,12 @@ function bindEvents() {
     "change",
     handleBybitEnvironmentChange
   );
+
+  $("demoExecutionMode")?.addEventListener("change", event => {
+    state.demo.executionMode = event.target.value === "broker-demo" ? "broker-demo" : "simulation";
+    if (state.demo.initialized) saveDemoState();
+    renderRobotStatus();
+  });
 
   $("refreshButton")
     ?.addEventListener(

@@ -42,20 +42,22 @@
   window.GTXBybit = {
     request,
     async connect(apiKey, apiSecret, environment = "demo") {
-      return request({
+      const data = await request({
         action: "connect",
         api_key: apiKey,
         api_secret: apiSecret,
         environment
       });
+      return { ...data, account: data?.account || data };
     },
     async balance(apiKey, apiSecret, environment = "demo") {
-      return request({
+      const data = await request({
         action: "balance",
         api_key: apiKey,
         api_secret: apiSecret,
         environment
       });
+      return { ...data, account: data?.account || data };
     },
     async positions(apiKey, apiSecret, environment = "demo", category = "linear", symbol = "") {
       return request({
@@ -65,6 +67,23 @@
         environment,
         category,
         symbol
+      });
+    },
+    async order({apiKey, apiSecret, environment = "demo", category = "spot", symbol, side, orderType = "Market", qty, price, takeProfit, stopLoss, orderLinkId}) {
+      return request({
+        action: "order",
+        api_key: apiKey,
+        api_secret: apiSecret,
+        environment,
+        category,
+        symbol,
+        side,
+        orderType,
+        qty,
+        price,
+        takeProfit,
+        stopLoss,
+        orderLinkId
       });
     },
     async market(symbol = "BTCUSDT", category = "spot") {
