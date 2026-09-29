@@ -33,29 +33,16 @@
   }
 
   function chartEls() {
-    const dashboard = $("gtxDashboardChart");
-    if (dashboard && dashboard.offsetParent !== null) {
-      return {
-        canvas: dashboard,
-        status: $("gtxDashboardChartStatus"),
-        dot: $("gtxDashboardChartDot"),
-        symbol: $("gtxDashboardChartSymbol"),
-        price: $("gtxDashboardChartPrice"),
-        subtitle: $("gtxDashboardChartSubtitle"),
-        empty: $("gtxDashboardChartEmpty")
-      };
-    }
     return {
-      canvas: $("gtxFreshChart"),
-      status: $("gtxChartStatus"),
-      dot: $("gtxChartStatusDot"),
-      symbol: $("gtxChartSymbol"),
-      price: $("gtxChartPrice"),
-      subtitle: $("gtxChartSubtitle"),
-      empty: $("gtxChartEmpty")
+      canvas: $("gtxDashboardChart"),
+      status: $("gtxDashboardChartStatus"),
+      dot: $("gtxDashboardChartDot"),
+      symbol: $("gtxDashboardChartSymbol"),
+      price: $("gtxDashboardChartPrice"),
+      subtitle: $("gtxDashboardChartSubtitle"),
+      empty: $("gtxDashboardChartEmpty")
     };
   }
-
   function setStatus(text, live) {
     const els = chartEls();
     if (els.status) els.status.textContent = text;
@@ -67,20 +54,12 @@
   }
 
   function getSelectedState() {
-    const dashboard = $("gtxDashboardChart");
-    const dashboardActive = dashboard && dashboard.offsetParent !== null;
-    const controls = window.GTXSignalControls?.getState?.();
     const app = window.state || {};
     return {
-      symbol: dashboardActive
-        ? (app.currentSymbol || "BTCUSDT")
-        : (controls?.symbol || $("signalAsset")?.value || app.currentSymbol || "BTCUSDT"),
-      timeframe: dashboardActive
-        ? normalizeTimeframe(app.currentTimeframe || "1m")
-        : normalizeTimeframe(controls?.timeframe || app.currentTimeframe || "1m")
+      symbol: app.currentSymbol || "BTCUSDT",
+      timeframe: normalizeTimeframe(app.currentTimeframe || "5m")
     };
   }
-
   function formatPrice(value) {
     const n = Number(value);
     if (!Number.isFinite(n)) return "—";
