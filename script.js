@@ -2586,7 +2586,14 @@ async function createChart() {
   if (chartCanvas && !chartCanvas.dataset.gtxInteractions) {
     chartCanvas.dataset.gtxInteractions = "1";
     chartCanvas.style.touchAction = "none";
-    let pointerState = null;
+    const pointers = new Map();
+    let panStart = null;
+    let pinchStart = null;
+    const distance = () => {
+      const pts = [...pointers.values()];
+      if (pts.length < 2) return 0;
+      return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    };
     chartCanvas.addEventListener("wheel", event => {
       event.preventDefault();
       const current = state.chartView || {};
@@ -2595,19 +2602,43 @@ async function createChart() {
     }, {passive:false});
     chartCanvas.addEventListener("pointerdown", event => {
       chartCanvas.setPointerCapture?.(event.pointerId);
-      pointerState = {x:event.clientX, pan:Number(state.chartView?.pan)||0};
+      pointers.set(event.pointerId, {x:event.clientX, y:event.clientY});
+      if (pointers.size === 1) {
+        panStart = {x:event.clientX, pan:Number(state.chartView?.pan)||0};
+        pinchStart = null;
+      } else if (pointers.size === 2) {
+        pinchStart = {distance:distance(), zoom:Number(state.chartView?.zoom)||1, pan:Number(state.chartView?.pan)||0};
+        panStart = null;
+      }
     });
     chartCanvas.addEventListener("pointermove", event => {
-      if (!pointerState) return;
-      const dx = event.clientX - pointerState.x;
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, {x:event.clientX, y:event.clientY});
       const zoom = Number(state.chartView?.zoom)||1;
       const count = state.chart?.candles?.length || 1;
       const visible = Math.max(12, Math.min(count, Math.round(count / zoom)));
       const width = Math.max(1, chartCanvas.getBoundingClientRect().width);
-      setChartViewport(zoom, pointerState.pan - (dx / width) * visible);
+
+      if (pointers.size >= 2 && pinchStart) {
+        const ratio = distance() / Math.max(1, pinchStart.distance);
+        setChartViewport(pinchStart.zoom * ratio, pinchStart.pan);
+      } else if (pointers.size === 1 && panStart) {
+        const dx = event.clientX - panStart.x;
+        setChartViewport(zoom, panStart.pan - (dx / width) * visible);
+      }
     });
-    chartCanvas.addEventListener("pointerup", () => { pointerState = null; });
-    chartCanvas.addEventListener("pointercancel", () => { pointerState = null; });
+    const endPointer = event => {
+      pointers.delete(event.pointerId);
+      if (pointers.size < 2) pinchStart = null;
+      if (pointers.size === 1) {
+        const remaining = [...pointers.values()][0];
+        panStart = {x:remaining.x, pan:Number(state.chartView?.pan)||0};
+      } else if (!pointers.size) {
+        panStart = null;
+      }
+    };
+    chartCanvas.addEventListener("pointerup", endPointer);
+    chartCanvas.addEventListener("pointercancel", endPointer);
     chartCanvas.addEventListener("dblclick", () => setChartViewport(1, 0));
   }
 
