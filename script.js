@@ -3407,7 +3407,7 @@ function renderManualPositions() {
   }).join("");
 }
 
-async function submitManualTrade(direction) {
+async function submitManualTradeLegacy(direction) {
   const symbol = state.currentSymbol || "BTCUSDT";
   const executionGuard = window.GTXTradingCore?.canAcceptOrder?.({
     source: "manual",
