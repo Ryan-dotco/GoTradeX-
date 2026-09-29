@@ -3826,3 +3826,12 @@ select {
     display: none;
   }
 }
+
+/* GTX 3.0.47 — real live market chart workspace */
+.gtx-live-chart{width:100%;height:100%;min-height:390px;overflow:hidden;background:transparent;border-radius:10px}
+.chart-panel .chart-wrapper{min-height:430px;background:rgba(4,12,22,.92)}
+.chart-market-toggle{min-width:150px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-market-menu{min-width:min(430px,calc(100vw - 20px))}
+.gtx-mobile-order-actions{position:sticky;top:8px;z-index:115}
+@media(max-width:850px){#page-dashboard .chart-wrapper{height:min(60vh,560px);min-height:430px}.chart-panel{overflow:visible}}
+@media(max-width:520px){#page-dashboard .chart-wrapper{height:460px;min-height:460px}.chart-market-toggle{min-width:125px;max-width:170px;font-size:11px}}
