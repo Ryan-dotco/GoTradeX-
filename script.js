@@ -2581,7 +2581,36 @@ function renderCurrentChart() {
   });
 }
 
-function createChart() {
+async function createChart() {
+  const chartCanvas = $("mainChart");
+  if (chartCanvas && !chartCanvas.dataset.gtxInteractions) {
+    chartCanvas.dataset.gtxInteractions = "1";
+    chartCanvas.style.touchAction = "none";
+    let pointerState = null;
+    chartCanvas.addEventListener("wheel", event => {
+      event.preventDefault();
+      const current = state.chartView || {};
+      const nextZoom = (Number(current.zoom) || 1) * (event.deltaY < 0 ? 1.18 : 0.85);
+      setChartViewport(nextZoom, Number(current.pan) || 0);
+    }, {passive:false});
+    chartCanvas.addEventListener("pointerdown", event => {
+      chartCanvas.setPointerCapture?.(event.pointerId);
+      pointerState = {x:event.clientX, pan:Number(state.chartView?.pan)||0};
+    });
+    chartCanvas.addEventListener("pointermove", event => {
+      if (!pointerState) return;
+      const dx = event.clientX - pointerState.x;
+      const zoom = Number(state.chartView?.zoom)||1;
+      const count = state.chart?.candles?.length || 1;
+      const visible = Math.max(12, Math.min(count, Math.round(count / zoom)));
+      const width = Math.max(1, chartCanvas.getBoundingClientRect().width);
+      setChartViewport(zoom, pointerState.pan - (dx / width) * visible);
+    });
+    chartCanvas.addEventListener("pointerup", () => { pointerState = null; });
+    chartCanvas.addEventListener("pointercancel", () => { pointerState = null; });
+    chartCanvas.addEventListener("dblclick", () => setChartViewport(1, 0));
+  }
+
   const canvas = $("mainChart");
   if (!canvas) return;
 
