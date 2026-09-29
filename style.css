@@ -3945,3 +3945,84 @@ select {
     margin-top: 0;
   }
 }
+
+/* =========================================================
+   GOTRADEX PHASE 4
+   FRESH NATIVE CANDLE CHART
+   ========================================================= */
+
+.gtx-chart-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.gtx-chart-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+
+.gtx-chart-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 30px;
+}
+
+.gtx-chart-toolbar strong {
+  font-size: 14px;
+}
+
+.gtx-chart-toolbar span {
+  font-size: 11px;
+  opacity: .72;
+}
+
+.gtx-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: min(52vh, 430px);
+  min-height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(2, 6, 23, .7);
+}
+
+#gtxFreshChart {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.gtx-chart-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  text-align: center;
+  font-size: 12px;
+  opacity: .7;
+  pointer-events: none;
+}
+
+@media (max-width: 850px) {
+  #page-signals.active-page .gtx-chart-panel {
+    border-radius: 0;
+    margin-left: -1px;
+    margin-right: -1px;
+  }
+
+  .gtx-chart-wrap {
+    height: 48vh;
+    min-height: 300px;
+    border-radius: 0;
+  }
+
+  .gtx-chart-toolbar {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
