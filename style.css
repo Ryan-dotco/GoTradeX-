@@ -4052,3 +4052,24 @@ select {
 .gtx-dash-chart{flex:1 1 auto!important;min-height:0!important}
 .gtx-dash-bottom{flex:0 0 52px!important;min-height:52px!important;order:unset!important}
 .gtx-dash-trade-actions{flex:0 0 66px!important;min-height:66px!important;order:unset!important;margin-top:0!important}
+
+
+/* DASHBOARD V1 — structural height fix.
+   The Dashboard must fill the space below the topbar so the
+   chart expands and Time/Amount + BUY/SELL stay at the bottom. */
+#page-dashboard.active-page{
+  display:flex!important;
+  flex:1 1 auto!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  height:auto!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+#page-dashboard.active-page .gtx-dashboard-v1{
+  flex:1 1 auto!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+}
