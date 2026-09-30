@@ -326,6 +326,15 @@
   function init() {
     if(!$("gtxDashboardCanvas"))return;
     bind();
+    try {
+      const s = window.GloDateState || window.GoTradeXState || window.state;
+      const user = s?.currentUser || s?.user || null;
+      if(user){
+        const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Trader";
+        if($("gtxTraderName"))$("gtxTraderName").textContent=name;
+        if($("gtxTraderBalance"))$("gtxTraderBalance").textContent="$0.00";
+      }
+    } catch(e) {}
   }
 
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
