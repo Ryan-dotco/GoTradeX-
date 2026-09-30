@@ -4003,3 +4003,13 @@ select {
   .gtx-profile-avatar{width:36px;height:36px}
   .gtx-dash-chart{flex:1 1 62%;min-height:0}
 }
+
+
+/* Dashboard v1.3 — chart fills down to bottom controls */
+.gtx-dashboard-v1{padding:4px 6px 4px}
+.gtx-dash-profile{flex-basis:52px;min-height:52px}
+.gtx-dash-head{flex-basis:36px;min-height:36px}
+.gtx-dash-chart-meta{display:none!important}
+.gtx-dash-chart{flex:1 1 auto;min-height:0}
+.gtx-dash-bottom{order:3;flex:0 0 48px;min-height:48px;padding-top:3px}
+.gtx-dash-trade-actions{order:4;flex:0 0 58px;min-height:58px;padding:5px 0 2px}
