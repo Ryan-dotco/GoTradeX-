@@ -510,6 +510,11 @@
 
       <section id="page-dashboard" class="app-page active-page">
   <div class="gtx-dashboard-v1">
+    <div class="gtx-dash-profile">
+      <div class="gtx-profile-avatar">T</div>
+      <div class="gtx-profile-copy"><strong id="gtxTraderName">Trader</strong><span id="gtxTraderStatus">Trading account</span></div>
+      <div class="gtx-profile-balance"><small>Balance</small><strong id="gtxTraderBalance">$0.00</strong></div>
+    </div>
     <div class="gtx-dash-head">
       <div class="gtx-dash-asset-wrap">
         <button id="gtxAssetButton" class="gtx-dash-control" type="button">Assets ▾</button>
@@ -585,6 +590,11 @@
     <div class="gtx-dash-chart">
       <canvas id="gtxDashboardCanvas"></canvas>
       <div id="gtxChartOverlay" class="gtx-chart-overlay" hidden></div>
+    </div>
+
+    <div class="gtx-dash-trade-actions">
+      <button id="gtxSellButton" class="gtx-trade-button gtx-sell" type="button">SELL</button>
+      <button id="gtxBuyButton" class="gtx-trade-button gtx-buy" type="button">BUY</button>
     </div>
 
     <div class="gtx-dash-bottom">
