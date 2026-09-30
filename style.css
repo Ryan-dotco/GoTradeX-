@@ -4042,3 +4042,13 @@ select {
 .gtx-dash-bottom{order:30!important;flex:0 0 52px!important;min-height:52px!important}
 .gtx-dash-trade-actions{order:31!important;flex:0 0 66px!important;min-height:66px!important}
 .gtx-dash-trade-actions .gtx-trade-button{height:54px!important;min-height:54px!important}
+
+
+/* Dashboard v1.5 — true bottom anchoring */
+.gtx-dashboard-v1{display:flex!important;flex-direction:column!important;height:100%!important;min-height:0!important}
+.gtx-dash-profile{flex:0 0 56px!important}
+.gtx-dash-toolbar{flex:0 0 auto!important}
+.gtx-dash-chart-meta{flex:0 0 20px!important}
+.gtx-dash-chart{flex:1 1 auto!important;min-height:0!important}
+.gtx-dash-bottom{flex:0 0 52px!important;min-height:52px!important;order:unset!important}
+.gtx-dash-trade-actions{flex:0 0 66px!important;min-height:66px!important;order:unset!important;margin-top:0!important}
