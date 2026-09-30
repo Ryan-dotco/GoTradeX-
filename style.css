@@ -4013,3 +4013,16 @@ select {
 .gtx-dash-chart{flex:1 1 auto;min-height:0}
 .gtx-dash-bottom{order:3;flex:0 0 48px;min-height:48px;padding-top:3px}
 .gtx-dash-trade-actions{order:4;flex:0 0 58px;min-height:58px;padding:5px 0 2px}
+
+
+/* Dashboard v1.3 — maximize candle chart and keep trade controls at bottom */
+.gtx-dash-chart{flex:1 1 auto!important;min-height:0!important}
+.gtx-dash-chart-meta{flex:0 0 20px!important;min-height:20px!important}
+.gtx-dash-bottom{order:20;flex:0 0 54px;min-height:54px;padding-top:6px}
+.gtx-dash-trade-actions{order:21;flex:0 0 68px;min-height:68px;padding:7px 0 2px}
+.gtx-dashboard-v1{padding-bottom:2px}
+@media(max-width:700px){
+  .gtx-dash-chart{flex:1 1 auto!important;min-height:0!important}
+  .gtx-dash-bottom{flex-basis:54px;min-height:54px}
+  .gtx-dash-trade-actions{flex-basis:68px;min-height:68px}
+}
