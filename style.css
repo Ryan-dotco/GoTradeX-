@@ -3971,3 +3971,35 @@ select {
   .gtx-dash-chart{flex-basis:50%}
   .gtx-dash-trade-actions{flex-basis:62px;min-height:62px}
 }
+
+
+/* Dashboard v1.2 — larger chart + trader profile/wallet */
+.gtx-dash-profile{position:relative;flex:0 0 56px;min-height:56px;padding:0 4px}
+.gtx-profile-copy{justify-content:center;gap:1px}
+.gtx-profile-copy strong:first-child{font-size:13px}
+.gtx-profile-copy span{font-size:9px}
+.gtx-profile-copy strong:last-child{font-size:11px;color:#7fb3ff}
+.gtx-profile-right{margin-left:auto;display:flex;align-items:center;gap:9px}
+.gtx-profile-avatar{width:38px;height:38px;font-size:13px}
+.gtx-wallet-button{border:0!important;background:#12243d;color:#fff;border-radius:8px;min-height:38px;padding:6px 9px;display:flex;align-items:center;gap:5px;font-size:10px;font-weight:900;cursor:pointer}
+.gtx-wallet-icon{font-size:17px;line-height:1}
+.gtx-wallet-button:active{transform:scale(.97)}
+.gtx-wallet-menu{position:absolute;right:4px;top:calc(100% - 2px);z-index:60;width:150px;padding:7px;background:#0b1729;border-radius:9px;box-shadow:0 16px 36px rgba(0,0,0,.45)}
+.gtx-wallet-menu button{display:block;width:100%;border:0!important;background:#12243d;color:#fff;border-radius:6px;padding:10px 9px;margin:3px 0;text-align:left;font-size:11px;font-weight:800}
+.gtx-wallet-title{padding:4px 7px 6px;color:#91a4bd;font-size:9px;font-weight:900;text-transform:uppercase}
+.gtx-wallet-modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(0,0,0,.58);padding:18px}
+.gtx-wallet-modal[hidden]{display:none!important}
+.gtx-wallet-card{width:min(360px,100%);background:#0b1729;color:#eef4ff;border-radius:12px;padding:14px;box-shadow:0 20px 50px rgba(0,0,0,.55)}
+.gtx-wallet-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.gtx-wallet-card-head strong{font-size:14px}
+.gtx-wallet-card-head button{border:0!important;background:transparent;color:#fff;font-size:24px;line-height:1;cursor:pointer}
+.gtx-wallet-card label{display:block;margin:9px 0 4px;color:#91a4bd;font-size:9px;font-weight:900;text-transform:uppercase}
+.gtx-wallet-card input{width:100%;box-sizing:border-box;border:0!important;outline:0;border-radius:7px;background:#12243d;color:#fff;padding:10px;font-size:11px}
+.gtx-wallet-submit{width:100%;border:0!important;border-radius:8px;background:#1d4f8f;color:#fff;padding:11px;margin-top:13px;font-size:11px;font-weight:900}
+.gtx-dash-chart{flex:1 1 62%;min-height:0}
+.gtx-dash-trade-actions{flex:0 0 64px;min-height:64px}
+@media(max-width:700px){
+  .gtx-dash-profile{flex-basis:56px;min-height:56px}
+  .gtx-profile-avatar{width:36px;height:36px}
+  .gtx-dash-chart{flex:1 1 62%;min-height:0}
+}
