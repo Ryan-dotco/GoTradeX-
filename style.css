@@ -3790,3 +3790,15 @@ select {
 #page-dashboard.active-page #gtxDashboardCanvas{display:block!important;width:100%!important;height:100%!important;visibility:visible!important;opacity:1!important;}
 #page-dashboard.active-page .gtx-dash-bottom{display:grid!important;visibility:visible!important;min-height:62px!important;}
 #page-dashboard.active-page .gtx-dash-trade-actions{display:grid!important;visibility:visible!important;min-height:60px!important;}
+
+
+/* === FINAL MOBILE DASHBOARD: OVERRIDE LEGACY RULES === */
+@media (max-width:850px){
+  #appScreen .main-area{overflow-y:auto!important;overflow-x:hidden!important;height:100dvh!important;max-height:none!important;}
+  #appScreen .content-area{overflow:visible!important;height:auto!important;min-height:calc(100dvh - 50px)!important;}
+  #page-dashboard.active-page{display:block!important;height:auto!important;min-height:calc(100dvh - 50px)!important;overflow:visible!important;}
+  #page-dashboard.active-page>.gtx-trading-dashboard{display:flex!important;height:auto!important;min-height:calc(100dvh - 50px)!important;max-height:none!important;overflow:visible!important;}
+  #page-dashboard.active-page .gtx-dash-chart{height:46vh!important;min-height:260px!important;max-height:none!important;flex:0 0 46vh!important;}
+  #page-dashboard.active-page .gtx-dash-bottom{flex:0 0 auto!important;}
+  #page-dashboard.active-page .gtx-dash-trade-actions{flex:0 0 auto!important;}
+}
