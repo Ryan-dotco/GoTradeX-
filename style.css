@@ -3753,3 +3753,198 @@ select {
 .gtx-dashboard-mobile-logo{
   display:none!important;
 }
+
+
+/* =========================================================
+   DASHBOARD V1 — isolated, borderless, fixed to viewport
+   ========================================================= */
+#page-dashboard.gtx-dashboard-v1-page{overflow:hidden!important}
+.gtx-dashboard-v1{
+  width:100%;
+  height:100%;
+  min-height:0;
+  max-height:100%;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#07111f;
+  color:#eef4ff;
+  box-sizing:border-box;
+  padding:8px 10px 7px;
+}
+.gtx-dash-head{
+  position:relative;
+  z-index:20;
+  flex:0 0 42px;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  background:#0b1729;
+}
+.gtx-dash-asset-wrap,.gtx-dash-menu-wrap{position:relative;flex:0 0 auto}
+.gtx-dash-control{
+  appearance:none;
+  border:0!important;
+  outline:0;
+  min-height:34px;
+  padding:7px 11px;
+  border-radius:7px;
+  background:#12243d;
+  color:#f4f7ff;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.gtx-dash-control:active{transform:scale(.98)}
+.gtx-selected-asset{
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:center;
+  font-size:13px;
+  font-weight:900;
+  color:#fff;
+}
+.gtx-dash-tools{display:flex;gap:6px;flex:0 0 auto}
+.gtx-dash-menu{
+  position:absolute;
+  top:calc(100% + 6px);
+  left:0;
+  width:min(330px,calc(100vw - 24px));
+  max-height:min(62vh,520px);
+  overflow:auto;
+  padding:10px;
+  border:0!important;
+  border-radius:10px;
+  background:#0b1729;
+  box-shadow:0 18px 45px rgba(0,0,0,.48);
+}
+.gtx-chart-menu{right:0;left:auto;width:min(360px,calc(100vw - 24px))}
+.gtx-timeframe-menu{right:0;left:auto;width:min(330px,calc(100vw - 24px))}
+.gtx-menu-title{
+  padding:2px 4px 8px;
+  color:#91a4bd;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+}
+.gtx-asset-categories,.gtx-chart-types,.gtx-indicators,.gtx-timeframe-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px;
+}
+.gtx-asset-categories{grid-template-columns:repeat(5,minmax(0,1fr));margin-bottom:8px}
+.gtx-dash-menu button{
+  min-height:34px;
+  border:0!important;
+  border-radius:6px;
+  background:#12243d;
+  color:#eaf1ff;
+  padding:7px 6px;
+  font-size:10px;
+  font-weight:800;
+  text-align:left;
+  cursor:pointer;
+}
+.gtx-asset-categories button{text-align:center}
+.gtx-dash-menu button:hover,.gtx-dash-menu button.selected{background:#1d4f8f;color:#fff}
+.gtx-asset-list{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  max-height:310px;
+  overflow:auto;
+}
+.gtx-asset-list button{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  text-align:left;
+}
+.gtx-asset-list button strong{font-size:10px}
+.gtx-asset-list button span{color:#91a4bd;font-size:9px;text-align:right}
+.gtx-indicator-title{margin-top:10px}
+.gtx-dash-chart-meta{
+  flex:0 0 20px;
+  min-height:20px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  overflow:hidden;
+  color:#91a4bd;
+  font-size:9px;
+  white-space:nowrap;
+}
+.gtx-dash-chart-meta span:first-child{color:#fff;font-weight:900}
+.gtx-dash-chart-meta span:nth-child(2){color:#7fb3ff}
+.gtx-dash-chart-meta span:last-child{margin-left:auto}
+.gtx-dash-chart{
+  position:relative;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  background:#07111f;
+}
+#gtxDashboardCanvas{display:block;width:100%;height:100%}
+.gtx-chart-overlay{position:absolute;inset:0;pointer-events:none}
+.gtx-dash-bottom{
+  flex:0 0 52px;
+  min-height:52px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  padding-top:6px;
+  background:#0b1729;
+}
+.gtx-dash-field{min-width:0}
+.gtx-dash-field label{
+  display:block;
+  margin:0 0 3px;
+  color:#91a4bd;
+  font-size:8px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+}
+.gtx-value-box,.gtx-amount-box{
+  width:100%;
+  height:34px;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  background:#12243d;
+  color:#fff;
+  border:0!important;
+  border-radius:7px;
+  padding:0 9px;
+  font-size:11px;
+  font-weight:900;
+}
+.gtx-amount-box span{color:#91a4bd;margin-right:4px}
+.gtx-amount-box input{
+  min-width:0;
+  width:100%;
+  border:0!important;
+  outline:0;
+  background:transparent;
+  color:#fff;
+  font:inherit;
+}
+@media(max-width:700px){
+  .gtx-dashboard-v1{padding:4px 6px 5px}
+  .gtx-dash-head{flex-basis:38px;min-height:38px}
+  .gtx-dash-control{min-height:31px;padding:6px 8px;font-size:10px}
+  .gtx-selected-asset{font-size:11px}
+  .gtx-dash-chart-meta{flex-basis:18px;min-height:18px}
+  .gtx-dash-bottom{flex-basis:49px;min-height:49px;padding-top:4px}
+  .gtx-value-box,.gtx-amount-box{height:31px}
+  .gtx-dash-menu{max-height:58vh}
+  .gtx-asset-categories{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
