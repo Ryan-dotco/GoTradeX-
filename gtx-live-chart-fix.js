@@ -1,1 +1,0 @@
-/* Chart engine intentionally removed. Waiting for clean rebuild. */
