@@ -2017,9 +2017,8 @@ async function loadLiveMarkets() {
   state.marketsUpdatedAt = new Date().toISOString();
   renderDashboardMarkets();
   renderMarketsList();
-  updateDashboardPrice();
-  updateSelectedMarketHeader();
-  updateChartMarketPortal();
+
+updateChartMarketPortal();
   updateSignalFromMarket();
 }
 
@@ -2615,15 +2614,11 @@ function updateSelectedMarketHeader() {
 async function selectMarketSymbol(symbol) {
   if (!symbol || !state.markets?.[symbol]) return;
   state.currentSymbol = symbol;
-  updateSelectedMarketHeader();
-  renderMarketsList();
+renderMarketsList();
   clearTimeout(state.liveMarketReconnectTimer);
   try { state.liveMarketSocket?.close(); } catch {}
   state.liveMarketSocket = null;
-  await createChart();
-  connectLiveMarketStream();
-  await updateSignalFromMarket();
-  showPage("dashboard");
+showPage("dashboard");
 }
 
 async function fetchSignalKlines(symbol) {
@@ -3176,7 +3171,7 @@ async function runAnalyzer() {
   if (button) { button.disabled = true; button.textContent = "Analyzing..."; }
   try {
     const signal = await generateLiveSignal(symbol);
-    window.GTXTradingCore?.recordSignal?.({ symbol, direction: signal.direction, confidence: signal.confidence, entry: signal.entry, target: signal.target, stop: signal.stop });
+
     if ($("analysisDirection")) $("analysisDirection").textContent = signal.direction;
     if ($("analysisConfidence")) $("analysisConfidence").textContent = signal.confidence + "%";
     if ($("analysisEMA")) $("analysisEMA").textContent = signal.ema;
@@ -3403,13 +3398,7 @@ async function submitManualTradeLegacy(direction) {
   };
 
   state.demo.openTrades.unshift(trade);
-  window.GTXTradingCore?.recordOrder?.({
-    source: "manual",
-    symbol,
-    direction,
-    status: "OPEN",
-    price
-  });
+
   updateDemoMetrics();
   saveDemoState();
   renderRobotStatus();
@@ -3718,8 +3707,7 @@ async function startRobot() {
     );
 
     startDemoScanner();
-    await updateSignalFromMarket();
-  } catch (error) {
+} catch (error) {
     state.robotRunning = false;
     renderRobotStatus();
     console.error("Start robot error:", error);
@@ -5436,9 +5424,7 @@ function handleLivePriceUpdate(price, timestamp = Date.now(), symbol = state.cur
   if (!Number.isFinite(value)) return;
   const market = state.markets?.[symbol] || {};
   state.markets[symbol] = {...market, symbol, price:value, timestamp};
-
-  updateSelectedMarketHeader();
-  updateLiveChartCandle(value, timestamp);
+updateLiveChartCandle(value, timestamp);
 
   if (!state.liveSignalTimer) {
     state.liveSignalTimer = setTimeout(async () => {
@@ -5496,12 +5482,7 @@ function connectBybitPublicStream() {
         handleLivePriceUpdate(candle.close, Number(candle.start), symbol);
         return;
       }
-
-      const liveCandle={time:Number(candle.start),open:Number(candle.open),high:Number(candle.high),low:Number(candle.low),close:Number(candle.close),volume:Number(candle.volume)||0,confirmed:Boolean(candle.confirm)};
-      const current=state.chart?.candles?.[state.chart.candles.length-1];
-      if(current&&Number(current.time)===liveCandle.time)Object.assign(current,liveCandle);
-      else if(current&&liveCandle.time>Number(current.time)){state.chart.candles.push(liveCandle);if(state.chart.candles.length>250)state.chart.candles.shift();}
-      handleLivePriceUpdate(liveCandle.close,Number(candle.timestamp||candle.start),symbol);
+      handleLivePriceUpdate(Number(candle.close), Number(candle.timestamp || candle.start), symbol);
     } catch (error) {
       console.warn("Bybit chart stream message error:", error);
     }
@@ -5727,15 +5708,7 @@ function connectLiveMarketStream() {
    REFRESH
    ========================================================= */
 
-async function refreshChartDataInPlace(){
-  try {
-    await createChart();
-    return Boolean(state.chart?.type === "bybit-candles" && state.chart?.chart);
-  } catch (error) {
-    console.warn("Live chart refresh unavailable:", error);
-    return false;
-  }
-}
+async function refreshChartDataInPlace(){ return false; }
 
 async function refreshApplication() {
 
@@ -5755,19 +5728,12 @@ async function refreshApplication() {
     if (state.bybit.connected) {
       await refreshBybitConnection();
     }
+if (!chartRefreshed && !state.chart?.candles?.length) {
 
-    await loadLiveMarkets();
-
-    const chartRefreshed = await refreshChartDataInPlace();
-    if (!chartRefreshed && !state.chart?.candles?.length) {
-      await createChart();
     }
 
     updatePortfolio();
-
-    await updateSignalFromMarket();
-
-    showToast(
+showToast(
       "Live data refreshed.",
       "success"
     );
@@ -5823,21 +5789,7 @@ async function initializeLiveApp() {
   subscribeToSupportChat();
 
   await loadDerivConnection({ silent: true });
-
-  await loadLiveMarkets();
-
-  await createChart();
-
-  updatePortfolio();
-
-  await updateSignalFromMarket();
-
-  connectLiveMarketStream();
-
-  updateSelectedMarketHeader();
-
-  startLiveRefresh();
-
+updatePortfolio();
 }
 
 
@@ -5851,14 +5803,8 @@ function startLiveRefresh() {
   state.liveRefreshTimer =
     setInterval(
       async () => {
-
-        await loadLiveMarkets();
-
-        updatePortfolio();
-
-        await updateSignalFromMarket();
-
-        if (
+updatePortfolio();
+if (
           state.currentPage ===
           "dashboard"
         ) {
@@ -6919,8 +6865,7 @@ function bindEvents() {
     // Start the new request immediately. The existing chart stays visible until
     // valid candles for the new timeframe arrive, so the UI never freezes blank.
     state.chartLoading = true;
-    updateSelectedMarketHeader();
-    createChart().finally(() => {
+createChart().finally(() => {
       if (state.currentTimeframe === button.dataset.timeframe) state.chartLoading = false;
     });
   }, true);
