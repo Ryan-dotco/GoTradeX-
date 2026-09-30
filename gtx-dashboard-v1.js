@@ -190,7 +190,7 @@
     const vals=source.map(c=>c.close), highs=source.map(c=>c.high), lows=source.map(c=>c.low);
     let hi=Math.max(...highs), lo=Math.min(...lows), range=Math.max(hi-lo,hi*.001);
     hi+=range*.08;lo-=range*.08;
-    const left=8,right=58,top=10,bottom=18,plotW=w-left-right,plotH=h-top-bottom;
+    const left=8,right=58,top=10,bottom=18,oscHeight=(state.indicators.has("rsi")||state.indicators.has("macd"))?58:0,plotW=w-left-right,plotH=h-top-bottom-oscHeight;
     const xAt=i=>left+(i+.5)*(plotW/source.length);
     const yAt=v=>top+(hi-v)/(hi-lo)*plotH;
     ctx.fillStyle="#07111f";ctx.fillRect(0,0,w,h);
@@ -247,6 +247,26 @@
       source.forEach(c=>{const vol=1+Math.abs(c.close-c.open)*1000;pv+=((c.high+c.low+c.close)/3)*vol;v+=vol;line.push(pv/v);});
       ctx.strokeStyle="#38bdf8";drawLine(ctx,line,yAt,xAt,1.1);
     }
+    if(state.indicators.has("rsi")){
+      const period=14, r=[];
+      for(let i=0;i<vals.length;i++){
+        if(i<period){r.push(null);continue;}
+        let gain=0,loss=0;
+        for(let j=i-period+1;j<=i;j++){const d=vals[j]-vals[j-1];gain+=Math.max(d,0);loss+=Math.max(-d,0);}
+        const rs=loss===0?100:gain/loss;
+        r.push(loss===0?100:100-(100/(1+rs)));
+      }
+      const oy=h-bottom-oscHeight, oh=oscHeight-5, ry=v=>oy+(100-v)/100*oh;
+      ctx.strokeStyle="rgba(145,164,189,.16)";ctx.beginPath();ctx.moveTo(left,ry(70));ctx.lineTo(w-right,ry(70));ctx.moveTo(left,ry(30));ctx.lineTo(w-right,ry(30));ctx.stroke();
+      ctx.strokeStyle="#a78bfa";drawLine(ctx,r,ry,xAt,1.2);ctx.fillStyle="#91a4bd";ctx.fillText("RSI",left+3,oy+10);
+    }
+    if(state.indicators.has("macd")){
+      const fast=ema(vals,12), slow=ema(vals,26), macd=vals.map((_,i)=>fast[i]-slow[i]), signal=ema(macd,9);
+      const all=macd.concat(signal), mx=Math.max(...all.map(Math.abs),1e-9), oy=h-bottom-oscHeight, oh=oscHeight-5, my=v=>oy+oh/2-(v/mx)*(oh/2);
+      ctx.strokeStyle="rgba(145,164,189,.16)";ctx.beginPath();ctx.moveTo(left,oy+oh/2);ctx.lineTo(w-right,oy+oh/2);ctx.stroke();
+      ctx.strokeStyle="#38bdf8";drawLine(ctx,macd,my,xAt,1.1);ctx.strokeStyle="#f59e0b";drawLine(ctx,signal,my,xAt,1.1);ctx.fillStyle="#91a4bd";ctx.fillText("MACD",left+3,oy+10);
+    }
+
     if(state.indicators.has("fibonacci")){
       const levels=[0,0.236,0.382,0.5,0.618,0.786,1];
       ctx.setLineDash([4,4]);ctx.strokeStyle="rgba(245,158,11,.55)";
