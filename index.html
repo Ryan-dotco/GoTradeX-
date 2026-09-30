@@ -158,22 +158,22 @@ function adminVisibleMembers(){
   });
 }
 function renderAdminReferralDetail(member,members,level){
-  const box=document.getElementById("adminReferralDetail");if(!member){box.innerHTML="<h4>Member Details</h4><div class="adminReferralEmpty">Select a member from the tree or table to view their details.</div>";return}
+  const box=document.getElementById("adminReferralDetail");if(!member){box.innerHTML='<h4>Member Details</h4><div class="adminReferralEmpty">Select a member from the tree or table to view their details.</div>';return}
   const by=adminBuildIndex(members),sponsor=adminSponsor(member),parent=by[sponsor],desc=adminDescendants(member,members,by),direct=members.filter((m,i)=>adminSponsor(m)===adminId(member,members.indexOf(member))||adminSponsor(m)===adminCode(member)).length;
   const values=[["Name",adminName(member)],["User ID",adminId(member,members.indexOf(member))],["Referral Code",adminCode(member)||"—"],["Sponsor",parent?adminName(parent):"Admin / Root"],["Referral Level","Level "+level],["Direct Referrals",String(direct)],["Total Descendants",String(desc.length)],["Status",adminStatus(member)],["Joined",adminJoined(member)?adminFormatDate(adminJoined(member)):"—"]];
-  box.innerHTML="<h4>Member Details</h4><div class="adminReferralDetailGrid"></div>";
+  box.innerHTML='<h4>Member Details</h4><div class="adminReferralDetailGrid"></div>';
   const grid=box.querySelector(".adminReferralDetailGrid");values.forEach(([a,b])=>{const d=document.createElement("div");d.className="adminReferralDetailItem";const s=document.createElement("span");s.textContent=a;const strong=document.createElement("strong");strong.textContent=b;d.append(s,strong);grid.appendChild(d)});
 }
 function renderAdminReferralLedger(){
   const rows=document.getElementById("adminReferralLedgerRows"),ledger=Array.isArray(adminRead(ADMIN_LEDGER_KEY,[]))?adminRead(ADMIN_LEDGER_KEY,[]):[];
   let total=0,pending=0,paid=0,reversed=0;ledger.forEach(x=>{const n=Number(x.commission_amount??x.commission??0)||0;total+=n;const st=String(x.status||"pending").toLowerCase();if(st==="paid")paid+=n;else if(st==="reversed")reversed+=n;else pending+=n});
   document.getElementById("adminReferralCommissionTotal").textContent=adminFormatMoney(total);document.getElementById("adminReferralCommissionPending").textContent=adminFormatMoney(pending);document.getElementById("adminReferralCommissionPaid").textContent=adminFormatMoney(paid);document.getElementById("adminReferralCommissionReversed").textContent=adminFormatMoney(reversed);
-  rows.innerHTML="";if(!ledger.length){rows.innerHTML="<tr><td colspan="8">No commission ledger records connected yet.</td></tr>";return}
+  rows.innerHTML="";if(!ledger.length){rows.innerHTML='<tr><td colspan="8">No commission ledger records connected yet.</td></tr>';return}
   ledger.forEach(x=>{const tr=document.createElement("tr"),vals=[x.date||x.created_at||"—",x.user_name||x.userName||x.user_id||"—","Level "+(x.level??"—"),x.trade_id||x.tradeId||"—",adminFormatMoney(x.gross_profit??x.grossProfit??x.basis_amount??0),((Number(x.rate??10)||10).toFixed(2))+"%",adminFormatMoney(x.commission_amount??x.commission??0),x.status||"Pending"];vals.forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});rows.appendChild(tr)})
 }
 function renderAdminReferralAudit(){
   const box=document.getElementById("adminReferralAudit"),events=Array.isArray(adminRead(ADMIN_AUDIT_KEY,[]))?adminRead(ADMIN_AUDIT_KEY,[]):[];box.innerHTML="";
-  if(!events.length){box.innerHTML="<div class="adminReferralEmpty">No referral audit activity yet.</div>";return}
+  if(!events.length){box.innerHTML='<div class="adminReferralEmpty">No referral audit activity yet.</div>';return}
   events.slice(-10).reverse().forEach(e=>{const d=document.createElement("div");d.className="adminReferralAuditItem";const s=document.createElement("strong");s.textContent=e.action||"Referral action";const sp=document.createElement("span");sp.textContent=(e.date?adminFormatDate(e.date)+" • ":"")+String(e.detail||"");d.append(s,sp);box.appendChild(d)})
 }
 function adminAudit(action,detail){const a=adminRead(ADMIN_AUDIT_KEY,[]);a.push({action,detail,date:new Date().toISOString()});adminWrite(ADMIN_AUDIT_KEY,a.slice(-100));renderAdminReferralAudit()}
