@@ -3766,3 +3766,15 @@ select {
 .gtx-dash-bottom{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:7px 8px;background:#07111f}.gtx-dash-field label{display:block;margin-bottom:3px;color:#91a4bd;font-size:9px;font-weight:800}.gtx-value-box,.gtx-amount-box{min-height:36px;display:flex;align-items:center;padding:0 9px;border:0;border-radius:6px;background:#0b1729;color:#fff}.gtx-amount-box input{width:100%;border:0;outline:0;background:transparent;color:#fff;font-weight:800}.gtx-dash-trade-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 8px 8px;background:#07111f}.gtx-trade-button{min-height:52px;border-radius:7px;border:0;font-weight:900;font-size:16px}.gtx-sell{background:#ef4444;color:#fff}.gtx-buy{background:#22c55e;color:#07111f}
 .gtx-wallet-modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.65)}.gtx-wallet-card{width:min(380px,100%);padding:16px;border-radius:10px;background:#0b1729;box-shadow:0 20px 50px rgba(0,0,0,.5)}.gtx-wallet-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.gtx-wallet-card-head button{border:0;background:transparent;color:#fff;font-size:24px}.gtx-wallet-card label{display:block;margin:8px 0 4px;font-size:10px;color:#91a4bd}.gtx-wallet-card input{width:100%;box-sizing:border-box;padding:10px;border:0;border-radius:6px;background:#13233a;color:#fff}.gtx-wallet-card button:not(.gtx-wallet-card-head button){margin-top:10px;width:100%;padding:10px;border:0;border-radius:6px;background:#2563eb;color:#fff;font-weight:800}
 @media(max-width:700px){.gtx-dash-chart{height:44vh;min-height:300px}.gtx-dash-profile{min-height:48px}.gtx-dash-head{min-height:38px}.gtx-dash-bottom{padding-top:6px}.gtx-dash-trade-actions{padding-bottom:6px}}
+
+
+/* GO TRADEX X — FORCE FRESH DASHBOARD VISIBILITY */
+#page-dashboard.gtx-trading-dashboard{width:100%!important;box-sizing:border-box!important;}
+#page-dashboard.gtx-trading-dashboard:not(.active-page){display:none!important;}
+#page-dashboard.gtx-trading-dashboard.active-page{display:flex!important;flex-direction:column!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:1!important;}
+#page-dashboard.gtx-trading-dashboard .gtx-dash-profile,
+#page-dashboard.gtx-trading-dashboard .gtx-dash-head,
+#page-dashboard.gtx-trading-dashboard .gtx-dash-chart-meta,
+#page-dashboard.gtx-trading-dashboard .gtx-dash-chart,
+#page-dashboard.gtx-trading-dashboard .gtx-dash-bottom,
+#page-dashboard.gtx-trading-dashboard .gtx-dash-trade-actions{visibility:visible!important;opacity:1!important;}
