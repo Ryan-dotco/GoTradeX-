@@ -4026,3 +4026,13 @@ select {
   .gtx-dash-bottom{flex-basis:54px;min-height:54px}
   .gtx-dash-trade-actions{flex-basis:68px;min-height:68px}
 }
+
+
+/* Dashboard v1.4 — strict bottom trade row */
+.gtx-dashboard-v1{display:flex!important;flex-direction:column!important;min-height:0!important;height:100%!important}
+.gtx-dash-profile{flex:0 0 56px!important}
+.gtx-dash-topbar{flex:0 0 auto!important}
+.gtx-dash-chart-meta{flex:0 0 20px!important}
+.gtx-dash-chart{flex:1 1 auto!important;min-height:0!important;order:10!important}
+.gtx-dash-bottom{flex:0 0 54px!important;min-height:54px!important;order:20!important}
+.gtx-dash-trade-actions{flex:0 0 68px!important;min-height:68px!important;order:30!important;margin-top:auto!important;padding-bottom:2px!important}
