@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071a33">
+<title>GoTradeX</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#061426;color:#fff;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}body{min-height:100dvh}button,input{font:inherit}button{border:0;cursor:pointer}.app{min-height:100dvh;display:flex;flex-direction:column;background:#061426}.top{padding:10px 12px 8px;display:flex;align-items:center;justify-content:space-between;background:#081b33}.identity{display:flex;align-items:center;gap:10px}.logo{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#123e78;border:2px solid #2d78d4;font-weight:900;letter-spacing:.5px}.person{display:flex;flex-direction:column}.person strong{font-size:15px}.person span{font-size:11px;color:#8fa8c4;margin-top:2px}.wallet{width:48px;height:44px;border-radius:12px;background:#12315a;color:#fff;display:grid;place-items:center;font-size:22px}.wallet:active,.time:active,.amount:active,.trade:active{transform:scale(.98)}.pairbar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#091f3a;border-top:1px solid #123050;border-bottom:1px solid #123050}.pair{font-weight:800}.pair small{display:block;color:#89a1bd;font-size:10px;margin-top:2px}.asset{background:#102c4e;color:#fff;border-radius:9px;padding:8px 10px}.chart{height:48dvh;min-height:320px;position:relative;background:#071827;overflow:hidden}.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(120,160,200,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(120,160,200,.08) 1px,transparent 1px);background-size:48px 48px}.liveNotice{position:absolute;left:10px;top:10px;padding:6px 8px;border-radius:7px;background:rgba(0,0,0,.45);color:#9eb5ce;font-size:10px}.candles{position:absolute;inset:24px 8px 22px;display:flex;align-items:center;justify-content:center;color:#66809d;font-size:12px;text-align:center}.bottom{background:#081b31;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid #143453}.amountRow{display:flex;justify-content:flex-end;margin-bottom:10px}.amount{width:150px;background:#102945;border:1px solid #23466d;border-radius:10px;padding:10px;color:#fff;text-align:right}.amount label{display:block;text-align:left;font-size:10px;color:#8da6c0;margin-bottom:4px}.amountValue{font-weight:800;font-size:18px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}.sellWrap,.buyWrap{display:flex;flex-direction:column;gap:6px}.time{align-self:flex-start;background:#102945;color:#dbe9f7;border-radius:8px;padding:7px 9px;font-size:12px}.trade{height:56px;border-radius:12px;color:#fff;font-weight:900;font-size:18px}.sell{background:#a93245}.buy{background:#176fca}.drawer{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;z-index:50}.drawer.open{display:block}.panel{position:absolute;right:0;top:0;height:100%;width:min(390px,92vw);background:#081b31;padding:18px;box-shadow:-10px 0 30px rgba(0,0,0,.4)}.panel h2{margin:0 0 18px}.close{float:right;background:#163554;color:#fff;border-radius:8px;padding:7px 10px}.option{width:100%;display:flex;justify-content:space-between;background:#102945;color:#fff;padding:13px;margin:7px 0;border-radius:9px}.keypad{position:fixed;left:0;right:0;bottom:0;background:#081b31;padding:10px;display:none;z-index:60}.keypad.open{display:block}.keyGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.key{height:52px;border-radius:9px;background:#123252;color:#fff;font-size:20px}.key.ok{background:#176fca;font-weight:800}.key.clear{background:#6d2938}.timePanel{max-height:75dvh;overflow:auto}.status{min-height:16px;text-align:center;color:#8fa8c4;font-size:11px;margin-top:7px}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div class="identity">
+    <div class="logo">GTX</div>
+    <div class="person"><strong id="profileName">Trader</strong><span id="profileSub">Trading account</span></div>
+  </div>
+  <button class="wallet" id="walletBtn" aria-label="Wallet">▱</button>
+</header>
+<section class="pairbar">
+  <div class="pair"><span id="pairName">EUR/USD</span><small id="pairStatus">Live market connection required</small></div>
+  <button class="asset" id="assetBtn">Assets ▾</button>
+</section>
+<section class="chart">
+  <div class="grid"></div>
+  <div class="liveNotice" id="marketStatus">LIVE DATA: NOT CONNECTED</div>
+  <div class="candles" id="candles">Live candlesticks will appear here when a verified market-data feed is connected.</div>
+</section>
+<section class="bottom">
+  <div class="amountRow"><button class="amount" id="amountBtn"><label>AMOUNT</label><span class="amountValue">$<span id="amountValue">10</span></span></button></div>
+  <div class="actions">
+    <div class="sellWrap"><button class="time" id="timeBtn">5 Seconds ▾</button><button class="trade sell" id="sell">SELL</button></div>
+    <div class="buyWrap"><div style="height:31px"></div><button class="trade buy" id="buy">BUY</button></div>
+  </div>
+  <div class="status" id="status"></div>
+</section>
+</div>
+
+<div class="drawer" id="walletDrawer"><div class="panel"><button class="close" data-close="walletDrawer">Close</button><h2>Wallet</h2><button class="option" id="depositBtn">Deposit <span>›</span></button><button class="option" id="withdrawBtn">Withdrawal <span>›</span></button><div id="walletMessage" class="status"></div></div></div>
+<div class="drawer" id="assetDrawer"><div class="panel"><button class="close" data-close="assetDrawer">Close</button><h2>Assets</h2><button class="option" data-pair="EUR/USD">EUR / USD</button><button class="option" data-pair="GBP/USD">GBP / USD</button><button class="option" data-pair="USD/ZAR">USD / ZAR</button><button class="option" data-pair="USD/JPY">USD / JPY</button><button class="option" data-pair="XAU/USD">XAU / USD</button><button class="option" data-pair="BTC/USD">BTC / USD</button></div></div>
+<div class="drawer" id="timeDrawer"><div class="panel timePanel"><button class="close" data-close="timeDrawer">Close</button><h2>Time Frame</h2><div id="times"></div></div></div>
+<div class="keypad" id="keypad"><div class="keyGrid"><button class="key" data-key="1">1</button><button class="key" data-key="2">2</button><button class="key" data-key="3">3</button><button class="key" data-key="4">4</button><button class="key" data-key="5">5</button><button class="key" data-key="6">6</button><button class="key" data-key="7">7</button><button class="key" data-key="8">8</button><button class="key" data-key="9">9</button><button class="key clear" data-key="clear">C</button><button class="key" data-key="0">0</button><button class="key ok" data-key="ok">OK</button></div></div>
+
+<script>
+const times=["5 Seconds","15 Seconds","30 Seconds","1 Minute","2 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day","1 Week","1 Month","3 Months","6 Months","1 Year"];
+const timesEl=document.getElementById("times");
+times.forEach(t=>{const b=document.createElement("button");b.className="option";b.textContent=t;b.onclick=()=>{document.getElementById("timeBtn").textContent=t+" ▾";document.getElementById("timeDrawer").classList.remove("open")};timesEl.appendChild(b)});
+const open=id=>document.getElementById(id).classList.add("open");
+document.getElementById("walletBtn").onclick=()=>open("walletDrawer");
+document.getElementById("assetBtn").onclick=()=>open("assetDrawer");
+document.getElementById("timeBtn").onclick=()=>open("timeDrawer");
+document.getElementById("amountBtn").onclick=()=>open("keypad");
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>document.getElementById(b.dataset.close).classList.remove("open"));
+document.querySelectorAll("[data-pair]").forEach(b=>b.onclick=()=>{document.getElementById("pairName").textContent=b.dataset.pair;document.getElementById("assetDrawer").classList.remove("open")});
+let amount="10";
+document.querySelectorAll("[data-key]").forEach(b=>b.onclick=()=>{const k=b.dataset.key;if(k==="ok"){document.getElementById("keypad").classList.remove("open");return}if(k==="clear"){amount="";}else if(amount==="0"){amount=k}else if(amount.length<8){amount+=k}document.getElementById("amountValue").textContent=amount||"0"});
+document.getElementById("depositBtn").onclick=()=>document.getElementById("walletMessage").textContent="Deposit flow ready for a verified payment provider connection.";
+document.getElementById("withdrawBtn").onclick=()=>document.getElementById("walletMessage").textContent="Withdrawal flow ready for a verified payment provider connection.";
+document.getElementById("sell").onclick=()=>document.getElementById("status").textContent="SELL is not sent anywhere until a verified live trading connection is configured.";
+document.getElementById("buy").onclick=()=>document.getElementById("status").textContent="BUY is not sent anywhere until a verified live trading connection is configured.";
+</script>
+</body>
+</html>
