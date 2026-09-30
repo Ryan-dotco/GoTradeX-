@@ -3948,3 +3948,26 @@ select {
   .gtx-dash-menu{max-height:58vh}
   .gtx-asset-categories{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+
+/* Dashboard v1.1 — trader profile + large chart/trading area */
+.gtx-profile-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#1d4f8f;color:#fff;font-weight:900;font-size:12px;flex:0 0 auto}
+.gtx-dash-profile{flex:0 0 48px;min-height:48px;display:flex;align-items:center;gap:8px;background:#0b1729;padding:0 2px}
+.gtx-profile-copy{display:flex;flex-direction:column;min-width:0}
+.gtx-profile-copy strong{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gtx-profile-copy span{font-size:9px;color:#91a4bd}
+.gtx-profile-balance{margin-left:auto;text-align:right;display:flex;flex-direction:column}
+.gtx-profile-balance small{font-size:8px;color:#91a4bd}
+.gtx-profile-balance strong{font-size:11px}
+.gtx-dash-chart{flex:1 1 50%;min-height:0}
+.gtx-dash-trade-actions{flex:0 0 64px;min-height:64px;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:7px 0;background:#0b1729}
+.gtx-trade-button{border:0!important;border-radius:8px;color:#fff;font-size:14px;font-weight:1000;letter-spacing:.5px;cursor:pointer}
+.gtx-sell{background:#b91c1c}
+.gtx-buy{background:#15803d}
+.gtx-trade-button:active{transform:scale(.98)}
+@media(max-width:700px){
+  .gtx-dash-profile{flex-basis:46px;min-height:46px}
+  .gtx-profile-avatar{width:31px;height:31px}
+  .gtx-dash-chart{flex-basis:50%}
+  .gtx-dash-trade-actions{flex-basis:62px;min-height:62px}
+}
