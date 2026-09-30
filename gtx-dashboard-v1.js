@@ -278,9 +278,53 @@
     $("gtxChartModeLabel").textContent=state.chartType==="heikin"?"Heikin-Ashi":state.chartType.charAt(0).toUpperCase()+state.chartType.slice(1);
   }
 
+  function openWalletModal(mode){
+    const modal=$("gtxWalletModal"),dp=$("gtxDepositPanel"),wp=$("gtxWithdrawPanel"),title=$("gtxWalletModalTitle");
+    if(!modal)return;
+    const deposit=mode==="deposit";
+    modal.hidden=false;
+    if(title)title.textContent=deposit?"Deposit":"Withdraw";
+    if(dp)dp.hidden=!deposit;
+    if(wp)wp.hidden=deposit;
+  }
+  function closeWalletModal(){if($("gtxWalletModal"))$("gtxWalletModal").hidden=true;}
+  function showWalletMessage(message){if(typeof window.showToast==="function")window.showToast(message,"error");}
+
   function bind() {
     if(page()?.dataset.dashboardV1==="true")return;
     page().dataset.dashboardV1="true";
+    $("gtxWalletButton")?.addEventListener("click",(e)=>{
+      e.stopPropagation();
+      const m=$("gtxWalletMenu");
+      if(m)m.hidden=!m.hidden;
+    });
+    $("gtxDepositButton")?.addEventListener("click",()=>{
+      $("gtxWalletMenu").hidden=true;
+      openWalletModal("deposit");
+    });
+    $("gtxWithdrawButton")?.addEventListener("click",()=>{
+      $("gtxWalletMenu").hidden=true;
+      openWalletModal("withdraw");
+    });
+    $("gtxWalletClose")?.addEventListener("click",closeWalletModal);
+    $("gtxWalletModal")?.addEventListener("click",e=>{if(e.target.id==="gtxWalletModal")closeWalletModal();});
+    $("gtxQuickDepositSubmit")?.addEventListener("click",async()=>{
+      const amount=$("gtxQuickDepositAmount")?.value;
+      const ref=$("gtxQuickDepositReference")?.value||"";
+      if($("depositAmount"))$("depositAmount").value=amount;
+      if($("depositPaymentReference"))$("depositPaymentReference").value=ref;
+      if(typeof window.requestDeposit==="function") await window.requestDeposit();
+      else showWalletMessage("Deposit service is not available yet.");
+    });
+    $("gtxQuickWithdrawSubmit")?.addEventListener("click",async()=>{
+      const amount=$("gtxQuickWithdrawAmount")?.value;
+      const wallet=$("gtxQuickWithdrawWallet")?.value||"";
+      if($("withdrawalAmount"))$("withdrawalAmount").value=amount;
+      if($("withdrawalWalletAddress"))$("withdrawalWalletAddress").value=wallet;
+      if(typeof window.requestWithdrawal==="function") await window.requestWithdrawal();
+      else showWalletMessage("Withdrawal service is not available yet.");
+    });
+
     $("gtxAssetButton")?.addEventListener("click",()=>toggleMenu("gtxAssetMenu"));
     $("gtxChartButton")?.addEventListener("click",()=>toggleMenu("gtxChartMenu"));
     $("gtxTimeframeButton")?.addEventListener("click",()=>toggleMenu("gtxTimeframeMenu"));
