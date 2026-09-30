@@ -3778,3 +3778,15 @@ select {
 #page-dashboard.gtx-trading-dashboard .gtx-dash-chart,
 #page-dashboard.gtx-trading-dashboard .gtx-dash-bottom,
 #page-dashboard.gtx-trading-dashboard .gtx-dash-trade-actions{visibility:visible!important;opacity:1!important;}
+
+
+/* FINAL DASHBOARD VISIBILITY FIX — wrapper is nested inside #page-dashboard */
+#page-dashboard.active-page{display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;box-sizing:border-box!important;}
+#page-dashboard.active-page>.gtx-trading-dashboard{display:flex!important;visibility:visible!important;opacity:1!important;flex-direction:column!important;width:100%!important;min-height:calc(100vh - 90px)!important;box-sizing:border-box!important;overflow:visible!important;}
+#page-dashboard.active-page .gtx-dash-profile{display:flex!important;visibility:visible!important;min-height:52px!important;}
+#page-dashboard.active-page .gtx-dash-head{display:flex!important;visibility:visible!important;min-height:42px!important;position:relative!important;}
+#page-dashboard.active-page .gtx-dash-chart-meta{display:flex!important;visibility:visible!important;min-height:24px!important;}
+#page-dashboard.active-page .gtx-dash-chart{display:block!important;visibility:visible!important;width:100%!important;height:44vh!important;min-height:300px!important;flex:none!important;background:#07111f!important;overflow:hidden!important;}
+#page-dashboard.active-page #gtxDashboardCanvas{display:block!important;width:100%!important;height:100%!important;visibility:visible!important;opacity:1!important;}
+#page-dashboard.active-page .gtx-dash-bottom{display:grid!important;visibility:visible!important;min-height:62px!important;}
+#page-dashboard.active-page .gtx-dash-trade-actions{display:grid!important;visibility:visible!important;min-height:60px!important;}
