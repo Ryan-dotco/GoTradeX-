@@ -508,7 +508,74 @@
            DASHBOARD
            ================================================= -->
 
-      <section id="page-dashboard" class="app-page"></section>
+      <section id="page-dashboard" class="app-page active-page">
+  <div class="gtx-trading-dashboard">
+    <div class="gtx-dash-profile">
+      <div class="gtx-profile-copy">
+        <strong id="gtxTraderName">Trader</strong>
+        <span id="gtxTraderStatus">Trading account</span>
+      </div>
+      <button id="gtxWalletButton" class="gtx-wallet-button" type="button" aria-label="Wallet">▣ Wallet</button>
+      <div class="gtx-profile-avatar">T</div>
+      <div id="gtxWalletMenu" class="gtx-wallet-menu" hidden>
+        <strong>Wallet</strong>
+        <button id="gtxDepositButton" type="button">＋ Deposit</button>
+        <button id="gtxWithdrawButton" type="button">↗ Withdrawal</button>
+      </div>
+    </div>
+
+    <div class="gtx-dash-head">
+      <div class="gtx-dash-menu-wrap">
+        <button id="gtxAssetButton" class="gtx-dash-control" type="button">Assets ▾</button>
+        <div id="gtxAssetMenu" class="gtx-dash-menu" hidden>
+          <strong>Asset Classes</strong>
+          <div class="gtx-asset-categories">
+            <button data-asset-category="Forex" type="button">Forex</button>
+            <button data-asset-category="Indices" type="button">Indices</button>
+            <button data-asset-category="Commodities" type="button">Commodities</button>
+            <button data-asset-category="Metals" type="button">Metals</button>
+            <button data-asset-category="Crypto" type="button">Crypto</button>
+          </div>
+          <div id="gtxAssetList" class="gtx-asset-list"></div>
+        </div>
+      </div>
+      <strong id="gtxSelectedAsset">Bitcoin / USD</strong>
+      <button id="gtxTimeframeButton" class="gtx-dash-control" type="button">1 Minute ▾</button>
+      <div id="gtxTimeframeMenu" class="gtx-dash-menu gtx-timeframe-menu" hidden>
+        <strong>Time Frame</strong>
+        <div class="gtx-timeframe-grid">
+          <button data-timeframe="5s" type="button">5 Seconds</button><button data-timeframe="15s" type="button">15 Seconds</button><button data-timeframe="30s" type="button">30 Seconds</button>
+          <button data-timeframe="1m" type="button">1 Minute</button><button data-timeframe="5m" type="button">5 Minutes</button><button data-timeframe="15m" type="button">15 Minutes</button>
+          <button data-timeframe="30m" type="button">30 Minutes</button><button data-timeframe="1H" type="button">1 Hour</button><button data-timeframe="4H" type="button">4 Hours</button>
+          <button data-timeframe="12H" type="button">12 Hours</button><button data-timeframe="1D" type="button">1 Day</button><button data-timeframe="1W" type="button">1 Week</button>
+          <button data-timeframe="1M" type="button">1 Month</button><button data-timeframe="6M" type="button">6 Months</button><button data-timeframe="1Y" type="button">1 Year</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="gtx-dash-chart-meta">
+      <span id="gtxPriceLabel">Bitcoin / USD</span><span>Candles</span><span id="gtxFeedLabel">Demo market feed</span>
+    </div>
+    <div class="gtx-dash-chart"><canvas id="gtxDashboardCanvas"></canvas></div>
+
+    <div id="gtxWalletModal" class="gtx-wallet-modal" hidden>
+      <div class="gtx-wallet-card">
+        <div class="gtx-wallet-card-head"><strong id="gtxWalletModalTitle">Deposit</strong><button id="gtxWalletClose" type="button">×</button></div>
+        <div id="gtxDepositPanel"><label>Deposit amount</label><input id="gtxQuickDepositAmount" type="number" min="10" step=".01" placeholder="Minimum $10"><button id="gtxQuickDepositSubmit" type="button">Submit Deposit</button></div>
+        <div id="gtxWithdrawPanel" hidden><label>Withdrawal amount</label><input id="gtxQuickWithdrawAmount" type="number" min="10" step=".01" placeholder="Minimum $10"><label>Receiving wallet</label><input id="gtxQuickWithdrawWallet" type="text" placeholder="Wallet address"><button id="gtxQuickWithdrawSubmit" type="button">Request Withdrawal</button></div>
+      </div>
+    </div>
+
+    <div class="gtx-dash-bottom">
+      <div class="gtx-dash-field"><label>Time</label><div id="gtxDurationDisplay" class="gtx-value-box">1 Minute</div></div>
+      <div class="gtx-dash-field"><label>Amount</label><div class="gtx-amount-box"><span>$</span><input id="gtxTradeAmount" type="number" min=".01" step=".01" value="10.00"></div></div>
+    </div>
+    <div class="gtx-dash-trade-actions">
+      <button id="gtxSellButton" class="gtx-trade-button gtx-sell" type="button">SELL</button>
+      <button id="gtxBuyButton" class="gtx-trade-button gtx-buy" type="button">BUY</button>
+    </div>
+  </div>
+</section>
 
       <!-- =================================================
            MARKETS
@@ -1316,6 +1383,7 @@
 
   <!-- JavaScript MUST load last -->
   <script src="script.js?v=3.1.0"></script>
+  <script src="dashboard.js?v=1.0.0"></script>
   <script src="robot-history.js?v=1.0.0"></script>
 </body>
 </html>
