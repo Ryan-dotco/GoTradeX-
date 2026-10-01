@@ -92,7 +92,8 @@ function normalize(rows){return(Array.isArray(rows)?rows:[]).map(k=>({time:Math.
 function dedupe(rows){const m=new Map();rows.forEach(x=>m.set(x.time,x));return[...m.values()].sort((a,b)=>a.time-b.time)}
 async function fetchDerivCandles(){
  const sym=derivSymbol();if(!sym)throw Error("This asset is not mapped to a Deriv market. Choose a Deriv-supported forex or synthetic symbol.");
- const url=isRealAccount()?await derivAuthUrl():DERIV_WS;
+ let url=DERIV_WS;
+ if(isRealAccount()){try{url=await derivAuthUrl()}catch(_){url=DERIV_WS}}
  const w=new WebSocket(url);
  const rows=await new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{try{w.close()}catch(_){}reject(Error("Deriv history timeout"))},10000);
@@ -148,7 +149,11 @@ function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectT
 async function connectSocket(){
  closeSocket();const broker=chooseBroker(),sym=broker==="DERIV"?derivSymbol():pairSymbol();
  try{
-  const url=broker==="DERIV"?(isRealAccount()?await derivAuthUrl():DERIV_WS):BYBIT_WS;
+  let url=BYBIT_WS;
+  if(broker==="DERIV"){
+   url=DERIV_WS;
+   if(isRealAccount()){try{url=await derivAuthUrl()}catch(_){url=DERIV_WS}}
+  }
   ws=new WebSocket(url);
   ws.onopen=()=>{
    if(broker==="DERIV")ws.send(JSON.stringify({ticks:sym,subscribe:1,req_id:102}));
@@ -220,15 +225,21 @@ function updateExpiryDisplay(){
 function bindExpiry(){clearInterval(expiryTimer);expiryTimer=setInterval(updateExpiryDisplay,250)}
 
 async function refresh(){
- await loadCandles();
- if(!chart)makeChart();else{series?.setData(candles);buildIndicators();chart.timeScale().fitContent();updateInfo()}
- connectSocket().catch(()=>{});
+ try{
+  await loadCandles();
+  if(!chart)makeChart();else{series?.setData(candles);buildIndicators();chart.timeScale().fitContent();updateInfo()}
+  connectSocket().catch(()=>{});
+ }catch(e){
+  if(!chart&&window.LightweightCharts){try{makeChart()}catch(_){}}
+  throw e;
+ }
 }
 
 function showLiveError(e){
  const box=$("gtxKenglyError"),src=$("gtxKenglySource");
+ const msg=String(e?.message||"Market data is not available");
  if(src)src.textContent="LIVE FEED ERROR • Retrying…";
- if(box){box.hidden=false;box.innerHTML="LIVE CANDLE FEED UNAVAILABLE<br><span style='font-weight:500;color:#7891aa'>Waiting for Bybit market data…</span>"}
+ if(box){box.hidden=false;box.innerHTML="LIVE CANDLE FEED UNAVAILABLE<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>Retrying live market data…</span>"}
 }
 async function retryLive(){if(!started)return;try{await loadLibrary();await refresh()}catch(e){showLiveError(e);reconnectTimer=setTimeout(retryLive,3000)}}
 
