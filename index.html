@@ -18,13 +18,44 @@
 #amountPortal{min-width:0;background:#176fca;border:1px solid #176fca;border-radius:9px;padding:0;display:flex;align-items:center;justify-content:center;text-align:center}
 #amountPortal label{display:none}
 #amountBtn{width:100%;height:100%;margin:0;padding:8px 10px;background:transparent;color:#fff;border:0;font-weight:800;font-size:16px;line-height:1.2;display:flex;align-items:center;justify-content:center}
+
+/* KENKLEY CHART ENGINE ONLY */
+.chartEngineBar{position:absolute;left:8px;right:8px;top:104px;height:28px;display:flex;align-items:center;gap:4px;overflow-x:auto;z-index:12;scrollbar-width:none;pointer-events:auto}
+.chartEngineBar::-webkit-scrollbar{display:none}
+.chartEngineBtn{flex:0 0 auto;height:26px;padding:0 8px;border-radius:6px;background:#102945;border:1px solid #23466d;color:#dbe9f7;font-size:8px;font-weight:900;letter-spacing:.04em}
+.chartEngineBtn.active{background:#176fca;border-color:#176fca;color:#fff}
+.chartEngineStatus{flex:0 0 auto;color:#8fa8c4;font-size:8px;font-weight:800;margin-left:2px;white-space:nowrap}
+.chartEngineMenuOpen .chartEngineStatus{color:#fff}
+.chart{touch-action:pan-y}
+.candles{inset:136px 8px 22px}
+.chartAnnotationSvg{top:136px;bottom:22px;z-index:13}
+.chartAnnotationSvg.drawActive{pointer-events:auto;cursor:crosshair}
+.chartOscDivider{stroke:rgba(219,233,247,.28);stroke-width:1}
+.chartOscZero{stroke:rgba(219,233,247,.22);stroke-width:1;stroke-dasharray:3 3}
+.chartIndicatorLine{fill:none;stroke-width:1.4}
+.chartIndicatorBand{fill:none;stroke-width:1}
+.chartIndicatorFill{fill:rgba(45,120,212,.08);stroke:none}
+.chartDrawing{fill:none;stroke:#ffd166;stroke-width:1.5}
+.chartDrawingFib{stroke:#ffd166;stroke-width:1}
+.chartDrawingText{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:8px;font-weight:800;fill:#ffd166;paint-order:stroke;stroke:#061426;stroke-width:2px}
+.chartOscText{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:8px;font-weight:800;fill:#dbe9f7}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top"><div class="identity"><button class="menuBtn" id="menuBtn" aria-label="Menu" type="button"><span></span></button><div class="logo">GTX</div><div class="person"><strong id="profileName">Trader</strong><span id="profileSub">Trading account</span></div></div><button class="wallet" id="walletBtn" aria-label="Wallet"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 8.5A3.5 3.5 0 0 1 8.5 5H25a2 2 0 0 1 2 2v4H10a4 4 0 0 0 0 8h17v6a2 2 0 0 1-2 2H8.5A3.5 3.5 0 0 1 5 23.5v-15Z" fill="currentColor"/><path d="M10 12h17v7H10a3.5 3.5 0 0 1 0-7Z" fill="#12315a"/><circle cx="23" cy="15.5" r="1.5" fill="currentColor"/></svg></button></header>
 <section class="pairbar"><button class="asset" id="marketMoreBtn" type="button" aria-label="More">⋯</button><button class="accountBalanceBar" id="accountBalanceBar" type="button" aria-label="Account balance"><span class="balancePortalAmount" id="activeAccountBalance">$0.00</span><span class="balancePortalType" id="activeAccountType">REAL</span></button></section>
-<section class="chart"><div class="grid"></div><div class="liveNotice" id="marketStatus">LIVE DATA: NOT CONNECTED<span class="marketDateTime" id="marketDateTime"></span></div><div class="marketDashboardInfo"><div class="marketQuote"><span class="marketQuoteLabel" id="dashboardPairLabel">EUR/USD</span><span class="tradeClock" id="tradeCountdown">05:00</span></div><div class="marketSignal"><span>AI SIGNAL</span><strong id="dashboardSignal">WAITING</strong><small id="dashboardConfidence">—%</small><div class="aiSignalLevels"><span>ENTRY <b id="dashboardEntry">—</b></span><span>TARGET <b id="dashboardTarget">—</b></span><span>STOP <b id="dashboardStop">—</b></span></div></div><div class="candleExpiryWrap"><button class="marketCandleInfo candleExpiry" id="candleExpiryToggle" type="button" aria-expanded="false"><strong>CANDLE EXPIRY</strong><span id="dashboardCountdown">00:05</span><span id="candleExpiryChevron">›</span></button><div class="candleExpiryMenu" id="candleExpiryMenu"><div class="candleExpiryMenuTitle">Candle Expiration</div><div class="candleExpiryOptions"><button type="button" class="candleExpiryOption active" data-candle-time="5 Seconds">5 Seconds</button><button type="button" class="candleExpiryOption" data-candle-time="15 Seconds">15 Seconds</button><button type="button" class="candleExpiryOption" data-candle-time="30 Seconds">30 Seconds</button><button type="button" class="candleExpiryOption" data-candle-time="1 Minute">1 Minute</button><button type="button" class="candleExpiryOption" data-candle-time="2 Minutes">2 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="5 Minutes">5 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="15 Minutes">15 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="30 Minutes">30 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="1 Hour">1 Hour</button><button type="button" class="candleExpiryOption" data-candle-time="4 Hours">4 Hours</button><button type="button" class="candleExpiryOption" data-candle-time="1 Day">1 Day</button><button type="button" class="candleExpiryOption" data-candle-time="1 Week">1 Week</button><button type="button" class="candleExpiryOption" data-candle-time="1 Month">1 Month</button><button type="button" class="candleExpiryOption" data-candle-time="3 Months">3 Months</button><button type="button" class="candleExpiryOption" data-candle-time="6 Months">6 Months</button><button type="button" class="candleExpiryOption" data-candle-time="1 Year">1 Year</button></div></div></div></div><div class="candles" id="candles"><canvas id="candleCanvas" aria-label="Live candlestick chart"></canvas></div><svg class="chartAnnotationSvg" id="chartAnnotationSvg" aria-hidden="true" focusable="false"></svg><div class="chartTimeline" aria-hidden="true"><span id="chartTimeline0">—</span><span id="chartTimeline1">—</span><span id="chartTimeline2">—</span><span id="chartTimeline3">—</span><span id="chartTimeline4">—</span><span id="chartTimeline5">—</span></div></section>
+<section class="chart"><div class="grid"></div><div class="liveNotice" id="marketStatus">LIVE DATA: NOT CONNECTED<span class="marketDateTime" id="marketDateTime"></span></div><div class="marketDashboardInfo"><div class="marketQuote"><span class="marketQuoteLabel" id="dashboardPairLabel">EUR/USD</span><span class="tradeClock" id="tradeCountdown">05:00</span></div><div class="marketSignal"><span>AI SIGNAL</span><strong id="dashboardSignal">WAITING</strong><small id="dashboardConfidence">—%</small><div class="aiSignalLevels"><span>ENTRY <b id="dashboardEntry">—</b></span><span>TARGET <b id="dashboardTarget">—</b></span><span>STOP <b id="dashboardStop">—</b></span></div></div><div class="candleExpiryWrap"><button class="marketCandleInfo candleExpiry" id="candleExpiryToggle" type="button" aria-expanded="false"><strong>CANDLE EXPIRY</strong><span id="dashboardCountdown">00:05</span><span id="candleExpiryChevron">›</span></button><div class="candleExpiryMenu" id="candleExpiryMenu"><div class="candleExpiryMenuTitle">Candle Expiration</div><div class="candleExpiryOptions"><button type="button" class="candleExpiryOption active" data-candle-time="5 Seconds">5 Seconds</button><button type="button" class="candleExpiryOption" data-candle-time="15 Seconds">15 Seconds</button><button type="button" class="candleExpiryOption" data-candle-time="30 Seconds">30 Seconds</button><button type="button" class="candleExpiryOption" data-candle-time="1 Minute">1 Minute</button><button type="button" class="candleExpiryOption" data-candle-time="2 Minutes">2 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="5 Minutes">5 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="15 Minutes">15 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="30 Minutes">30 Minutes</button><button type="button" class="candleExpiryOption" data-candle-time="1 Hour">1 Hour</button><button type="button" class="candleExpiryOption" data-candle-time="4 Hours">4 Hours</button><button type="button" class="candleExpiryOption" data-candle-time="1 Day">1 Day</button><button type="button" class="candleExpiryOption" data-candle-time="1 Week">1 Week</button><button type="button" class="candleExpiryOption" data-candle-time="1 Month">1 Month</button><button type="button" class="candleExpiryOption" data-candle-time="3 Months">3 Months</button><button type="button" class="candleExpiryOption" data-candle-time="6 Months">6 Months</button><button type="button" class="candleExpiryOption" data-candle-time="1 Year">1 Year</button></div></div></div></div><div class="chartEngineBar" id="chartEngineBar">
+  <button type="button" class="chartEngineBtn active" data-chart-type="Candles">CANDLES</button>
+  <button type="button" class="chartEngineBtn" data-chart-type="Heikin Ashi">HEIKIN</button>
+  <button type="button" class="chartEngineBtn" data-chart-type="Line Chart">LINE</button>
+  <button type="button" class="chartEngineBtn" data-chart-type="Bars">BARS</button>
+  <button type="button" class="chartEngineBtn" id="chartDrawBtn">DRAW</button>
+  <button type="button" class="chartEngineBtn" id="chartOscBtn">OSC</button>
+  <button type="button" class="chartEngineBtn" id="chartTrendBtn">TREND</button>
+  <button type="button" class="chartEngineBtn" id="chartClearBtn">CLEAR</button>
+  <span class="chartEngineStatus" id="chartEngineStatus">Candles</span>
+</div><div class="candles" id="candles"><canvas id="candleCanvas" aria-label="Live chart"></canvas></div><svg class="chartAnnotationSvg" id="chartAnnotationSvg" aria-hidden="true" focusable="false"></svg><div class="chartTimeline" aria-hidden="true"><span id="chartTimeline0">—</span><span id="chartTimeline1">—</span><span id="chartTimeline2">—</span><span id="chartTimeline3">—</span><span id="chartTimeline4">—</span><span id="chartTimeline5">—</span></div></section>
 <section class="bottom"><div class="tradeInfoBar"><div><span>ACTIVE TRADE</span><strong id="activeTradeInfo">NONE</strong></div><div><span>LAST RESULT</span><strong id="lastTradeInfo">NONE</strong></div></div><div class="actions"><div class="sellWrap"><button class="pair" id="pairName" type="button" aria-label="Select asset">EUR/USD</button><button class="autoBotBtn" id="mainAutoBotBtn" type="button">AutoPilot</button><button class="trade sell" id="sell"><span>SELL</span><span class="tradePercent" id="sellPercent">61%</span></button></div><div class="buyWrap"><button class="time" id="timeBtn" type="button">5 Seconds ▾</button><div class="amount" id="amountPortal"><label>AMOUNT</label><button class="amountValue" id="amountBtn" type="button">$<span id="amountValueText">10</span></button></div><button class="trade buy" id="buy"><span>BUY</span><span class="tradePercent" id="buyPercent">39%</span></button></div></div><div class="status" id="status"></div><div class="tradeHistory" id="tradeHistory"><div class="tradeHistoryHead"><strong>TRADE HISTORY</strong></div><div class="tradeHistoryList" id="tradeHistoryList"></div></div></section>
 </div>
 <div class="drawer" id="menuDrawer"><div class="panel" style="padding-bottom:40px;"><button class="close" data-close="menuDrawer">Close</button><h2>GoTradeX</h2><button class="option menuItem" data-section="Dashboard">Dashboard <span>›</span></button><button class="option menuItem" data-section="Chart AI">Chart AI <span>›</span></button><button class="option menuItem" data-section="AutoBot">AutoBot <span>›</span></button><button class="option menuItem" data-section="Chat AI">Chat AI <span>›</span></button><button class="option menuItem" data-section="Markets">Markets <span>›</span></button><button class="option menuItem" data-section="Wallet">Wallet <span>›</span></button><button class="option menuItem" data-section="Portfolio">Portfolio <span>›</span></button><button class="option menuItem" data-section="My Team">My Team <span>›</span></button><button class="option menuItem" data-section="Settings">Settings <span>›</span></button><button class="option menuItem" data-section="Agent AI">Agent AI <span>›</span></button><button class="option menuItem" data-section="Help" id="helpMenuBtn" type="button">Help <span>›</span></button><button class="option menuItem" data-section="Support">Support <span>›</span></button><button class="option menuItem" data-section="About">About <span>›</span></button><button class="option menuItem" data-section="Privacy Policy">Privacy Policy <span>›</span></button><button class="option menuItem" data-section="Terms & Conditions">Terms &amp; Conditions <span>›</span></button><button class="option menuItem" data-section="Admin Portal">Admin Portal <span>›</span></button><div class="status" id="menuMessage"></div></div></div>
@@ -58,7 +89,7 @@
     <div class="status" id="userAutoBotMessage"></div>
   </div>
 </div>
-<div class="drawer" id="chartToolsDrawer"><div class="panel"><button class="close" data-close="chartToolsDrawer">Close</button><h2>Chart Tools</h2><div class="category">Trend & Pattern</div><button class="option chartToolOption" data-tool="Alligator">🐊 Alligator <span>›</span></button><button class="option chartToolOption" data-tool="Fractals">Fractals <span>›</span></button><button class="option chartToolOption" data-tool="Awesome Oscillator">Awesome Oscillator <span>›</span></button><button class="option chartToolOption" data-tool="EMA / SMA">EMA / SMA <span>›</span></button><button class="option chartToolOption" data-tool="Supertrend">Supertrend <span>›</span></button><button class="option chartToolOption" data-tool="Ichimoku Cloud">Ichimoku Cloud <span>›</span></button><button class="option chartToolOption" data-tool="Parabolic SAR">Parabolic SAR <span>›</span></button><button class="option chartToolOption" data-tool="ADX">ADX <span>›</span></button><div class="category">Custom Indicators</div><button class="option chartToolOption" data-tool="Kangaroo">🦘 Kangaroo <span>›</span></button><button class="option chartToolOption" data-tool="Lion">🦁 Lion <span>›</span></button><div class="kenkleyWrap"><button class="option chartToolOption kenkleyToggle" id="kenkleyToggle" data-tool="Kenkley’s Lines" type="button"><span>Kenkley’s Lines</span><span class="kenkleyRight"><span id="candleToolCountdown">00:05</span><span id="kenkleyChevron">›</span></span></button><div class="kenkleySettings" id="kenkleySettings"><div class="kenkleySettingsTitle">Candle Expiration</div><div class="kenkleyTimeOptions" id="kenkleyTimeOptions"><button type="button" class="candleTimeOption active" data-candle-time="5 Seconds">5 Seconds</button><button type="button" class="candleTimeOption" data-candle-time="15 Seconds">15 Seconds</button><button type="button" class="candleTimeOption" data-candle-time="30 Seconds">30 Seconds</button><button type="button" class="candleTimeOption" data-candle-time="1 Minute">1 Minute</button><button type="button" class="candleTimeOption" data-candle-time="2 Minutes">2 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="5 Minutes">5 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="15 Minutes">15 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="30 Minutes">30 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="1 Hour">1 Hour</button><button type="button" class="candleTimeOption" data-candle-time="4 Hours">4 Hours</button><button type="button" class="candleTimeOption" data-candle-time="1 Day">1 Day</button></div></div></div><div class="category">Momentum</div><button class="option chartToolOption" data-tool="RSI">RSI <span>›</span></button><button class="option chartToolOption" data-tool="MACD">MACD <span>›</span></button><button class="option chartToolOption" data-tool="Stochastic">Stochastic <span>›</span></button><button class="option chartToolOption" data-tool="CCI">CCI <span>›</span></button><button class="option chartToolOption" data-tool="Williams %R">Williams %R <span>›</span></button><div class="category">Volatility</div><button class="option chartToolOption" data-tool="Bollinger Bands">Bollinger Bands <span>›</span></button><button class="option chartToolOption" data-tool="ATR">ATR <span>›</span></button><button class="option chartToolOption" data-tool="Keltner Channels">Keltner Channels <span>›</span></button><button class="option chartToolOption" data-tool="Donchian Channels">Donchian Channels <span>›</span></button><div class="category">Drawing & Price</div><button class="option chartToolOption" data-tool="Support & Resistance">Support &amp; Resistance <span>›</span></button><button class="option chartToolOption" data-tool="Trend Line">Trend Line <span>›</span></button><button class="option chartToolOption" data-tool="Horizontal Line">Horizontal Line <span>›</span></button><button class="option chartToolOption" data-tool="Vertical Line">Vertical Line <span>›</span></button><button class="option chartToolOption" data-tool="Fibonacci Retracement">Fibonacci Retracement <span>›</span></button><button class="option chartToolOption" data-tool="Fibonacci Extension">Fibonacci Extension <span>›</span></button><div class="category">Chart Type</div><button class="option chartToolOption" data-tool="Candlesticks">Candlesticks <span>›</span></button><button class="option chartToolOption" data-tool="Heikin Ashi">Heikin Ashi <span>›</span></button><button class="option chartToolOption" data-tool="Line Chart">Line Chart <span>›</span></button><button class="option chartToolOption" data-tool="Area Chart">Area Chart <span>›</span></button><div class="category">Alerts & Controls</div><button class="option chartToolOption" data-tool="Price Alert">Price Alert <span>›</span></button><button class="option chartToolOption" data-tool="Indicator Alert">Indicator Alert <span>›</span></button><button class="option chartToolOption" data-tool="BUY / SELL Signal Alert">BUY / SELL Signal Alert <span>›</span></button><button class="option chartToolOption" data-tool="Chart Settings">Chart Settings <span>›</span></button><div class="status" id="chartToolsStatus"></div></div></div>
+<div class="drawer" id="chartToolsDrawer"><div class="panel"><button class="close" data-close="chartToolsDrawer">Close</button><h2>Chart Tools</h2><div class="category">Trend & Pattern</div><button class="option chartToolOption" data-tool="Alligator">🐊 Alligator <span>›</span></button><button class="option chartToolOption" data-tool="Fractals">Fractals <span>›</span></button><button class="option chartToolOption" data-tool="Awesome Oscillator">Awesome Oscillator <span>›</span></button><button class="option chartToolOption" data-tool="EMA / SMA">EMA / SMA <span>›</span></button><button class="option chartToolOption" data-tool="Supertrend">Supertrend <span>›</span></button><button class="option chartToolOption" data-tool="Ichimoku Cloud">Ichimoku Cloud <span>›</span></button><button class="option chartToolOption" data-tool="Parabolic SAR">Parabolic SAR <span>›</span></button><button class="option chartToolOption" data-tool="ADX">ADX <span>›</span></button><div class="category">Custom Indicators</div><button class="option chartToolOption" data-tool="Kangaroo">🦘 Kangaroo <span>›</span></button><button class="option chartToolOption" data-tool="Lion">🦁 Lion <span>›</span></button><div class="kenkleyWrap"><button class="option chartToolOption kenkleyToggle" id="kenkleyToggle" data-tool="Kenkley’s Lines" type="button"><span>Kenkley’s Lines</span><span class="kenkleyRight"><span id="candleToolCountdown">00:05</span><span id="kenkleyChevron">›</span></span></button><div class="kenkleySettings" id="kenkleySettings"><div class="kenkleySettingsTitle">Candle Expiration</div><div class="kenkleyTimeOptions" id="kenkleyTimeOptions"><button type="button" class="candleTimeOption active" data-candle-time="5 Seconds">5 Seconds</button><button type="button" class="candleTimeOption" data-candle-time="15 Seconds">15 Seconds</button><button type="button" class="candleTimeOption" data-candle-time="30 Seconds">30 Seconds</button><button type="button" class="candleTimeOption" data-candle-time="1 Minute">1 Minute</button><button type="button" class="candleTimeOption" data-candle-time="2 Minutes">2 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="5 Minutes">5 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="15 Minutes">15 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="30 Minutes">30 Minutes</button><button type="button" class="candleTimeOption" data-candle-time="1 Hour">1 Hour</button><button type="button" class="candleTimeOption" data-candle-time="4 Hours">4 Hours</button><button type="button" class="candleTimeOption" data-candle-time="1 Day">1 Day</button></div></div></div><div class="category">Momentum</div><button class="option chartToolOption" data-tool="RSI">RSI <span>›</span></button><button class="option chartToolOption" data-tool="MACD">MACD <span>›</span></button><button class="option chartToolOption" data-tool="Stochastic">Stochastic <span>›</span></button><button class="option chartToolOption" data-tool="CCI">CCI <span>›</span></button><button class="option chartToolOption" data-tool="Williams %R">Williams %R <span>›</span></button><div class="category">Volatility</div><button class="option chartToolOption" data-tool="Bollinger Bands">Bollinger Bands <span>›</span></button><button class="option chartToolOption" data-tool="ATR">ATR <span>›</span></button><button class="option chartToolOption" data-tool="Keltner Channels">Keltner Channels <span>›</span></button><button class="option chartToolOption" data-tool="Donchian Channels">Donchian Channels <span>›</span></button><div class="category">Drawing & Price</div><button class="option chartToolOption" data-tool="Support & Resistance">Support &amp; Resistance <span>›</span></button><button class="option chartToolOption" data-tool="Trend Line">Trend Line <span>›</span></button><button class="option chartToolOption" data-tool="Horizontal Line">Horizontal Line <span>›</span></button><button class="option chartToolOption" data-tool="Vertical Line">Vertical Line <span>›</span></button><button class="option chartToolOption" data-tool="Fibonacci Retracement">Fibonacci Retracement <span>›</span></button><button class="option chartToolOption" data-tool="Fibonacci Extension">Fibonacci Extension <span>›</span></button><div class="category">Chart Type</div><button class="option chartToolOption" data-tool="Candlesticks">Candlesticks <span>›</span></button><button class="option chartToolOption" data-tool="Heikin Ashi">Heikin Ashi <span>›</span></button><button class="option chartToolOption" data-tool="Line Chart">Line Chart <span>›</span></button><button class="option chartToolOption" data-tool="Bars">Bars <span>›</span></button><button class="option chartToolOption" data-tool="Area Chart">Area Chart <span>›</span></button><div class="category">Alerts & Controls</div><button class="option chartToolOption" data-tool="Price Alert">Price Alert <span>›</span></button><button class="option chartToolOption" data-tool="Indicator Alert">Indicator Alert <span>›</span></button><button class="option chartToolOption" data-tool="BUY / SELL Signal Alert">BUY / SELL Signal Alert <span>›</span></button><button class="option chartToolOption" data-tool="Chart Settings">Chart Settings <span>›</span></button><div class="status" id="chartToolsStatus"></div></div></div>
 <div class="drawer" id="timeDrawer"><div class="panel timePanel"><button class="close" data-close="timeDrawer">Close</button><h2>Trade Expiration</h2><div id="times"></div></div></div>
 <div class="policyPage" id="privacyPage">
 <header class="policyTop"><h2>Privacy Policy</h2><button class="policyBack" type="button" data-policy-close="privacyPage">Back</button></header>
@@ -312,114 +343,153 @@ function seedDemoCandles(){
     price=close;
   }
 }
+let chartType="Candles";
+let chartTrendIndicator="";
+let chartOscillator="";
+let chartDrawTool="";
+let chartDrawings=[];
+let chartPendingPoint=null;
+
+function chartNum(v){const n=Number(v);return Number.isFinite(n)?n:0}
+function chartFormat(v){return v>=1000?v.toFixed(2):v>=1?v.toFixed(5):v.toFixed(6)}
+function chartCloses(){return demoCandleData.map(c=>chartNum(c.close))}
+function chartSma(values,p){return values.map((_,i)=>{if(i+1<p)return null;let s=0;for(let j=i-p+1;j<=i;j++)s+=values[j];return s/p})}
+function chartEma(values,p){if(!values.length)return[];const k=2/(p+1),out=[];let e=values[0];values.forEach((v,i)=>{if(i===0)e=v;else e=v*k+e*(1-k);out.push(e)});return out}
+function chartStd(values,p){return values.map((_,i)=>{if(i+1<p)return null;let s=0;for(let j=i-p+1;j<=i;j++)s+=values[j];const m=s/p;let q=0;for(let j=i-p+1;j<=i;j++)q+=(values[j]-m)**2;return Math.sqrt(q/p)})}
+function chartAtr(candles,p=14){const tr=candles.map((c,i)=>i?Math.max(c.high-c.low,Math.abs(c.high-candles[i-1].close),Math.abs(c.low-candles[i-1].close)):c.high-c.low);return chartEma(tr,p)}
+function chartRsi(values,p=14){return values.map((_,i)=>{if(i<p)return null;let g=0,l=0;for(let j=i-p+1;j<=i;j++){const d=values[j]-values[j-1];if(d>=0)g+=d;else l-=d}if(l===0)return 100;const rs=(g/p)/(l/p);return 100-(100/(1+rs))})}
+function chartStoch(candles,p=14){return candles.map((c,i)=>{if(i+1<p)return null;let hi=-Infinity,lo=Infinity;for(let j=i-p+1;j<=i;j++){hi=Math.max(hi,candles[j].high);lo=Math.min(lo,candles[j].low)}return hi===lo?50:((c.close-lo)/(hi-lo))*100})}
+function chartCci(candles,p=20){const tp=candles.map(c=>(c.high+c.low+c.close)/3);const ma=chartSma(tp,p);return tp.map((v,i)=>{if(ma[i]===null)return null;let d=0;for(let j=i-p+1;j<=i;j++)d+=Math.abs(tp[j]-ma[i]);const md=d/p;return md===0?0:(v-ma[i])/(0.015*md)})}
+function chartWilliams(candles,p=14){return candles.map((c,i)=>{if(i+1<p)return null;let hi=-Infinity,lo=Infinity;for(let j=i-p+1;j<=i;j++){hi=Math.max(hi,candles[j].high);lo=Math.min(lo,candles[j].low)}return hi===lo?-50:((hi-c.close)/(hi-lo))*-100})}
+function chartMacd(values){const e12=chartEma(values,12),e26=chartEma(values,26);const macd=values.map((_,i)=>e12[i]-e26[i]);const signal=chartEma(macd,9);return {macd,signal,hist:macd.map((v,i)=>v-signal[i])}}
+function chartHeikin(candles){const out=[];candles.forEach((c,i)=>{const close=(c.open+c.high+c.low+c.close)/4;const open=i?((out[i-1].open+out[i-1].close)/2):((c.open+c.close)/2);out.push({open,high:Math.max(c.high,open,close),low:Math.min(c.low,open,close),close})});return out}
+function chartMapFactory(candles,w,h,oscH){
+  const values=candles.flatMap(c=>[c.high,c.low]),max=Math.max(...values),min=Math.min(...values),range=Math.max(1,max-min);
+  const mainH=Math.max(1,h-oscH-4),axisW=Math.min(54,Math.max(44,w*.16)),plotW=Math.max(1,w-axisW),step=plotW/candles.length;
+  const y=v=>8+(max-v)/range*Math.max(1,mainH-16),x=i=>i*step+step/2;
+  return {max,min,range,mainH,axisW,plotW,step,y,x};
+}
+function chartSeriesPath(svg,ns,arr,map,cls){
+  let d="";
+  arr.forEach((v,i)=>{if(v===null||!Number.isFinite(v))return;d+=(d?" L":"M")+map.x(i)+" "+map.y(v)});
+  if(d){const p=document.createElementNS(ns,"path");p.setAttribute("class",cls);p.setAttribute("d",d);svg.appendChild(p)}
+}
+function chartTrendValues(name,candles,closes){
+  if(name==="EMA / SMA")return [{name:"EMA 9",v:chartEma(closes,9)},{name:"SMA 20",v:chartSma(closes,20)}];
+  if(name==="Bollinger Bands"){const m=chartSma(closes,20),sd=chartStd(closes,20);return [{name:"BB Mid",v:m},{name:"BB Upper",v:m.map((x,i)=>x===null?null:x+2*sd[i])},{name:"BB Lower",v:m.map((x,i)=>x===null?null:x-2*sd[i])}];}
+  if(name==="Alligator")return [{name:"Jaw",v:chartEma(closes,13)},{name:"Teeth",v:chartEma(closes,8)},{name:"Lips",v:chartEma(closes,5)}];
+  if(name==="Keltner Channels"){const mid=chartEma(closes,20),a=chartAtr(candles,10);return [{name:"KC Mid",v:mid},{name:"KC Upper",v:mid.map((x,i)=>x+2*a[i])},{name:"KC Lower",v:mid.map((x,i)=>x-2*a[i])}];}
+  if(name==="Donchian Channels"){return [{name:"DC High",v:candles.map((_,i)=>{if(i<19)return null;return Math.max(...candles.slice(i-19,i+1).map(c=>c.high))})},{name:"DC Low",v:candles.map((_,i)=>{if(i<19)return null;return Math.min(...candles.slice(i-19,i+1).map(c=>c.low))})}];}
+  if(name==="Supertrend"){const a=chartAtr(candles,10),mid=candles.map(c=>(c.high+c.low)/2);let dir=1;const st=[];for(let i=0;i<candles.length;i++){const up=mid[i]+3*a[i],dn=mid[i]-3*a[i];if(candles[i].close>up)dir=1;else if(candles[i].close<dn)dir=-1;st.push(dir===1?dn:up)}return [{name:"Supertrend",v:st}]}
+  if(name==="Parabolic SAR"){const out=[];let sar=candles[0].low,ep=candles[0].high,af=.02,up=true;for(let i=0;i<candles.length;i++){if(i===0){out.push(sar);continue}sar=sar+af*(ep-sar);if(up){sar=Math.min(sar,candles[i-1].low);if(candles[i].low<sar){up=false;sar=ep;ep=candles[i].low;af=.02}}else{sar=Math.max(sar,candles[i-1].high);if(candles[i].high>sar){up=true;sar=ep;ep=candles[i].high;af=.02}}if(up&&candles[i].high>ep){ep=candles[i].high;af=Math.min(.2,af+.02)}if(!up&&candles[i].low<ep){ep=candles[i].low;af=Math.min(.2,af+.02)}out.push(sar)}return [{name:"Parabolic SAR",v:out}]}
+  if(name==="Ichimoku Cloud"){const high=(p,i)=>i<p-1?null:Math.max(...candles.slice(i-p+1,i+1).map(c=>c.high)),low=(p,i)=>i<p-1?null:Math.min(...candles.slice(i-p+1,i+1).map(c=>c.low));const conv=candles.map((_,i)=>{const h=high(9,i),l=low(9,i);return h===null?null:(h+l)/2}),base=candles.map((_,i)=>{const h=high(26,i),l=low(26,i);return h===null?null:(h+l)/2}),spanA=conv.map((v,i)=>v===null||base[i]===null?null:(v+base[i])/2),spanB=candles.map((_,i)=>{const h=high(52,i),l=low(52,i);return h===null?null:(h+l)/2});return [{name:"Tenkan",v:conv},{name:"Kijun",v:base},{name:"Span A",v:spanA},{name:"Span B",v:spanB}]}
+  if(name==="Fractals")return [];
+  return [];
+}
+function chartOscValues(name,candles,closes){
+  if(name==="RSI")return {series:[chartRsi(closes)],min:0,max:100,label:"RSI"};
+  if(name==="Stochastic")return {series:[chartStoch(candles)],min:0,max:100,label:"Stochastic"};
+  if(name==="CCI")return {series:[chartCci(candles)],min:-200,max:200,label:"CCI"};
+  if(name==="Williams %R")return {series:[chartWilliams(candles)],min:-100,max:0,label:"Williams %R"};
+  if(name==="MACD"){const m=chartMacd(closes);return {series:[m.macd,m.signal],min:null,max:null,label:"MACD"}}
+  if(name==="Awesome Oscillator"){const m=candles.map(c=>(c.high+c.low)/2),fast=chartSma(m,5),slow=chartSma(m,34);return {series:[m.map((_,i)=>fast[i]===null||slow[i]===null?null:fast[i]-slow[i])],min:null,max:null,label:"Awesome Oscillator"}}
+  if(name==="ATR")return {series:[chartAtr(candles,14)],min:null,max:null,label:"ATR"};
+  return null;
+}
+function chartRenderOscillator(svg,ns,candles,map,w,h,oscH){
+  if(!chartOscillator||!oscH)return;
+  const top=map.mainH+4,bottom=h-2,oh=Math.max(1,bottom-top);
+  const vals=chartOscValues(chartOscillator,candles,chartCloses()); if(!vals)return;
+  const all=vals.series.flat().filter(Number.isFinite),lo=vals.min===null?(Math.min(...all,0)):vals.min,hi=vals.max===null?(Math.max(...all,0)):vals.max,range=Math.max(1,hi-lo);
+  const oy=v=>top+4+(hi-v)/range*Math.max(1,oh-8);
+  const divider=document.createElementNS(ns,"line");divider.setAttribute("class","chartOscDivider");divider.setAttribute("x1","0");divider.setAttribute("x2",String(w));divider.setAttribute("y1",String(top));divider.setAttribute("y2",String(top));svg.appendChild(divider);
+  if(vals.min!==null&&vals.max!==null){[30,50,70].filter(v=>v>=lo&&v<=hi).forEach(v=>{const z=document.createElementNS(ns,"line");z.setAttribute("class","chartOscZero");z.setAttribute("x1","0");z.setAttribute("x2",String(map.plotW));z.setAttribute("y1",String(oy(v)));z.setAttribute("y2",String(oy(v)));svg.appendChild(z)})}
+  vals.series.forEach((series,si)=>{let d="";series.forEach((v,i)=>{if(v===null||!Number.isFinite(v))return;d+=(d?" L":"M")+map.x(i)+" "+oy(v)});if(d){const p=document.createElementNS(ns,"path");p.setAttribute("class","chartIndicatorLine");p.setAttribute("d",d);p.setAttribute("stroke",si?"#ffd166":"#39b86a");svg.appendChild(p)}});
+  const label=document.createElementNS(ns,"text");label.textContent=vals.label;label.setAttribute("class","chartOscText");label.setAttribute("x","4");label.setAttribute("y",String(top+12));svg.appendChild(label);
+}
+function chartRenderDrawings(svg,ns,map,w,h){
+  chartDrawings.forEach(d=>{
+    const x1=d.x1*w,y1=d.y1*h,x2=(d.x2??d.x1)*w,y2=(d.y2??d.y1)*h;
+    if(d.type==="horizontal"){const l=document.createElementNS(ns,"line");l.setAttribute("class","chartDrawing");l.setAttribute("x1","0");l.setAttribute("x2",String(map.plotW));l.setAttribute("y1",String(y1));l.setAttribute("y2",String(y1));svg.appendChild(l)}
+    else if(d.type==="vertical"){const l=document.createElementNS(ns,"line");l.setAttribute("class","chartDrawing");l.setAttribute("x1",String(x1));l.setAttribute("x2",String(x1));l.setAttribute("y1","0");l.setAttribute("y2",String(map.mainH));svg.appendChild(l)}
+    else if(d.type==="fibonacci"){[0,.236,.382,.5,.618,.786,1].forEach(level=>{const yy=y1+(y2-y1)*level;const l=document.createElementNS(ns,"line");l.setAttribute("class","chartDrawingFib");l.setAttribute("x1","0");l.setAttribute("x2",String(map.plotW));l.setAttribute("y1",String(yy));l.setAttribute("y2",String(yy));svg.appendChild(l);const t=document.createElementNS(ns,"text");t.setAttribute("class","chartDrawingText");t.setAttribute("x","4");t.setAttribute("y",String(yy-2));t.textContent=(level*100).toFixed(1)+"%";svg.appendChild(t)})}
+    else {const l=document.createElementNS(ns,"line");l.setAttribute("class","chartDrawing");l.setAttribute("x1",String(x1));l.setAttribute("x2",String(x2));l.setAttribute("y1",String(y1));l.setAttribute("y2",String(y2));svg.appendChild(l)}
+  });
+  if(chartPendingPoint){const c=document.createElementNS(ns,"circle");c.setAttribute("cx",String(chartPendingPoint.x*w));c.setAttribute("cy",String(chartPendingPoint.y*h));c.setAttribute("r","4");c.setAttribute("fill","#ffd166");svg.appendChild(c)}
+}
+function chartDrawTrendOverlay(svg,ns,candles,map){
+  const closes=chartCloses();
+  if(chartTrendIndicator==="Fractals"){candles.forEach((c,i)=>{if(i<2||i>candles.length-3)return;const hi=c.high>candles[i-1].high&&c.high>candles[i-2].high&&c.high>candles[i+1].high&&c.high>candles[i+2].high;const lo=c.low<candles[i-1].low&&c.low<candles[i-2].low&&c.low<candles[i+1].low&&c.low<candles[i+2].low;[hi&&c.high,lo&&c.low].forEach(v=>{if(!v)return;const c2=document.createElementNS(ns,"circle");c2.setAttribute("cx",String(map.x(i)));c2.setAttribute("cy",String(map.y(v)));c2.setAttribute("r","2.5");c2.setAttribute("fill","#ffd166");svg.appendChild(c2)})});return}
+  const sets=chartTrendValues(chartTrendIndicator,candles,closes);
+  sets.forEach((set,si)=>chartSeriesPath(svg,ns,set.v,map,"chartIndicatorLine"));
+}
 function updateChartAnnotationSvg(w,h,max,min,range,priceAxisW){
-  const svg=document.getElementById("chartAnnotationSvg");
-  if(!svg||!demoCandleData.length)return;
-  svg.setAttribute("viewBox","0 0 "+w+" "+h);
-  svg.setAttribute("width",w);
-  svg.setAttribute("height",h);
-  const padTop=8,padBottom=8;
-  const plotH=Math.max(1,h-padTop-padBottom);
-  const plotW=Math.max(1,w-priceAxisW);
-  const y=v=>padTop+(max-v)/Math.max(1,range)*plotH;
-  const format=v=>v>=1000?v.toFixed(2):v>=1?v.toFixed(5):v.toFixed(6);
+  const svg=document.getElementById("chartAnnotationSvg"); if(!svg||!demoCandleData.length)return;
+  svg.setAttribute("viewBox","0 0 "+w+" "+h);svg.setAttribute("width",w);svg.setAttribute("height",h);
+  const oscH=chartOscillator?Math.min(72,h*.30):0,map=chartMapFactory(demoCandleData,w,h,oscH),ns="http://www.w3.org/2000/svg";
   svg.replaceChildren();
-  const ns="http://www.w3.org/2000/svg";
-  for(let i=0;i<5;i++){
-    const ratio=i/4,value=max-(range*ratio),yy=y(value);
-    const line=document.createElementNS(ns,"line");
-    line.setAttribute("class","priceGrid");
-    line.setAttribute("x1","0");line.setAttribute("x2",String(plotW));
-    line.setAttribute("y1",String(yy));line.setAttribute("y2",String(yy));
-    svg.appendChild(line);
-    const labelBg=document.createElementNS(ns,"rect");
-    labelBg.setAttribute("x",String(Math.max(0,w-priceAxisW)));
-    labelBg.setAttribute("y",String(yy-7));
-    labelBg.setAttribute("width",String(Math.min(priceAxisW,60)));
-    labelBg.setAttribute("height","14");
-    labelBg.setAttribute("rx","2");
-    labelBg.setAttribute("fill","#061426");
-    labelBg.setAttribute("opacity","0.96");
-    svg.appendChild(labelBg);
-    const label=document.createElementNS(ns,"text");
-    label.textContent=format(value);
-    label.setAttribute("x",String(w-4));
-    label.setAttribute("y",String(yy));
-    label.setAttribute("text-anchor","end");
-    label.setAttribute("dominant-baseline","middle");
-    svg.appendChild(label);
-  }
-  const current=Number(demoCandleData[demoCandleData.length-1]?.close);
-  if(Number.isFinite(current)){
-    const yy=y(current);
-    const line=document.createElementNS(ns,"line");
-    line.setAttribute("class","currentLine");
-    line.setAttribute("x1","0");line.setAttribute("x2",String(plotW));
-    line.setAttribute("y1",String(yy));line.setAttribute("y2",String(yy));
-    svg.appendChild(line);
-    const label=format(current);
-    const bgW=Math.max(42,Math.min(Math.max(42,priceAxisW-2),Math.round(label.length*5.2+8)));
-    const bg=document.createElementNS(ns,"rect");
-    bg.setAttribute("class","currentPriceBg");
-    bg.setAttribute("x",String(w-bgW));bg.setAttribute("y",String(yy-8));
-    bg.setAttribute("width",String(bgW));bg.setAttribute("height","16");bg.setAttribute("rx","3");
-    svg.appendChild(bg);
-    const text=document.createElementNS(ns,"text");
-    text.textContent=label;text.setAttribute("class","currentPrice");
-    text.setAttribute("x",String(w-4));text.setAttribute("y",String(yy));
-    text.setAttribute("text-anchor","end");text.setAttribute("dominant-baseline","middle");
-    svg.appendChild(text);
-  }
+  const format=v=>chartFormat(v),plotH=map.mainH-16;
+  const y=v=>8+(map.max-v)/Math.max(1,map.range)*plotH;
+  for(let i=0;i<5;i++){const value=map.max-(map.range*(i/4)),yy=y(value),line=document.createElementNS(ns,"line");line.setAttribute("class","priceGrid");line.setAttribute("x1","0");line.setAttribute("x2",String(map.plotW));line.setAttribute("y1",String(yy));line.setAttribute("y2",String(yy));svg.appendChild(line);const bg=document.createElementNS(ns,"rect");bg.setAttribute("x",String(Math.max(0,w-map.axisW)));bg.setAttribute("y",String(yy-7));bg.setAttribute("width",String(Math.min(map.axisW,60)));bg.setAttribute("height","14");bg.setAttribute("rx","2");bg.setAttribute("fill","#061426");bg.setAttribute("opacity",".96");svg.appendChild(bg);const label=document.createElementNS(ns,"text");label.textContent=format(value);label.setAttribute("x",String(w-4));label.setAttribute("y",String(yy));label.setAttribute("text-anchor","end");label.setAttribute("dominant-baseline","middle");svg.appendChild(label)}
+  const current=chartNum(demoCandleData.at(-1)?.close);if(Number.isFinite(current)){const yy=y(current),line=document.createElementNS(ns,"line");line.setAttribute("class","currentLine");line.setAttribute("x1","0");line.setAttribute("x2",String(map.plotW));line.setAttribute("y1",String(yy));line.setAttribute("y2",String(yy));svg.appendChild(line);const text=String(format(current)),bgW=Math.max(42,Math.min(Math.max(42,map.axisW-2),Math.round(text.length*5.2+8))),bg=document.createElementNS(ns,"rect");bg.setAttribute("class","currentPriceBg");bg.setAttribute("x",String(w-bgW));bg.setAttribute("y",String(yy-8));bg.setAttribute("width",String(bgW));bg.setAttribute("height","16");bg.setAttribute("rx","3");svg.appendChild(bg);const tx=document.createElementNS(ns,"text");tx.textContent=text;tx.setAttribute("class","currentPrice");tx.setAttribute("x",String(w-4));tx.setAttribute("y",String(yy));tx.setAttribute("text-anchor","end");tx.setAttribute("dominant-baseline","middle");svg.appendChild(tx)}
+  chartDrawTrendOverlay(svg,ns,demoCandleData,map);
+  chartRenderOscillator(svg,ns,demoCandleData,map,w,h,oscH);
+  chartRenderDrawings(svg,ns,map,w,h);
 }
 function drawDemoCandles(){
-  const canvas=document.getElementById("candleCanvas");
-  if(!canvas)return;
+  const canvas=document.getElementById("candleCanvas"); if(!canvas)return;
   if(!demoCandleData.length)seedDemoCandles();
-  const box=canvas.parentElement;
-  const rect=box.getBoundingClientRect();
-  const dpr=Math.max(1,window.devicePixelRatio||1);
-  const w=Math.max(1,Math.floor(rect.width)),h=Math.max(1,Math.floor(rect.height));
-  canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);
-  const ctx=canvas.getContext("2d");
-  if(!ctx)return;
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,w,h);
-  const candles=demoCandleData;
-  const highs=candles.map(c=>Number(c.high)),lows=candles.map(c=>Number(c.low));
-  const max=Math.max(...highs),min=Math.min(...lows),range=Math.max(1,max-min);
-  const padTop=8,padBottom=8;
-  const plotH=Math.max(1,h-padTop-padBottom);
-  const priceAxisW=Math.min(52,Math.max(44,w*0.16));
-  const plotW=Math.max(1,w-priceAxisW);
-  const step=plotW/candles.length;
-  const bodyW=Math.max(3,Math.min(12,step*0.58));
-  const y=v=>padTop+(max-v)/range*plotH;
-
-  ctx.save();
-  ctx.strokeStyle="rgba(120,160,200,.12)";
-  ctx.lineWidth=1;
-  const levels=5;
-  for(let i=0;i<levels;i++){
-    const ratio=i/(levels-1);
-    const yy=padTop+plotH*ratio;
-    ctx.beginPath();
-    ctx.moveTo(0,yy);
-    ctx.lineTo(plotW,yy);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  candles.forEach((c,i)=>{
-    const x=i*step+step/2,yo=y(c.open),yc=y(c.close),yh=y(c.high),yl=y(c.low);
-    const up=c.close>=c.open;
-    ctx.beginPath();ctx.moveTo(x,yh);ctx.lineTo(x,yl);ctx.lineWidth=1;ctx.strokeStyle=up?"#36a85c":"#a93245";ctx.stroke();
-    const top=Math.min(yo,yc),bodyH=Math.max(1,Math.abs(yc-yo));
-    ctx.fillStyle=up?"#36a85c":"#a93245";
-    ctx.fillRect(x-bodyW/2,top,bodyW,bodyH);
-  });
-
-  updateChartAnnotationSvg(w,h,max,min,range,priceAxisW);
+  const box=canvas.parentElement,rect=box.getBoundingClientRect(),dpr=Math.max(1,window.devicePixelRatio||1),w=Math.max(1,Math.floor(rect.width)),h=Math.max(1,Math.floor(rect.height));
+  canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);const ctx=canvas.getContext("2d");if(!ctx)return;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  const oscH=chartOscillator?Math.min(72,h*.30):0,map=chartMapFactory(demoCandleData,w,h,oscH),candles=demoCandleData,mode=chartType;
+  const drawCandles=mode==="Heikin Ashi"?chartHeikin(candles):candles,bodyW=Math.max(3,Math.min(12,map.step*.58));
+  const y=v=>map.y(v);
+  if(mode==="Line Chart"){ctx.beginPath();drawCandles.forEach((c,i)=>{const x=map.x(i),yy=y(c.close);if(i===0)ctx.moveTo(x,yy);else ctx.lineTo(x,yy)});ctx.strokeStyle="#dbe9f7";ctx.lineWidth=2;ctx.stroke()}
+  else if(mode==="Bars"){drawCandles.forEach((c,i)=>{const x=map.x(i),yo=y(c.open),yc=y(c.close),yh=y(c.high),yl=y(c.low),up=c.close>=c.open;ctx.strokeStyle=up?"#36a85c":"#a93245";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,yh);ctx.lineTo(x,yl);ctx.moveTo(x,yo);ctx.lineTo(x-bodyW*.55,yo);ctx.moveTo(x,yc);ctx.lineTo(x+bodyW*.55,yc);ctx.stroke()})}
+  else {drawCandles.forEach((c,i)=>{const x=map.x(i),yo=y(c.open),yc=y(c.close),yh=y(c.high),yl=y(c.low),up=c.close>=c.open;ctx.strokeStyle=up?"#36a85c":"#a93245";ctx.fillStyle=up?"#36a85c":"#a93245";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,yh);ctx.lineTo(x,yl);ctx.stroke();ctx.fillRect(x-bodyW/2,Math.min(yo,yc),bodyW,Math.max(1,Math.abs(yc-yo)))})}
+  if(chartType==="Line Chart"){ctx.strokeStyle="rgba(45,120,212,.10)";ctx.lineWidth=8}
+  updateChartAnnotationSvg(w,h,map.max,map.min,map.range,map.axisW);
 }
+function setChartType(type){
+  chartType=type==="Heikin Ashi"?"Heikin Ashi":type==="Line Chart"?"Line Chart":type==="Bars"?"Bars":"Candles";
+  document.querySelectorAll(".chartEngineBtn[data-chart-type]").forEach(b=>b.classList.toggle("active",b.dataset.chartType===chartType));
+  const status=document.getElementById("chartEngineStatus");if(status)status.textContent=chartType;
+  drawDemoCandles();
+}
+function setChartIndicator(name){
+  const oscillatorNames=["RSI","MACD","Stochastic","CCI","Williams %R","Awesome Oscillator","ATR"];
+  const trendNames=["Alligator","Fractals","EMA / SMA","Supertrend","Ichimoku Cloud","Parabolic SAR","ADX","Bollinger Bands","Keltner Channels","Donchian Channels"];
+  if(oscillatorNames.includes(name)){chartOscillator=chartOscillator===name?"":name;chartTrendIndicator="";}
+  else if(trendNames.includes(name)){chartTrendIndicator=chartTrendIndicator===name?"":name;chartOscillator="";}
+  drawDemoCandles();
+}
+function setChartDrawTool(name){
+  const map={"Support & Resistance":"horizontal","Trend Line":"trend","Horizontal Line":"horizontal","Vertical Line":"vertical","Fibonacci Retracement":"fibonacci","Fibonacci Extension":"fibonacci"};
+  chartDrawTool=map[name]||"";
+  chartPendingPoint=null;
+  const svg=document.getElementById("chartAnnotationSvg");if(svg)svg.classList.toggle("drawActive",!!chartDrawTool);
+  const status=document.getElementById("chartEngineStatus");if(status)status.textContent=chartDrawTool?name:"Drawing off";
+}
+function chartPointerPoint(e){
+  const svg=document.getElementById("chartAnnotationSvg"),r=svg.getBoundingClientRect();
+  return {x:Math.max(0,Math.min(1,(e.clientX-r.left)/Math.max(1,r.width))),y:Math.max(0,Math.min(1,(e.clientY-r.top)/Math.max(1,r.height)))};
+}
+function handleChartPointer(e){
+  if(!chartDrawTool)return;
+  const p=chartPointerPoint(e);
+  if(chartDrawTool==="horizontal"||chartDrawTool==="vertical"){chartDrawings.push({type:chartDrawTool,x1:p.x,y1:p.y});setChartDrawTool("");}
+  else if(!chartPendingPoint){chartPendingPoint=p}
+  else{chartDrawings.push({type:chartDrawTool,x1:chartPendingPoint.x,y1:chartPendingPoint.y,x2:p.x,y2:p.y});chartPendingPoint=null;setChartDrawTool("")}
+  drawDemoCandles();
+}
+seedDemoCandles();
+drawDemoCandles();
+updateCandleExpiry();
+updateMainAiSignal();
+setInterval(tickDemoCandle,1000);
+window.addEventListener("resize",drawDemoCandles);
+window.addEventListener("pointerdown",e=>{if(e.target?.id==="chartAnnotationSvg")handleChartPointer(e)});
 const demoTimeframeSeconds={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"2 Minutes":120,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400,"1 Day":86400,"1 Week":604800,"1 Month":2592000,"3 Months":7776000,"6 Months":15552000,"1 Year":31536000};const CANDLE_TIME_KEY="gotradex_candle_timeframe";function getSelectedCandleTimeframe(){return localStorage.getItem(CANDLE_TIME_KEY)||"5 Seconds"}function renderCandleTimeOptions(){const selected=getSelectedCandleTimeframe();document.querySelectorAll(".candleTimeOption").forEach(b=>b.classList.toggle("active",b.dataset.candleTime===selected));const timeframe=document.getElementById("dashboardTimeframe");if(timeframe)timeframe.textContent=selected;}
 let demoCandleElapsed=0;
 function getDemoTimeframeSeconds(){return demoTimeframeSeconds[getSelectedCandleTimeframe()]||5;}
@@ -491,7 +561,7 @@ document.getElementById("userAutoBotActivate").onclick=()=>{
 document.getElementById("userAutoBotFund").onclick=()=>{
   document.getElementById("userAutoBotDrawer").classList.remove("open");
   document.getElementById("walletBtn").click();
-};document.querySelectorAll(".chartToolOption").forEach(b=>b.onclick=()=>{const tool=b.dataset.tool||b.textContent.trim();document.getElementById("chartToolsStatus").textContent=tool+" selected. Chart integration will apply it when the verified chart feed is connected.";});document.getElementById("kenkleyToggle").onclick=()=>{const s=document.getElementById("kenkleySettings"),open=s.classList.toggle("open");document.getElementById("kenkleyChevron").textContent=open?"⌃":"›";document.getElementById("chartToolsStatus").textContent=open?"Candle expiration settings opened.":"Kenkley’s Lines selected.";};document.querySelectorAll(".candleTimeOption").forEach(b=>b.onclick=()=>{localStorage.setItem(CANDLE_TIME_KEY,b.dataset.candleTime);demoCandleElapsed=0;renderCandleTimeOptions();updateCandleExpiry();document.getElementById("chartToolsStatus").textContent="Candle expiration set to "+b.dataset.candleTime+".";});renderCandleTimeOptions();
+};document.querySelectorAll(".chartToolOption").forEach(b=>b.onclick=()=>{const tool=b.dataset.tool||b.textContent.trim();if(["Candlesticks","Heikin Ashi","Line Chart","Bars","Area Chart"].includes(tool)){setChartType(tool==="Area Chart"?"Line Chart":tool);document.getElementById("chartToolsStatus").textContent=tool+" selected on Kenkley’s chart."}else if(["RSI","MACD","Stochastic","CCI","Williams %R","Awesome Oscillator","ATR"].includes(tool)){setChartIndicator(tool);document.getElementById("chartToolsStatus").textContent=tool+" oscillator applied to Kenkley’s chart."}else if(["Alligator","Fractals","EMA / SMA","Supertrend","Ichimoku Cloud","Parabolic SAR","ADX","Bollinger Bands","Keltner Channels","Donchian Channels"].includes(tool)){setChartIndicator(tool);document.getElementById("chartToolsStatus").textContent=tool+" trend indicator applied to Kenkley’s chart."}else if(["Support & Resistance","Trend Line","Horizontal Line","Vertical Line","Fibonacci Retracement","Fibonacci Extension"].includes(tool)){setChartDrawTool(tool);document.getElementById("chartToolsStatus").textContent=tool+" drawing tool ready on Kenkley’s chart."}else{document.getElementById("chartToolsStatus").textContent=tool+" selected on Kenkley’s chart."}});document.querySelectorAll(".chartEngineBtn[data-chart-type]").forEach(b=>b.onclick=()=>setChartType(b.dataset.chartType));document.getElementById("chartDrawBtn").onclick=()=>{chartDrawTool=chartDrawTool?"":"trend";chartPendingPoint=null;const svg=document.getElementById("chartAnnotationSvg");if(svg)svg.classList.toggle("drawActive",!!chartDrawTool);document.getElementById("chartEngineStatus").textContent=chartDrawTool?"Trend line drawing":"Candles"};document.getElementById("chartOscBtn").onclick=()=>{chartOscillator=chartOscillator||"RSI";chartTrendIndicator="";document.getElementById("chartEngineStatus").textContent=chartOscillator+" oscillator";drawDemoCandles()};document.getElementById("chartTrendBtn").onclick=()=>{chartTrendIndicator=chartTrendIndicator||"EMA / SMA";chartOscillator="";document.getElementById("chartEngineStatus").textContent=chartTrendIndicator+" trend";drawDemoCandles()};document.getElementById("chartClearBtn").onclick=()=>{chartDrawings=[];chartPendingPoint=null;chartDrawTool="";const svg=document.getElementById("chartAnnotationSvg");if(svg)svg.classList.remove("drawActive");document.getElementById("chartEngineStatus").textContent=chartType;drawDemoCandles()};document.getElementById("kenkleyToggle").onclick=()=>{const s=document.getElementById("kenkleySettings"),open=s.classList.toggle("open");document.getElementById("kenkleyChevron").textContent=open?"⌃":"›";document.getElementById("chartToolsStatus").textContent=open?"Candle expiration settings opened.":"Kenkley’s Lines selected.";};document.querySelectorAll(".candleTimeOption").forEach(b=>b.onclick=()=>{localStorage.setItem(CANDLE_TIME_KEY,b.dataset.candleTime);demoCandleElapsed=0;renderCandleTimeOptions();updateCandleExpiry();document.getElementById("chartToolsStatus").textContent="Candle expiration set to "+b.dataset.candleTime+".";});renderCandleTimeOptions();
 function renderCandleExpiryOptions(){const selected=getSelectedCandleTimeframe();document.querySelectorAll(".candleExpiryOption").forEach(b=>b.classList.toggle("active",b.dataset.candleTime===selected));}
 const candleExpiryToggle=document.getElementById("candleExpiryToggle");
 const candleExpiryMenu=document.getElementById("candleExpiryMenu");
