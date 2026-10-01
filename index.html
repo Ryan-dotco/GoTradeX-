@@ -409,11 +409,12 @@ document.getElementById("adminUsersList").onclick=function(e){
     return "Trader";
   }
   function updateGtxProfileName(){
-    const el=document.getElementById("profileName");
-    if(el) el.textContent=gtxProfileName();
+    const idEl=document.getElementById("profileName");
+    const accountEl=document.getElementById("profileSub");
+    if(idEl) idEl.textContent="Trader ID: GTX-000001";
+    if(accountEl) accountEl.textContent="Ryan Trading Account";
   }
   updateGtxProfileName();
-  window.addEventListener("storage",updateGtxProfileName);
 })();
 </script>
 </body>
