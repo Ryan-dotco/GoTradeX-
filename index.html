@@ -769,6 +769,9 @@ syncGtxKenglyVisibility();
     var profileMode=document.getElementById("gtxProfileMode");if(profileMode)profileMode.textContent=m;
     var profileMenu=document.getElementById("menuMessage");if(profileMenu)profileMenu.textContent=m+" account selected.";
     document.body.dataset.accountMode=m;
+    if(window.GoTradeXChartEngine&&typeof window.GoTradeXChartEngine.setBroker==="function"){
+      window.GoTradeXChartEngine.setBroker(m==="REAL"?"DERIV":"AUTO");
+    }
   }
   function loadDemo(){
     try{localStorage.setItem("gotradex_demo_balance","10000")}catch(e){}
@@ -909,6 +912,21 @@ syncGtxKenglyVisibility();
     ws.onclose=function(){if(document.body.dataset.accountMode==="REAL")statusText("Connection closed",false)};
     return true;
   }
+  async function getAuthenticatedMarketWebSocket(){
+    let accountId="";
+    try{accountId=localStorage.getItem("gotradex_deriv_account_id")||""}catch(e){}
+    if(!accountId){
+      const ok=await connectAuthenticated();
+      if(!ok)throw new Error("Connect Deriv before using the authenticated LIVE chart.");
+      try{accountId=localStorage.getItem("gotradex_deriv_account_id")||""}catch(e){}
+    }
+    if(!accountId)throw new Error("No authenticated Deriv account is available.");
+    const otp=await call("otp",{account_id:accountId});
+    const url=otp?.data?.url;
+    if(!url)throw new Error("Deriv did not return an authenticated market WebSocket URL.");
+    return url;
+  }
+
   async function init(){
     const b=document.getElementById("connectDerivBtn");
     if(b)b.onclick=async function(e){
@@ -926,7 +944,7 @@ syncGtxKenglyVisibility();
     // CONNECT DERIV, or by the explicit OAuth callback after Deriv authorization.
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
-  window.GoTradeXDeriv={connect:connectAuthenticated,start:connectStart,status:()=>call("status")};
+  window.GoTradeXDeriv={connect:connectAuthenticated,start:connectStart,status:()=>call("status"),getAuthenticatedMarketWebSocket};
 })();
 </script>\n</body>
 </html>
