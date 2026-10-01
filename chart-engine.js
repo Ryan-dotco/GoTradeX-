@@ -29,12 +29,12 @@ function injectCss(){
   const s=document.createElement("style");s.id="gtx-kengly-v5-css";
   s.textContent=`
     .gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#071827;color:#dbe9f7}
-    .gtxKenglyHeader{flex:0 0 auto;display:grid;justify-items:start;gap:3px;width:max-content;max-width:100%;padding:4px 6px 5px;background:transparent;border-bottom:0;z-index:8}
-    .gtxKenglyClock{display:flex;justify-content:flex-start;align-items:center;width:max-content;min-height:22px;padding:2px 7px;border:1px solid rgba(150,190,225,.28);border-radius:7px;background:rgba(7,24,39,.28);font-size:9px;font-weight:800;letter-spacing:.15px;color:#dbe9f7;white-space:nowrap}
-    .gtxKenglyTradeRow{display:flex;align-items:center;justify-content:flex-start;gap:7px;width:max-content;min-height:23px}
+    .gtxKenglyHeader{flex:0 0 auto;display:grid;justify-items:start;gap:2px;width:100%;padding:3px 6px 4px;background:transparent;border:0;z-index:8}
+    .gtxKenglyClock{display:flex;justify-content:flex-start;align-items:center;width:max-content;min-height:20px;padding:0;border:0;border-radius:0;background:transparent;font-size:9px;font-weight:800;letter-spacing:.15px;color:#dbe9f7;white-space:nowrap}
+    .gtxKenglyTradeRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:20px}
     .gtxKenglyPair{font-size:12px;font-weight:900;color:#fff;white-space:nowrap}
-    .gtxKenglyKengly{font-size:9px;font-weight:900;color:#aac1d8;white-space:nowrap;letter-spacing:.2px}
-    .gtxKenglySignal,.gtxKenglyCandle{display:inline-flex;align-items:center;justify-content:center;width:max-content;min-width:42px;padding:2px 6px;border:1px solid rgba(150,190,225,.24);border-radius:6px;background:rgba(7,24,39,.24);font-size:10px;font-weight:900;color:#fff;white-space:nowrap}
+    .gtxKenglyKengly{font-size:10px;font-weight:900;color:#aac1d8;white-space:nowrap;letter-spacing:.2px}
+    .gtxKenglySignal,.gtxKenglyCandle{display:inline-flex;align-items:center;justify-content:flex-start;width:max-content;min-width:0;padding:0;border:0;border-radius:0;background:transparent;font-size:10px;font-weight:900;color:#fff;white-space:nowrap}
     .gtxKenglyCandle strong{font-size:10px;color:#fff}
     .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
     .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
@@ -67,8 +67,8 @@ function rebuildDom(){
       <div class="gtxKenglyTradeRow">
         <strong class="gtxKenglyPair" id="gtxKenglyPair">EUR/USD</strong>
         <strong class="gtxKenglyKengly">KENGLY</strong>
-        <strong class="gtxKenglySignal" id="gtxKenglySignal">—</strong>
-        <strong class="gtxKenglyCandle" id="gtxKenglyCandle">—</strong>
+        <strong class="gtxKenglySignal" id="gtxKenglySignal">Signal 00:05:00</strong>
+        <strong class="gtxKenglyCandle" id="gtxKenglyCandle">Candle 00:00:05</strong>
       </div>
     </div>
     <div class="gtxKenglyStage">
@@ -158,7 +158,7 @@ function updateExpiryDisplay(){
     const d=new Date(now);
     const date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
     const time=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-    clock.textContent=date+" • "+time;
+    clock.textContent=date+" "+time+" UTC-04";
   }
 }
 function startSignalExpiry(){
