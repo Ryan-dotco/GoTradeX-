@@ -914,15 +914,16 @@ syncGtxKenglyVisibility();
     if(b)b.onclick=async function(e){
       e.preventDefault();e.stopPropagation();
       try{
-        const st=await call("status");
-        if(st.connected){await connectAuthenticated();return;}
+        // Always start a fresh Deriv OAuth authorization flow when CONNECT DERIV is pressed.
+        // Do not silently reuse an existing browser session/token here.
         await connectStart();
-      }catch(err){statusText(err.message||"Unable to connect",false);}
+      }catch(err){statusText(err.message||"Unable to open Deriv authorization",false);}
     };
     const params=new URLSearchParams(location.search);
     if(params.get("deriv")==="connected")await connectAuthenticated().catch(e=>statusText(e.message||"Connection failed",false));
     if(params.has("deriv"))history.replaceState({},document.title,location.pathname+location.hash);
-    if(!params.has("deriv"))try{await connectAuthenticated()}catch(e){statusText("Not connected",false);}
+    // Do not auto-authenticate on page load. A connection is initiated only by
+    // CONNECT DERIV, or by the explicit OAuth callback after Deriv authorization.
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
   window.GoTradeXDeriv={connect:connectAuthenticated,start:connectStart,status:()=>call("status")};
