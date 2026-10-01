@@ -484,7 +484,7 @@ document.addEventListener("click",e=>{
 },true);
 syncGtxKenglyVisibility();
 </script>
-<script src="chart-engine.js?v=2ef6853e"></script>
+<script src="chart-engine.js?v=gtx-candles-20261001"></script>
 <script>
 (function(){
   function gtxProfileName(){
@@ -637,6 +637,47 @@ syncGtxKenglyVisibility();
 
   window.GoTradeXNavigation={show,close,closeAll};
   closeAll();
+})();
+</script>
+
+<script>
+/* GTX final navigation controller: one deterministic handler for opening and closing UI layers. */
+(function(){
+  const ids=["menuDrawer","walletDrawer","assetDrawer","userAutoBotDrawer","chartToolsDrawer","timeDrawer","keypad","chartAiPage","chatPage","helpPage","supportPage","myTeamPage","privacyPage","termsPage","adminPage","adminDrawer","adminOverview","adminUsers","adminTransactions","adminMarkets","adminReferrals","adminFees","adminSecurity","adminAudit","adminSystemSettings","gtxSimplePage"];
+  const get=id=>document.getElementById(id);
+  const isLayer=id=>ids.includes(id);
+  function sync(){
+    const open=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.chartAiPage.open,.chatPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
+    const h=document.querySelector(".gtxKenglyHeader");
+    if(h)h.style.setProperty("display",open?"none":"flex","important");
+  }
+  function close(id){const e=get(id);if(!e)return;e.classList.remove("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.display="none";sync()}
+  function closeOthers(except){ids.forEach(id=>{if(id!==except){const e=get(id);if(e)e.classList.remove("open")}});sync()}
+  function show(id){const e=get(id);if(!e)return false;closeOthers(id);e.classList.add("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.display="block";if(id==="chatPage")e.style.display="flex";sync();return true}
+  function backFrom(id){
+    const e=get(id);if(!e)return;
+    close(id);
+    if(["adminOverview","adminUsers","adminTransactions","adminMarkets","adminReferrals","adminFees","adminSecurity","adminAudit","adminSystemSettings"].includes(id))show("adminPage");
+  }
+  document.addEventListener("click",function(e){
+    const b=e.target.closest("button,a");if(!b)return;
+    const closeId=b.getAttribute("data-close");
+    if(closeId){e.preventDefault();e.stopImmediatePropagation();close(closeId);return}
+    if(b.id==="menuBtn"){e.preventDefault();e.stopImmediatePropagation();show("menuDrawer");return}
+    if(b.id==="walletBtn"){e.preventDefault();e.stopImmediatePropagation();show("walletDrawer");return}
+    if(b.id==="assetBtn"){e.preventDefault();e.stopImmediatePropagation();show("assetDrawer");return}
+    if(b.id==="marketMoreBtn"){e.preventDefault();e.stopImmediatePropagation();show("chartToolsDrawer");return}
+    if(b.id==="timeBtn"){e.preventDefault();e.stopImmediatePropagation();show("timeDrawer");return}
+    if(b.id==="amountBtn"){e.preventDefault();e.stopImmediatePropagation();show("keypad");return}
+    const pageMap={chartAiBack:"chartAiPage",chatBack:"chatPage",helpBack:"helpPage",supportBack:"supportPage",myTeamBack:"myTeamPage",adminBack:"adminPage",usersBack:"adminUsers",overviewBack:"adminOverview",transactionsBack:"adminTransactions",auditBack:"adminAudit",autobotBack:"adminAutoBot",referralsBack:"adminReferrals",securityBack:"adminSecurity",feesBack:"adminFees",marketsBack:"adminMarkets",systemSettingsBack:"adminSystemSettings",marketsClose:"adminMarkets",usersClose:"adminUsers",transactionsClose:"adminTransactions",autobotClose:"adminAutoBot",auditClose:"adminAudit",feesClose:"adminFees",securityClose:"adminSecurity",systemSettingsClose:"adminSystemSettings"};
+    if(pageMap[b.id]){e.preventDefault();e.stopImmediatePropagation();backFrom(pageMap[b.id]);return}
+    if(b.matches("[data-policy-close]")){e.preventDefault();e.stopImmediatePropagation();close(b.getAttribute("data-policy-close"));return}
+    if(b.classList.contains("close")&&!b.getAttribute("data-close")){const p=b.closest(".drawer,.adminPage,.adminDrawer,.helpPage,.supportPage,.myTeamPage,.policyPage,.termsPage,.chartAiPage,.chatPage,.keypad");if(p){e.preventDefault();e.stopImmediatePropagation();close(p.id);return}}
+    const layer=b.closest(".drawer,.adminPage,.adminDrawer,.helpPage,.supportPage,.myTeamPage,.policyPage,.termsPage,.chartAiPage,.chatPage,.keypad");
+    if(layer&&e.target===layer){e.preventDefault();e.stopImmediatePropagation();close(layer.id)}
+  },true);
+  window.GoTradeXNavigation={show,close,closeAll:()=>closeOthers("")};
+  sync();
 })();
 </script>
 </body>
