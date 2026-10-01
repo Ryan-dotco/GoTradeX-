@@ -394,5 +394,27 @@ document.getElementById("adminUsersList").onclick=function(e){
 };
 </script>
 <script src="chart-engine.js?v=2ef6853e"></script>
+<script>
+(function(){
+  function gtxProfileName(){
+    const keys=["gotradex_current_user","gotradex_logged_in_user","gotradex_profile","gotradex_user","gotradex_session"];
+    for(const key of keys){
+      try{
+        const raw=localStorage.getItem(key); if(!raw) continue;
+        const v=JSON.parse(raw);
+        const name=typeof v==="string"?v:(v?.name||v?.fullName||v?.displayName||v?.username||v?.user?.name||v?.user?.user_metadata?.full_name||v?.user?.user_metadata?.name);
+        if(String(name||"").trim()) return String(name).trim();
+      }catch(e){}
+    }
+    return "Trader";
+  }
+  function updateGtxProfileName(){
+    const el=document.getElementById("profileName");
+    if(el) el.textContent=gtxProfileName();
+  }
+  updateGtxProfileName();
+  window.addEventListener("storage",updateGtxProfileName);
+})();
+</script>
 </body>
 </html>
