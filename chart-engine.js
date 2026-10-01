@@ -64,8 +64,11 @@ function rebuildDom(){
   r.innerHTML=`
     <div class="gtxKenglyHeader">
       <div class="gtxKenglyClock" id="gtxKenglyClock">01-10-2026 15:30 UTC-04</div>
+      <div class="gtxKenglyTimerRow"><span>Pair</span><strong id="gtxKenglyPair">BTC/USDT</strong></div>
+      <div class="gtxKenglyTimerRow"><span>Timeframe</span><strong id="gtxKenglyTimeframe">1 Minute</strong></div>
       <div class="gtxKenglyTimerRow"><span>Signal</span><strong id="gtxKenglySignal">00:05:00</strong></div>
       <div class="gtxKenglyTimerRow"><span>Candle</span><strong id="gtxKenglyCandle">00:00:05</strong></div>
+      <div class="gtxKenglySource" id="gtxKenglySource">Loading market candles…</div>
     </div>
     <div class="gtxKenglyStage">
       <div class="gtxKenglyHost" id="gtxKenglyHost"></div>
