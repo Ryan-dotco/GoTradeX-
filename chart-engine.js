@@ -92,7 +92,7 @@ function rebuildDom(){
         <button class="gtxKenglyReset" id="gtxKenglyReset">RESET INDICATORS</button>
       </div>
       <div class="gtxKenglyLoading">Building Kengly candlestick engine…</div>
-      <div class="gtxKenglyHint">Drag to history • pinch / wheel to zoom • crosshair shows time & price</div>
+      
     </div>`;
   return true;
 }
