@@ -257,13 +257,35 @@ async function refresh(){
   connectSocket();
 }
 
+function drawCanvasFallback(){
+  const host=$("gtxKenglyHost");if(!host)return;
+  host.innerHTML='<canvas id="gtxKenglyCanvas" aria-label="GoTradeX candlestick chart"></canvas>';
+  const canvas=$("gtxKenglyCanvas"),ctx=canvas.getContext("2d");if(!ctx)return;
+  const draw=()=>{
+    const w=Math.max(320,host.clientWidth||320),h=Math.max(220,host.clientHeight||220),dpr=Math.max(1,window.devicePixelRatio||1);
+    canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);canvas.style.width=w+"px";canvas.style.height=h+"px";ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);ctx.fillStyle="#071827";ctx.fillRect(0,0,w,h);
+    const rows=candles.slice(-80);if(!rows.length)return;
+    const max=Math.max(...rows.map(x=>x.high)),min=Math.min(...rows.map(x=>x.low)),range=Math.max(max-min,.000001);
+    const left=8,right=58,top=8,bottom=22,pw=Math.max(1,(w-left-right)/rows.length),body=Math.max(2,pw*.58);
+    ctx.strokeStyle="rgba(120,160,200,.10)";ctx.lineWidth=1;ctx.font="9px sans-serif";ctx.fillStyle="#7891aa";
+    for(let i=0;i<5;i++){const y=top+(h-top-bottom)*i/4;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();const v=max-range*i/4;ctx.fillText(fmt(v),w-right+5,y+3)}
+    rows.forEach((x,i)=>{const cx=left+i*pw+pw/2,py=v=>top+(max-v)/range*(h-top-bottom),yo=py(x.open),yc=py(x.close),yh=py(x.high),yl=py(x.low),up=x.close>=x.open;ctx.strokeStyle=up?"#36c275":"#e05b70";ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.moveTo(cx,yh);ctx.lineTo(cx,yl);ctx.stroke();const y=Math.min(yo,yc),bh=Math.max(1,Math.abs(yc-yo));ctx.fillRect(cx-body/2,y,body,bh)});
+    const last=rows.at(-1)?.close;if(Number.isFinite(last)){const y=top+(max-last)/range*(h-top-bottom);ctx.strokeStyle="#f5c542";ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#f5c542";ctx.fillText(fmt(last),w-right+5,y+3)}
+  };
+  draw();
+  resizeObserver?.disconnect();resizeObserver=new ResizeObserver(draw);resizeObserver.observe(host);
+  root().classList.add("ready");updateInfo();bindSignalExpiry();
+}
+
 async function boot(){
   if(started||!root())return;started=true;
   injectCss();rebuildDom();fitMobile();window.addEventListener("resize",fitMobile,{passive:true});
   clearInterval(expiryTimer);expiryTimer=setInterval(updateExpiryDisplay,250);bindSignalExpiry();
   try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=setInterval(fast,1000)}
   catch(_){
-    const host=$("gtxKenglyHost");if(host){host.innerHTML='<div style="height:100%;display:grid;place-items:center;color:#aac1d8;font:700 11px sans-serif">Kengly chart library unavailable</div>'}
+    try{candles=dedupe(demoCandles());if(!candles.length)candles=syntheticCandles();drawCanvasFallback();}
+    catch(e){const host=$("gtxKenglyHost");if(host)host.innerHTML='<div style="height:100%;display:grid;place-items:center;color:#aac1d8;font:700 11px sans-serif">Candlestick chart unavailable</div>'}
   }
 }
 
