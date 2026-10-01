@@ -29,12 +29,13 @@ function injectCss(){
   const s=document.createElement("style");s.id="gtx-kengly-v5-css";
   s.textContent=`
     .gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#071827;color:#dbe9f7}
-    .gtxKenglyHeader{flex:0 0 auto;display:grid;justify-items:start;gap:1px;width:100%;padding:3px 6px 4px;background:transparent;border:0;z-index:8}
-    .gtxKenglyClock,.gtxKenglyTimerRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:max-content;min-height:18px;padding:0;border:0;background:transparent;color:#dbe9f7;white-space:nowrap}
-    .gtxKenglyClock{font-size:9px;font-weight:800}
-    .gtxKenglyTimerRow{font-size:10px;font-weight:800}
-    .gtxKenglyTimerRow strong{font-size:10px;color:#fff}
-    .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
+    .gtxKenglyHeader{position:relative!important;flex:0 0 58px!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:1px!important;width:100%!important;height:58px!important;box-sizing:border-box!important;padding:3px 6px 4px!important;background:transparent!important;border:0!important;z-index:100!important;overflow:visible!important}
+    .gtxKenglyClock,.gtxKenglyTimerRow{display:flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;width:auto!important;height:auto!important;min-height:17px!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;color:#dbe9f7!important;white-space:nowrap!important;position:relative!important;z-index:101!important}
+    .gtxKenglyClock{font-size:9px!important;line-height:17px!important;font-weight:800!important}
+    .gtxKenglyTimerRow{font-size:10px!important;line-height:17px!important;font-weight:800!important}
+    .gtxKenglyTimerRow span,.gtxKenglyTimerRow strong{display:inline-block!important;visibility:visible!important;opacity:1!important;font-size:10px!important;line-height:17px!important;color:#fff!important}
+    .gtxKenglyTimerRow span{min-width:42px!important;color:#dbe9f7!important}
+    .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden;z-index:1}
     .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
     .gtxKenglyHost{position:absolute;inset:0;width:100%;height:100%;min-height:0}
     .gtxKenglyHost canvas{touch-action:none}
