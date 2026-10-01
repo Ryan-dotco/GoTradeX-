@@ -30,20 +30,10 @@ function injectCss(){
   s.textContent=`
     .gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#071827;color:#dbe9f7}
     .gtxKenglyHeader{flex:0 0 auto;display:grid;justify-items:start;gap:1px;width:100%;padding:3px 6px 4px;background:transparent;border:0;z-index:8}
-    .gtxKenglyClock,.gtxKenglyTimers,.gtxKenglyTitle,.gtxKenglyRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:max-content;max-width:100%;min-height:18px;padding:0;border:0;background:transparent;color:#dbe9f7;white-space:nowrap}
+    .gtxKenglyClock,.gtxKenglyTimerRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:max-content;min-height:18px;padding:0;border:0;background:transparent;color:#dbe9f7;white-space:nowrap}
     .gtxKenglyClock{font-size:9px;font-weight:800}
-    .gtxKenglyTimers{gap:10px;font-size:9px;font-weight:800}
-    .gtxKenglyTitle{font-size:10px;font-weight:900;color:#fff;margin-top:1px}
-    .gtxKenglyRow{width:100%;max-width:260px;justify-content:space-between;font-size:10px}
-    .gtxKenglyRow strong{font-size:10px;color:#fff}
-    .gtxKenglyRow span{font-size:10px;color:#dbe9f7}
-
-    .gtxKenglyClock{display:flex;justify-content:flex-start;align-items:center;width:max-content;min-height:20px;padding:0;border:0;border-radius:0;background:transparent;font-size:9px;font-weight:800;letter-spacing:.15px;color:#dbe9f7;white-space:nowrap}
-    .gtxKenglyTradeRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:20px}
-    .gtxKenglyPair{font-size:12px;font-weight:900;color:#fff;white-space:nowrap}
-    .gtxKenglyKengly{font-size:10px;font-weight:900;color:#aac1d8;white-space:nowrap;letter-spacing:.2px}
-    .gtxKenglySignal,.gtxKenglyCandle{display:inline-flex;align-items:center;justify-content:flex-start;width:max-content;min-width:0;padding:0;border:0;border-radius:0;background:transparent;font-size:10px;font-weight:900;color:#fff;white-space:nowrap}
-    .gtxKenglyCandle strong{font-size:10px;color:#fff}
+    .gtxKenglyTimerRow{font-size:10px;font-weight:800}
+    .gtxKenglyTimerRow strong{font-size:10px;color:#fff}
     .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
     .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
     .gtxKenglyHost{position:absolute;inset:0;width:100%;height:100%;min-height:0}
@@ -71,15 +61,9 @@ function rebuildDom(){
   r.style.setProperty("visibility","visible","important");
   r.innerHTML=`
     <div class="gtxKenglyHeader">
-      <div class="gtxKenglyClock" id="gtxKenglyClock">01-10-2026 15:30:30 UTC-04</div>
-      <div class="gtxKenglyTimers">
-        <span id="gtxKenglySignal">Signal 00:05:00</span>
-        <span id="gtxKenglyCandle">Candle 00:00:05</span>
-      </div>
-      <div class="gtxKenglyTitle">Candles Charts</div>
-      <div class="gtxKenglyRow"><strong id="gtxKenglyPair">EURUSD</strong><span id="gtxKenglyTimeframe">5 Seconds</span></div>
-      <div class="gtxKenglyRow"><strong>Auto Bot</strong><span id="gtxKenglyAmount">$10.00</span></div>
-      <div class="gtxKenglyRow"><strong>SELL %</strong><span id="gtxKenglySell">—</span><strong>BUY %</strong><span id="gtxKenglyBuy">—</span></div>
+      <div class="gtxKenglyClock" id="gtxKenglyClock">01-10-2026 15:30 UTC-04</div>
+      <div class="gtxKenglyTimerRow"><span>Signal</span><strong id="gtxKenglySignal">00:05:00</strong></div>
+      <div class="gtxKenglyTimerRow"><span>Candle</span><strong id="gtxKenglyCandle">00:00:05</strong></div>
     </div>
     <div class="gtxKenglyStage">
       <div class="gtxKenglyHost" id="gtxKenglyHost"></div>
