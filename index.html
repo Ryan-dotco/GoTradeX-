@@ -67,6 +67,15 @@ body{min-height:100dvh}
 #amountPortal{min-width:0;background:#176fca;border:1px solid #176fca;border-radius:9px;padding:0;display:flex;align-items:center;justify-content:center;text-align:center}
 #amountPortal label{display:none}
 #amountBtn{width:100%;height:100%;margin:0;padding:8px 10px;background:transparent;color:#fff;border:0;font-weight:800;font-size:16px;line-height:1.2;display:flex;align-items:center;justify-content:center}
+
+/* GTX mobile trade pair placement: move SELL and BUY together into the lower open space. */
+@media(max-width:600px){
+  .bottom{overflow:visible!important}
+  .actions{overflow:visible!important}
+  .actions .trade{
+    transform:translateY(30px)!important;
+  }
+}
 </style>
 </head>
 <body>
