@@ -139,19 +139,19 @@ function updateExpiryDisplay(){
   const remain=Math.max(0,next-sec);
   const mm=String(Math.floor(remain/60)).padStart(2,"0"),ss=String(remain%60).padStart(2,"0");
   const ce=$( "gtxKenglyCandle");
-  if(ce)ce.textContent=step>=60?String(Math.floor(remain/60)).padStart(2,"0")+":"+ss:String(remain).padStart(2,"0")+"s";
+  if(ce)ce.textContent=step>=60?String(Math.floor(remain/60)).padStart(2,"0")+":"+ss+":00":"00:00:"+String(remain).padStart(2,"0");
   const se=$( "gtxKenglySignal");
   if(se){
     const left=signalExpiryAt?Math.max(0,Math.ceil((signalExpiryAt-now)/1000)):0;
     const sm=String(Math.floor(left/60)).padStart(2,"0"),ss2=String(left%60).padStart(2,"0");
-    se.textContent=signalExpiryAt?(step>=60?sm+":"+ss2:String(left).padStart(2,"0")+"s"):"—";
+    se.textContent=signalExpiryAt?(step>=60?sm+":"+ss2+":00":"00:00:"+String(left).padStart(2,"0")):"00:05:00";
     if(signalExpiryAt&&left<=0)signalExpiryAt=0;
   }
   const clock=$( "gtxKenglyClock");
   if(clock){
     const d=new Date(now);
-    const date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
-    const time=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+    const date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"}).replaceAll("/","-");
+    const time=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",hour12:false});
     clock.textContent=date+" "+time+" UTC-04";
     const amountEl=$( "gtxKenglyAmount"),amountBtn=$( "amountBtn");if(amountEl&&amountBtn)amountEl.textContent=amountBtn.textContent.trim()||"$10.00";
     const sellEl=$( "gtxKenglySell"),buyEl=$( "gtxKenglyBuy");const sellPct=document.querySelector(".sell .tradePercent"),buyPct=document.querySelector(".buy .tradePercent");if(sellEl)sellEl.textContent=sellPct?.textContent?.trim()||"—";if(buyEl)buyEl.textContent=buyPct?.textContent?.trim()||"—";
