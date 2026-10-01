@@ -29,7 +29,15 @@ function injectCss(){
   const s=document.createElement("style");s.id="gtx-kengly-v5-css";
   s.textContent=`
     .gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#071827;color:#dbe9f7}
-    .gtxKenglyHeader{flex:0 0 auto;display:grid;justify-items:start;gap:2px;width:100%;padding:3px 6px 4px;background:transparent;border:0;z-index:8}
+    .gtxKenglyHeader{flex:0 0 auto;display:grid;justify-items:start;gap:1px;width:100%;padding:3px 6px 4px;background:transparent;border:0;z-index:8}
+    .gtxKenglyClock,.gtxKenglyTimers,.gtxKenglyTitle,.gtxKenglyRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:max-content;max-width:100%;min-height:18px;padding:0;border:0;background:transparent;color:#dbe9f7;white-space:nowrap}
+    .gtxKenglyClock{font-size:9px;font-weight:800}
+    .gtxKenglyTimers{gap:10px;font-size:9px;font-weight:800}
+    .gtxKenglyTitle{font-size:10px;font-weight:900;color:#fff;margin-top:1px}
+    .gtxKenglyRow{width:100%;max-width:260px;justify-content:space-between;font-size:10px}
+    .gtxKenglyRow strong{font-size:10px;color:#fff}
+    .gtxKenglyRow span{font-size:10px;color:#dbe9f7}
+
     .gtxKenglyClock{display:flex;justify-content:flex-start;align-items:center;width:max-content;min-height:20px;padding:0;border:0;border-radius:0;background:transparent;font-size:9px;font-weight:800;letter-spacing:.15px;color:#dbe9f7;white-space:nowrap}
     .gtxKenglyTradeRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:20px}
     .gtxKenglyPair{font-size:12px;font-weight:900;color:#fff;white-space:nowrap}
@@ -63,13 +71,15 @@ function rebuildDom(){
   r.style.setProperty("visibility","visible","important");
   r.innerHTML=`
     <div class="gtxKenglyHeader">
-      <div class="gtxKenglyClock" id="gtxKenglyClock">—</div>
-      <div class="gtxKenglyTradeRow">
-        <strong class="gtxKenglyPair" id="gtxKenglyPair">EUR/USD</strong>
-        <strong class="gtxKenglyKengly">KENGLY</strong>
-        <strong class="gtxKenglySignal" id="gtxKenglySignal">Signal 00:05:00</strong>
-        <strong class="gtxKenglyCandle" id="gtxKenglyCandle">Candle 00:00:05</strong>
+      <div class="gtxKenglyClock" id="gtxKenglyClock">01-10-2026 15:30:30 UTC-04</div>
+      <div class="gtxKenglyTimers">
+        <span id="gtxKenglySignal">Signal 00:05:00</span>
+        <span id="gtxKenglyCandle">Candle 00:00:05</span>
       </div>
+      <div class="gtxKenglyTitle">Candles Charts</div>
+      <div class="gtxKenglyRow"><strong id="gtxKenglyPair">EURUSD</strong><span id="gtxKenglyTimeframe">5 Seconds</span></div>
+      <div class="gtxKenglyRow"><strong>Auto Bot</strong><span id="gtxKenglyAmount">$10.00</span></div>
+      <div class="gtxKenglyRow"><strong>SELL %</strong><span id="gtxKenglySell">—</span><strong>BUY %</strong><span id="gtxKenglyBuy">—</span></div>
     </div>
     <div class="gtxKenglyStage">
       <div class="gtxKenglyHost" id="gtxKenglyHost"></div>
@@ -159,6 +169,8 @@ function updateExpiryDisplay(){
     const date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
     const time=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
     clock.textContent=date+" "+time+" UTC-04";
+    const amountEl=$( "gtxKenglyAmount"),amountBtn=$( "amountBtn");if(amountEl&&amountBtn)amountEl.textContent=amountBtn.textContent.trim()||"$10.00";
+    const sellEl=$( "gtxKenglySell"),buyEl=$( "gtxKenglyBuy");const sellPct=document.querySelector(".sell .tradePercent"),buyPct=document.querySelector(".buy .tradePercent");if(sellEl)sellEl.textContent=sellPct?.textContent?.trim()||"—";if(buyEl)buyEl.textContent=buyPct?.textContent?.trim()||"—";
   }
 }
 function startSignalExpiry(){
@@ -175,7 +187,8 @@ function bindSignalExpiry(){
 }
 function updateInfo(){
   const x=candles.at(-1);if(!x)return;
-  $( "gtxKenglyPair").textContent=pairLabel();
+  $( "gtxKenglyPair").textContent=pairLabel().replace("/USDT","").replace("/", "");
+  const tfEl=$( "gtxKenglyTimeframe");if(tfEl)tfEl.textContent=tf;
   if(priceLine)priceLine.applyOptions({price:x.close});
   updateExpiryDisplay();
 }
