@@ -29,13 +29,14 @@ function injectCss(){
   const s=document.createElement("style");s.id="gtx-kengly-v5-css";
   s.textContent=`
     .gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#071827;color:#dbe9f7}
-    .gtxKenglyHeader{flex:0 0 auto;display:grid;gap:4px;padding:5px 8px 6px;background:rgba(8,27,49,.62);border-bottom:1px solid rgba(43,82,125,.62);backdrop-filter:blur(8px);z-index:8}
-    .gtxKenglyClock{display:flex;justify-content:center;align-items:center;min-height:27px;padding:3px 9px;border:1px solid rgba(150,190,225,.28);border-radius:8px;background:rgba(7,24,39,.28);font-size:10px;font-weight:800;letter-spacing:.15px;color:#dbe9f7;white-space:nowrap}
-    .gtxKenglyTradeRow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:27px}
-    .gtxKenglyPair{font-size:13px;font-weight:900;color:#fff;white-space:nowrap}
-    .gtxKenglySignal{font-size:10px;font-weight:900;color:#fff;white-space:nowrap;text-align:right}
-    .gtxKenglyCandle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:3px 8px;border:1px solid rgba(150,190,225,.24);border-radius:7px;background:rgba(7,24,39,.24);font-size:9px;font-weight:900;color:#aac1d8;white-space:nowrap}
-    .gtxKenglyCandle strong{font-size:11px;color:#fff}
+    .gtxKenglyHeader{flex:0 0 auto;display:grid;justify-items:start;gap:3px;width:max-content;max-width:100%;padding:4px 6px 5px;background:transparent;border-bottom:0;z-index:8}
+    .gtxKenglyClock{display:flex;justify-content:flex-start;align-items:center;width:max-content;min-height:22px;padding:2px 7px;border:1px solid rgba(150,190,225,.28);border-radius:7px;background:rgba(7,24,39,.28);font-size:9px;font-weight:800;letter-spacing:.15px;color:#dbe9f7;white-space:nowrap}
+    .gtxKenglyTradeRow{display:flex;align-items:center;justify-content:flex-start;gap:7px;width:max-content;min-height:23px}
+    .gtxKenglyPair{font-size:12px;font-weight:900;color:#fff;white-space:nowrap}
+    .gtxKenglyKengly{font-size:9px;font-weight:900;color:#aac1d8;white-space:nowrap;letter-spacing:.2px}
+    .gtxKenglySignal,.gtxKenglyCandle{display:inline-flex;align-items:center;justify-content:center;width:max-content;min-width:42px;padding:2px 6px;border:1px solid rgba(150,190,225,.24);border-radius:6px;background:rgba(7,24,39,.24);font-size:10px;font-weight:900;color:#fff;white-space:nowrap}
+    .gtxKenglyCandle strong{font-size:10px;color:#fff}
+    .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
     .gtxKenglyStage{position:relative;flex:1 1 auto;min-height:0;width:100%;overflow:hidden}
     .gtxKenglyHost{position:absolute;inset:0;width:100%;height:100%;min-height:0}
     .gtxKenglyHost canvas{touch-action:none}
@@ -65,11 +66,9 @@ function rebuildDom(){
       <div class="gtxKenglyClock" id="gtxKenglyClock">—</div>
       <div class="gtxKenglyTradeRow">
         <strong class="gtxKenglyPair" id="gtxKenglyPair">EUR/USD</strong>
-        <strong class="gtxKenglySignal" id="gtxKenglySignal">SIGNAL EXPIRY • —</strong>
-      </div>
-      <div class="gtxKenglyCandle">
-        <span>CANDLE EXPIRY</span>
-        <strong id="gtxKenglyCandle">—</strong>
+        <strong class="gtxKenglyKengly">KENGLY</strong>
+        <strong class="gtxKenglySignal" id="gtxKenglySignal">—</strong>
+        <strong class="gtxKenglyCandle" id="gtxKenglyCandle">—</strong>
       </div>
     </div>
     <div class="gtxKenglyStage">
@@ -151,15 +150,15 @@ function updateExpiryDisplay(){
   if(se){
     const left=signalExpiryAt?Math.max(0,Math.ceil((signalExpiryAt-now)/1000)):0;
     const sm=String(Math.floor(left/60)).padStart(2,"0"),ss2=String(left%60).padStart(2,"0");
-    se.textContent="SIGNAL EXPIRY • "+(signalExpiryAt?(step>=60?sm+":"+ss2:String(left).padStart(2,"0")+"s"):"—");
+    se.textContent=signalExpiryAt?(step>=60?sm+":"+ss2:String(left).padStart(2,"0")+"s"):"—";
     if(signalExpiryAt&&left<=0)signalExpiryAt=0;
   }
   const clock=$( "gtxKenglyClock");
   if(clock){
     const d=new Date(now);
-    const date=d.toLocaleDateString(undefined,{day:"2-digit",month:"short",year:"numeric"}).toUpperCase();
+    const date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
     const time=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-    clock.textContent=date+" • "+time+" • "+zoneLabel();
+    clock.textContent=date+" • "+time;
   }
 }
 function startSignalExpiry(){
