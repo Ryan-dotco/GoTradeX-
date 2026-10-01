@@ -566,8 +566,8 @@ function closeDemoTrade(){
   activeDemoTrade=null;
   if(activeDemoTradeTimer){clearInterval(activeDemoTradeTimer);activeDemoTradeTimer=null}
   renderTradeClock("00:00");
-  document.getElementById("activeTradeInfo")?.textContent="NONE";
-  document.getElementById("lastTradeInfo")?.textContent=result+" • "+closed.side+" $"+closed.amount;
+  if(document.getElementById("activeTradeInfo"))document.getElementById("activeTradeInfo").textContent="NONE";
+  if(document.getElementById("lastTradeInfo"))document.getElementById("lastTradeInfo").textContent=result+" • "+closed.side+" $"+closed.amount;
   document.getElementById("status").textContent=closed.side+" paper trade expired. "+result+" • Entry "+formatTradePrice(entryPrice)+" → Exit "+formatTradePrice(exitPrice)+".";
   setTradeControlsLocked(false);
   renderTradeHistory();
@@ -593,8 +593,8 @@ function startDemoTrade(side){
   };
   setTradeControlsLocked(true);
   renderTradeClock(formatTradeCountdown(total));
-  document.getElementById("activeTradeInfo")?.textContent="LOCKED • "+side+" $"+amount;
-  document.getElementById("lastTradeInfo")?.textContent="ACTIVE";
+  if(document.getElementById("activeTradeInfo"))document.getElementById("activeTradeInfo").textContent="LOCKED • "+side+" $"+amount;
+  if(document.getElementById("lastTradeInfo"))document.getElementById("lastTradeInfo").textContent="ACTIVE";
   document.getElementById("status").textContent=side+" paper trade placed on "+asset+" at "+formatTradePrice(entryPrice)+". Parameters locked for "+duration+".";
   activeDemoTradeTimer=setInterval(()=>{
     if(!activeDemoTrade)return;
