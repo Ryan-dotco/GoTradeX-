@@ -413,7 +413,7 @@ document.getElementById("userAutoBotActivate").onclick=()=>{
 document.getElementById("userAutoBotFund").onclick=()=>{
   document.getElementById("userAutoBotDrawer").classList.remove("open");
   document.getElementById("walletBtn").click();
-};document.querySelectorAll(".chartToolOption").forEach(b=>b.onclick=()=>{const tool=b.dataset.tool||b.textContent.trim();document.getElementById("chartToolsStatus").textContent=tool+" selected. Chart integration will apply it when the verified chart feed is connected.";});updateCandleExpiry();document.getElementById("chartToolsStatus").textContent="Candle expiration set to "+b.dataset.candleTime+".";});renderCandleTimeOptions();
+};document.querySelectorAll(".chartToolOption").forEach(b=>b.onclick=()=>{const tool=b.dataset.tool||b.textContent.trim();document.getElementById("chartToolsStatus").textContent=tool+" selected. Chart integration will apply it when the verified chart feed is connected.";});renderCandleTimeOptions();
 function renderCandleExpiryOptions(){const selected=getSelectedCandleTimeframe();document.querySelectorAll(".candleExpiryOption").forEach(b=>b.classList.toggle("active",b.dataset.candleTime===selected));}
 const candleExpiryToggle=document.getElementById("candleExpiryToggle");
 const candleExpiryMenu=document.getElementById("candleExpiryMenu");
