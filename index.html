@@ -508,5 +508,136 @@ syncGtxKenglyVisibility();
   updateGtxProfileName();
 })();
 </script>
+<script>
+/* GoTradeX navigation repair layer — keeps every menu/page/drawer reachable and closable. */
+(function(){
+  const q=s=>document.querySelector(s), byId=id=>document.getElementById(id);
+  const overlaySelectors=[
+    ".drawer.open",".adminPage.open",".adminDrawer.open",".helpPage.open",".supportPage.open",
+    ".myTeamPage.open",".chartAiPage.open",".chatPage.open",".policyPage.open",".termsPage.open",
+    ".userAutoBotDrawer.open",".agentWidget.open",".keypad.open"
+  ];
+  function closeAll(except){
+    overlaySelectors.forEach(sel=>document.querySelectorAll(sel).forEach(el=>{
+      if(el!==except) el.classList.remove("open");
+      if(el!==except && ["helpPage","supportPage","myTeamPage"].includes(el.id)) el.style.display="none";
+    }));
+    const h=q(".gtxKenglyHeader");
+    if(h) h.style.setProperty("display",document.querySelector(overlaySelectors.join(","))?"none":"flex","important");
+  }
+  function show(id){
+    const el=byId(id); if(!el) return false;
+    closeAll(el); el.classList.add("open");
+    if(["helpPage","supportPage","myTeamPage"].includes(id)) el.style.display="block";
+    if(id==="chatPage") el.style.display="flex";
+    return true;
+  }
+  function close(id){
+    const el=byId(id); if(!el)return;
+    el.classList.remove("open");
+    if(["helpPage","supportPage","myTeamPage"].includes(id)) el.style.display="none";
+    const h=q(".gtxKenglyHeader");
+    if(h) h.style.setProperty("display",document.querySelector(overlaySelectors.join(","))?"none":"flex","important");
+  }
+  function closeMenu(){close("menuDrawer")}
+  function openSimplePanel(title,body){
+    let p=byId("gtxSimplePage");
+    if(!p){
+      p=document.createElement("div"); p.id="gtxSimplePage"; p.className="drawer";
+      p.innerHTML='<div class="panel"><button class="close" id="gtxSimpleClose" type="button">Close</button><h2 id="gtxSimpleTitle"></h2><div id="gtxSimpleBody" class="adminSlot"></div></div>';
+      document.body.appendChild(p);
+      byId("gtxSimpleClose").onclick=()=>close("gtxSimplePage");
+    }
+    byId("gtxSimpleTitle").textContent=title;
+    byId("gtxSimpleBody").innerHTML=body;
+    show("gtxSimplePage");
+  }
+  function openPortfolio(){
+    openSimplePanel("Portfolio",'<strong>Paper Portfolio</strong><br><br>Balance: <strong>$10,000.00</strong><br>Mode: DEMO<br>Live orders are disabled until a verified live-trading connection is configured.');
+  }
+  function openAccountPage(title,body){openSimplePanel(title,body)}
+
+  /* Replace the old menu handler that only displayed “section ready” for several items. */
+  document.querySelectorAll(".menuItem").forEach(b=>{
+    b.onclick=function(e){
+      e.preventDefault(); e.stopPropagation();
+      const s=b.dataset.section||"";
+      closeMenu();
+      if(s==="Dashboard"){closeAll(); window.scrollTo(0,0); return;}
+      if(s==="Chart AI"){show("chartAiPage"); return;}
+      if(s==="AutoBot"){show("userAutoBotDrawer"); if(typeof loadUserAutoBotAccount==="function")loadUserAutoBotAccount(); return;}
+      if(s==="Chat AI"){show("chatPage"); if(typeof loadChat==="function")loadChat(); setTimeout(()=>byId("chatInput")?.focus(),0); return;}
+      if(s==="Markets"){show("assetDrawer"); return;}
+      if(s==="Wallet"){show("walletDrawer"); return;}
+      if(s==="Portfolio"){openPortfolio(); return;}
+      if(s==="My Team"){if(typeof openMyTeam==="function")openMyTeam(); else show("myTeamPage"); return;}
+      if(s==="Agent AI"){if(typeof openAgentAI==="function")openAgentAI(); return;}
+      if(s==="About"){openSimplePanel("About GoTradeX","GoTradeX — AI-assisted market analysis and paper trading.<br><br>This interface is for demonstration and paper-trading workflows. Real-money execution requires a separately verified live connection.");return;}
+      if(s==="Privacy Policy"){show("privacyPage");return;}
+      if(s==="Terms & Conditions"){show("termsPage");return;}
+      if(s==="Admin Portal"){
+        if(typeof gtxIsAdminUser==="function"&&!gtxIsAdminUser()){return;}
+        show("adminPage"); return;
+      }
+    };
+  });
+
+  /* Profile-side buttons: every item gets a real destination instead of a dead status message. */
+  document.querySelectorAll("[data-profile-action]").forEach(b=>{
+    b.onclick=function(e){
+      e.preventDefault(); e.stopPropagation();
+      const a=b.dataset.profileAction||"";
+      closeMenu();
+      if(a==="logout"){if(typeof logout==="function")logout(); else if(typeof logoutAccount==="function")logoutAccount(); return;}
+      if(a==="help"){if(typeof openHelp==="function")openHelp(); else show("helpPage");return;}
+      if(a==="profile")return openAccountPage("My Profile","<strong>Trader ID:</strong> GTX-000001<br><strong>Account:</strong> Ryan Trading Account<br><strong>Mode:</strong> "+(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO"));
+      if(a==="account")return openAccountPage("Account","<strong>Current mode:</strong> "+(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO")+"<br><br>Use the DEMO / REAL controls on the trading screen to change account mode.");
+      if(a==="settings")return openAccountPage("Settings","Account settings are available here. Trading controls remain unchanged.");
+      if(a==="security")return openAccountPage("Security","Security controls are available here. Connect the verified authentication/security layer before treating these settings as live account controls.");
+      if(a==="notifications")return openAccountPage("Notifications","Notification preferences are available here.");
+    };
+  });
+
+  /* Make every Close / Back button deterministic, including buttons added later. */
+  document.addEventListener("click",function(e){
+    const b=e.target.closest("button"); if(!b)return;
+    if(b.id==="gtxSimpleClose")return;
+    const closeId=b.getAttribute("data-close");
+    if(closeId){e.preventDefault();e.stopPropagation();close(closeId);return;}
+    const map={
+      chartAiBack:"chartAiPage",chatBack:"chatPage",helpBack:"helpPage",supportBack:"supportPage",myTeamBack:"myTeamPage",
+      adminBack:"adminPage",usersBack:"adminUsers",overviewBack:"adminOverview",transactionsBack:"adminTransactions",auditBack:"adminAudit",
+      autobotBack:"adminAutoBot",referralsBack:"adminReferrals",securityBack:"adminSecurity",feesBack:"adminFees",marketsBack:"adminMarkets",systemSettingsBack:"adminSystemSettings"
+    };
+    if(map[b.id]){e.preventDefault();e.stopPropagation();close(map[b.id]);if(b.id==="adminBack")close("adminPage");return;}
+    if(b.id==="menuBtn"){show("menuDrawer");return;}
+    if(b.id==="walletBtn"){show("walletDrawer");return;}
+    if(b.id==="assetBtn"){show("assetDrawer");return;}
+    if(b.id==="timeBtn"){show("timeDrawer");return;}
+    if(b.id==="marketMoreBtn"){show("chartToolsDrawer");return;}
+    if(b.id==="amountBtn"){show("keypad");return;}
+  },false);
+
+  /* Explicitly repair common top-level buttons after all existing handlers have loaded. */
+  byId("menuBtn")?.addEventListener("click",()=>show("menuDrawer"),false);
+  byId("walletBtn")?.addEventListener("click",()=>show("walletDrawer"),false);
+  byId("assetBtn")?.addEventListener("click",()=>show("assetDrawer"),false);
+  byId("marketMoreBtn")?.addEventListener("click",()=>show("chartToolsDrawer"),false);
+  byId("timeBtn")?.addEventListener("click",()=>show("timeDrawer"),false);
+  byId("amountBtn")?.addEventListener("click",()=>show("keypad"),false);
+
+  /* Close a drawer/page when its dark backdrop itself is tapped. */
+  document.addEventListener("click",function(e){
+    const el=e.target;
+    if(!(el instanceof HTMLElement))return;
+    if(el.classList.contains("drawer")||el.classList.contains("helpPage")||el.classList.contains("supportPage")||el.classList.contains("myTeamPage")){
+      if(e.target===el)close(el.id);
+    }
+  },false);
+
+  window.GoTradeXNavigation={show,close,closeAll};
+  closeAll();
+})();
+</script>
 </body>
 </html>
