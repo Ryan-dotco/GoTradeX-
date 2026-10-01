@@ -1,23 +1,44 @@
 /* GoTradeX Candlestick Engine V6
-   LIVE MARKET CHART ONLY — Bybit Spot
+   LIVE MARKET CHART — Deriv + Bybit Linear
    Keeps existing GoTradeX controls through GoTradeXChartEngine.
 */
 (()=>{"use strict";
 
 const TF={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400,"12 Hours":43200,"1 Day":86400,"1 Week":604800,"1 Month":2592000,"6 Months":15552000,"1 Year":31536000};
 const API={"1 Minute":"1","5 Minutes":"5","15 Minutes":"15","30 Minutes":"30","1 Hour":"60","4 Hours":"240","12 Hours":"720","1 Day":"D","1 Week":"W","1 Month":"M"};
+const BROKER=store.get("gotradex_chart_broker","AUTO");
+const DERIV_WS="wss://api.derivws.com/trading/v1/options/ws/public";
+const BYBIT_WS="wss://stream.bybit.com/v5/public/linear";
 const INDS=["Alligator","Fractals","EMA / SMA","Bollinger Bands","Parabolic SAR","Supertrend","Ichimoku Cloud","RSI","MACD","Stochastic","ATR","Support & Resistance","Horizontal Line"];
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{return localStorage.getItem(k)||d}catch(_){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(_){}}};
 
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let candles=[],symbol=store.get("gotradex_chart_symbol","BTCUSDT"),tf=store.get("gotradex_chart_timeframe","1 Minute");
-let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[];
+let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker=BROKER;
 let trade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
 
 function root(){return document.querySelector(".chart")}
 function pairSymbol(){let s=String(symbol||"BTCUSDT").toUpperCase().replace("/","");return s.endsWith("USDT")?s:s+"USDT"}
 function pairLabel(){const s=pairSymbol();return s.endsWith("USDT")?s.slice(0,-4)+"/USDT":s.length===6?s.slice(0,3)+"/"+s.slice(3):s}
+function derivSymbol(){
+ const raw=String(symbol||"").toUpperCase().replace("/","");
+ if(/^FRX[A-Z]{6}$/.test(raw))return raw;
+ if(/^R_(10|25|50|75|100)$/.test(raw))return raw;
+ if(/^1HZ[0-9A-Z]+$/.test(raw))return raw;
+ if(/^BOOM|^CRASH/.test(raw))return raw;
+ return null;
+}
+function chooseBroker(){
+ const d=derivSymbol();
+ if(liveBroker==="DERIV"&&d)return "DERIV";
+ if(liveBroker==="BYBIT")return "BYBIT";
+ return d?"DERIV":"BYBIT";
+}
+function displayBroker(){
+ const b=chooseBroker();
+ return b==="DERIV"?"Deriv":"Bybit Linear";
+}
 function fmt(v){v=Number(v);if(!Number.isFinite(v))return"—";return v>=1000?v.toFixed(2):v>=10?v.toFixed(4):v>=1?v.toFixed(5):v.toFixed(6)}
 
 function injectCss(){
@@ -53,20 +74,43 @@ function rebuildDom(){
  r.className="chart gtxKengly";
  r.innerHTML=`<div class="gtxKenglyHeader">
  <span class="gtxKenglyBadge live">● LIVE</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
- <span class="gtxKenglyTf" id="gtxKenglyTimeframe">${tf}</span><span class="gtxKenglySource" id="gtxKenglySource">Connecting to Bybit…</span>
+ <span class="gtxKenglyTf" id="gtxKenglyTimeframe">${tf}</span><span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span>
  </div><div class="gtxKenglyStage"><div class="gtxKenglyHost" id="gtxKenglyHost"></div><div class="gtxKenglyOverlay" id="gtxKenglyOverlay"></div><div class="gtxKenglyError" id="gtxKenglyError" hidden></div></div>`;
  return true;
 }
 
 function normalize(rows){return(Array.isArray(rows)?rows:[]).map(k=>({time:Math.floor(Number(k[0])/1000),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]||0)})).filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite)).sort((a,b)=>a.time-b.time)}
 function dedupe(rows){const m=new Map();rows.forEach(x=>m.set(x.time,x));return[...m.values()].sort((a,b)=>a.time-b.time)}
+async function fetchDerivCandles(){
+ const s=derivSymbol();if(!s)throw Error("This asset is not available on Deriv");
+ const w=new WebSocket(DERIV_WS);
+ const rows=await new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>{try{w.close()}catch(_){}reject(Error("Deriv history timeout"))},10000);
+  w.onopen=()=>w.send(JSON.stringify({ticks_history:s,count:500,end:"latest",style:"candles",granularity:TF[tf]||60,req_id:101}));
+  w.onerror=()=>{clearTimeout(timer);reject(Error("Deriv market feed unavailable"))};
+  w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error){clearTimeout(timer);reject(Error(m.error.message||"Deriv error"));return}if(m.msg_type==="history"){clearTimeout(timer);try{w.close()}catch(_){}resolve((m.candles||[]).map(k=>({time:Number(k.epoch),open:Number(k.open),high:Number(k.high),low:Number(k.low),close:Number(k.close),volume:0})).filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite)));}}catch(_){}};
+ });
+ if(!rows.length)throw Error("No Deriv candles received");
+ return rows;
+}
+async function fetchBybitCandles(){
+ const iv=API[tf];if(!iv)throw Error("This timeframe is not supplied by Bybit Linear");
+ const res=await fetch("https://api.bybit.com/v5/market/kline?category=linear&symbol="+encodeURIComponent(pairSymbol())+"&interval="+iv+"&limit=500",{cache:"no-store"});
+ const data=await res.json();if(!res.ok||Number(data?.retCode)!==0)throw Error(data?.retMsg||"Bybit Linear market feed unavailable");
+ const rows=normalize(data?.result?.list?.slice().reverse());if(!rows.length)throw Error("No Bybit Linear candles received");return rows;
+}
 async function fetchCandles(){
+ const b=chooseBroker();
+ if(b==="DERIV")return fetchDerivCandles();
+ return fetchBybitCandles();
+}
+
  const iv=API[tf];if(!iv)throw Error("This timeframe is not supplied by Bybit Spot");
  const res=await fetch("https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(pairSymbol())+"&interval="+iv+"&limit=500",{cache:"no-store"});
  const data=await res.json();if(!res.ok||Number(data?.retCode)!==0)throw Error(data?.retMsg||"Bybit market feed unavailable");
  const rows=normalize(data?.result?.list?.slice().reverse());if(!rows.length)throw Error("No live candles received");return rows;
 }
-async function loadCandles(){candles=dedupe(await fetchCandles()).slice(-500);const e=$("gtxKenglyError"),src=$("gtxKenglySource");if(e)e.hidden=true;if(src)src.textContent="LIVE • Bybit Spot"}
+async function loadCandles(){candles=dedupe(await fetchCandles()).slice(-500);const e=$("gtxKenglyError"),src=$("gtxKenglySource");if(e)e.hidden=true;if(src)src.textContent="LIVE • "+displayBroker()}
 
 function sma(v,p){const o=[];for(let i=p-1;i<v.length;i++)o.push({time:candles[i].time,value:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p});return o}
 function ema(v,p){const o=[],k=2/(p+1);let e=null;v.forEach((x,i)=>{e=e==null?x:x*k+e*(1-k);if(i>=p-1)o.push({time:candles[i].time,value:e})});return o}
@@ -97,12 +141,21 @@ function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)
 
 function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null}
 function connectSocket(){
- closeSocket();const s=pairSymbol();
- try{ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
- ws.onopen=()=>{ws.send(JSON.stringify({op:"subscribe",args:["tickers."+s]}));const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit WebSocket"};
- ws.onmessage=e=>{try{const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice);if(Number.isFinite(p))updateLivePrice(p)}catch(_){}};
- ws.onerror=()=>{try{ws.close()}catch(_){}};
- ws.onclose=()=>{if(started)reconnectTimer=setTimeout(connectSocket,3000)};
+ closeSocket();const broker=chooseBroker(),s=broker==="DERIV"?derivSymbol():pairSymbol();
+ try{
+  ws=new WebSocket(broker==="DERIV"?DERIV_WS:BYBIT_WS);
+  ws.onopen=()=>{
+   if(broker==="DERIV")ws.send(JSON.stringify({ticks:s,subscribe:1,req_id:102}));
+   else ws.send(JSON.stringify({op:"subscribe",args:["tickers."+s]}));
+   const src=$("gtxKenglySource");if(src)src.textContent="LIVE • "+displayBroker()+" WebSocket";
+  };
+  ws.onmessage=e=>{try{const m=JSON.parse(e.data);let p=NaN,t=NaN;
+   if(broker==="DERIV"&&m?.msg_type==="tick"){p=Number(m.tick.quote);t=Number(m.tick.epoch)}
+   if(broker==="BYBIT"){p=Number(m?.data?.lastPrice);t=Date.now()/1000}
+   if(Number.isFinite(p))updateLivePrice(p,t);
+  }catch(_){}};
+  ws.onerror=()=>{try{ws.close()}catch(_){}};
+  ws.onclose=()=>{if(started)reconnectTimer=setTimeout(connectSocket,3000)};
  }catch(_){reconnectTimer=setTimeout(connectSocket,3000)}
 }
 function updateLivePrice(p){
@@ -175,7 +228,7 @@ async function retryLive(){if(!started)return;try{await loadLibrary();await refr
 
 async function boot(){
  if(started||!root())return;started=true;injectCss();rebuildDom();bindExpiry();
- try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=setInterval(fast,1000)}
+ try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=null}
  catch(e){showLiveError(e);closeSocket();reconnectTimer=setTimeout(retryLive,3000)}
 }
 function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.has(name))active.delete(name);else active.add(name);buildIndicators();return active.has(name)}
@@ -183,6 +236,7 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 window.GoTradeXChartEngine={
  boot,refresh,
  setSymbol:s=>{symbol=String(s||"BTCUSDT").toUpperCase();store.set("gotradex_chart_symbol",symbol);refresh().catch(showLiveError)},
+ setBroker:b=>{const v=String(b||"AUTO").toUpperCase();if(!["AUTO","DERIV","BYBIT"].includes(v))return;liveBroker=v;store.set("gotradex_chart_broker",v);refresh().catch(showLiveError)},
  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
  toggleIndicator,
  startTrade
