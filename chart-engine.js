@@ -99,8 +99,10 @@ function syntheticCandles(){
   return out;
 }
 async function loadCandles(){
-  try{candles=dedupe(await fetchCandles());const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit market candles"}
-  catch(_){candles=dedupe(demoCandles());const src=$("gtxKenglySource");if(src)src.textContent=candles.length?"DEMO FALLBACK • Bybit unavailable":"DEMO FALLBACK • local chart data";if(!candles.length)candles=syntheticCandles()}
+  candles=dedupe(await fetchCandles());
+  if(!candles.length) throw Error("No live market candles received");
+  const src=$("gtxKenglySource");
+  if(src) src.textContent="LIVE • Bybit market candles";
   candles=candles.slice(-500);
 }
 
@@ -282,14 +284,38 @@ function drawCanvasFallback(){
   root().classList.add("ready");updateInfo();bindSignalExpiry();
 }
 
+async function bootLiveRetry(){
+  if(!started) return;
+  try{
+    await loadLibrary();
+    await refresh();
+    const host=$("gtxKenglyHost");
+    if(host && candles.length) host.innerHTML="";
+  }catch(_){
+    const src=$("gtxKenglySource");
+    if(src) src.textContent="LIVE FEED ERROR • Retrying…";
+    reconnectTimer=setTimeout(bootLiveRetry,3000);
+  }
+}
+
 async function boot(){
   if(started||!root())return;started=true;
   injectCss();rebuildDom();fitMobile();window.addEventListener("resize",fitMobile,{passive:true});
   clearInterval(expiryTimer);expiryTimer=setInterval(updateExpiryDisplay,250);bindSignalExpiry();
   try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=setInterval(fast,1000)}
-  catch(_){
-    try{candles=dedupe(demoCandles());if(!candles.length)candles=syntheticCandles();drawCanvasFallback();}
-    catch(e){const host=$("gtxKenglyHost");if(host)host.innerHTML='<div style="height:100%;display:grid;place-items:center;color:#aac1d8;font:700 11px sans-serif">Candlestick chart unavailable</div>'}
+  catch(e){
+    const host=$("gtxKenglyHost"),src=$("gtxKenglySource");
+    if(src) src.textContent="LIVE FEED ERROR • Waiting for Bybit";
+    if(host) host.innerHTML='<div style="height:100%;display:grid;place-items:center;text-align:center;padding:20px;box-sizing:border-box;color:#aac1d8;font:700 11px sans-serif">LIVE CANDLE FEED UNAVAILABLE<br><span style="font-weight:500;color:#7891aa">Waiting for Bybit market data…</span></div>';
+    closeSocket();
+    if(started) reconnectTimer=setTimeout(bootLiveRetry,3000);
+  }
+  catch(e){
+    const host=$("gtxKenglyHost"),src=$("gtxKenglySource");
+    if(src) src.textContent="LIVE FEED ERROR • Waiting for Bybit";
+    if(host) host.innerHTML='<div style="height:100%;display:grid;place-items:center;text-align:center;padding:20px;box-sizing:border-box;color:#aac1d8;font:700 11px sans-serif">LIVE CANDLE FEED UNAVAILABLE<br><span style="font-weight:500;color:#7891aa">Waiting for Bybit market data…</span></div>';
+    closeSocket();
+    if(started) reconnectTimer=setTimeout(()=>{if(started) bootLiveRetry()},3000);
   }
 }
 
