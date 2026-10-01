@@ -267,10 +267,17 @@ async function boot(){
   }
 }
 
+function toggleIndicator(name){
+  if(!INDS.includes(name)) return false;
+  if(active.has(name)) active.delete(name); else active.add(name);
+  if(chart) buildIndicators();
+  return active.has(name);
+}
 window.GoTradeXChartEngine={
   boot,refresh,
   setSymbol:s=>{symbol=String(s||"BTCUSDT").toUpperCase();store.set("gotradex_chart_symbol",symbol);refresh()},
-  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh()}}
+  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh()}},
+  toggleIndicator
 };
 
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else setTimeout(boot,0);
