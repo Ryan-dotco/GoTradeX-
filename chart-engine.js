@@ -32,6 +32,7 @@ function injectCss(){
     .gtxKenglyHeader{position:relative!important;flex:0 0 58px!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:1px!important;width:100%!important;height:58px!important;box-sizing:border-box!important;padding:3px 6px 4px!important;background:transparent!important;border:0!important;z-index:100!important;overflow:visible!important}
     .gtxKenglyClock,.gtxKenglyTimerRow{display:flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;width:auto!important;height:auto!important;min-height:17px!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;color:#dbe9f7!important;white-space:nowrap!important;position:relative!important;z-index:101!important}
     .gtxKenglyClock{font-size:9px!important;line-height:17px!important;font-weight:800!important}
+    .gtxKenglySource{font-size:8px!important;line-height:12px!important;color:#7891aa!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:100%!important}
     .gtxKenglyTimerRow{font-size:10px!important;line-height:17px!important;font-weight:800!important}
     .gtxKenglyTimerRow span,.gtxKenglyTimerRow strong{display:inline-block!important;visibility:visible!important;opacity:1!important;font-size:10px!important;line-height:17px!important;color:#fff!important}
     .gtxKenglyTimerRow span{min-width:42px!important;color:#dbe9f7!important}
@@ -95,8 +96,8 @@ function syntheticCandles(){
   return out;
 }
 async function loadCandles(){
-  try{candles=dedupe(await fetchCandles());$("gtxKenglySource").textContent="LIVE • Bybit market candles"}
-  catch(_){candles=dedupe(demoCandles());$("gtxKenglySource").textContent=candles.length?"DEMO FALLBACK • Bybit unavailable":"DEMO FALLBACK • local chart data";if(!candles.length)candles=syntheticCandles()}
+  try{candles=dedupe(await fetchCandles());const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit market candles"}
+  catch(_){candles=dedupe(demoCandles());const src=$("gtxKenglySource");if(src)src.textContent=candles.length?"DEMO FALLBACK • Bybit unavailable":"DEMO FALLBACK • local chart data";if(!candles.length)candles=syntheticCandles()}
   candles=candles.slice(-500);
 }
 
@@ -172,7 +173,7 @@ function bindSignalExpiry(){
 }
 function updateInfo(){
   const x=candles.at(-1);if(!x)return;
-  $( "gtxKenglyPair").textContent=pairLabel().replace("/USDT","").replace("/", "");
+  const pairEl=$( "gtxKenglyPair");if(pairEl)pairEl.textContent=pairLabel();
   const tfEl=$( "gtxKenglyTimeframe");if(tfEl)tfEl.textContent=tf;
   if(priceLine)priceLine.applyOptions({price:x.close});
   updateExpiryDisplay();
@@ -206,7 +207,7 @@ function connectSocket(){
   closeSocket();const s=pairSymbol();
   try{
     ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
-    ws.onopen=()=>{ws.send(JSON.stringify({op:"subscribe",args:["tickers."+s]}));$("gtxKenglySource").textContent="LIVE • Bybit ticker"};
+    ws.onopen=()=>{ws.send(JSON.stringify({op:"subscribe",args:["tickers."+s]}));const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit ticker"};
     ws.onmessage=e=>{try{const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice);if(!Number.isFinite(p))return;updateLivePrice(p)}catch(_){}};
     ws.onerror=()=>{closeSocket();if(started)reconnectTimer=setTimeout(connectSocket,3000)};
     ws.onclose=()=>{if(started)reconnectTimer=setTimeout(connectSocket,3000)};
