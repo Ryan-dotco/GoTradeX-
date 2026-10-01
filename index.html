@@ -190,7 +190,19 @@ const assets={Forex:["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","NZD/USD"
 function fillAssets(id,list){const el=document.getElementById(id);list.forEach(pair=>{const b=document.createElement("button");b.className="option assetOption searchableAsset";b.dataset.asset=pair.toLowerCase();b.innerHTML=`<span>${pair}</span><span>›</span>`;b.onclick=()=>{document.getElementById("pairName").textContent=pair;document.getElementById("assetDrawer").classList.remove("open");document.getElementById("assetSearch").value="";filterAssets("")};el.appendChild(b)})}fillAssets("forexAssets",assets.Forex);fillAssets("cryptoAssets",assets.Crypto);fillAssets("commodityAssets",assets.Commodities);fillAssets("indexAssets",assets.Indices);
 function filterAssets(query){const q=query.trim().toLowerCase();let found=0;document.querySelectorAll(".searchableAsset").forEach(b=>{const show=!q||b.dataset.asset.includes(q);b.style.display=show?"flex":"none";if(show)found++});document.querySelectorAll(".category").forEach(cat=>{const container=cat.nextElementSibling;const visible=[...container.querySelectorAll(".searchableAsset")].some(b=>b.style.display!=="none");cat.style.display=visible?"block":"none"});document.getElementById("noResults").style.display=found?"none":"block"}document.getElementById("assetSearch").addEventListener("input",e=>filterAssets(e.target.value));
 const times=["5 Seconds","15 Seconds","30 Seconds","1 Minute","2 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day","1 Week","1 Month","3 Months","6 Months","1 Year"];const timesEl=document.getElementById("times");times.forEach(t=>{const b=document.createElement("button");b.className="option";b.textContent=t;b.onclick=()=>{document.getElementById("timeBtn").textContent=t+" ▾";document.getElementById("timeDrawer").classList.remove("open")};timesEl.appendChild(b)});
-const open=id=>document.getElementById(id).classList.add("open");
+const gtxOverlaySelectors=".drawer.open,.adminPage.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.chartAiPage.open,.chatPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open";
+function syncGtxKenglyVisibility(){
+  const h=document.querySelector(".gtxKenglyHeader");
+  if(!h)return;
+  h.style.setProperty("display",document.querySelector(gtxOverlaySelectors)?"none":"flex","important");
+}
+function gtxCloseOpenOverlays(){
+  document.querySelectorAll(gtxOverlaySelectors).forEach(el=>el.classList.remove("open"));
+  syncGtxKenglyVisibility();
+}
+const gtxOverlayObserver=new MutationObserver(syncGtxKenglyVisibility);
+gtxOverlayObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"]});
+const open=id=>{const el=document.getElementById(id);if(el)el.classList.add("open");syncGtxKenglyVisibility();};
 document.getElementById("menuBtn").onclick=()=>open("menuDrawer");
 function gtxIsAdminUser(){
   const keys=["gotradex_current_user","gotradex_logged_in_user","gotradex_profile","gotradex_user","gotradex_session"];
@@ -442,6 +454,23 @@ document.getElementById("adminUsersList").onclick=function(e){
   const b=e.target.closest("button[data-user-index]"); if(!b) return;
   const i=Number(b.dataset.userIndex); if(b.classList.contains("adminUserToggle")) toggleAdminUser(i); else if(b.classList.contains("adminUserRemove")) removeAdminUser(i);
 };
+
+// Keep the Kengly date/signal/candle header out of every popup/page and provide a universal back fallback.
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button[id$='Back'],button[id$='Close']");
+  if(!b)return;
+  const id=b.id;
+  const section=b.closest(".adminSection");
+  if(section && id!=="adminBack"){section.classList.remove("open");section.style.display="none";syncGtxKenglyVisibility();return;}
+  const pageMap={
+    adminBack:"adminPage",chartAiBack:"chartAiPage",chatBack:"chatPage",helpBack:"helpPage",supportBack:"supportPage",myTeamBack:"myTeamPage",
+    usersBack:"adminUsers",overviewBack:"adminOverview",transactionsBack:"adminTransactions",auditBack:"adminAudit",autobotBack:"adminAutoBot",
+    referralsBack:"adminReferrals",securityBack:"adminSecurity",feesBack:"adminFees",marketsBack:"adminMarkets",systemSettingsBack:"adminSystemSettings"
+  };
+  const target=pageMap[id];
+  if(target){const el=document.getElementById(target);if(el)el.classList.remove("open");syncGtxKenglyVisibility();}
+},true);
+syncGtxKenglyVisibility();
 </script>
 <script src="chart-engine.js?v=2ef6853e"></script>
 <script>
