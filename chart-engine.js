@@ -237,19 +237,6 @@ function renderIndicators(){
   INDS.forEach(name=>{const b=document.createElement("button");b.textContent=name;b.className=active.has(name)?"on":"";b.onclick=()=>{active.has(name)?active.delete(name):active.add(name);renderIndicators();buildIndicators()};g.appendChild(b)});
 }
 function bindControls(){
-  const order=Object.keys(TF);
-  const move=dir=>{let i=order.indexOf(tf);tf=order[(i+dir+order.length)%order.length];store.set("gotradex_chart_timeframe",tf);$("gtxKenglyTf").textContent=tf;refresh()};
-  $("gtxKenglyPrev").onclick=()=>move(-1);$("gtxKenglyNext").onclick=()=>move(1);$("gtxKenglyTf").onclick=()=>move(1);
-  $("gtxKenglyFit").onclick=()=>chart?.timeScale().fitContent();
-  $("gtxKenglyIndicators").onclick=()=>$("gtxKenglyMenu").classList.toggle("open");
-  $("gtxKenglyReset").onclick=()=>{active.clear();renderIndicators();buildIndicators()};
-  $("gtxKenglyType").onclick=()=>{
-    const b=$("gtxKenglyType"),line=b.dataset.line==="1";b.dataset.line=line?"0":"1";b.textContent=line?"CANDLES":"LINE";
-    if(!chart||!series)return;chart.removeSeries(series);
-    series=line?chart.addSeries(LightweightCharts.LineSeries,{color:"#4f9cff",lineWidth:2,priceLineVisible:false}):chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:"#36c275",downColor:"#e05b70",borderUpColor:"#36c275",borderDownColor:"#e05b70",wickUpColor:"#36c275",wickDownColor:"#36c275",priceLineVisible:false});
-    series.setData(line?candles.map(x=>({time:x.time,value:x.close})):candles);
-    priceLine=series.createPriceLine({price:candles.at(-1).close,color:"#f5c542",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"LIVE"});buildIndicators();
-  };
   renderIndicators();
 }
 
@@ -286,7 +273,7 @@ async function boot(){
 window.GoTradeXChartEngine={
   boot,refresh,
   setSymbol:s=>{symbol=String(s||"BTCUSDT").toUpperCase();store.set("gotradex_chart_symbol",symbol);refresh()},
-  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);$("gtxKenglyTf").textContent=tf;refresh()}}
+  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh()}}
 };
 
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else setTimeout(boot,0);
