@@ -409,6 +409,7 @@ function drawDemoCandles(){
   });
 
   updateChartAnnotationSvg(w,h,max,min,range,priceAxisW);
+}
 const demoTimeframeSeconds={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"2 Minutes":120,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400,"1 Day":86400,"1 Week":604800,"1 Month":2592000,"3 Months":7776000,"6 Months":15552000,"1 Year":31536000};const CANDLE_TIME_KEY="gotradex_candle_timeframe";function getSelectedCandleTimeframe(){return localStorage.getItem(CANDLE_TIME_KEY)||"5 Seconds"}function renderCandleTimeOptions(){const selected=getSelectedCandleTimeframe();document.querySelectorAll(".candleTimeOption").forEach(b=>b.classList.toggle("active",b.dataset.candleTime===selected));const timeframe=document.getElementById("dashboardTimeframe");if(timeframe)timeframe.textContent=selected;}
 let demoCandleElapsed=0;
 function getDemoTimeframeSeconds(){return demoTimeframeSeconds[getSelectedCandleTimeframe()]||5;}
