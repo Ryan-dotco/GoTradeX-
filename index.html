@@ -487,6 +487,32 @@ syncGtxKenglyVisibility();
 <script src="chart-engine.js?v=gtx-candles-20261001"></script>
 <script>
 (function(){
+  function bootGTXChart(){
+    try{
+      if(window.GoTradeXChartEngine && typeof window.GoTradeXChartEngine.boot==="function"){
+        window.GoTradeXChartEngine.boot();
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+  function ensureGTXChart(){
+    if(bootGTXChart()) return;
+    var old=document.querySelector('script[data-gtx-chart-retry="1"]');
+    if(old) return;
+    var s=document.createElement("script");
+    s.src="chart-engine.js?v=gtx-live-retry-"+Date.now();
+    s.dataset.gtxChartRetry="1";
+    s.onload=bootGTXChart;
+    document.head.appendChild(s);
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",ensureGTXChart,{once:true});
+  else ensureGTXChart();
+  setTimeout(ensureGTXChart,1200);
+})();
+</script>
+<script>
+(function(){
   function gtxProfileName(){
     const keys=["gotradex_current_user","gotradex_logged_in_user","gotradex_profile","gotradex_user","gotradex_session"];
     for(const key of keys){
