@@ -721,5 +721,51 @@ syncGtxKenglyVisibility();
   sync();
 })();
 </script>
-</body>
+
+<style id="gtx-account-mode-repair">
+.pairbar .accountModes{position:relative!important;z-index:20!important;pointer-events:auto!important}
+.pairbar .accountMode{position:relative!important;z-index:21!important;pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important}
+.pairbar .accountMode.active{filter:brightness(1.08)}
+</style>
+<script id="gtx-account-mode-repair-script">
+(function(){
+  function applyMode(mode){
+    var m=String(mode||"").toUpperCase()==="REAL"?"REAL":"DEMO";
+    try{localStorage.setItem("gotradex_account_mode",m)}catch(e){}
+    var demo=document.getElementById("demoAccountBtn");
+    var real=document.getElementById("realAccountBtn");
+    if(demo) demo.classList.toggle("active",m==="DEMO");
+    if(real) real.classList.toggle("active",m==="REAL");
+    var status=document.getElementById("status");
+    var demoBal=document.getElementById("demoBalance");
+    var realBal=document.getElementById("realBalance");
+    var d=demoBal?demoBal.textContent:"$10,000.00";
+    var rr=realBal?realBal.textContent:"$0.00";
+    if(status){
+      status.textContent=m==="REAL"
+        ? "REAL account selected. Balance: "+rr+". Live orders remain disabled until a verified live-trading connection is configured."
+        : "DEMO account selected. Balance: "+d+".";
+    }
+    var profileMode=document.getElementById("gtxProfileMode");
+    if(profileMode) profileMode.textContent=m;
+    var profileMenu=document.getElementById("menuMessage");
+    if(profileMenu) profileMenu.textContent=m+" account selected.";
+    document.body.dataset.accountMode=m;
+  }
+  function bind(){
+    var demo=document.getElementById("demoAccountBtn");
+    var real=document.getElementById("realAccountBtn");
+    if(!demo||!real)return false;
+    demo.onclick=function(e){e.preventDefault();e.stopPropagation();applyMode("DEMO");};
+    real.onclick=function(e){e.preventDefault();e.stopPropagation();applyMode("REAL");};
+    applyMode((function(){try{return localStorage.getItem("gotradex_account_mode")}catch(e){return "DEMO"}})());
+    return true;
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",bind,{once:true});
+  else bind();
+  setTimeout(bind,250);
+  setTimeout(bind,1000);
+  window.GoTradeXSetAccountMode=applyMode;
+})();
+</script>\n</body>
 </html>
