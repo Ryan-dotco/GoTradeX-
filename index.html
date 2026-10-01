@@ -23,10 +23,7 @@
 <body>
 <div class="app">
 <header class="top"><div class="identity"><button class="menuBtn" id="menuBtn" aria-label="Menu" type="button"><span></span></button><div class="logo">GTX</div><div class="person"><strong id="profileName">Trader ID: GTX-000001</strong><span id="profileSub">Ryan Trading Account</span></div></div><button class="wallet" id="walletBtn" aria-label="Wallet"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 8.5A3.5 3.5 0 0 1 8.5 5H25a2 2 0 0 1 2 2v4H10a4 4 0 0 0 0 8h17v6a2 2 0 0 1-2 2H8.5A3.5 3.5 0 0 1 5 23.5v-15Z" fill="currentColor"/><path d="M10 12h17v7H10a3.5 3.5 0 0 1 0-7Z" fill="#12315a"/><circle cx="23" cy="15.5" r="1.5" fill="currentColor"/></svg></button></header>
-<section class="pairbar"><div class="pairbarLeft"><button class="asset" id="marketMoreBtn" type="button" aria-label="More">⋯</button><button class="asset" id="assetBtn">Assets ▾</button></div><button class="topAmount" id="topAmountBtn" type="button" aria-label="Trade amount"><span>AMOUNT</span><strong>$<span id="topAmountValue">10</span></strong></button><div class="accountModes" role="group" aria-label="Account mode">
-<button class="accountMode active" id="demoAccountBtn" type="button"><span>DEMO</span><strong id="demoBalance">$10,000.00</strong></button>
-<button class="accountMode real" id="realAccountBtn" type="button"><span>REAL</span><strong id="realBalance">$0.00</strong></button>
-</div></section>
+<section class="pairbar"><div class="pairbarLeft"><button class="asset" id="marketMoreBtn" type="button" aria-label="More">⋯</button><button class="asset" id="assetBtn">Assets ▾</button></div><button class="topAmount" id="topAmountBtn" type="button" aria-label="Trade amount"><span>AMOUNT</span><strong>$<span id="topAmountValue">10</span></strong></button><div class="accountPicker" id="accountPicker"><button class="accountPickerBtn" id="accountPickerBtn" type="button" aria-haspopup="true" aria-expanded="false"><span>ACCOUNT ▾</span><strong id="accountPickerBalance">$10,000.00</strong></button><div class="accountModes accountPickerMenu" id="accountPickerMenu" role="menu" aria-label="Account"><div class="accountMenuTitle">ACCOUNT</div><button class="accountMode active" id="demoAccountBtn" type="button" role="menuitem"><span>DEMO</span><strong id="demoBalance">$10,000.00</strong></button><button class="accountMode real" id="realAccountBtn" type="button" role="menuitem"><span>REAL</span><strong id="realBalance">$0.00</strong></button><div class="accountMenuDivider"></div><button class="accountMenuAction" id="loadDemoFundsBtn" type="button">LOAD DEMO FUNDS</button><button class="accountMenuAction" id="depositAccountBtn" type="button">DEPOSIT</button><button class="accountMenuAction" id="withdrawAccountBtn" type="button">WITHDRAW</button><button class="accountMenuAction" id="historyAccountBtn" type="button">TRANSACTION HISTORY</button><button class="accountMenuAction" id="detailsAccountBtn" type="button">ACCOUNT DETAILS</button></div></div></section>
 <section class="chart"><div class="grid"></div><div class="liveNotice" id="marketStatus">LIVE DATA: NOT CONNECTED<span class="marketDateTime" id="marketDateTime"></span></div><div class="candles" id="candles">Live candlesticks will appear here when a verified market-data feed is connected.</div></section>
 <section class="bottom"><div class="actions"><div class="sellWrap"><div class="pair"><span id="pairName">EUR/USD</span></div><button class="autoBotBtn" id="mainAutoBotBtn" type="button">AutoPilot</button><button class="trade sell" id="sell"><span>SELL</span><span class="tradePercent" id="sellPercent">61%</span></button></div><div class="buyWrap"><button class="time" id="timeBtn" type="button">5 Seconds ▾</button><div class="amount" id="amountPortal"><label>AMOUNT</label><button class="amountValue" id="amountBtn" type="button">$<span id="amountValueText">10</span></button></div><button class="trade buy" id="buy"><span>BUY</span><span class="tradePercent" id="buyPercent">39%</span></button></div></div><div class="status" id="status"></div></section>
 </div>
@@ -722,50 +719,104 @@ syncGtxKenglyVisibility();
 })();
 </script>
 
+<style id="gtx-account-picker">
+.accountPicker{position:relative;flex:0 0 auto;z-index:40}
+.accountPickerBtn{min-width:92px;height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:#102c4e;color:#fff;border:1px solid #23466d;border-radius:9px;padding:4px 8px;line-height:1;touch-action:manipulation}
+.accountPickerBtn span{font-size:8px;color:#8fa8c4;font-weight:900;letter-spacing:.04em}
+.accountPickerBtn strong{font-size:12px;font-weight:900}
+.accountPickerMenu{position:absolute;right:0;top:calc(100% + 7px);width:220px;padding:10px;background:#081b31;border:1px solid #23466d;border-radius:11px;box-shadow:0 14px 32px rgba(0,0,0,.48);display:none;z-index:100}
+.accountPickerMenu.open{display:block}
+.accountMenuTitle{padding:2px 4px 8px;color:#8fa8c4;font-size:10px;font-weight:900;letter-spacing:.08em}
+.accountPickerMenu .accountMode{width:100%;min-height:42px;display:flex;align-items:center;justify-content:space-between;background:#102945;color:#fff;border:1px solid transparent;border-radius:8px;padding:8px 10px;margin:4px 0;touch-action:manipulation}
+.accountPickerMenu .accountMode span{font-size:12px;font-weight:900}
+.accountPickerMenu .accountMode strong{font-size:12px;font-weight:900}
+.accountPickerMenu .accountMode.active{border-color:#176fca;background:#12365d;filter:none}
+.accountMenuDivider{height:1px;background:#23466d;margin:8px 0}
+.accountMenuAction{width:100%;min-height:38px;background:transparent;color:#fff;text-align:left;border-radius:7px;padding:8px 10px;font-size:11px;font-weight:800;touch-action:manipulation}
+.accountMenuAction:hover,.accountMenuAction:active{background:#102945}
+@media(max-width:390px){.accountPickerBtn{min-width:82px;padding-left:6px;padding-right:6px}.accountPickerMenu{right:-2px;width:210px}.accountPickerMenu .accountMode{padding-left:8px;padding-right:8px}}
+</style>
 <style id="gtx-account-mode-repair">
 .pairbar .accountModes{position:relative!important;z-index:20!important;pointer-events:auto!important}
 .pairbar .accountMode{position:relative!important;z-index:21!important;pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important}
 .pairbar .accountMode.active{filter:brightness(1.08)}
 </style>
-<script id="gtx-account-mode-repair-script">
+<script id="gtx-account-picker-script">
 (function(){
+  function fmt(n){return "$"+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function closePicker(){
+    var menu=document.getElementById("accountPickerMenu"),btn=document.getElementById("accountPickerBtn");
+    if(menu)menu.classList.remove("open");
+    if(btn)btn.setAttribute("aria-expanded","false");
+  }
+  function openPicker(){
+    var menu=document.getElementById("accountPickerMenu"),btn=document.getElementById("accountPickerBtn");
+    if(menu)menu.classList.toggle("open");
+    if(btn)btn.setAttribute("aria-expanded",menu&&menu.classList.contains("open")?"true":"false");
+  }
   function applyMode(mode){
     var m=String(mode||"").toUpperCase()==="REAL"?"REAL":"DEMO";
+    var balances=typeof loadTradingBalances==="function"?loadTradingBalances():{demo:10000,real:0};
     try{localStorage.setItem("gotradex_account_mode",m)}catch(e){}
-    var demo=document.getElementById("demoAccountBtn");
-    var real=document.getElementById("realAccountBtn");
-    if(demo) demo.classList.toggle("active",m==="DEMO");
-    if(real) real.classList.toggle("active",m==="REAL");
+    var demo=document.getElementById("demoAccountBtn"),real=document.getElementById("realAccountBtn");
+    if(demo)demo.classList.toggle("active",m==="DEMO");
+    if(real)real.classList.toggle("active",m==="REAL");
+    var pickerBalance=document.getElementById("accountPickerBalance");
+    if(pickerBalance)pickerBalance.textContent=fmt(m==="REAL"?balances.real:balances.demo);
     var status=document.getElementById("status");
-    var demoBal=document.getElementById("demoBalance");
-    var realBal=document.getElementById("realBalance");
-    var d=demoBal?demoBal.textContent:"$10,000.00";
-    var rr=realBal?realBal.textContent:"$0.00";
-    if(status){
-      status.textContent=m==="REAL"
-        ? "REAL account selected. Balance: "+rr+". Live orders remain disabled until a verified live-trading connection is configured."
-        : "DEMO account selected. Balance: "+d+".";
-    }
-    var profileMode=document.getElementById("gtxProfileMode");
-    if(profileMode) profileMode.textContent=m;
-    var profileMenu=document.getElementById("menuMessage");
-    if(profileMenu) profileMenu.textContent=m+" account selected.";
+    if(status)status.textContent=m==="REAL"?"REAL account selected. Balance: "+fmt(balances.real)+". Live orders remain disabled until a verified live-trading connection is configured.":"DEMO account selected. Balance: "+fmt(balances.demo)+".";
+    var profileMode=document.getElementById("gtxProfileMode");if(profileMode)profileMode.textContent=m;
+    var profileMenu=document.getElementById("menuMessage");if(profileMenu)profileMenu.textContent=m+" account selected.";
     document.body.dataset.accountMode=m;
   }
+  function loadDemo(){
+    try{localStorage.setItem("gotradex_demo_balance","10000")}catch(e){}
+    applyMode("DEMO");
+    closePicker();
+    var s=document.getElementById("status");if(s)s.textContent="Demo funds loaded. Demo balance: $10,000.00.";
+  }
   function bind(){
-    var demo=document.getElementById("demoAccountBtn");
-    var real=document.getElementById("realAccountBtn");
-    if(!demo||!real)return false;
-    demo.onclick=function(e){e.preventDefault();e.stopPropagation();applyMode("DEMO");};
-    real.onclick=function(e){e.preventDefault();e.stopPropagation();applyMode("REAL");};
+    var picker=document.getElementById("accountPickerBtn"),demo=document.getElementById("demoAccountBtn"),real=document.getElementById("realAccountBtn");
+    if(!picker||!demo||!real)return false;
+    picker.onclick=function(e){e.preventDefault();e.stopPropagation();openPicker();};
+    demo.onclick=function(e){e.preventDefault();e.stopPropagation();applyMode("DEMO");closePicker();};
+    real.onclick=function(e){e.preventDefault();e.stopPropagation();applyMode("REAL");closePicker();};
+    document.getElementById("loadDemoFundsBtn")?.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();loadDemo();});
+    document.getElementById("depositAccountBtn")?.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();closePicker();document.getElementById("walletBtn")?.click();setTimeout(function(){document.getElementById("depositBtn")?.click();},30);});
+    document.getElementById("withdrawAccountBtn")?.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();closePicker();document.getElementById("walletBtn")?.click();setTimeout(function(){document.getElementById("withdrawBtn")?.click();},30);});
+    document.getElementById("historyAccountBtn")?.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();closePicker();if(window.GoTradeXNavigation&&typeof window.GoTradeXNavigation.show==="function")window.GoTradeXNavigation.show("gtxAccountHistory");});
+    document.getElementById("detailsAccountBtn")?.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();closePicker();if(window.GoTradeXNavigation&&typeof window.GoTradeXNavigation.show==="function")window.GoTradeXNavigation.show("gtxAccountDetails");});
     applyMode((function(){try{return localStorage.getItem("gotradex_account_mode")}catch(e){return "DEMO"}})());
     return true;
   }
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",bind,{once:true});
-  else bind();
-  setTimeout(bind,250);
-  setTimeout(bind,1000);
+  document.addEventListener("click",function(e){
+    var picker=document.getElementById("accountPicker"),menu=document.getElementById("accountPickerMenu");
+    if(picker&&menu&&!picker.contains(e.target))closePicker();
+  },true);
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bind,{once:true});else bind();
+  setTimeout(bind,250);setTimeout(bind,1000);
   window.GoTradeXSetAccountMode=applyMode;
 })();
-</script>\n</body>
+</script>\n<div class="drawer" id="gtxAccountHistory"><div class="panel"><button class="close" data-close="gtxAccountHistory">Close</button><h2>Transaction History</h2><div class="adminSlot"><strong>Account activity</strong><br><br>Deposit, withdrawal and trading transactions will appear here as the verified account ledger records them.<br><br><span id="gtxHistoryMode">Current account: DEMO</span></div></div></div>
+<div class="drawer" id="gtxAccountDetails"><div class="panel"><button class="close" data-close="gtxAccountDetails">Close</button><h2>Account Details</h2><div class="adminSlot"><strong>GoTradeX Account</strong><br><br>Account mode: <strong id="gtxDetailsMode">DEMO</strong><br>Demo balance: <strong id="gtxDetailsDemo">$10,000.00</strong><br>Real balance: <strong id="gtxDetailsReal">$0.00</strong><br><br>Real-money deposits and withdrawals require a verified payment provider and backend ledger.</div></div></div>
+<style id="gtx-account-pages-style">
+#gtxAccountHistory,#gtxAccountDetails{z-index:90}
+</style>
+<script>
+(function(){
+  function syncAccountPages(){
+    var mode=document.body.dataset.accountMode==="REAL"?"REAL":"DEMO";
+    var b=typeof loadTradingBalances==="function"?loadTradingBalances():{demo:10000,real:0};
+    var m=document.getElementById("gtxHistoryMode"),d=document.getElementById("gtxDetailsMode"),db=document.getElementById("gtxDetailsDemo"),rb=document.getElementById("gtxDetailsReal");
+    if(m)m.textContent="Current account: "+mode;
+    if(d)d.textContent=mode;
+    if(db)db.textContent="$"+b.demo.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    if(rb)rb.textContent="$"+b.real.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  document.addEventListener("click",syncAccountPages,true);
+  window.addEventListener("storage",syncAccountPages);
+  setTimeout(syncAccountPages,300);
+})();
+</script>
+</body>
 </html>
