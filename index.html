@@ -763,7 +763,7 @@ syncGtxKenglyVisibility();
     if(real)real.classList.toggle("active",m==="REAL");
     var pickerBalance=document.getElementById("accountPickerBalance"),pickerLabel=document.getElementById("accountPickerLabel");
     if(pickerBalance)pickerBalance.textContent=fmt(m==="REAL"?balances.real:balances.demo);
-    if(pickerLabel)pickerLabel.textContent=(m==="REAL"?"LIVE":"DEMO")+" ▾";var pickerBtn=document.getElementById("accountPickerBtn");if(pickerBtn)pickerBtn.setAttribute("data-mode",m);
+    if(pickerLabel)pickerLabel.textContent=(m==="REAL"?"LIVE":"DEMO")+" ▾";var pickerBtn=document.getElementById("accountPickerBtn");if(pickerBtn){pickerBtn.setAttribute("data-mode",m);pickerBtn.style.setProperty("background",m==="REAL"?"#166534":"#7f1d1d","important");pickerBtn.style.setProperty("border-color",m==="REAL"?"#22c55e":"#ef4444","important");}if(demo){demo.style.setProperty("background","#7f1d1d","important");demo.style.setProperty("border-color","#ef4444","important");}if(real){real.style.setProperty("background","#166534","important");real.style.setProperty("border-color","#22c55e","important");}
     var status=document.getElementById("status");
     if(status)status.textContent=m==="REAL"?"REAL account selected. Balance: "+fmt(balances.real)+". Live orders remain disabled until a verified live-trading connection is configured.":"DEMO account selected. Balance: "+fmt(balances.demo)+".";
     var profileMode=document.getElementById("gtxProfileMode");if(profileMode)profileMode.textContent=m;
