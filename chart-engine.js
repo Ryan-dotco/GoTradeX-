@@ -8,7 +8,7 @@ const TF={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"5 Minutes
 const API={"1 Minute":"1","5 Minutes":"5","15 Minutes":"15","30 Minutes":"30","1 Hour":"60","4 Hours":"240","12 Hours":"720","1 Day":"D","1 Week":"W","1 Month":"M"};
 const store={get(k,d){try{return localStorage.getItem(k)||d}catch(_){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(_){}}};
 const BROKER=store.get("gotradex_chart_broker","AUTO");
-const DERIV_WS="wss://ws.binaryws.com/websockets/v3",DERIV_WS_FALLBACK="wss://ws.derivws.com/websockets/v3";
+const DERIV_WS="wss://ws.binaryws.com/websockets/v3";
 const BYBIT_WS="wss://stream.bybit.com/v5/public/linear";
 const INDS=["Alligator","Fractals","EMA / SMA","Bollinger Bands","Parabolic SAR","Supertrend","Ichimoku Cloud","RSI","MACD","Stochastic","ATR","Support & Resistance","Horizontal Line"];
 const $=id=>document.getElementById(id);
