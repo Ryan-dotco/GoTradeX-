@@ -985,8 +985,12 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     };
     const params=new URLSearchParams(location.search);
     if(params.get("deriv")==="connected"){
+      statusText("Deriv callback completed • verifying LIVE account…",true);
       await connectAuthenticated().catch(e=>statusText(e.message||"Connection failed",false));
-      if(params.has("deriv"))history.replaceState({},document.title,location.pathname+location.hash);
+      history.replaceState({},document.title,location.pathname+location.hash);
+    }else if(params.get("deriv")==="error"){
+      statusText("Deriv connection failed • "+(params.get("error")||"authorization was cancelled"),false);
+      history.replaceState({},document.title,location.pathname+location.hash);
     }else{
       // Restore the previous automatic reconnect behavior. If GoTradeX already
       // has a valid Deriv OAuth connection, reconnect it on page load.
