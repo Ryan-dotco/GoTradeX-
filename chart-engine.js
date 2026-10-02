@@ -99,7 +99,7 @@ function rebuildDom(){
  r.className="chart gtxKengly";
  r.innerHTML=`<div class="gtxKenglyHeader">
  <span class="gtxKenglyBadge live">● LIVE</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
- <span class="gtxKenglyTf" id="gtxKenglyTimeframe">${tf}</span><span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span>
+<span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span>
  </div><div class="gtxKenglyStage"><div class="gtxKenglyHost" id="gtxKenglyHost"></div><div class="gtxKenglyOverlay" id="gtxKenglyOverlay"></div><div class="gtxKenglyError" id="gtxKenglyError" hidden></div></div>`;
  return true;
 }
