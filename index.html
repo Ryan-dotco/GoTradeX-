@@ -720,26 +720,34 @@ syncGtxKenglyVisibility();
 </script>
 
 <style id="gtx-pairbar-screen-visibility">
-/* Keep the asset/more controls in the normal trading header.
-   They stay available on the chart, but are hidden behind other app screens/drawers. */
+/* Assets + More belong only to the main trading/chart screen.
+   Keep the controls in the DOM, but remove the whole pairbar from every
+   overlay/portal so it cannot remain visible above another page. */
 .pairbar{position:relative;z-index:20;flex:0 0 auto;min-height:56px}
 .pairbarLeft{display:flex;align-items:center;gap:6px;min-width:0}
 .pairbar .asset{position:relative;z-index:21}
-body.gtx-subscreen-open .pairbar{visibility:hidden;pointer-events:none}
-body.gtx-subscreen-open .pairbar *{pointer-events:none}
+body.gtx-subscreen-open .pairbar{display:none!important}
 </style>
 <script id="gtx-pairbar-screen-visibility-script">
 (function(){
   function sync(){
     var app=document.querySelector(".app");
     if(!app)return;
-    var open=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.chartAiPage.open,.chatPage.open,.keypad.open");
+    var open=document.querySelector(
+      ".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,"+
+      ".myTeamPage.open,.policyPage.open,.termsPage.open,.chartAiPage.open,.chatPage.open,"+
+      ".keypad.open,.userAutoBotDrawer.open,.agentWidget.open,.accountPickerMenu.open"
+    );
     document.body.classList.toggle("gtx-subscreen-open",!!open);
   }
   document.addEventListener("click",function(){setTimeout(sync,0)},true);
   window.addEventListener("popstate",sync);
-  new MutationObserver(sync).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"]});
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",sync,{once:true});else sync();
+  new MutationObserver(sync).observe(document.body,{
+    subtree:true,attributes:true,attributeFilter:["class","style"]
+  });
+  if(document.readyState==="loading")
+    document.addEventListener("DOMContentLoaded",sync,{once:true});
+  else sync();
 })();
 </script>
 <style id="gtx-account-picker">
