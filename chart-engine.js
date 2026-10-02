@@ -14,7 +14,7 @@ const INDS=["Alligator","Fractals","EMA / SMA","Bollinger Bands","Parabolic SAR"
 const $=id=>document.getElementById(id);
 
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
-let candles=[],symbol=store.get("gotradex_chart_symbol","BTCUSDT"),tf=store.get("gotradex_chart_timeframe","1 Minute");
+let candles=[],symbol=store.get("gotradex_chart_symbol","EURUSD"),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker=BROKER;
 let trade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
 
@@ -92,12 +92,33 @@ function normalize(rows){return(Array.isArray(rows)?rows:[]).map(k=>({time:Math.
 function dedupe(rows){const m=new Map();rows.forEach(x=>m.set(x.time,x));return[...m.values()].sort((a,b)=>a.time-b.time)}
 async function fetchDerivCandles(){
  const sym=derivSymbol();if(!sym)throw Error("This asset is not mapped to a Deriv market. Choose a Deriv-supported forex or synthetic symbol.");
+ const step=TF[tf]||60,style=step<60?"ticks":"candles";
  const w=new WebSocket(DERIV_WS);
  const rows=await new Promise((resolve,reject)=>{
-  const timer=setTimeout(()=>{try{w.close()}catch(_){}reject(Error("Deriv history timeout"))},10000);
-  w.onopen=()=>w.send(JSON.stringify({ticks_history:sym,count:500,end:"latest",style:"candles",granularity:TF[tf]||60,req_id:101}));
+  const timer=setTimeout(()=>{try{w.close()}catch(_){}reject(Error("Deriv history timeout"))},12000);
+  w.onopen=()=>w.send(JSON.stringify(style==="ticks"
+   ?{ticks_history:sym,count:5000,end:"latest",style:"ticks",req_id:101}
+   :{ticks_history:sym,count:500,end:"latest",style:"candles",granularity:step,req_id:101}));
   w.onerror=()=>{clearTimeout(timer);reject(Error("Deriv market feed unavailable"))};
-  w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error){clearTimeout(timer);reject(Error(m.error.message||"Deriv error"));return}if(m.msg_type==="history"){clearTimeout(timer);try{w.close()}catch(_){}resolve((m.candles||[]).map(k=>({time:Number(k.epoch),open:Number(k.open),high:Number(k.high),low:Number(k.low),close:Number(k.close),volume:0})).filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite)));}}catch(_){}}};
+  w.onmessage=e=>{try{
+    const m=JSON.parse(e.data);
+    if(m.error){clearTimeout(timer);try{w.close()}catch(_){}reject(Error(m.error.message||"Deriv error"));return}
+    if(m.msg_type!=="history")return;
+    clearTimeout(timer);try{w.close()}catch(_){}
+    if(style==="candles"){
+      resolve((m.candles||[]).map(k=>({time:Number(k.epoch),open:Number(k.open),high:Number(k.high),low:Number(k.low),close:Number(k.close),volume:0}))
+        .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite)));
+      return;
+    }
+    const times=m.history?.times||[],prices=m.history?.prices||[],out=[],map=new Map();
+    for(let i=0;i<Math.min(times.length,prices.length);i++){
+      const t=Number(times[i]),p=Number(prices[i]);if(!Number.isFinite(t)||!Number.isFinite(p))continue;
+      const bucket=Math.floor(t/step)*step;let x=map.get(bucket);
+      if(!x){x={time:bucket,open:p,high:p,low:p,close:p,volume:0};map.set(bucket,x);out.push(x)}
+      else{x.close=p;x.high=Math.max(x.high,p);x.low=Math.min(x.low,p)}
+    }
+    resolve(out);
+  }catch(_){}};
  });
  if(!rows.length)throw Error("No Deriv candles received");
  return rows;
