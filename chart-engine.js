@@ -40,9 +40,16 @@ function pairLabel(){
  return s;
 }
 async function wsRequest(payload,timeoutMs=10000){\n const endpoints=[DERIV_WS,DERIV_WS_FALLBACK];\n let lastError=Error("Market symbol lookup unavailable");\n for(const endpoint of endpoints){\n  try{\n   const w=new WebSocket(endpoint);\n   const result=await new Promise((resolve,reject)=>{\n    let done=false;\n    const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{w.close()}catch(_){}fn(v)};\n    const timer=setTimeout(()=>finish(reject,Error("Market symbol lookup timed out")),timeoutMs);\n    w.onopen=()=>{try{w.send(JSON.stringify(payload))}catch(e){finish(reject,e)}};\n    w.onerror=()=>finish(reject,Error("Market symbol lookup unavailable"));\n    w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error)finish(reject,Error(m.error.message||"Market symbol lookup failed"));else finish(resolve,m)}catch(err){finish(reject,err)}};\n   });\n   return result;\n  }catch(e){lastError=e}\n }\n throw lastError;\n}\nasync function resolveDerivSymbol(){
- const wantedClean=normalizedSymbol().replace(/^FRX/,"").replace(/[^A-Z0-9]/g,"");
- // Deriv's current active_symbols API removed product_type and related filters.
- // Request the full public list, then resolve the selected asset locally.
+ const clean=normalizedSymbol().replace(/^FRX/,"").replace(/[^A-Z0-9]/g,"");
+ // Major Deriv forex symbols have a deterministic public symbol name.
+ // Resolve these directly so a temporary active_symbols lookup outage cannot
+ // prevent the live EUR/USD, GBP/JPY and other forex charts from loading.
+ const fx=["EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD","EURGBP","EURJPY","GBPJPY","AUDJPY","EURCHF","USDZAR","EURZAR","GBPZAR","XAUUSD","XAGUSD"];
+ if(fx.includes(clean))return "frx"+clean;
+ const raw=normalizedSymbol();
+ if(/^FRX[A-Z]{6}$/.test(raw))return raw.toLowerCase();
+ if(/^R_(10|25|50|75|100)$/.test(raw)||/^1HZ[0-9A-Z]+$/.test(raw)||/^BOOM|^CRASH/.test(raw))return raw;
+ const wantedClean=clean;
  const m=await wsRequest({active_symbols:"brief"});
  const list=Array.isArray(m.active_symbols)?m.active_symbols:[];
  const found=list.find(x=>{
@@ -50,7 +57,7 @@ async function wsRequest(payload,timeoutMs=10000){\n const endpoints=[DERIV_WS,D
   const sym=rawSym.replace(/^FRX/,"").replace(/[^A-Z0-9]/g,"");
   const rawName=String(x.display_name||x.underlying_symbol_name||"").toUpperCase();
   const name=rawName.replace(/[^A-Z0-9]/g,"");
-  return sym===wantedClean || name===wantedClean;
+  return sym===wantedClean||name===wantedClean;
  });
  if(!found)throw Error("Deriv market not available for "+pairLabel());
  return String(found.symbol||found.underlying_symbol);
