@@ -39,7 +39,21 @@ function pairLabel(){
  if(s.endsWith("USDT"))return s.slice(0,-4)+"/USDT";
  return s;
 }
-async function wsRequest(payload,timeoutMs=10000){\n const endpoints=[DERIV_WS,DERIV_WS_FALLBACK];\n let lastError=Error("Market symbol lookup unavailable");\n for(const endpoint of endpoints){\n  try{\n   const w=new WebSocket(endpoint);\n   const result=await new Promise((resolve,reject)=>{\n    let done=false;\n    const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{w.close()}catch(_){}fn(v)};\n    const timer=setTimeout(()=>finish(reject,Error("Market symbol lookup timed out")),timeoutMs);\n    w.onopen=()=>{try{w.send(JSON.stringify(payload))}catch(e){finish(reject,e)}};\n    w.onerror=()=>finish(reject,Error("Market symbol lookup unavailable"));\n    w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error)finish(reject,Error(m.error.message||"Market symbol lookup failed"));else finish(resolve,m)}catch(err){finish(reject,err)}};\n   });\n   return result;\n  }catch(e){lastError=e}\n }\n throw lastError;\n}\nasync function resolveDerivSymbol(){
+async function wsRequest(payload,timeoutMs=10000){
+ const endpoint=DERIV_WS;
+ try{
+  const w=new WebSocket(endpoint);
+  return await new Promise((resolve,reject)=>{
+   let done=false;
+   const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{w.close()}catch(_){}fn(v)};
+   const timer=setTimeout(()=>finish(reject,Error("Market symbol lookup timed out")),timeoutMs);
+   w.onopen=()=>{try{w.send(JSON.stringify(payload))}catch(e){finish(reject,e)}};
+   w.onerror=()=>finish(reject,Error("Market symbol lookup unavailable"));
+   w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error)finish(reject,Error(m.error.message||"Market symbol lookup failed"));else finish(resolve,m)}catch(err){finish(reject,err)}};
+  });
+ }catch(e){throw e}
+}
+async function resolveDerivSymbol(){
  const clean=normalizedSymbol().replace(/^FRX/,"").replace(/[^A-Z0-9]/g,"");
  // Major Deriv forex symbols have a deterministic public symbol name.
  // Resolve these directly so a temporary active_symbols lookup outage cannot
