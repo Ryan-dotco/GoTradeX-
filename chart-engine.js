@@ -14,6 +14,7 @@ const INDS=["Alligator","Fractals","EMA / SMA","Bollinger Bands","Parabolic SAR"
 const $=id=>document.getElementById(id);
 
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
+let assetRequestId=0,socketGeneration=0;
 let candles=[],symbol=store.get("gotradex_chart_symbol","EURUSD"),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker=BROKER;
 let resolvedMarket=null,resolvedKey="";
@@ -267,27 +268,38 @@ function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObser
 function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});updateTradeOverlay()}
 
 function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null}
-async function connectSocket(){
+async function connectSocket(requestId=assetRequestId){
+ const mySocket=++socketGeneration;
  closeSocket();
  const market=await resolveMarket();
+ if(requestId!==assetRequestId||mySocket!==socketGeneration)return;
+
  const broker=market.broker,sym=market.symbol;
  try{
   let url=BYBIT_WS;
   if(broker==="DERIV"){ url=DERIV_WS; }
   else if(market.category==="spot"){ url="wss://stream.bybit.com/v5/public/spot"; }
   ws=new WebSocket(url);
+  const thisWs=ws;
   ws.onopen=()=>{
+   if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration){try{thisWs.close()}catch(_){};return}
    if(broker==="DERIV")ws.send(JSON.stringify({ticks:sym,subscribe:1,req_id:102}));
    else ws.send(JSON.stringify({op:"subscribe",args:["tickers."+sym]}));
    const src=$("gtxKenglySource");if(src)src.textContent=broker==="DERIV"?"LIVE • Deriv market data":"LIVE • "+displayBroker()+" WebSocket";
   };
-  ws.onmessage=e=>{try{const m=JSON.parse(e.data);let p=NaN,t=NaN;
+  ws.onmessage=e=>{try{
+   if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration)return;
+   const m=JSON.parse(e.data);let p=NaN,t=NaN;
    if(broker==="DERIV"&&m?.msg_type==="tick"){p=Number(m.tick.quote);t=Number(m.tick.epoch)}
    if(broker==="BYBIT"){p=Number(m?.data?.lastPrice);t=Date.now()/1000}
    if(Number.isFinite(p))updateLivePrice(p,t);
   }catch(_){}}; 
-  ws.onerror=()=>{try{ws.close()}catch(_){}};
-  ws.onclose=()=>{if(started)reconnectTimer=setTimeout(()=>connectSocket().catch(()=>{}),3000)};
+  ws.onerror=()=>{try{thisWs.close()}catch(_){}};
+  ws.onclose=()=>{
+   if(thisWs!==ws||mySocket!==socketGeneration||requestId!==assetRequestId)return;
+   ws=null;
+   if(started)reconnectTimer=setTimeout(()=>connectSocket(requestId).catch(()=>{}),3000)
+  };
  }catch(e){const src=$("gtxKenglySource");if(src)src.textContent="LIVE FEED WAITING • "+(e?.message||"Connecting…");if(started)reconnectTimer=setTimeout(()=>connectSocket().catch(()=>{}),3000)}
 }
 function updateLivePrice(p,sourceTime){
@@ -354,11 +366,13 @@ function updateExpiryDisplay(){
 }
 function bindExpiry(){clearInterval(expiryTimer);expiryTimer=setInterval(updateExpiryDisplay,250)}
 
-async function refresh(){
+async function refresh(requestId=assetRequestId){
  try{
   await loadCandles();
+  if(requestId!==assetRequestId)return;
+
   if(!chart)makeChart();else{series?.setData(candles);buildIndicators();chart.timeScale().fitContent();updateInfo()}
-  connectSocket().catch(()=>{});
+  connectSocket(requestId).catch(()=>{});
  }catch(e){
   if(!chart&&window.LightweightCharts){try{makeChart()}catch(_){}}
   throw e;
@@ -371,7 +385,7 @@ function showLiveError(e){
  if(src)src.textContent="LIVE FEED ERROR • Retrying…";
  if(box){box.hidden=false;box.innerHTML="LIVE CANDLE FEED UNAVAILABLE<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>Retrying live market data…</span>"}
 }
-async function retryLive(){if(!started)return;try{await loadLibrary();await refresh()}catch(e){showLiveError(e);reconnectTimer=setTimeout(retryLive,3000)}}
+async function retryLive(requestId=assetRequestId){if(!started||requestId!==assetRequestId)return;try{await loadLibrary();await refresh(requestId)}catch(e){if(requestId!==assetRequestId)return;showLiveError(e);reconnectTimer=setTimeout(()=>retryLive(requestId),3000)}}
 
 async function boot(){
  if(started||!root())return;started=true;injectCss();rebuildDom();bindExpiry();
@@ -383,17 +397,23 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 window.GoTradeXChartEngine={
  boot,refresh,
  setSymbol:s=>{
+ const requestId=++assetRequestId;
+ clearTimeout(reconnectTimer);reconnectTimer=null;
+ closeSocket();
  symbol=String(s||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"");
  store.set("gotradex_chart_symbol",symbol);
  resolvedMarket=null;resolvedKey="";
  const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
- updateInfo();refresh().catch(showLiveError)
+ updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
 },
  setBroker:b=>{
+ const requestId=++assetRequestId;
+ clearTimeout(reconnectTimer);reconnectTimer=null;
+ closeSocket();
  const v=String(b||"AUTO").toUpperCase();
  if(!["AUTO","DERIV","BYBIT"].includes(v))return;
  liveBroker=v;resolvedMarket=null;resolvedKey="";
- store.set("gotradex_chart_broker",v);refresh().catch(showLiveError)
+ store.set("gotradex_chart_broker",v);refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
 },
  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
  toggleIndicator,
