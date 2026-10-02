@@ -770,7 +770,9 @@ syncGtxKenglyVisibility();
     var profileMenu=document.getElementById("menuMessage");if(profileMenu)profileMenu.textContent=m+" account selected.";
     document.body.dataset.accountMode=m;
     if(window.GoTradeXChartEngine&&typeof window.GoTradeXChartEngine.setBroker==="function"){
-      window.GoTradeXChartEngine.setBroker(m==="REAL"?"DERIV":"AUTO");
+      // Account mode and market-data broker are separate.
+      // AUTO lets the chart route each asset to the broker that actually lists it.
+      window.GoTradeXChartEngine.setBroker("AUTO");
     }
   }
   function loadDemo(){
