@@ -404,6 +404,13 @@ window.GoTradeXChartEngine={
  store.set("gotradex_chart_symbol",symbol);
  resolvedMarket=null;resolvedKey="";
  const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
+ // Clear the previous asset immediately. Never leave old candles visible while the new feed loads.
+ candles=[];
+ if(series){try{series.setData([])}catch(_){} }
+ clearIndicators();
+ try{priceLine?.applyOptions({price:NaN})}catch(_){}
+ const errBox=$("gtxKenglyError");if(errBox)errBox.hidden=true;
+ const source=$("gtxKenglySource");if(source)source.textContent="Connecting to "+pairLabel()+"…";
  updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
 },
  setBroker:b=>{
