@@ -92,9 +92,7 @@ function normalize(rows){return(Array.isArray(rows)?rows:[]).map(k=>({time:Math.
 function dedupe(rows){const m=new Map();rows.forEach(x=>m.set(x.time,x));return[...m.values()].sort((a,b)=>a.time-b.time)}
 async function fetchDerivCandles(){
  const sym=derivSymbol();if(!sym)throw Error("This asset is not mapped to a Deriv market. Choose a Deriv-supported forex or synthetic symbol.");
- let url=DERIV_WS;
- if(isRealAccount()){try{url=await derivAuthUrl()}catch(_){url=DERIV_WS}}
- const w=new WebSocket(url);
+ const w=new WebSocket(DERIV_WS);
  const rows=await new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{try{w.close()}catch(_){}reject(Error("Deriv history timeout"))},10000);
   w.onopen=()=>w.send(JSON.stringify({ticks_history:sym,count:500,end:"latest",style:"candles",granularity:TF[tf]||60,req_id:101}));
@@ -116,7 +114,7 @@ async function fetchCandles(){
  return fetchBybitCandles();
 }
 
-async function loadCandles(){candles=dedupe(await fetchCandles()).slice(-500);const e=$("gtxKenglyError"),src=$("gtxKenglySource");if(e)e.hidden=true;if(src)src.textContent=isRealAccount()&&chooseBroker()==="DERIV"?"LIVE • Deriv authenticated":"LIVE • "+displayBroker()}
+async function loadCandles(){candles=dedupe(await fetchCandles()).slice(-500);const e=$("gtxKenglyError"),src=$("gtxKenglySource");if(e)e.hidden=true;if(src)src.textContent=chooseBroker()==="DERIV"?"LIVE • Deriv market data":"LIVE • "+displayBroker()}
 
 function sma(v,p){const o=[];for(let i=p-1;i<v.length;i++)o.push({time:candles[i].time,value:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p});return o}
 function ema(v,p){const o=[],k=2/(p+1);let e=null;v.forEach((x,i)=>{e=e==null?x:x*k+e*(1-k);if(i>=p-1)o.push({time:candles[i].time,value:e})});return o}
@@ -150,15 +148,12 @@ async function connectSocket(){
  closeSocket();const broker=chooseBroker(),sym=broker==="DERIV"?derivSymbol():pairSymbol();
  try{
   let url=BYBIT_WS;
-  if(broker==="DERIV"){
-   url=DERIV_WS;
-   if(isRealAccount()){try{url=await derivAuthUrl()}catch(_){url=DERIV_WS}}
-  }
+  if(broker==="DERIV"){ url=DERIV_WS; }
   ws=new WebSocket(url);
   ws.onopen=()=>{
    if(broker==="DERIV")ws.send(JSON.stringify({ticks:sym,subscribe:1,req_id:102}));
    else ws.send(JSON.stringify({op:"subscribe",args:["tickers."+sym]}));
-   const src=$("gtxKenglySource");if(src)src.textContent=isRealAccount()&&broker==="DERIV"?"LIVE • Deriv authenticated":"LIVE • "+displayBroker()+" WebSocket";
+   const src=$("gtxKenglySource");if(src)src.textContent=broker==="DERIV"?"LIVE • Deriv market data":"LIVE • "+displayBroker()+" WebSocket";
   };
   ws.onmessage=e=>{try{const m=JSON.parse(e.data);let p=NaN,t=NaN;
    if(broker==="DERIV"&&m?.msg_type==="tick"){p=Number(m.tick.quote);t=Number(m.tick.epoch)}
