@@ -888,7 +888,7 @@ syncGtxKenglyVisibility();
     if(ws)try{ws.close()}catch(e){}
     ws=new WebSocket(wsUrl);
     ws.onopen=function(){
-      statusText("LIVE connected • reading balance…",true);
+      statusText("LIVE authenticated • reading balance…",true);
       ws.send(JSON.stringify({balance:1,subscribe:1,req_id:1}));
     };
     ws.onmessage=function(ev){
@@ -902,13 +902,13 @@ syncGtxKenglyVisibility();
             const realBal=document.getElementById("realBalance"),picker=document.getElementById("accountPickerBalance");
             if(realBal)realBal.textContent="$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
             if(document.body.dataset.accountMode==="REAL"&&picker)picker.textContent="$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-            statusText("LIVE connected • "+(m.balance.currency||"USD")+" "+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),true);
+            statusText("LIVE authenticated • "+(m.balance.currency||"USD")+" "+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),true);
           }
         }
         if(m.error)statusText("Error: "+(m.error.message||"Deriv error"),false);
       }catch(e){}
     };
-    ws.onerror=function(){statusText("Connection error",false)};
+    ws.onerror=function(){statusText("LIVE account connection error",false)};
     ws.onclose=function(){if(document.body.dataset.accountMode==="REAL")statusText("Connection closed",false)};
     return true;
   }
