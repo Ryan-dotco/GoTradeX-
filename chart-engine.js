@@ -118,7 +118,7 @@ async function fetchDerivCandles(){
   const timer=setTimeout(()=>{try{w.close()}catch(_){}reject(Error("Deriv history timeout"))},12000);
   w.onopen=()=>w.send(JSON.stringify(style==="ticks"
    ?{ticks_history:sym,count:5000,end:"latest",style:"ticks",req_id:101}
-   :{ticks_history:sym,count:500,end:"latest",style:"candles",granularity:step,req_id:101}));
+   :{ticks_history:sym,count:500,end:"latest",style:"candles",granularity:requestGranularity,req_id:101}));
   w.onerror=()=>{clearTimeout(timer);reject(Error("Deriv market feed unavailable"))};
   w.onmessage=e=>{try{
     const m=JSON.parse(e.data);
