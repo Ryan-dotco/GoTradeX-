@@ -19,8 +19,24 @@ let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicat
 let trade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
 
 function root(){return document.querySelector(".chart")}
-function pairSymbol(){let s=String(symbol||"BTCUSDT").toUpperCase().replace("/","");return s.endsWith("USDT")?s:s+"USDT"}
-function pairLabel(){const s=pairSymbol();return s.endsWith("USDT")?s.slice(0,-4)+"/USDT":s.length===6?s.slice(0,3)+"/"+s.slice(3):s}
+function normalizedSymbol(){return String(symbol||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"")}
+function isDerivForexSymbol(){return !!derivSymbol()}
+function pairSymbol(){
+ const s=normalizedSymbol();
+ if(isDerivForexSymbol())return s;
+ if(s.endsWith("USDT"))return s;
+ if(s.endsWith("USD"))return s.slice(0,-3)+"USDT";
+ return s+"USDT";
+}
+function pairLabel(){
+ const s=normalizedSymbol();
+ if(isDerivForexSymbol()){
+  const clean=s.replace(/^FRX/,"");
+  return clean.length===6?clean.slice(0,3)+"/"+clean.slice(3):clean;
+ }
+ if(s.endsWith("USDT"))return s.slice(0,-4)+"/USDT";
+ return s;
+}
 function derivSymbol(){
  const raw=String(symbol||"").toUpperCase().replace("/","");
  if(/^FRX[A-Z]{6}$/.test(raw))return raw;
@@ -92,7 +108,11 @@ function normalize(rows){return(Array.isArray(rows)?rows:[]).map(k=>({time:Math.
 function dedupe(rows){const m=new Map();rows.forEach(x=>m.set(x.time,x));return[...m.values()].sort((a,b)=>a.time-b.time)}
 async function fetchDerivCandles(){
  const sym=derivSymbol();if(!sym)throw Error("This asset is not mapped to a Deriv market. Choose a Deriv-supported forex or synthetic symbol.");
- const step=TF[tf]||60,style=step<60?"ticks":"candles";
+ const step=TF[tf]||60;
+ const nativeGranularities=[60,120,180,300,600,900,1800,3600,7200,14400,28800,86400];
+ const style=step<60?"ticks":"candles";
+ const requestGranularity=nativeGranularities.includes(step)?step:86400;
+ const needsAggregation=style==="candles"&&requestGranularity!==step;
  const w=new WebSocket(DERIV_WS);
  const rows=await new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{try{w.close()}catch(_){}reject(Error("Deriv history timeout"))},12000);
@@ -103,11 +123,20 @@ async function fetchDerivCandles(){
   w.onmessage=e=>{try{
     const m=JSON.parse(e.data);
     if(m.error){clearTimeout(timer);try{w.close()}catch(_){}reject(Error(m.error.message||"Deriv error"));return}
-    if(m.msg_type!=="history")return;
+    if(m.msg_type!=="history"&&m.msg_type!=="candles")return;
     clearTimeout(timer);try{w.close()}catch(_){}
     if(style==="candles"){
-      resolve((m.candles||[]).map(k=>({time:Number(k.epoch),open:Number(k.open),high:Number(k.high),low:Number(k.low),close:Number(k.close),volume:0}))
-        .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite)));
+      const base=(m.candles||[]).map(k=>({time:Number(k.epoch),open:Number(k.open),high:Number(k.high),low:Number(k.low),close:Number(k.close),volume:0}))
+        .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
+      if(!needsAggregation){resolve(base);return;}
+      const map=new Map(),out=[];
+      for(const x of base){
+        const bucket=Math.floor(x.time/step)*step;
+        let y=map.get(bucket);
+        if(!y){y={time:bucket,open:x.open,high:x.high,low:x.low,close:x.close,volume:0};map.set(bucket,y);out.push(y)}
+        else{y.high=Math.max(y.high,x.high);y.low=Math.min(y.low,x.low);y.close=x.close}
+      }
+      resolve(out);
       return;
     }
     const times=m.history?.times||[],prices=m.history?.prices||[],out=[],map=new Map();
@@ -268,7 +297,7 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 
 window.GoTradeXChartEngine={
  boot,refresh,
- setSymbol:s=>{symbol=String(s||"BTCUSDT").toUpperCase();store.set("gotradex_chart_symbol",symbol);refresh().catch(showLiveError)},
+ setSymbol:s=>{symbol=String(s||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"");store.set("gotradex_chart_symbol",symbol);refresh().catch(showLiveError)},
  setBroker:b=>{const v=String(b||"AUTO").toUpperCase();if(!["AUTO","DERIV","BYBIT"].includes(v))return;liveBroker=v;store.set("gotradex_chart_broker",v);refresh().catch(showLiveError)},
  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
  toggleIndicator,
