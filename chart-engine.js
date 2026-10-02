@@ -16,6 +16,7 @@ const $=id=>document.getElementById(id);
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let candles=[],symbol=store.get("gotradex_chart_symbol","EURUSD"),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker=BROKER;
+let resolvedMarket=null,resolvedKey="";
 let trade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
 
 function root(){return document.querySelector(".chart")}
@@ -37,6 +38,64 @@ function pairLabel(){
  if(s.endsWith("USDT"))return s.slice(0,-4)+"/USDT";
  return s;
 }
+async function wsRequest(payload,timeoutMs=10000){
+ const w=new WebSocket(DERIV_WS);
+ return await new Promise((resolve,reject)=>{
+  let done=false;
+  const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{w.close()}catch(_){}fn(v)};
+  const timer=setTimeout(()=>finish(reject,Error("Market symbol lookup timed out")),timeoutMs);
+  w.onopen=()=>{try{w.send(JSON.stringify(payload))}catch(e){finish(reject,e)}};
+  w.onerror=()=>finish(reject,Error("Market symbol lookup unavailable"));
+  w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error)finish(reject,Error(m.error.message||"Market symbol lookup failed"));else finish(resolve,m)}catch(err){finish(reject,err)}};
+ });
+}
+async function resolveDerivSymbol(){
+ const wanted=normalizedSymbol().replace(/^FRX/,"");
+ const wantedClean=wanted.replace(/[^A-Z0-9]/g,"");
+ const m=await wsRequest({active_symbols:"brief",product_type:"basic"});
+ const list=Array.isArray(m.active_symbols)?m.active_symbols:[];
+ const found=list.find(x=>{
+  const sym=String(x.symbol||x.underlying_symbol||"").toUpperCase().replace(/^FRX/,"");
+  const name=String(x.display_name||x.underlying_symbol_name||x.market_display_name||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  return sym===wantedClean || name.replace(/[^A-Z0-9]/g,"")===wantedClean;
+ });
+ if(!found)throw Error("Deriv market not available for "+pairLabel());
+ return String(found.symbol||found.underlying_symbol);
+}
+async function resolveBybitSymbol(){
+ const wanted=normalizedSymbol().replace(/[^A-Z0-9]/g,"").toUpperCase();
+ let base=wanted,quote="USD";
+ if(wanted.endsWith("USDT")){base=wanted.slice(0,-4);quote="USDT"}
+ else if(wanted.endsWith("USD")){base=wanted.slice(0,-3);quote="USD"}
+ const candidates=[];
+ if(quote==="USD")candidates.push(base+"USDT",base+"USD");
+ else candidates.push(wanted);
+ for(const category of ["spot","linear"]){
+  for(const sym of candidates){
+   try{
+    const u="https://api.bybit.com/v5/market/instruments-info?category="+category+"&symbol="+encodeURIComponent(sym);
+    const r=await fetch(u,{cache:"no-store"});const d=await r.json();
+    if(r.ok&&Number(d?.retCode)===0&&Array.isArray(d?.result?.list)&&d.result.list.some(x=>String(x.symbol).toUpperCase()===sym&&String(x.status||"Trading")==="Trading"))
+      return {symbol:sym,category};
+   }catch(_){}
+  }
+ }
+ throw Error("Bybit market not available for "+pairLabel());
+}
+async function resolveMarket(force=false){
+ const key=chooseBroker()+":"+normalizedSymbol();
+ if(!force&&resolvedMarket&&resolvedKey===key)return resolvedMarket;
+ const broker=chooseBroker();
+ if(broker==="DERIV"){
+  const sym=await resolveDerivSymbol();
+  resolvedMarket={broker,symbol:sym};
+ }else{
+  resolvedMarket={broker,...await resolveBybitSymbol()};
+ }
+ resolvedKey=key;
+ return resolvedMarket;
+}
+
 function derivSymbol(){
  const raw=String(symbol||"").toUpperCase().replace("/","");
  if(/^FRX[A-Z]{6}$/.test(raw))return raw;
@@ -107,7 +166,8 @@ function rebuildDom(){
 function normalize(rows){return(Array.isArray(rows)?rows:[]).map(k=>({time:Math.floor(Number(k[0])/1000),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]||0)})).filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite)).sort((a,b)=>a.time-b.time)}
 function dedupe(rows){const m=new Map();rows.forEach(x=>m.set(x.time,x));return[...m.values()].sort((a,b)=>a.time-b.time)}
 async function fetchDerivCandles(){
- const sym=derivSymbol();if(!sym)throw Error("This asset is not mapped to a Deriv market. Choose a Deriv-supported forex or synthetic symbol.");
+ const market=await resolveMarket();
+ const sym=market.symbol;if(!sym)throw Error("This asset is not available on Deriv.");
  const step=TF[tf]||60;
  const nativeGranularities=[60,120,180,300,600,900,1800,3600,7200,14400,28800,86400];
  const style=step<60?"ticks":"candles";
@@ -153,8 +213,9 @@ async function fetchDerivCandles(){
  return rows;
 }
 async function fetchBybitCandles(){
- const iv=API[tf];if(!iv)throw Error("This timeframe is not supplied by Bybit Linear");
- const res=await fetch("https://api.bybit.com/v5/market/kline?category=linear&symbol="+encodeURIComponent(pairSymbol())+"&interval="+iv+"&limit=500",{cache:"no-store"});
+ const iv=API[tf];if(!iv)throw Error("This timeframe is not supplied by Bybit");
+ const market=await resolveMarket();
+ const res=await fetch("https://api.bybit.com/v5/market/kline?category="+encodeURIComponent(market.category)+"&symbol="+encodeURIComponent(market.symbol)+"&interval="+iv+"&limit=500",{cache:"no-store"});
  const data=await res.json();if(!res.ok||Number(data?.retCode)!==0)throw Error(data?.retMsg||"Bybit Linear market feed unavailable");
  const rows=normalize(data?.result?.list?.slice().reverse());if(!rows.length)throw Error("No Bybit Linear candles received");return rows;
 }
@@ -164,7 +225,13 @@ async function fetchCandles(){
  return fetchBybitCandles();
 }
 
-async function loadCandles(){candles=dedupe(await fetchCandles()).slice(-500);const e=$("gtxKenglyError"),src=$("gtxKenglySource");if(e)e.hidden=true;if(src)src.textContent=chooseBroker()==="DERIV"?"LIVE • Deriv market data":"LIVE • "+displayBroker()}
+async function loadCandles(){
+ const market=await resolveMarket();
+ candles=dedupe(await fetchCandles()).slice(-500);
+ const e=$("gtxKenglyError"),src=$("gtxKenglySource");
+ if(e)e.hidden=true;
+ if(src)src.textContent=market.broker==="DERIV"?"LIVE • Deriv • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
+}
 
 function sma(v,p){const o=[];for(let i=p-1;i<v.length;i++)o.push({time:candles[i].time,value:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p});return o}
 function ema(v,p){const o=[],k=2/(p+1);let e=null;v.forEach((x,i)=>{e=e==null?x:x*k+e*(1-k);if(i>=p-1)o.push({time:candles[i].time,value:e})});return o}
@@ -195,10 +262,13 @@ function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)
 
 function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null}
 async function connectSocket(){
- closeSocket();const broker=chooseBroker(),sym=broker==="DERIV"?derivSymbol():pairSymbol();
+ closeSocket();
+ const market=await resolveMarket();
+ const broker=market.broker,sym=market.symbol;
  try{
   let url=BYBIT_WS;
   if(broker==="DERIV"){ url=DERIV_WS; }
+  else if(market.category==="spot"){ url="wss://stream.bybit.com/v5/public/spot"; }
   ws=new WebSocket(url);
   ws.onopen=()=>{
    if(broker==="DERIV")ws.send(JSON.stringify({ticks:sym,subscribe:1,req_id:102}));
@@ -220,7 +290,16 @@ function updateLivePrice(p,sourceTime){
  else{x.close=p;x.high=Math.max(x.high,p);x.low=Math.min(x.low,p)}
  series?.update(x);priceLine?.applyOptions({price:p});if(trade)updateTrade(p);updateInfo();
 }
-async function fast(){if(!started||!candles.length||!["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return;try{const r=await fetch("https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(pairSymbol()),{cache:"no-store"}),d=await r.json(),p=Number(d?.result?.list?.[0]?.lastPrice);if(Number.isFinite(p))updateLivePrice(p)}catch(_){}}
+async function fast(){
+ if(!started||!candles.length||!["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return;
+ try{
+  const market=await resolveMarket();
+  if(market.broker!=="BYBIT")return;
+  const r=await fetch("https://api.bybit.com/v5/market/tickers?category="+encodeURIComponent(market.category)+"&symbol="+encodeURIComponent(market.symbol),{cache:"no-store"});
+  const d=await r.json(),p=Number(d?.result?.list?.[0]?.lastPrice);
+  if(Number.isFinite(p))updateLivePrice(p)
+ }catch(_){}
+}
 
 function loadLibrary(){return new Promise((resolve,reject)=>{if(window.LightweightCharts)return resolve();const old=document.querySelector('script[data-gtx-kengly-lib="1"]');if(old){old.addEventListener("load",resolve,{once:true});old.addEventListener("error",reject,{once:true});return}const s=document.createElement("script");s.src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js";s.dataset.gtxKenglyLib="1";s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
 
@@ -297,8 +376,19 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 
 window.GoTradeXChartEngine={
  boot,refresh,
- setSymbol:s=>{symbol=String(s||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"");store.set("gotradex_chart_symbol",symbol);const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();updateInfo();refresh().catch(showLiveError)},
- setBroker:b=>{const v=String(b||"AUTO").toUpperCase();if(!["AUTO","DERIV","BYBIT"].includes(v))return;liveBroker=v;store.set("gotradex_chart_broker",v);refresh().catch(showLiveError)},
+ setSymbol:s=>{
+ symbol=String(s||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"");
+ store.set("gotradex_chart_symbol",symbol);
+ resolvedMarket=null;resolvedKey="";
+ const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
+ updateInfo();refresh().catch(showLiveError)
+},
+ setBroker:b=>{
+ const v=String(b||"AUTO").toUpperCase();
+ if(!["AUTO","DERIV","BYBIT"].includes(v))return;
+ liveBroker=v;resolvedMarket=null;resolvedKey="";
+ store.set("gotradex_chart_broker",v);refresh().catch(showLiveError)
+},
  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
  toggleIndicator,
  startTrade
