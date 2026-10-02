@@ -867,7 +867,8 @@ body.gtx-subscreen-open .pairbar{display:none!important}
 (function(){
   const BASE="https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-oauth";
   const INSTALL_KEY="gotradex_deriv_installation_id";
-  let ws=null,verified=false,reconnectTimer=null,reconnectAttempt=0,reconnectBusy=false;
+  let liveSocket=null,verified=false,reconnectTimer=null,reconnectAttempt=0,authBusy=false,verifyTimer=null,connectGeneration=0;
+
   function installId(){
     let id="";
     try{id=localStorage.getItem(INSTALL_KEY)||""}catch(e){}
@@ -876,26 +877,46 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     try{localStorage.setItem(INSTALL_KEY,id)}catch(e){}
     return id;
   }
+
   function statusText(t,good){
     const el=document.getElementById("derivConnectionStatus");
     if(el){el.textContent="Deriv: "+t;el.style.color=good?"#4ade80":"#8fa8c4";}
     const s=document.getElementById("status");
-    if(s&&good)s.textContent=verified?"Deriv connected. LIVE account authentication is verified.":"Deriv connected. LIVE account authentication is active.";
+    if(s&&good)s.textContent=verified
+      ?"Deriv connected. LIVE account authentication is verified."
+      :"Deriv connected. LIVE account authentication is active.";
   }
+
   async function call(action,extra){
-    const u=new URL(BASE);u.searchParams.set("action",action);u.searchParams.set("installation_id",installId());
+    const u=new URL(BASE);
+    u.searchParams.set("action",action);
+    u.searchParams.set("installation_id",installId());
     Object.entries(extra||{}).forEach(([k,v])=>u.searchParams.set(k,String(v)));
     const r=await fetch(u.toString(),{method:"GET",headers:{"Accept":"application/json"}});
     const data=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(data.error||data.errors?.[0]?.message||("Deriv request failed ("+r.status+")"));
     return data;
   }
+
+  function clearVerifyTimer(){if(verifyTimer){clearTimeout(verifyTimer);verifyTimer=null;}}
+
+  function closeLiveSocket(){
+    clearVerifyTimer();
+    const s=liveSocket;
+    liveSocket=null;
+    if(s){
+      try{s.onopen=s.onmessage=s.onerror=s.onclose=null;}catch(e){}
+      try{s.close();}catch(e){}
+    }
+  }
+
   async function connectStart(){
     statusText("Opening secure Deriv authorization…",false);
     const data=await call("start");
     if(!data.authorization_url)throw new Error("Deriv authorization URL was not returned.");
     window.location.href=data.authorization_url;
   }
+
   function normalizeAccounts(data){
     const raw=data?.data;
     if(Array.isArray(raw))return raw;
@@ -904,60 +925,147 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     if(data?.accounts&&Array.isArray(data.accounts))return data.accounts;
     return [];
   }
+
+  function isRealAccount(a){
+    const type=String(a?.account_type||a?.type||"").toLowerCase();
+    if(type==="real")return true;
+    if(type==="demo")return false;
+    if(a?.is_demo===true||a?.demo_account===true)return false;
+    return !!(a?.account_id||a?.loginid);
+  }
+
   async function connectAuthenticated(){
-    if(reconnectBusy)return verified;
-    reconnectBusy=true;
+    if(authBusy)return verified;
+    authBusy=true;
     verified=false;
-    const st=await call("status");
-    if(!st.connected){statusText("Not connected",false);reconnectBusy=false;return false;}
-    statusText("Authenticated • loading accounts…",true);
-    const accounts=normalizeAccounts(await call("accounts"));
-    if(!accounts.length){statusText("Authenticated, but no Options account was returned.",false);reconnectBusy=false;return false;}
-    const real=accounts.find(a=>String(a.account_type||a.type||"").toLowerCase()==="real")||accounts.find(a=>!a.is_demo&&!a.demo_account);
-    if(!real){statusText("Authenticated • no real Options account found.",false);reconnectBusy=false;return false;}
-    const accountId=real.account_id||real.id||real.loginid;
-    if(!accountId){reconnectBusy=false;throw new Error("Deriv returned a real account without an account ID.");}
-    localStorage.setItem("gotradex_deriv_account_id",accountId);
-    const otp=await call("otp",{account_id:accountId});
-    const wsUrl=otp?.data?.url;
-    if(!wsUrl){reconnectBusy=false;throw new Error("Deriv did not return an authenticated WebSocket URL.");}
-    if(ws)try{ws.close()}catch(e){}
-    ws=new WebSocket(wsUrl);
-    ws.onopen=function(){
-      statusText("LIVE authenticated • verifying account…",true);
-      ws.send(JSON.stringify({balance:1,subscribe:1,req_id:1}));
-    };
-    ws.onmessage=function(ev){
-      try{
-        const m=JSON.parse(ev.data);
+    const generation=++connectGeneration;
+    clearTimeout(reconnectTimer);
+    reconnectTimer=null;
+    clearVerifyTimer();
+
+    try{
+      const st=await call("status");
+      if(!st.connected){statusText("Not connected",false);return false;}
+
+      statusText("Authenticated • loading accounts…",true);
+      const accounts=normalizeAccounts(await call("accounts"));
+      if(!accounts.length)throw new Error("Authenticated, but no Options account was returned.");
+
+      const real=accounts.find(isRealAccount);
+      if(!real)throw new Error("Authenticated • no real Options account found.");
+
+      const accountId=real.account_id||real.id||real.loginid;
+      if(!accountId)throw new Error("Deriv returned a real account without an account ID.");
+      try{localStorage.setItem("gotradex_deriv_account_id",String(accountId));}catch(e){}
+
+      statusText("Real account found • requesting secure WebSocket…",true);
+      const otp=await call("otp",{account_id:accountId});
+      const wsUrl=otp?.data?.url;
+      if(!wsUrl)throw new Error("Deriv did not return an authenticated WebSocket URL.");
+
+      closeLiveSocket();
+      if(generation!==connectGeneration)return false;
+
+      const s=new WebSocket(wsUrl);
+      liveSocket=s;
+
+      s.onopen=function(){
+        if(generation!==connectGeneration||liveSocket!==s)return;
+        statusText("LIVE socket connected • waiting for balance…",true);
+        try{
+          if(s.readyState!==WebSocket.OPEN)throw new Error("WebSocket is not open.");
+          s.send(JSON.stringify({balance:1,subscribe:1,req_id:1}));
+        }catch(e){
+          statusText("LIVE balance request failed • "+(e.message||"send error"),false);
+          try{s.close();}catch(_){}
+          return;
+        }
+
+        clearVerifyTimer();
+        verifyTimer=setTimeout(function(){
+          if(generation!==connectGeneration||liveSocket!==s||verified)return;
+          verified=false;
+          statusText("LIVE socket connected, but no balance was received within 15 seconds.",false);
+          try{s.close();}catch(e){}
+        },15000);
+      };
+
+      s.onmessage=function(ev){
+        if(generation!==connectGeneration||liveSocket!==s)return;
+        let m;
+        try{m=JSON.parse(ev.data);}catch(e){
+          statusText("LIVE sent an unreadable response.",false);
+          return;
+        }
+
+        if(m.error){
+          const msg=m.error.message||m.error.code||"Deriv returned an error";
+          statusText("LIVE WebSocket error • "+msg,false);
+          return;
+        }
+
         if(m.msg_type==="balance"&&m.balance){
           const n=Number(m.balance.balance);
-          if(Number.isFinite(n)){
-            verified=true;reconnectAttempt=0;reconnectBusy=false;
-            localStorage.setItem("gotradex_real_balance",String(n));
-            if(typeof loadTradingBalances==="function")loadTradingBalances();
-            const realBal=document.getElementById("realBalance"),picker=document.getElementById("accountPickerBalance");
-            if(realBal)realBal.textContent="$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-            if(document.body.dataset.accountMode==="REAL"&&picker)picker.textContent="$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-            statusText("LIVE VERIFIED • "+(m.balance.currency||"USD")+" "+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),true);
-            document.dispatchEvent(new CustomEvent("gotradex:live-verified",{detail:{balance:n,currency:m.balance.currency||"USD"}}));
+          const currency=m.balance.currency||"USD";
+          if(!Number.isFinite(n)){
+            statusText("LIVE balance response was invalid.",false);
+            return;
           }
+
+          clearVerifyTimer();
+          verified=true;
+          reconnectAttempt=0;
+          try{localStorage.setItem("gotradex_real_balance",String(n));}catch(e){}
+          if(typeof loadTradingBalances==="function")loadTradingBalances();
+
+          const money="$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+          const realBal=document.getElementById("realBalance");
+          const picker=document.getElementById("accountPickerBalance");
+          if(realBal)realBal.textContent=money;
+          if(document.body.dataset.accountMode==="REAL"&&picker)picker.textContent=money;
+
+          statusText("LIVE VERIFIED • "+currency+" "+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),true);
+          document.dispatchEvent(new CustomEvent("gotradex:live-verified",{detail:{balance:n,currency}}));
         }
-        if(m.error)statusText("Error: "+(m.error.message||"Deriv error"),false);
-      }catch(e){}
-    };
-    ws.onerror=function(){verified=false;statusText("LIVE account connection error",false)};
-    ws.onclose=function(){
-      if(document.body.dataset.accountMode!=="REAL")return;
-      verified=false; reconnectBusy=false;
-      statusText("LIVE connection lost • reconnecting…",false);
-      clearTimeout(reconnectTimer);
-      reconnectAttempt=Math.min(reconnectAttempt+1,5);
-      reconnectTimer=setTimeout(()=>connectAuthenticated().catch(()=>{}),Math.min(15000,2000*Math.pow(2,reconnectAttempt-1)));
-    };
-    reconnectBusy=false;
-    return true;
+      };
+
+      s.onerror=function(){
+        if(generation!==connectGeneration||liveSocket!==s)return;
+        clearVerifyTimer();
+        verified=false;
+        statusText("LIVE WebSocket error • connection could not be verified.",false);
+      };
+
+      s.onclose=function(ev){
+        if(generation!==connectGeneration)return;
+        clearVerifyTimer();
+        if(liveSocket===s)liveSocket=null;
+        verified=false;
+
+        const reason=ev.reason?(" • "+ev.reason):"";
+        const detail="LIVE socket closed • code "+ev.code+reason;
+        if(document.body.dataset.accountMode!=="REAL"){
+          statusText(detail,false);
+          return;
+        }
+
+        statusText(detail+" • reconnecting…",false);
+        clearTimeout(reconnectTimer);
+        reconnectAttempt=Math.min(reconnectAttempt+1,5);
+        const delay=Math.min(15000,2000*Math.pow(2,reconnectAttempt-1));
+        reconnectTimer=setTimeout(()=>connectAuthenticated().catch(e=>statusText(e.message||"LIVE reconnect failed",false)),delay);
+      };
+
+      return true;
+    }catch(e){
+      verified=false;
+      statusText(e.message||"LIVE authentication failed.",false);
+      return false;
+    }finally{
+      authBusy=false;
+    }
   }
+
   async function getAuthenticatedMarketWebSocket(){
     let accountId="";
     try{accountId=localStorage.getItem("gotradex_deriv_account_id")||""}catch(e){}
@@ -977,28 +1085,32 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     const b=document.getElementById("connectDerivBtn");
     if(b)b.onclick=async function(e){
       e.preventDefault();e.stopPropagation();
-      try{
-        // Always start a fresh Deriv OAuth authorization flow when CONNECT DERIV is pressed.
-        // Do not silently reuse an existing browser session/token here.
-        await connectStart();
-      }catch(err){statusText(err.message||"Unable to open Deriv authorization",false);}
+      try{await connectStart();}
+      catch(err){statusText(err.message||"Unable to open Deriv authorization",false);}
     };
+
     const params=new URLSearchParams(location.search);
     if(params.get("deriv")==="connected"){
       statusText("Deriv callback completed • verifying LIVE account…",true);
-      await connectAuthenticated().catch(e=>statusText(e.message||"Connection failed",false));
+      await connectAuthenticated();
       history.replaceState({},document.title,location.pathname+location.hash);
     }else if(params.get("deriv")==="error"){
       statusText("Deriv connection failed • "+(params.get("error")||"authorization was cancelled"),false);
       history.replaceState({},document.title,location.pathname+location.hash);
     }else{
-      // Restore the previous automatic reconnect behavior. If GoTradeX already
-      // has a valid Deriv OAuth connection, reconnect it on page load.
       await connectAuthenticated().catch(()=>{});
     }
   }
+
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
-  window.GoTradeXDeriv={connect:connectAuthenticated,start:connectStart,status:()=>call("status"),getAuthenticatedMarketWebSocket,isLiveVerified:()=>verified};
+
+  window.GoTradeXDeriv={
+    connect:connectAuthenticated,
+    start:connectStart,
+    status:()=>call("status"),
+    getAuthenticatedMarketWebSocket,
+    isLiveVerified:()=>verified
+  };
 })();
 </script>\n</body>
 </html>
