@@ -297,7 +297,7 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 
 window.GoTradeXChartEngine={
  boot,refresh,
- setSymbol:s=>{symbol=String(s||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"");store.set("gotradex_chart_symbol",symbol);refresh().catch(showLiveError)},
+ setSymbol:s=>{symbol=String(s||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"");store.set("gotradex_chart_symbol",symbol);const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();updateInfo();refresh().catch(showLiveError)},
  setBroker:b=>{const v=String(b||"AUTO").toUpperCase();if(!["AUTO","DERIV","BYBIT"].includes(v))return;liveBroker=v;store.set("gotradex_chart_broker",v);refresh().catch(showLiveError)},
  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
  toggleIndicator,
