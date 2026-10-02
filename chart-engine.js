@@ -8,7 +8,7 @@ const TF={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"5 Minutes
 const API={"1 Minute":"1","5 Minutes":"5","15 Minutes":"15","30 Minutes":"30","1 Hour":"60","4 Hours":"240","12 Hours":"720","1 Day":"D","1 Week":"W","1 Month":"M"};
 const store={get(k,d){try{return localStorage.getItem(k)||d}catch(_){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(_){}}};
 const BROKER=store.get("gotradex_chart_broker","AUTO");
-const DERIV_WS="wss://ws.binaryws.com/websockets/v3";
+const DERIV_WS="wss://ws.binaryws.com/websockets/v3",DERIV_WS_FALLBACK="wss://ws.derivws.com/websockets/v3";
 const BYBIT_WS="wss://stream.bybit.com/v5/public/linear";
 const INDS=["Alligator","Fractals","EMA / SMA","Bollinger Bands","Parabolic SAR","Supertrend","Ichimoku Cloud","RSI","MACD","Stochastic","ATR","Support & Resistance","Horizontal Line"];
 const $=id=>document.getElementById(id);
@@ -39,18 +39,7 @@ function pairLabel(){
  if(s.endsWith("USDT"))return s.slice(0,-4)+"/USDT";
  return s;
 }
-async function wsRequest(payload,timeoutMs=10000){
- const w=new WebSocket(DERIV_WS);
- return await new Promise((resolve,reject)=>{
-  let done=false;
-  const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{w.close()}catch(_){}fn(v)};
-  const timer=setTimeout(()=>finish(reject,Error("Market symbol lookup timed out")),timeoutMs);
-  w.onopen=()=>{try{w.send(JSON.stringify(payload))}catch(e){finish(reject,e)}};
-  w.onerror=()=>finish(reject,Error("Market symbol lookup unavailable"));
-  w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error)finish(reject,Error(m.error.message||"Market symbol lookup failed"));else finish(resolve,m)}catch(err){finish(reject,err)}};
- });
-}
-async function resolveDerivSymbol(){
+async function wsRequest(payload,timeoutMs=10000){\n const endpoints=[DERIV_WS,DERIV_WS_FALLBACK];\n let lastError=Error("Market symbol lookup unavailable");\n for(const endpoint of endpoints){\n  try{\n   const w=new WebSocket(endpoint);\n   const result=await new Promise((resolve,reject)=>{\n    let done=false;\n    const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{w.close()}catch(_){}fn(v)};\n    const timer=setTimeout(()=>finish(reject,Error("Market symbol lookup timed out")),timeoutMs);\n    w.onopen=()=>{try{w.send(JSON.stringify(payload))}catch(e){finish(reject,e)}};\n    w.onerror=()=>finish(reject,Error("Market symbol lookup unavailable"));\n    w.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.error)finish(reject,Error(m.error.message||"Market symbol lookup failed"));else finish(resolve,m)}catch(err){finish(reject,err)}};\n   });\n   return result;\n  }catch(e){lastError=e}\n }\n throw lastError;\n}\nasync function resolveDerivSymbol(){
  const wantedClean=normalizedSymbol().replace(/^FRX/,"").replace(/[^A-Z0-9]/g,"");
  // Deriv's current active_symbols API removed product_type and related filters.
  // Request the full public list, then resolve the selected asset locally.
