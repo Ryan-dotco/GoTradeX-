@@ -50,14 +50,17 @@ async function wsRequest(payload,timeoutMs=10000){
  });
 }
 async function resolveDerivSymbol(){
- const wanted=normalizedSymbol().replace(/^FRX/,"");
- const wantedClean=wanted.replace(/[^A-Z0-9]/g,"");
- const m=await wsRequest({active_symbols:"brief",product_type:"basic"});
+ const wantedClean=normalizedSymbol().replace(/^FRX/,"").replace(/[^A-Z0-9]/g,"");
+ // Deriv's current active_symbols API removed product_type and related filters.
+ // Request the full public list, then resolve the selected asset locally.
+ const m=await wsRequest({active_symbols:"brief"});
  const list=Array.isArray(m.active_symbols)?m.active_symbols:[];
  const found=list.find(x=>{
-  const sym=String(x.symbol||x.underlying_symbol||"").toUpperCase().replace(/^FRX/,"");
-  const name=String(x.display_name||x.underlying_symbol_name||x.market_display_name||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
-  return sym===wantedClean || name.replace(/[^A-Z0-9]/g,"")===wantedClean;
+  const rawSym=String(x.symbol||x.underlying_symbol||"").toUpperCase();
+  const sym=rawSym.replace(/^FRX/,"").replace(/[^A-Z0-9]/g,"");
+  const rawName=String(x.display_name||x.underlying_symbol_name||"").toUpperCase();
+  const name=rawName.replace(/[^A-Z0-9]/g,"");
+  return sym===wantedClean || name===wantedClean;
  });
  if(!found)throw Error("Deriv market not available for "+pairLabel());
  return String(found.symbol||found.underlying_symbol);
@@ -114,6 +117,9 @@ function derivAuthUrl(){
  return api.getAuthenticatedMarketWebSocket();
 }
 function chooseBroker(){
+ // Account mode does not choose the market-data broker.
+ // AUTO prefers Deriv for symbols that are explicitly known as Deriv markets,
+ // otherwise Bybit is used. Symbol resolution then verifies actual availability.
  const d=derivSymbol();
  if(liveBroker==="DERIV"&&d)return "DERIV";
  if(liveBroker==="BYBIT")return "BYBIT";
