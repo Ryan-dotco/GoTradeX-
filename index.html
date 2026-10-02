@@ -836,7 +836,7 @@ syncGtxKenglyVisibility();
 (function(){
   const BASE="https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-oauth";
   const INSTALL_KEY="gotradex_deriv_installation_id";
-  let ws=null;
+  let ws=null,verified=false,reconnectTimer=null,reconnectAttempt=0,reconnectBusy=false;
   function installId(){
     let id="";
     try{id=localStorage.getItem(INSTALL_KEY)||""}catch(e){}
@@ -849,7 +849,7 @@ syncGtxKenglyVisibility();
     const el=document.getElementById("derivConnectionStatus");
     if(el){el.textContent="Deriv: "+t;el.style.color=good?"#4ade80":"#8fa8c4";}
     const s=document.getElementById("status");
-    if(s&&good)s.textContent="Deriv connected. LIVE account authentication is active.";
+    if(s&&good)s.textContent=verified?"Deriv connected. LIVE account authentication is verified.":"Deriv connected. LIVE account authentication is active.";
   }
   async function call(action,extra){
     const u=new URL(BASE);u.searchParams.set("action",action);u.searchParams.set("installation_id",installId());
@@ -874,23 +874,26 @@ syncGtxKenglyVisibility();
     return [];
   }
   async function connectAuthenticated(){
+    if(reconnectBusy)return verified;
+    reconnectBusy=true;
+    verified=false;
     const st=await call("status");
-    if(!st.connected){statusText("Not connected",false);return false;}
+    if(!st.connected){statusText("Not connected",false);reconnectBusy=false;return false;}
     statusText("Authenticated • loading accounts…",true);
     const accounts=normalizeAccounts(await call("accounts"));
-    if(!accounts.length){statusText("Authenticated, but no Options account was returned.",false);return false;}
+    if(!accounts.length){statusText("Authenticated, but no Options account was returned.",false);reconnectBusy=false;return false;}
     const real=accounts.find(a=>String(a.account_type||a.type||"").toLowerCase()==="real")||accounts.find(a=>!a.is_demo&&!a.demo_account);
-    if(!real){statusText("Authenticated • no real Options account found.",false);return true;}
+    if(!real){statusText("Authenticated • no real Options account found.",false);reconnectBusy=false;return false;}
     const accountId=real.account_id||real.id||real.loginid;
-    if(!accountId)throw new Error("Deriv returned a real account without an account ID.");
+    if(!accountId){reconnectBusy=false;throw new Error("Deriv returned a real account without an account ID.");}
     localStorage.setItem("gotradex_deriv_account_id",accountId);
     const otp=await call("otp",{account_id:accountId});
     const wsUrl=otp?.data?.url;
-    if(!wsUrl)throw new Error("Deriv did not return an authenticated WebSocket URL.");
+    if(!wsUrl){reconnectBusy=false;throw new Error("Deriv did not return an authenticated WebSocket URL.");}
     if(ws)try{ws.close()}catch(e){}
     ws=new WebSocket(wsUrl);
     ws.onopen=function(){
-      statusText("LIVE authenticated • reading balance…",true);
+      statusText("LIVE authenticated • verifying account…",true);
       ws.send(JSON.stringify({balance:1,subscribe:1,req_id:1}));
     };
     ws.onmessage=function(ev){
@@ -899,19 +902,29 @@ syncGtxKenglyVisibility();
         if(m.msg_type==="balance"&&m.balance){
           const n=Number(m.balance.balance);
           if(Number.isFinite(n)){
+            verified=true;reconnectAttempt=0;reconnectBusy=false;
             localStorage.setItem("gotradex_real_balance",String(n));
             if(typeof loadTradingBalances==="function")loadTradingBalances();
             const realBal=document.getElementById("realBalance"),picker=document.getElementById("accountPickerBalance");
             if(realBal)realBal.textContent="$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
             if(document.body.dataset.accountMode==="REAL"&&picker)picker.textContent="$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-            statusText("LIVE authenticated • "+(m.balance.currency||"USD")+" "+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),true);
+            statusText("LIVE VERIFIED • "+(m.balance.currency||"USD")+" "+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),true);
+            document.dispatchEvent(new CustomEvent("gotradex:live-verified",{detail:{balance:n,currency:m.balance.currency||"USD"}}));
           }
         }
         if(m.error)statusText("Error: "+(m.error.message||"Deriv error"),false);
       }catch(e){}
     };
-    ws.onerror=function(){statusText("LIVE account connection error",false)};
-    ws.onclose=function(){if(document.body.dataset.accountMode==="REAL")statusText("Connection closed",false)};
+    ws.onerror=function(){verified=false;statusText("LIVE account connection error",false)};
+    ws.onclose=function(){
+      if(document.body.dataset.accountMode!=="REAL")return;
+      verified=false; reconnectBusy=false;
+      statusText("LIVE connection lost • reconnecting…",false);
+      clearTimeout(reconnectTimer);
+      reconnectAttempt=Math.min(reconnectAttempt+1,5);
+      reconnectTimer=setTimeout(()=>connectAuthenticated().catch(()=>{}),Math.min(15000,2000*Math.pow(2,reconnectAttempt-1)));
+    };
+    reconnectBusy=false;
     return true;
   }
   async function getAuthenticatedMarketWebSocket(){
@@ -950,7 +963,7 @@ syncGtxKenglyVisibility();
     }
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
-  window.GoTradeXDeriv={connect:connectAuthenticated,start:connectStart,status:()=>call("status"),getAuthenticatedMarketWebSocket};
+  window.GoTradeXDeriv={connect:connectAuthenticated,start:connectStart,status:()=>call("status"),getAuthenticatedMarketWebSocket,isLiveVerified:()=>verified};
 })();
 </script>\n</body>
 </html>
