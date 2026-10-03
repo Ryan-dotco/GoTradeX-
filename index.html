@@ -1402,6 +1402,35 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       }
     }finally{busy=false}
   }
+  async function verifyLiveMarketAndOrderPath(session){
+    try{
+      status("Balance verified. Checking live BTC/USDT market data…");
+      const marketRes=await fetch(BYBIT_LIVE_URL,{
+        method:"POST",
+        headers:{"Authorization":"Bearer "+session.access_token,"Content-Type":"application/json"},
+        body:JSON.stringify({action:"market",category:"spot",symbol:"BTCUSDT"})
+      });
+      const market=await marketRes.json().catch(()=>({}));
+      if(!marketRes.ok||market?.ok!==true)throw new Error(market?.error||"Bybit live market check failed.");
+      const testRes=await fetch(BYBIT_LIVE_URL,{
+        method:"POST",
+        headers:{"Authorization":"Bearer "+session.access_token,"Content-Type":"application/json"},
+        body:JSON.stringify({action:"order-test",category:"spot",symbol:"BTCUSDT",side:"BUY",amount:10})
+      });
+      const test=await testRes.json().catch(()=>({}));
+      if(!testRes.ok||test?.readyToSubmit!==true)throw new Error(test?.error||"Bybit order-path test failed.");
+      const st=el("status");
+      if(st)st.textContent="LIVE Bybit verified • BTC/USDT $"+Number(market.lastPrice||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+" • order path ready • NO TRADE placed.";
+      status("✓ Bybit LIVE balance, market data and NO-TRADE order path verified.","ok");
+      return true;
+    }catch(e){
+      const st=el("status");
+      if(st)st.textContent="Bybit balance verified, but live market/order-path verification needs attention: "+(e?.message||"unknown error");
+      status(e?.message||"Live market verification failed.","error");
+      return false;
+    }
+  }
+
   async function loadLiveBalance(session){
     if(!session?.access_token){status("No authenticated session is available.","error");return false}
     status("Authenticated. Reading the Bybit Unified account balance…");
@@ -1419,15 +1448,14 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       const total=Number(data?.balance?.totalEquity??data?.totalEquity??data?.balance?.totalWalletBalance??data?.totalWalletBalance);
       if(!Number.isFinite(total))throw new Error("Bybit returned no usable Unified balance.");
       localStorage.setItem("gotradex_real_balance",String(total));
+      localStorage.setItem("gotradex_account_mode","REAL");
       const real=el("realBalance"),picker=el("accountPickerBalance"),label=el("accountPickerLabel");
       if(real)real.textContent=fmt(total);
-      if(picker&&localStorage.getItem("gotradex_account_mode")==="REAL")picker.textContent=fmt(total);
-      if(label&&localStorage.getItem("gotradex_account_mode")==="REAL")label.textContent="LIVE ▾";
+      if(picker)picker.textContent=fmt(total);
+      if(label)label.textContent="LIVE ▾";
       if(typeof setAccountMode==="function")setAccountMode("REAL");
-      const st=el("status");
-      if(st)st.textContent="LIVE Bybit connected. Unified balance: "+fmt(total)+". Live order execution is still disabled until trading permissions are verified.";
-      status("Bybit LIVE balance verified: "+fmt(total),"ok");
-      setTimeout(close,700);
+      await verifyLiveMarketAndOrderPath(session);
+      setTimeout(close,900);
       return true;
     }catch(e){
       status(e?.message||"Unable to verify Bybit LIVE balance.","error");
@@ -1483,7 +1511,13 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     if(real){
       const clone=real.cloneNode(true);
       real.replaceWith(clone);
-      clone.addEventListener("click",openLive);
+      clone.addEventListener("click",async()=>{
+        if(typeof setAccountMode==="function")setAccountMode("REAL");
+        try{localStorage.setItem("gotradex_account_mode","REAL")}catch(e){}
+        await openLive();
+        const session=(await ensureClient().auth.getSession()).data?.session;
+        if(session)await loadLiveBalance(session);
+      });
     }
     const picker=el("accountPickerBtn");
     if(picker){
