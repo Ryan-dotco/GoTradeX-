@@ -1230,6 +1230,8 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     el("gtxBybitRecoveryWrap")?.classList.add("open");
     el("gtxBybitRecoverySet")?.classList.remove("open");
     el("gtxBybitRecoveryRequest")?.classList.add("open");
+    el("gtxSendReset")?.classList.add("open");
+    el("gtxUpdatePassword")?.classList.remove("open");
     status(email?"Enter your email above, then tap SEND RESET LINK.":"Enter your email address, then tap SEND RESET LINK.");
     if(!email)el("gtxBybitAuthEmail")?.focus();
   }
@@ -1272,6 +1274,8 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     el("gtxBybitRecoveryWrap")?.classList.add("open");
     el("gtxBybitRecoveryRequest")?.classList.remove("open");
     el("gtxBybitRecoverySet")?.classList.add("open");
+    el("gtxSendReset")?.classList.remove("open");
+    el("gtxUpdatePassword")?.classList.add("open");
     el("gtxNewPassword")?.focus();
   }
   function installRecoveryListener(){
