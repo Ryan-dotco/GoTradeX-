@@ -1166,6 +1166,53 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     }
   }
 
+  async function diagnoseLiveConnection(session){
+    if(!session?.access_token)return {ok:false,message:"No authenticated GoTradeX session is available for the LIVE diagnostic."};
+    try{
+      const r=await fetch(BYBIT_LIVE_URL,{
+        method:"POST",
+        headers:{
+          "Authorization":"Bearer "+session.access_token,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({action:"diagnose"})
+      });
+      const d=await r.json().catch(()=>({}));
+      const bybit=d?.bybit||{};
+      if(bybit.retMsg){
+        return {
+          ok:false,
+          message:"Bybit: "+String(bybit.retMsg)+(bybit.retCode!=null?" (code "+String(bybit.retCode)+")":"")+(bybit.httpStatus!=null?" • HTTP "+String(bybit.httpStatus):""),
+          data:d
+        };
+      }
+      if(!d?.apiKeyConfigured||!d?.apiSecretConfigured){
+        return {
+          ok:false,
+          message:"Bybit live credentials are not configured on the server.",
+          data:d
+        };
+      }
+      if(d?.authenticated!==true){
+        return {
+          ok:false,
+          message:"Bybit authenticated connection failed.",
+          data:d
+        };
+      }
+      return {
+        ok:true,
+        message:"Bybit authenticated connection verified.",
+        data:d
+      };
+    }catch(e){
+      return {
+        ok:false,
+        message:e?.message||"Unable to run the Bybit connection diagnostic."
+      };
+    }
+  }
+
   async function loadLiveBalance(session){
     if(!session?.access_token){status("No authenticated session is available.","error");return false}
     status("Authenticated. Reading the Bybit Unified account balance…");
@@ -1193,9 +1240,26 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       setTimeout(close,900);
       return true;
     }catch(e){
-      status(e?.message||"Unable to verify Bybit LIVE balance.","error");
+      const exactError=String(e?.message||"Unable to verify Bybit LIVE balance.");
+      status("LIVE CONNECTION ERROR\n"+exactError,"error");
       const st=el("status");
-      if(st)st.textContent="LIVE selected, but the Bybit secure connection is not verified.";
+      if(st)st.textContent="LIVE connection error: "+exactError;
+      const diag=await diagnoseLiveConnection(session);
+      const detail=[
+        "LIVE CONNECTION DIAGNOSTIC",
+        "Balance request: "+exactError,
+        "Diagnostic: "+diag.message
+      ];
+      if(diag?.data){
+        detail.push(
+          "API key configured: "+(diag.data.apiKeyConfigured?"YES":"NO"),
+          "API secret configured: "+(diag.data.apiSecretConfigured?"YES":"NO"),
+          "Authenticated: "+(diag.data.authenticated?"YES":"NO"),
+          "Live execution: "+(diag.data.executionEnabled?"ON":"OFF")
+        );
+      }
+      status(detail.join("\n"),"error");
+      if(st)st.textContent=detail.join("\n");
       return false;
     }
   }
@@ -1218,7 +1282,7 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       '<div class="gtxBybitCodeWrap" id="gtxBybitCodeWrap"><div class="gtxBybitCodeTitle">EMAIL ACTIVATION</div><div class="gtxBybitCodeHint">A 6-digit code was sent to your email. Come back to GoTradeX and enter it here to activate your account.</div><label class="gtxBybitAuthField"><span>6-digit verification code</span><input id="gtxBybitAuthCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></label><div class="gtxBybitCodeActions"><button id="gtxBybitVerifyCode" type="button">VERIFY & ACTIVATE</button><button id="gtxBybitResendCode" type="button">RESEND CODE</button></div></div>'+
       '<div class="gtxRecoveryWrap" id="gtxBybitRecoveryWrap"><div class="gtxRecoveryTitle">PASSWORD RECOVERY</div><div class="gtxRecoveryHint gtxRecoveryMode open" id="gtxBybitRecoveryRequest">We will email you a secure reset link. Follow it and return to GoTradeX to set your new password.</div><div class="gtxRecoveryHint gtxRecoveryMode" id="gtxBybitRecoverySet">Choose and confirm your new password below.</div><label class="gtxBybitAuthField"><span>New password</span><div class="gtxPasswordWrap"><input id="gtxNewPassword" type="password" autocomplete="new-password" placeholder="New password"><button class="gtxPasswordToggle" id="gtxNewPasswordToggle" type="button" aria-label="Show new password">👁</button></div></label><label class="gtxBybitAuthField"><span>Confirm new password</span><div class="gtxPasswordWrap"><input id="gtxConfirmPassword" type="password" autocomplete="new-password" placeholder="Confirm new password"><button class="gtxPasswordToggle" id="gtxConfirmPasswordToggle" type="button" aria-label="Show confirmed password">👁</button></div></label><div class="gtxRecoveryActions"><button id="gtxSendReset" class="primary" type="button">SEND RESET LINK</button><button id="gtxUpdatePassword" class="primary gtxRecoveryMode" type="button">UPDATE PASSWORD</button></div></div>'+
       '<div class="gtxBybitAuthActions"><button class="primary" id="gtxBybitSignIn" type="button">SIGN IN</button><button id="gtxBybitSignUp" type="button">CREATE ACCOUNT</button></div>'+
-      '<div class="gtxBybitAuthStatus" id="gtxBybitAuthStatus">Secure authentication is required before the private Bybit balance can be read.</div>'+
+      '<div class="gtxBybitAuthStatus" id="gtxBybitAuthStatus" style="white-space:pre-wrap">Secure authentication is required before the private Bybit balance can be read.</div>'+
     '</div>';
     document.body.appendChild(wrap);
     el("gtxBybitAuthClose").onclick=close;
