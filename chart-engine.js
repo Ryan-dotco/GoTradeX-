@@ -278,7 +278,7 @@ window.GoTradeXChartEngine={
  const requestId=++assetRequestId;
  clearTimeout(reconnectTimer);reconnectTimer=null;
  closeSocket();
- symbol=String(s||"EURUSD").toUpperCase().replace(/[^A-Z0-9_]/g,"");
+ symbol=String(s||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"");
  store.set("gotradex_chart_symbol",symbol);
  resolvedMarket=null;resolvedKey="";
  const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
@@ -291,14 +291,11 @@ window.GoTradeXChartEngine={
  const source=$("gtxKenglySource");if(source)source.textContent="Connecting to "+pairLabel()+"…";
  updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
 },
- setBroker:b=>{
- const requestId=++assetRequestId;
- clearTimeout(reconnectTimer);reconnectTimer=null;
- closeSocket();
- const v=String(b||"AUTO").toUpperCase();
- if(!["AUTO","BYBIT","BYBIT"].includes(v))return;
- liveBroker=v;resolvedMarket=null;resolvedKey="";
- store.set("gotradex_chart_broker",v);refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
+ setBroker:()=>{
+ liveBroker="BYBIT";
+ resolvedMarket=null;resolvedKey="";
+ store.set("gotradex_chart_broker","BYBIT");
+ refresh().catch(showLiveError);
 },
  setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
  toggleIndicator,
