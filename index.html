@@ -1147,16 +1147,19 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       });
       const market=await marketRes.json().catch(()=>({}));
       if(!marketRes.ok||market?.ok!==true)throw new Error(market?.error||"Bybit live market check failed.");
-      const testRes=await fetch(BYBIT_LIVE_URL,{
-        method:"POST",
-        headers:{"Authorization":"Bearer "+session.access_token,"Content-Type":"application/json"},
-        body:JSON.stringify({action:"order-test",category:"spot",symbol:"BTCUSDT",side:"BUY",amount:10})
-      });
-      const test=await testRes.json().catch(()=>({}));
-      if(!testRes.ok||test?.readyToSubmit!==true)throw new Error(test?.error||"Bybit order-path test failed.");
+      const testResults=await Promise.all(["BUY","SELL"].map(async side=>{
+        const testRes=await fetch(BYBIT_LIVE_URL,{
+          method:"POST",
+          headers:{"Authorization":"Bearer "+session.access_token,"Content-Type":"application/json"},
+          body:JSON.stringify({action:"order-test",category:"spot",symbol:"BTCUSDT",side,amount:10})
+        });
+        const test=await testRes.json().catch(()=>({}));
+        if(!testRes.ok||test?.readyToSubmit!==true)throw new Error((side==="BUY"?"BUY":"SELL")+" order-path test failed: "+(test?.error||"Bybit rejected the test."));
+        return test;
+      }));
       const st=el("status");
-      if(st)st.textContent="LIVE Bybit verified • BTC/USDT $"+Number(market.lastPrice||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+" • order path ready • NO TRADE placed.";
-      status("✓ Bybit LIVE balance, market data and NO-TRADE order path verified.","ok");
+      if(st)st.textContent="LIVE Bybit verified • BTC/USDT $"+Number(market.lastPrice||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+" • BUY + SELL order paths ready • NO TRADE placed.";
+      status("✓ Bybit LIVE balance, market data and BUY + SELL NO-TRADE order paths verified.","ok");
       return true;
     }catch(e){
       const st=el("status");
