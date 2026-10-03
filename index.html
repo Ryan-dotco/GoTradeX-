@@ -874,7 +874,7 @@ body.gtx-subscreen-open .pairbar{display:none!important}
 })();
 </script>
 <style id="gtx-bybit-auth-code">
-.gtxBybitCodeWrap{display:none;margin-top:10px;padding-top:10px;border-top:1px solid #23466d}.gtxBybitCodeWrap.open{display:block}.gtxBybitCodeActions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.gtxBybitCodeActions button{min-height:40px;border-radius:8px;background:#163554;color:#fff;font-weight:800;font-size:11px}.gtxBybitCodeActions button:first-child{background:#176fca}.gtxBybitAuthField input#gtxBybitAuthCode{text-align:center;letter-spacing:.28em;font-size:18px;font-weight:900}
+.gtxBybitCodeWrap{display:none;margin-top:12px;padding:12px;border:1px solid #176fca;border-radius:10px;background:#071a30}.gtxBybitCodeWrap.open{display:block}.gtxBybitCodeTitle{font-size:11px;font-weight:900;color:#fff;letter-spacing:.08em}.gtxBybitCodeHint{margin-top:5px;color:#8fa8c4;font-size:10px;line-height:1.45}.gtxBybitCodeActions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.gtxBybitCodeActions button{min-height:40px;border-radius:8px;background:#163554;color:#fff;font-weight:800;font-size:11px}.gtxBybitCodeActions button:first-child{background:#176fca}.gtxBybitAuthField input#gtxBybitAuthCode{text-align:center;letter-spacing:.28em;font-size:18px;font-weight:900}
 </style>
 <style id="gtx-account-mode-colors">
 /* Account colors: DEMO is red, LIVE is green. */
@@ -1179,6 +1179,8 @@ body.gtx-subscreen-open .pairbar{display:none!important}
   }
   function open(){
     const o=el("gtxBybitAuthOverlay"); if(o)o.classList.add("open");
+    const codeWrap=el("gtxBybitCodeWrap");
+    if(codeWrap)codeWrap.classList.remove("open");
     const email=el("gtxBybitAuthEmail"); if(email)email.focus();
     checkExistingSession();
   }
@@ -1187,10 +1189,14 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     try{
       const {data}=await ensureClient().auth.getSession();
       if(data?.session){
-        status("Secure GoTradeX session found. Checking Bybit LIVE balance…","ok");
-        await loadLiveBalance(data.session);
+        if(localStorage.getItem("gotradex_account_mode")==="REAL"){
+          status("Secure GoTradeX session found. Checking Bybit LIVE balance…","ok");
+          await loadLiveBalance(data.session);
+        }else{
+          status("Secure GoTradeX session found. Your account is active.","ok");
+        }
       }else{
-        status("Sign in or create a secure GoTradeX account to access the private Bybit balance.");
+        status("Sign in or create a GoTradeX account. New accounts are activated with the 6-digit email code.");
       }
     }catch(e){status(e?.message||"Secure authentication is unavailable.","error")}
   }
@@ -1202,8 +1208,22 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     busy=true;status("Signing in securely…");
     try{
       const {data,error}=await ensureClient().auth.signInWithPassword({email,password});
-      if(error)throw error;
-      await loadLiveBalance(data.session);
+      if(error){
+        const msg=String(error.message||"");
+        if(/email.*confirm|confirm.*email|not confirmed/i.test(msg)){
+          el("gtxBybitCodeWrap")?.classList.add("open");
+          status("Your email is not activated yet. Enter the 6-digit code from your email below, then tap VERIFY & ACTIVATE.","error");
+          el("gtxBybitAuthCode")?.focus();
+          return;
+        }
+        throw error;
+      }
+      if(localStorage.getItem("gotradex_account_mode")==="REAL"){
+        await loadLiveBalance(data.session);
+      }else{
+        status("GoTradeX account signed in and active.","ok");
+        setTimeout(close,700);
+      }
     }catch(e){status(e?.message||"Sign-in failed.","error")}
     finally{busy=false}
   }
@@ -1211,19 +1231,24 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     if(busy)return;
     const email=el("gtxBybitAuthEmail")?.value.trim();
     const token=el("gtxBybitAuthCode")?.value.trim().replace(/\\s+/g,"");
-    if(!email||!token){status("Enter the email verification code.","error");return}
+    if(!email||!token){status("Enter the 6-digit code from your email.","error");return}
     if(!/^\\d{6}$/.test(token)){status("Enter the 6-digit verification code from your email.","error");return}
-    busy=true;status("Verifying your email…");
+    busy=true;status("Verifying your 6-digit code…");
     try{
       const {data,error}=await ensureClient().auth.verifyOtp({email,token,type:"email"});
       if(error)throw error;
+
+      try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
+      status("✓ Email verified. Your GoTradeX account is now ACTIVE.","ok");
+
       if(data?.session){
-        status("Email verified. Checking Bybit LIVE balance…","ok");
-        await loadLiveBalance(data.session);
-      }else{
-        status("Email verified. You can now SIGN IN.","ok");
+        if(localStorage.getItem("gotradex_account_mode")==="REAL"){
+          setTimeout(()=>loadLiveBalance(data.session),350);
+        }else{
+          setTimeout(close,900);
+        }
       }
-    }catch(e){status(e?.message||"Verification failed. Request a new code and try again.","error")}
+    }catch(e){status(e?.message||"Verification failed. Check the code and try again, or request a new code.","error")}
     finally{busy=false}
   }
   async function resendVerificationCode(){
@@ -1252,10 +1277,16 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       });
       if(error)throw error;
       if(data.session){
-        await loadLiveBalance(data.session);
+        try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
+        status("✓ Account created and email already verified. Your GoTradeX account is ACTIVE.","ok");
+        if(localStorage.getItem("gotradex_account_mode")==="REAL"){
+          await loadLiveBalance(data.session);
+        }else{
+          setTimeout(close,900);
+        }
       }else{
         el("gtxBybitCodeWrap")?.classList.add("open");
-        status("Account created. Check your email for the 6-digit verification code, then enter it here.","ok");
+        status("✓ Account created. Check your email, return to GoTradeX, enter the 6-digit code below, then tap VERIFY & ACTIVATE.","ok");
         el("gtxBybitAuthCode")?.focus();
       }
     }catch(e){status(e?.message||"Account creation failed.","error")}
@@ -1310,7 +1341,7 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       '<p class="gtxBybitAuthText">GoTradeX uses Supabase Auth to protect access to the private Bybit account. Your Bybit API secret stays on the backend and is never entered here.</p>'+
       '<label class="gtxBybitAuthField"><span>Email</span><input id="gtxBybitAuthEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>'+
       '<label class="gtxBybitAuthField"><span>Password</span><input id="gtxBybitAuthPassword" type="password" autocomplete="current-password" placeholder="Your secure password"></label>'+
-      '<div class="gtxBybitCodeWrap" id="gtxBybitCodeWrap"><label class="gtxBybitAuthField"><span>Email verification code</span><input id="gtxBybitAuthCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code"></label><div class="gtxBybitCodeActions"><button id="gtxBybitVerifyCode" type="button">VERIFY EMAIL</button><button id="gtxBybitResendCode" type="button">RESEND CODE</button></div></div>'+
+      '<div class="gtxBybitCodeWrap" id="gtxBybitCodeWrap"><div class="gtxBybitCodeTitle">EMAIL ACTIVATION</div><div class="gtxBybitCodeHint">A 6-digit code was sent to your email. Come back to GoTradeX and enter it here to activate your account.</div><label class="gtxBybitAuthField"><span>6-digit verification code</span><input id="gtxBybitAuthCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></label><div class="gtxBybitCodeActions"><button id="gtxBybitVerifyCode" type="button">VERIFY & ACTIVATE</button><button id="gtxBybitResendCode" type="button">RESEND CODE</button></div></div>'+
       '<div class="gtxBybitAuthActions"><button class="primary" id="gtxBybitSignIn" type="button">SIGN IN</button><button id="gtxBybitSignUp" type="button">CREATE ACCOUNT</button></div>'+
       '<div class="gtxBybitAuthStatus" id="gtxBybitAuthStatus">Secure authentication is required before the private Bybit balance can be read.</div>'+
     '</div>';
