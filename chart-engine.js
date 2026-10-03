@@ -18,7 +18,7 @@ let candles=[],symbol=(String(store.get("gotradex_chart_symbol","BTCUSDT")).toUp
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
-let trade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
+let trade=null,completedTrade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
 
 function root(){return document.querySelector(".chart")}
 function normalizedSymbol(){return String(symbol||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"")}
@@ -77,7 +77,7 @@ function injectCss(){
 .gtxKenglyHost{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
 .gtxKenglyHost canvas{touch-action:none!important}
 .gtxKenglyOverlay{position:absolute!important;inset:0!important;pointer-events:none!important;z-index:12!important;overflow:hidden!important}
-.gtxTradeFlag{position:absolute!important;transform:translate(-50%,-100%)!important;padding:3px 6px!important;border-radius:4px!important;background:#0d2438!important;border:1px solid #3d7198!important;color:#fff!important;font:900 8px/11px sans-serif!important;box-shadow:0 2px 8px #0008!important;animation:gtxFlagPulse 1s ease-in-out infinite!important;white-space:nowrap!important}
+.gtxTradeFlag{position:absolute!important;transform:translate(-50%,-100%)!important;padding:3px 6px!important;border-radius:4px!important;background:#0d2438!important;border:1px solid #3d7198!important;color:#fff!important;font:900 8px/11px sans-serif!important;box-shadow:0 2px 8px #0008!important;animation:gtxFlagPulse 1s ease-in-out infinite!important;white-space:nowrap!important;z-index:3!important}.gtxTradeVertical{position:absolute!important;top:0!important;bottom:0!important;width:2px!important;transform:translateX(-1px)!important;background:repeating-linear-gradient(to bottom,currentColor 0 7px,transparent 7px 12px)!important;opacity:.9!important;z-index:1!important}.gtxTradePoint{position:absolute!important;width:9px!important;height:9px!important;border-radius:50%!important;transform:translate(-50%,-50%)!important;background:#071827!important;border:2px solid currentColor!important;box-shadow:0 0 8px currentColor!important;z-index:4!important}
 .gtxTradeFlag.buy{border-color:#36c275!important;color:#72efaa!important}
 .gtxTradeFlag.sell{border-color:#e05b70!important;color:#ff9aaa!important}
 .gtxTradeFlag.end{animation:none!important;opacity:.9!important}
@@ -202,41 +202,92 @@ function loadLibrary(){return new Promise((resolve,reject)=>{if(window.Lightweig
 function renderIndicators(){const g=$("gtxKenglyGrid");if(!g)return;g.innerHTML="";INDS.forEach(n=>{const b=document.createElement("button");b.textContent=n;b.className=active.has(n)?"on":"";b.onclick=()=>{active.has(n)?active.delete(n):active.add(n);renderIndicators();buildIndicators()};g.appendChild(b)})}
 function bindControls(){renderIndicators();["buy","sell"].forEach(id=>{const b=$(id);if(!b||b.dataset.gtxTradeBound==="1")return;b.dataset.gtxTradeBound="1";b.addEventListener("click",()=>startTrade(id==="buy"?"BUY":"SELL"),{capture:false})})}
 
+function readTradeControls(){
+ const amountEl=$("amountValueText");
+ const timeEl=$("timeBtn");
+ const amount=Number(String(amountEl?.textContent||"").replace(/[^0-9.]/g,""));
+ const label=String(timeEl?.textContent||tf||"").replace(/\\s*▾\\s*$/," ").trim();
+ const seconds=Number(TF[label]||TF[tf]||0);
+ return {amount,label,seconds};
+}
+function setTradeControlStatus(message,ok=false){
+ const st=$("status");
+ if(st){
+  st.textContent=message;
+  st.style.color=ok?"#7ee2a8":"#8fa8c4";
+ }
+}
 function startTrade(direction){
- if(!candles.length)return;
- const x=candles.at(-1),step=TF[tf]||60;
- trade={direction,symbol:pairLabel(),startTime:x.time,startPrice:x.close,endTime:x.time+step,endPrice:x.close};
+ if(direction!=="BUY"&&direction!=="SELL")return;
+ if(!candles.length){setTradeControlStatus("Live candles are not ready yet.");return;}
+ if(trade){setTradeControlStatus("A trade is already active. Wait for it to finish before starting another.");return;}
+ const controls=readTradeControls();
+ if(!Number.isFinite(controls.amount)||controls.amount<=0){setTradeControlStatus("Enter a valid trade amount first.");return;}
+ if(!Number.isFinite(controls.seconds)||controls.seconds<=0){setTradeControlStatus("Choose a valid trade time first.");return;}
+ const x=candles.at(-1),now=Math.floor(Date.now()/1000),step=controls.seconds;
+ completedTrade=null;
+ trade={direction,symbol:pairLabel(),amount:controls.amount,expiryLabel:controls.label,startTime:now,startPrice:x.close,endTime:now+step,endPrice:x.close,execution:"NO_TRADE"};
  signalExpiryAt=Date.now()+step*1000;
+ setTradeControlStatus("✓ "+direction+" control verified • Amount $"+controls.amount.toFixed(2)+" • "+controls.label+" • NO TRADE placed.",true);
  drawTrade();
 }
 function updateTrade(price){
  if(!trade)return;
  trade.endPrice=price;
- if(Date.now()>=signalExpiryAt){trade.endTime=Math.floor(Date.now()/1000);finishTrade();return}
+ if(Date.now()>=signalExpiryAt){finishTrade();signalExpiryAt=0;return}
  drawTrade();
 }
 function finishTrade(){
  if(!trade)return;
  trade.endTime=Math.floor(Date.now()/1000);
  const p=trade.endPrice??trade.startPrice;
+ trade.endPrice=p;
+ completedTrade={...trade,result:(trade.direction==="BUY"?(p>=trade.startPrice):(p<=trade.startPrice))?"WIN":"LOSS"};
  tradeLine?.setData([{time:trade.startTime,value:trade.startPrice},{time:trade.endTime,value:p}]);
- drawTrade(true);
+ setTradeControlStatus((completedTrade.result==="WIN"?"✓ WIN":"✕ LOSS")+" • "+completedTrade.direction+" • $"+completedTrade.amount.toFixed(2)+" • "+completedTrade.expiryLabel+" • NO TRADE placed.",completedTrade.result==="WIN");
  trade=null;
+ updateTradeOverlay();
 }
-function drawTrade(finished=false){
- if(!chart||!series||!trade)return;
- const endTime=finished?trade.endTime:Math.floor(Date.now()/1000);
- const endPrice=finished?(trade.endPrice??trade.startPrice):(trade.endPrice??trade.startPrice);
- if(!tradeLine){tradeLine=chart.addSeries(LightweightCharts.LineSeries,{color:trade.direction==="BUY"?"#36c275":"#e05b70",lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});}
- tradeLine.applyOptions({color:trade.direction==="BUY"?"#36c275":"#e05b70"});
- tradeLine.setData([{time:trade.startTime,value:trade.startPrice},{time:endTime,value:endPrice}]);
+function drawTrade(){
+ if(!chart||!series)return;
+ const activeTrade=trade||completedTrade;
+ if(!activeTrade)return;
+ const endTime=trade?Math.floor(Date.now()/1000):activeTrade.endTime;
+ const endPrice=trade?(trade.endPrice??trade.startPrice):(activeTrade.endPrice??activeTrade.startPrice);
+ if(!tradeLine){tradeLine=chart.addSeries(LightweightCharts.LineSeries,{color:activeTrade.direction==="BUY"?"#36c275":"#e05b70",lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});}
+ tradeLine.applyOptions({color:activeTrade.direction==="BUY"?"#36c275":"#e05b70"});
+ tradeLine.setData([{time:activeTrade.startTime,value:activeTrade.startPrice},{time:endTime,value:endPrice}]);
  updateTradeOverlay();
 }
 function updateTradeOverlay(){
- const ov=$("gtxKenglyOverlay");if(!ov||!chart||!trade||!candles.length)return;
+ const ov=$("gtxKenglyOverlay");if(!ov||!chart||!candles.length)return;
  ov.innerHTML="";
- const pts=[{kind:"start",time:trade.startTime,price:trade.startPrice,text:trade.symbol},{kind:"end",time:trade.endTime,price:trade.endPrice??trade.startPrice,text:"END"}];
- pts.forEach(pt=>{const x=chart.timeScale().timeToCoordinate(pt.time),y=series?.priceToCoordinate(pt.price);if(x==null||y==null)return;const d=document.createElement("div");d.className="gtxTradeFlag "+trade.direction.toLowerCase()+" "+pt.kind;d.textContent=pt.text;d.style.left=x+"px";d.style.top=y+"px";ov.appendChild(d)});
+ const activeTrade=trade||completedTrade;
+ if(!activeTrade)return;
+ const pts=[
+  {kind:"start",time:activeTrade.startTime,price:activeTrade.startPrice,text:"📍 "+activeTrade.symbol+" START"},
+  {kind:"end",time:activeTrade.endTime,price:activeTrade.endPrice??activeTrade.startPrice,text:"📍 END"}
+ ];
+ pts.forEach(pt=>{
+  const x=chart.timeScale().timeToCoordinate(pt.time),y=series?.priceToCoordinate(pt.price);
+  if(x==null)return;
+  const line=document.createElement("div");
+  line.className="gtxTradeVertical "+activeTrade.direction.toLowerCase()+" "+pt.kind;
+  line.style.left=x+"px";
+  line.style.color=activeTrade.direction==="BUY"?"#36c275":"#e05b70";
+  ov.appendChild(line);
+  if(y!=null){
+   const point=document.createElement("div");
+   point.className="gtxTradePoint "+activeTrade.direction.toLowerCase()+" "+pt.kind;
+   point.style.left=x+"px";point.style.top=y+"px";point.style.color=activeTrade.direction==="BUY"?"#36c275":"#e05b70";
+   ov.appendChild(point);
+  }
+  const d=document.createElement("div");
+  d.className="gtxTradeFlag "+activeTrade.direction.toLowerCase()+" "+pt.kind;
+  d.textContent=pt.text+(pt.kind==="end"&&completedTrade?" • "+activeTrade.result:"");
+  d.style.left=x+"px";d.style.top=pt.kind==="start"?"14px":(y==null?"14px":Math.max(12,y-4)+"px");
+  ov.appendChild(d);
+ });
 }
 
 function updateExpiryDisplay(){
