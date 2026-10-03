@@ -31,6 +31,7 @@
 .gtxBybitAuthField span{display:block;color:#8fa8c4;font-size:10px;font-weight:800;margin-bottom:5px}
 .gtxBybitAuthField input{width:100%;box-sizing:border-box;background:#06162a;border:1px solid #23466d;border-radius:9px;color:#fff;padding:11px;font-size:14px;outline:none}
 .gtxBybitAuthField input:focus{border-color:#3b82f6}
+.gtxPasswordWrap{position:relative}.gtxPasswordWrap input{padding-right:46px}.gtxPasswordToggle{position:absolute;right:8px;bottom:6px;width:34px;height:34px;border-radius:7px;background:#102945;color:#dbe9f7;border:1px solid #23466d;display:grid;place-items:center;font-size:17px;line-height:1}.gtxPasswordToggle.active{background:#176fca}.gtxForgotLink{display:block;width:100%;margin-top:8px;background:transparent;color:#7fb6ff;font-size:11px;font-weight:800;text-decoration:underline;text-align:center;padding:5px}.gtxRecoveryWrap{display:none;margin-top:10px;padding:10px;background:#091f3a;border:1px solid #23466d;border-radius:10px}.gtxRecoveryWrap.open{display:block}.gtxRecoveryTitle{font-size:12px;font-weight:900;margin-bottom:4px}.gtxRecoveryHint{color:#8fa8c4;font-size:10px;line-height:1.4}.gtxRecoveryActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.gtxRecoveryActions button{min-height:40px;border-radius:8px;background:#102945;color:#fff;font-weight:900;border:1px solid #28517d}.gtxRecoveryActions .primary{background:#176fca;border-color:#3b82f6}
 .gtxBybitAuthActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .gtxBybitAuthActions button{min-height:42px;border-radius:9px;border:1px solid #28517d;background:#102945;color:#fff;font-weight:900}
 .gtxBybitAuthActions .primary{background:#176fca;border-color:#3b82f6}
@@ -1181,6 +1182,10 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     const o=el("gtxBybitAuthOverlay"); if(o)o.classList.add("open");
     const codeWrap=el("gtxBybitCodeWrap");
     if(codeWrap)codeWrap.classList.remove("open");
+    const recoveryWrap=el("gtxBybitRecoveryWrap");
+    if(recoveryWrap)recoveryWrap.classList.remove("open");
+    el("gtxBybitRecoveryRequest")?.classList.add("open");
+    el("gtxBybitRecoverySet")?.classList.remove("open");
     const email=el("gtxBybitAuthEmail"); if(email)email.focus();
     checkExistingSession();
   }
@@ -1200,6 +1205,88 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       }
     }catch(e){status(e?.message||"Secure authentication is unavailable.","error")}
   }
+  function toggleFieldVisibility(inputId,buttonId){
+    const input=el(inputId),btn=el(buttonId);
+    if(!input||!btn)return;
+    const showing=input.type==="text";
+    input.type=showing?"password":"text";
+    btn.textContent=showing?"👁":"🙈";
+    btn.classList.toggle("active",!showing);
+    btn.setAttribute("aria-label",showing?"Show password":"Hide password");
+  }
+  function togglePasswordVisibility(){
+    const input=el("gtxBybitAuthPassword");
+    const btn=el("gtxBybitPasswordToggle");
+    if(!input||!btn)return;
+    const showing=input.type==="text";
+    input.type=showing?"password":"text";
+    btn.textContent=showing?"👁":"🙈";
+    btn.classList.toggle("active",!showing);
+    btn.setAttribute("aria-label",showing?"Show password":"Hide password");
+  }
+  function showRecoveryRequest(){
+    const email=el("gtxBybitAuthEmail")?.value.trim();
+    el("gtxBybitCodeWrap")?.classList.remove("open");
+    el("gtxBybitRecoveryWrap")?.classList.add("open");
+    el("gtxBybitRecoverySet")?.classList.remove("open");
+    el("gtxBybitRecoveryRequest")?.classList.add("open");
+    status(email?"Enter your email above, then tap SEND RESET LINK.":"Enter your email address, then tap SEND RESET LINK.");
+    if(!email)el("gtxBybitAuthEmail")?.focus();
+  }
+  async function sendPasswordReset(){
+    if(busy)return;
+    const email=el("gtxBybitAuthEmail")?.value.trim();
+    if(!email){status("Enter your email address first.","error");el("gtxBybitAuthEmail")?.focus();return}
+    busy=true;status("Sending your password reset email…");
+    try{
+      const {error}=await ensureClient().auth.resetPasswordForEmail(email,{redirectTo:"https://ryan-dotco.github.io/GoTradeX-/"});
+      if(error)throw error;
+      status("Password reset email sent. Open the email, follow the reset link, then return here to choose a new password.","ok");
+    }catch(e){status(e?.message||"Could not send the password reset email.","error")}
+    finally{busy=false}
+  }
+  async function updateRecoveredPassword(){
+    if(busy)return;
+    const p1=el("gtxNewPassword")?.value||"";
+    const p2=el("gtxConfirmPassword")?.value||"";
+    if(p1.length<6){status("New password must be at least 6 characters.","error");return}
+    if(p1!==p2){status("The new passwords do not match.","error");return}
+    busy=true;status("Updating your password securely…");
+    try{
+      const {error}=await ensureClient().auth.updateUser({password:p1});
+      if(error)throw error;
+      status("✓ Password updated successfully. You can now SIGN IN with your new password.","ok");
+      el("gtxBybitRecoverySet")?.classList.remove("open");
+      el("gtxBybitRecoveryRequest")?.classList.remove("open");
+      el("gtxBybitRecoveryWrap")?.classList.remove("open");
+      el("gtxNewPassword").value="";
+      el("gtxConfirmPassword").value="";
+      await ensureClient().auth.signOut();
+      el("gtxBybitAuthPassword").value="";
+      setTimeout(()=>el("gtxBybitAuthPassword")?.focus(),250);
+    }catch(e){status(e?.message||"Could not update the password.","error")}
+    finally{busy=false}
+  }
+  function showRecoverySet(){
+    el("gtxBybitCodeWrap")?.classList.remove("open");
+    el("gtxBybitRecoveryWrap")?.classList.add("open");
+    el("gtxBybitRecoveryRequest")?.classList.remove("open");
+    el("gtxBybitRecoverySet")?.classList.add("open");
+    el("gtxNewPassword")?.focus();
+  }
+  function installRecoveryListener(){
+    if(window.__gtxRecoveryListenerInstalled)return;
+    window.__gtxRecoveryListenerInstalled=true;
+    ensureClient().auth.onAuthStateChange((event)=>{
+      if(event==="PASSWORD_RECOVERY"){
+        const o=el("gtxBybitAuthOverlay");
+        if(o)o.classList.add("open");
+        showRecoverySet();
+        status("Choose a new password for your GoTradeX account.","ok");
+      }
+    });
+  }
+
   async function signIn(){
     if(busy)return;
     const email=el("gtxBybitAuthEmail")?.value.trim();
@@ -1359,8 +1446,10 @@ body.gtx-subscreen-open .pairbar{display:none!important}
       '<div class="gtxBybitAuthHead"><h3 id="gtxBybitAuthTitle">Secure LIVE Connection</h3><button class="gtxBybitAuthClose" id="gtxBybitAuthClose" type="button">Close</button></div>'+
       '<p class="gtxBybitAuthText">GoTradeX uses Supabase Auth to protect access to the private Bybit account. Your Bybit API secret stays on the backend and is never entered here.</p>'+
       '<label class="gtxBybitAuthField"><span>Email</span><input id="gtxBybitAuthEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>'+
-      '<label class="gtxBybitAuthField"><span>Password</span><input id="gtxBybitAuthPassword" type="password" autocomplete="current-password" placeholder="Your secure password"></label>'+
+      '<label class="gtxBybitAuthField"><span>Password</span><div class="gtxPasswordWrap"><input id="gtxBybitAuthPassword" type="password" autocomplete="current-password" placeholder="Your secure password"><button class="gtxPasswordToggle" id="gtxBybitPasswordToggle" type="button" aria-label="Show password">👁</button></div></label>'+
+      '<button class="gtxForgotLink" id="gtxForgotPassword" type="button">Forgot password?</button>'+
       '<div class="gtxBybitCodeWrap" id="gtxBybitCodeWrap"><div class="gtxBybitCodeTitle">EMAIL ACTIVATION</div><div class="gtxBybitCodeHint">A 6-digit code was sent to your email. Come back to GoTradeX and enter it here to activate your account.</div><label class="gtxBybitAuthField"><span>6-digit verification code</span><input id="gtxBybitAuthCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></label><div class="gtxBybitCodeActions"><button id="gtxBybitVerifyCode" type="button">VERIFY & ACTIVATE</button><button id="gtxBybitResendCode" type="button">RESEND CODE</button></div></div>'+
+      '<div class="gtxRecoveryWrap" id="gtxBybitRecoveryWrap"><div class="gtxRecoveryTitle">PASSWORD RECOVERY</div><div class="gtxRecoveryHint" id="gtxBybitRecoveryRequest">We will email you a secure reset link. Follow it and return to GoTradeX to set your new password.</div><div class="gtxRecoveryHint" id="gtxBybitRecoverySet">Choose and confirm your new password below.</div><label class="gtxBybitAuthField"><span>New password</span><div class="gtxPasswordWrap"><input id="gtxNewPassword" type="password" autocomplete="new-password" placeholder="New password"><button class="gtxPasswordToggle" id="gtxNewPasswordToggle" type="button" aria-label="Show new password">👁</button></div></label><label class="gtxBybitAuthField"><span>Confirm new password</span><div class="gtxPasswordWrap"><input id="gtxConfirmPassword" type="password" autocomplete="new-password" placeholder="Confirm new password"><button class="gtxPasswordToggle" id="gtxConfirmPasswordToggle" type="button" aria-label="Show confirmed password">👁</button></div></label><div class="gtxRecoveryActions"><button id="gtxSendReset" class="primary" type="button">SEND RESET LINK</button><button id="gtxUpdatePassword" class="primary" type="button">UPDATE PASSWORD</button></div></div>'+
       '<div class="gtxBybitAuthActions"><button class="primary" id="gtxBybitSignIn" type="button">SIGN IN</button><button id="gtxBybitSignUp" type="button">CREATE ACCOUNT</button></div>'+
       '<div class="gtxBybitAuthStatus" id="gtxBybitAuthStatus">Secure authentication is required before the private Bybit balance can be read.</div>'+
     '</div>';
@@ -1371,7 +1460,16 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     el("gtxBybitSignUp").onclick=signUp;
     el("gtxBybitVerifyCode").onclick=verifyEmailCode;
     el("gtxBybitResendCode").onclick=resendVerificationCode;
+    el("gtxForgotPassword").onclick=sendPasswordReset;
+    el("gtxSendReset").onclick=sendPasswordReset;
+    el("gtxUpdatePassword").onclick=updateRecoveredPassword;
+    el("gtxBybitPasswordToggle").onclick=togglePasswordVisibility;
+    el("gtxNewPasswordToggle").onclick=()=>toggleFieldVisibility("gtxNewPassword","gtxNewPasswordToggle");
+    el("gtxConfirmPasswordToggle").onclick=()=>toggleFieldVisibility("gtxConfirmPassword","gtxConfirmPasswordToggle");
     el("gtxBybitAuthPassword").addEventListener("keydown",e=>{if(e.key==="Enter")signIn()});
+    el("gtxNewPassword").addEventListener("keydown",e=>{if(e.key==="Enter")updateRecoveredPassword()});
+    el("gtxConfirmPassword").addEventListener("keydown",e=>{if(e.key==="Enter")updateRecoveredPassword()});
+    installRecoveryListener();
     el("gtxBybitAuthCode").addEventListener("keydown",e=>{if(e.key==="Enter")verifyEmailCode()});
   }
 
