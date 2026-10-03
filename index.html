@@ -1511,12 +1511,10 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     if(real){
       const clone=real.cloneNode(true);
       real.replaceWith(clone);
-      clone.addEventListener("click",async()=>{
+      clone.addEventListener("click",()=>{
         if(typeof setAccountMode==="function")setAccountMode("REAL");
         try{localStorage.setItem("gotradex_account_mode","REAL")}catch(e){}
-        await openLive();
-        const session=(await ensureClient().auth.getSession()).data?.session;
-        if(session)await loadLiveBalance(session);
+        openLive();
       });
     }
     const picker=el("accountPickerBtn");
