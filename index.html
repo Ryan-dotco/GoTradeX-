@@ -1276,6 +1276,17 @@ body.gtx-subscreen-open .pairbar{display:none!important}
         options:{emailRedirectTo:"https://ryan-dotco.github.io/GoTradeX-/"}
       });
       if(error)throw error;
+
+      // Supabase returns an obfuscated user with no identities when a
+      // confirmed account already exists and email confirmation is enabled.
+      const identities=Array.isArray(data?.user?.identities)?data.user.identities:null;
+      if(!data?.session && Array.isArray(identities) && identities.length===0){
+        el("gtxBybitCodeWrap")?.classList.remove("open");
+        status("This email is already registered. Please use SIGN IN with your existing password.","error");
+        el("gtxBybitAuthPassword")?.focus();
+        return;
+      }
+
       if(data.session){
         try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
         status("✓ Account created and email already verified. Your GoTradeX account is ACTIVE.","ok");
@@ -1289,8 +1300,16 @@ body.gtx-subscreen-open .pairbar{display:none!important}
         status("✓ Account created. Check your email, return to GoTradeX, enter the 6-digit code below, then tap VERIFY & ACTIVATE.","ok");
         el("gtxBybitAuthCode")?.focus();
       }
-    }catch(e){status(e?.message||"Account creation failed.","error")}
-    finally{busy=false}
+    }catch(e){
+      const msg=String(e?.message||"");
+      if(/already registered/i.test(msg)){
+        el("gtxBybitCodeWrap")?.classList.remove("open");
+        status("This email is already registered. Please use SIGN IN with your existing password.","error");
+        el("gtxBybitAuthPassword")?.focus();
+      }else{
+        status(msg||"Account creation failed.","error");
+      }
+    }finally{busy=false}
   }
   async function loadLiveBalance(session){
     if(!session?.access_token){status("No authenticated session is available.","error");return false}
