@@ -728,6 +728,11 @@ syncGtxKenglyVisibility();
     if(b.id==="marketMoreBtn"){e.preventDefault();e.stopImmediatePropagation();show("chartToolsDrawer");return}
     if(b.id==="timeBtn"){e.preventDefault();e.stopImmediatePropagation();show("timeDrawer");return}
     if(b.id==="amountBtn"){e.preventDefault();e.stopImmediatePropagation();show("keypad");return}
+    /* If the amount keypad is open, any other app button dismisses it first. */
+    const activeKeypad=document.getElementById("keypad");
+    if(activeKeypad?.classList.contains("open")&&!b.closest("#keypad")){activeKeypad.classList.remove("open");sync();}
+    /* Agent AI must use the same deterministic navigation controller as the other menu items. */
+    if(b.classList.contains("menuItem")&&b.dataset.section==="Agent AI"){e.preventDefault();e.stopImmediatePropagation();document.getElementById("menuDrawer")?.classList.remove("open");if(typeof openAgentAI==="function")openAgentAI();return}
     const pageMap={chartAiBack:"chartAiPage",chatBack:"chatPage",helpBack:"helpPage",supportBack:"supportPage",myTeamBack:"myTeamPage",adminBack:"adminPage",usersBack:"adminUsers",overviewBack:"adminOverview",transactionsBack:"adminTransactions",auditBack:"adminAudit",autobotBack:"adminAutoBot",referralsBack:"adminReferrals",securityBack:"adminSecurity",feesBack:"adminFees",marketsBack:"adminMarkets",systemSettingsBack:"adminSystemSettings",adminClose:"adminPage",overviewClose:"adminOverview",marketsClose:"adminMarkets",usersClose:"adminUsers",transactionsClose:"adminTransactions",autobotClose:"adminAutoBot",referralsClose:"adminReferrals",auditClose:"adminAudit",feesClose:"adminFees",securityClose:"adminSecurity",systemSettingsClose:"adminSystemSettings"};
     if(pageMap[b.id]){e.preventDefault();e.stopImmediatePropagation();backFrom(pageMap[b.id]);return}
     if(b.matches("[data-policy-close]")){e.preventDefault();e.stopImmediatePropagation();close(b.getAttribute("data-policy-close"));return}
