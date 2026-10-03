@@ -80,7 +80,7 @@ function injectCss(){
 .gtxTradeFlag{position:absolute!important;transform:translate(-50%,-100%)!important;padding:3px 6px!important;border-radius:4px!important;background:#0d2438!important;border:1px solid #3d7198!important;color:#fff!important;font:900 8px/11px sans-serif!important;box-shadow:0 2px 8px #0008!important;animation:gtxFlagPulse 1s ease-in-out infinite!important;white-space:nowrap!important;z-index:3!important}.gtxTradeVertical{position:absolute!important;top:0!important;bottom:0!important;width:2px!important;transform:translateX(-1px)!important;background:repeating-linear-gradient(to bottom,currentColor 0 7px,transparent 7px 12px)!important;opacity:.9!important;z-index:1!important}.gtxTradePoint{position:absolute!important;width:9px!important;height:9px!important;border-radius:50%!important;transform:translate(-50%,-50%)!important;background:#071827!important;border:2px solid currentColor!important;box-shadow:0 0 8px currentColor!important;z-index:4!important}
 .gtxTradeFlag.buy{border-color:#36c275!important;color:#72efaa!important}
 .gtxTradeFlag.sell{border-color:#e05b70!important;color:#ff9aaa!important}
-.gtxTradeFlag.end{animation:none!important;opacity:.9!important}
+.gtxTradeFlag.end{animation:none!important;opacity:.95!important}.gtxTradeResult{position:absolute!important;transform:translateX(-50%)!important;padding:2px 5px!important;border-radius:4px!important;background:#071827!important;border:1px solid #3d7198!important;color:#dbe9f7!important;font:900 7px/10px sans-serif!important;white-space:nowrap!important;z-index:5!important}.gtxTradeResult.buy{border-color:#36c275!important;color:#72efaa!important}.gtxTradeResult.sell{border-color:#e05b70!important;color:#ff9aaa!important}
 .gtxTradeFlag:after{content:""!important;position:absolute!important;left:50%!important;bottom:-4px!important;transform:translateX(-50%) rotate(45deg)!important;width:7px!important;height:7px!important;background:#0d2438!important;border-right:1px solid #3d7198!important;border-bottom:1px solid #3d7198!important}
 .gtxTradeFlag.buy:after{border-color:#36c275!important}.gtxTradeFlag.sell:after{border-color:#e05b70!important}
 @keyframes gtxFlagPulse{0%,100%{transform:translate(-50%,-100%) scale(1)}50%{transform:translate(-50%,-100%) scale(1.08)}}
@@ -264,30 +264,39 @@ function updateTradeOverlay(){
  ov.innerHTML="";
  const activeTrade=trade||completedTrade;
  if(!activeTrade)return;
- const pts=[
-  {kind:"start",time:activeTrade.startTime,price:activeTrade.startPrice,text:"📍 "+activeTrade.symbol+" START"},
-  {kind:"end",time:activeTrade.endTime,price:activeTrade.endPrice??activeTrade.startPrice,text:"📍 END"}
- ];
- pts.forEach(pt=>{
-  const x=chart.timeScale().timeToCoordinate(pt.time),y=series?.priceToCoordinate(pt.price);
+ const color=activeTrade.direction==="BUY"?"#36c275":"#e05b70";
+ const startX=chart.timeScale().timeToCoordinate(activeTrade.startTime);
+ const endX=chart.timeScale().timeToCoordinate(activeTrade.endTime);
+ const startY=series?.priceToCoordinate(activeTrade.startPrice);
+ const endY=series?.priceToCoordinate(activeTrade.endPrice??activeTrade.startPrice);
+ const addMarker=(kind,x,y,label,subLabel)=>{
   if(x==null)return;
   const line=document.createElement("div");
-  line.className="gtxTradeVertical "+activeTrade.direction.toLowerCase()+" "+pt.kind;
-  line.style.left=x+"px";
-  line.style.color=activeTrade.direction==="BUY"?"#36c275":"#e05b70";
-  ov.appendChild(line);
+  line.className="gtxTradeVertical "+activeTrade.direction.toLowerCase()+" "+kind;
+  line.style.left=x+"px";line.style.color=color;ov.appendChild(line);
   if(y!=null){
    const point=document.createElement("div");
-   point.className="gtxTradePoint "+activeTrade.direction.toLowerCase()+" "+pt.kind;
-   point.style.left=x+"px";point.style.top=y+"px";point.style.color=activeTrade.direction==="BUY"?"#36c275":"#e05b70";
-   ov.appendChild(point);
+   point.className="gtxTradePoint "+activeTrade.direction.toLowerCase()+" "+kind;
+   point.style.left=x+"px";point.style.top=y+"px";point.style.color=color;ov.appendChild(point);
   }
-  const d=document.createElement("div");
-  d.className="gtxTradeFlag "+activeTrade.direction.toLowerCase()+" "+pt.kind;
-  d.textContent=pt.text+(pt.kind==="end"&&completedTrade?" • "+activeTrade.result:"");
-  d.style.left=x+"px";d.style.top=pt.kind==="start"?"14px":(y==null?"14px":Math.max(12,y-4)+"px");
-  ov.appendChild(d);
- });
+  const flag=document.createElement("div");
+  flag.className="gtxTradeFlag "+activeTrade.direction.toLowerCase()+" "+kind;
+  flag.textContent=label;
+  flag.style.left=x+"px";
+  if(kind==="start")flag.style.top="15px";
+  else flag.style.top=y==null?"15px":Math.max(18,y-8)+"px";
+  ov.appendChild(flag);
+  if(subLabel){
+   const result=document.createElement("div");
+   result.className="gtxTradeResult "+activeTrade.direction.toLowerCase()+" "+kind;
+   result.textContent=subLabel;
+   result.style.left=x+"px";
+   result.style.top=y==null?"34px":Math.min(Math.max(28,y+8),ov.clientHeight-18)+"px";
+   ov.appendChild(result);
+  }
+ };
+ addMarker("start",startX,startY,"📍 "+activeTrade.symbol+" START","");
+ addMarker("end",endX,endY,"📍 END",completedTrade?((completedTrade.result==="WIN"?"✓ WIN":"✕ LOSS")+" • "+activeTrade.direction+" • $"+activeTrade.amount.toFixed(2)+" • "+activeTrade.expiryLabel):"");
 }
 
 function updateExpiryDisplay(){
