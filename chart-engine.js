@@ -15,7 +15,7 @@ const $=id=>document.getElementById(id);
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
 let candles=[],symbol=store.get("gotradex_chart_symbol","BTCUSDT"),tf=store.get("gotradex_chart_timeframe","1 Minute");
-let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker=BROKER;
+let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
 let trade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
