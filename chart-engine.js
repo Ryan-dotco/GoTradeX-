@@ -202,6 +202,18 @@ function localOtcCandle(bucket,step){
  const upper=mid*(.0008+r*.0022),lower=mid*(.0008+(1-r)*.0022);
  return {time:bucket,open,high:Math.max(open,close)+upper,low:Math.max(assetLocalUnit(),Math.min(open,close)-lower),close,volume:Math.round(1200+r*4800)}
 }
+function shapeOtcCandle(candle,previousClose){
+ if(!candle)return candle;
+ const close=Math.max(Number(candle.close)||0,assetLocalUnit());
+ const prev=Number.isFinite(Number(previousClose))?Number(previousClose):close;
+ const direction=close>=prev?1:-1;
+ const n=Math.abs(localOtcNoise("visible-body|"+candle.time+"|"+normalizedSymbol(),candle.time));
+ const w=Math.abs(localOtcNoise("visible-wick|"+candle.time+"|"+normalizedSymbol(),candle.time));
+ const body=Math.max(assetLocalUnit(),close*(0.0045+n*0.0025));
+ const open=Math.max(assetLocalUnit(),close-direction*body);
+ const wick=Math.max(assetLocalUnit(),body*(0.08+w*0.07));
+ return {...candle,open,close,high:Math.max(open,close)+wick,low:Math.max(assetLocalUnit(),Math.min(open,close)-wick)};
+}
 async function fetchSyntheticCandles(){
  const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
  const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
@@ -247,7 +259,9 @@ async function fetchSyntheticCandles(){
    high=Math.max(open,close)+wick;
    low=Math.max(assetLocalUnit(),Math.min(open,close)-wick);
   }
-  out.push({time:t,open,high,low,close,volume:v});
+  let shaped={time:t,open,high,low,close,volume:v};
+  if(isOtcMode())shaped=shapeOtcCandle(shaped,prev?.close);
+  out.push(shaped);
   prev=out[out.length-1];
  }
  return out;
@@ -515,6 +529,11 @@ function updateLivePrice(p,sourceTime){
   x.close=price;
   x.high=Math.max(Number(x.high),price);
   x.low=Math.min(Number(x.low),price);
+ }
+ if(isOtcMode()){
+  const previousClose=candles.length>1?candles[candles.length-2].close:price;
+  const shaped=shapeOtcCandle(x,previousClose);
+  x.open=shaped.open;x.high=shaped.high;x.low=shaped.low;x.close=shaped.close;
  }
  try{
   renderCandleSeries();
