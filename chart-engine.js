@@ -166,14 +166,17 @@ async function fetchTwelveDataCandles(){
  if(!data?.ok)throw Error(data?.error||"Forex/stock market-data feed unavailable.");
  const rows=Array.isArray(data.candles)?data.candles:[];
  if(!rows.length)throw Error("No candles received for "+pairLabel()+".");
- return rows.map(x=>({time:Number(x.time),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)}))
+ const normalized=rows.map(x=>({time:Number(x.time),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)}))
   .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
+ if(["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return [];
+ return normalized;
 }
 async function fetchCandles(){return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();}
 
 async function loadCandles(){
  const market=await resolveMarket();
  candles=dedupe(await fetchCandles()).slice(-500);
+ if(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)){const src0=$("gtxKenglySource");if(src0)src0.textContent="LIVE TICKS • building "+tf+" candles • "+pairLabel();}
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
  if(src)src.textContent=usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
