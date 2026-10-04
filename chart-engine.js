@@ -628,12 +628,30 @@ async function connectSocket(requestId=assetRequestId){
   const thisWs=ws;
   ws.onopen=()=>{
    if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration){try{thisWs.close()}catch(_){};return}
-   ws.send(JSON.stringify({op:"subscribe",args:["tickers."+market.symbol]}));
-   const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit WebSocket";
+   const topics=["tickers."+market.symbol];
+   const klineInterval=API[tf];
+   if(klineInterval)topics.push("kline."+klineInterval+"."+market.symbol);
+   ws.send(JSON.stringify({op:"subscribe",args:topics}));
+   const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit WebSocket • "+market.symbol;
   };
   ws.onmessage=e=>{try{
    if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration)return;
-   const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice),t=Number(m?.ts||Date.now());
+   const m=JSON.parse(e.data);
+   if(String(m?.topic||"").startsWith("kline.")){
+    const rows=Array.isArray(m?.data)?m.data:[];
+    rows.forEach(k=>{
+     const t=Number(k?.start||k?.timestamp||m?.ts||Date.now())/1000;
+     const o=Number(k?.open),h=Number(k?.high),l=Number(k?.low),c=Number(k?.close);
+     if([t,o,h,l,c].every(Number.isFinite)){
+      const existing=candles.find(x=>Number(x.time)===Math.floor(t));
+      if(existing){existing.open=o;existing.high=h;existing.low=l;existing.close=c;existing.volume=Number(k?.volume||existing.volume||0)}
+      else candles.push({time:Math.floor(t),open:o,high:h,low:l,close:c,volume:Number(k?.volume||0)});
+      candles=dedupe(candles).slice(-500);
+      renderCandleSeries();updateInfo();
+     }
+    });
+   }
+   const p=Number(m?.data?.lastPrice),t=Number(m?.ts||Date.now());
    if(Number.isFinite(p))updateLivePrice(p,t/1000);
   }catch(_){}};
   ws.onerror=()=>{try{thisWs.close()}catch(_){}};
