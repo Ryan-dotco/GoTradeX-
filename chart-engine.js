@@ -117,7 +117,8 @@ function injectCss(){
 .gtxKenglyTf{font:700 9px/16px sans-serif!important;color:#9db4cc!important}
 .gtxKenglySource{margin-left:auto!important;font:800 8px/16px sans-serif!important;color:#5ee39a!important}
 .gtxKenglySource.stale{color:#ff9aaa!important}.gtxCandleMode{margin-left:4px!important;border:1px solid #2b527d!important;border-radius:7px!important;background:#0b2033!important;color:#dbe9f7!important;font:800 8px/15px sans-serif!important;padding:0 6px!important;white-space:nowrap!important}
-.gtxKenglyStage{position:relative!important;flex:1 1 auto!important;height:calc(100% - 22px)!important;min-height:180px!important;width:100%!important;overflow:hidden!important}
+.gtxKenglyStage{position:relative!important;flex:1 1 0!important;height:auto!important;min-height:220px!important;width:100%!important;overflow:hidden!important}
+@media(max-width:600px){.gtxKenglyStage{min-height:220px!important}.gtxKengly{min-height:220px!important}}
 .gtxKenglyHost{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
 .gtxKenglyHost canvas{touch-action:none!important}
 .gtxKenglyOverlay{position:absolute!important;inset:0!important;pointer-events:none!important;z-index:12!important;overflow:hidden!important}
@@ -883,7 +884,13 @@ async function boot(){
  if(storedDisplay)store.set("gotradex_asset_display",storedDisplay);
  store.set("gotradex_asset_type",assetType);
  injectCss();rebuildDom();bindExpiry();
- try{try{await loadLibrary()}catch(_){/* Native renderer does not depend on external chart library. */} bindControls(); await refresh(); clearInterval(poll);poll=null;
+ // Build the visible chart immediately. Market data is connected afterward.
+ try{makeChart()}catch(e){console.error("GoTradeX initial chart build failed",e)}
+ try{
+  try{await loadLibrary()}catch(_){/* Native renderer works without external chart libraries. */}
+  bindControls();
+  try{await refresh()}catch(e){showLiveError(e);console.error("GoTradeX market connection failed",e)}
+  clearInterval(poll);poll=null;
   requestAnimationFrame(()=>{try{renderCandleSeries();observeSize()}catch(_){}}); 
   setTimeout(()=>{try{renderCandleSeries()}catch(_){}} ,250);
  }
