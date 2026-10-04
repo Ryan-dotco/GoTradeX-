@@ -1113,20 +1113,29 @@ body.gtx-subscreen-open .pairbar{display:none!important}
   ]);
   if(d.error)throw d.error;if(w.error)throw w.error;if(t.error)throw t.error;
   const rows=[...(d.data||[]).map(x=>({...x,kind:"DEPOSIT",date:x.requested_at})),...(w.data||[]).map(x=>({...x,kind:"WITHDRAWAL",date:x.requested_at})),...(t.data||[]).map(x=>({...x,kind:String(x.transaction_type||"LEDGER").toUpperCase(),date:x.created_at}))].sort((a,b)=>new Date(b.date)-new Date(a.date));
-  list.innerHTML=rows.length?rows.map(x=>'<div class="adminTransaction"><strong>'+x.kind+' • 
-    var mode=document.body.dataset.accountMode==="REAL"?"REAL":"DEMO";
-    var b=typeof loadTradingBalances==="function"?loadTradingBalances():{demo:10000,real:0};
-    var m=document.getElementById("gtxHistoryMode"),d=document.getElementById("gtxDetailsMode"),db=document.getElementById("gtxDetailsDemo"),rb=document.getElementById("gtxDetailsReal");
-    if(m)m.textContent="Current account: "+mode;
-    if(d)d.textContent=mode;
-    if(db)db.textContent="$"+b.demo.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-    if(rb)rb.textContent="$"+b.real.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  }
-  document.addEventListener("click",syncAccountPages,true);
-  window.addEventListener("storage",syncAccountPages);
-  setTimeout(syncAccountPages,300);
+  list.innerHTML=rows.length?rows.map(x=>{
+ const amount=Number(x.amount||0);
+ const balance=x.balance_after==null?"":Number(x.balance_after).toFixed(2);
+ return '<div class="adminTransaction"><strong>'+x.kind+' • $'+amount.toFixed(2)+'</strong><span>'+String(x.status||"recorded").toUpperCase()+' • '+new Date(x.date).toLocaleString()+'</span><span>'+(x.payment_method||x.transaction_type||"Wallet activity")+(balance!==""?' • Balance after: $'+balance:'')+'</span></div>';
+}).join(""):'<div class="adminTransaction"><strong>No transactions yet</strong><span>Your verified deposits, withdrawals and wallet movements will appear here.</span></div>';
+ }catch(e){list.innerHTML='<div class="adminTransaction"><strong>History unavailable</strong><span>'+String(e?.message||"Unable to load account history.")+'</span></div>'}
+}
+document.getElementById("gtxHistoryRefresh")?.addEventListener("click",loadGtxHistory);
+document.addEventListener("click",e=>{if(e.target.closest('[data-account-history-open]'))setTimeout(loadGtxHistory,50)},true);
+function syncAccountPages(){
+ var mode=document.body.dataset.accountMode==="REAL"?"REAL":"DEMO";
+ var b=typeof loadTradingBalances==="function"?loadTradingBalances():{demo:10000,real:0};
+ var m=document.getElementById("gtxHistoryMode"),d=document.getElementById("gtxDetailsMode"),db=document.getElementById("gtxDetailsDemo"),rb=document.getElementById("gtxDetailsReal");
+ if(m)m.textContent="Current account: "+mode;
+ if(d)d.textContent=mode;
+ if(db)db.textContent="$"+b.demo.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+ if(rb)rb.textContent="$"+b.real.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+document.addEventListener("click",syncAccountPages,true);
+window.addEventListener("storage",syncAccountPages);
+setTimeout(syncAccountPages,300);
 })();
-</script>
+
 <style id="gtx-bybit-auth-code">
 .gtxBybitCodeWrap{display:none;margin-top:12px;padding:12px;border:1px solid #176fca;border-radius:10px;background:#071a30}.gtxBybitCodeWrap.open{display:block}.gtxBybitCodeTitle{font-size:11px;font-weight:900;color:#fff;letter-spacing:.08em}.gtxBybitCodeHint{margin-top:5px;color:#8fa8c4;font-size:10px;line-height:1.45}.gtxBybitCodeActions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.gtxBybitCodeActions button{min-height:40px;border-radius:8px;background:#163554;color:#fff;font-weight:800;font-size:11px}.gtxBybitCodeActions button:first-child{background:#176fca}.gtxBybitAuthField input#gtxBybitAuthCode{text-align:center;letter-spacing:.28em;font-size:18px;font-weight:900}
 </style>
