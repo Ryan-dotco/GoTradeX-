@@ -545,33 +545,7 @@ document.addEventListener("click",e=>{
 },true);
 syncGtxKenglyVisibility();
 </script>
-<script src="chart-engine.js?v=gtx-otc-local-fallback-20261004-3"></script>
-<script>
-(function(){
-  function bootGTXChart(){
-    try{
-      if(window.GoTradeXChartEngine && typeof window.GoTradeXChartEngine.boot==="function"){
-        window.GoTradeXChartEngine.boot();
-        return true;
-      }
-    }catch(e){}
-    return false;
-  }
-  function ensureGTXChart(){
-    if(bootGTXChart()) return;
-    var old=document.querySelector('script[data-gtx-chart-retry="1"]');
-    if(old) return;
-    var s=document.createElement("script");
-    s.src="chart-engine.js?v=gtx-live-retry-"+Date.now();
-    s.dataset.gtxChartRetry="1";
-    s.onload=bootGTXChart;
-    document.head.appendChild(s);
-  }
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",ensureGTXChart,{once:true});
-  else ensureGTXChart();
-  setTimeout(ensureGTXChart,1200);
-})();
-</script>
+<script src="chart-engine.js?v=gtx-otc-no-spikes-20261004-1"></script>
 <script>
 (function(){
   function gtxProfileName(){
@@ -1366,21 +1340,5 @@ body.gtx-subscreen-open .pairbar{display:none!important}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",hook,{once:true});
   else hook();
 })();
-</script><script src="keypad-fix.js?v=20261004"></script><script src="agent-ai-fix.js?v=20261004"></script><script id="gtx-final-chart-loader">
-(function(){
-  function forceChart(){
-    var root=document.querySelector(".chart");
-    if(!root || !root.querySelector("#candles")) return;
-    var s=document.createElement("script");
-    s.src="chart-engine.js?v=gtx-otc-feed-fix-20261004-2";
-    s.dataset.gtxFinalChart="1";
-    s.onload=function(){try{window.GoTradeXChartEngine&&window.GoTradeXChartEngine.boot&&window.GoTradeXChartEngine.boot()}catch(e){}};
-    document.head.appendChild(s);
-  }
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",function(){setTimeout(forceChart,300)}, {once:true});
-  else setTimeout(forceChart,300);
-  window.addEventListener("load",function(){setTimeout(forceChart,300)});
-})();
-</script>
-</body>
+</script><script src="keypad-fix.js?v=20261004"></script><script src="agent-ai-fix.js?v=20261004"></script></body>
 </html>
