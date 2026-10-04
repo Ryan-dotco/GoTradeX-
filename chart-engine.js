@@ -14,7 +14,7 @@ const $=id=>document.getElementById(id);
 
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
-let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),tf=store.get("gotradex_chart_timeframe","1 Minute");
+let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
@@ -28,7 +28,24 @@ function pairSymbol(){
  if(s.endsWith("USD"))return s.slice(0,-3)+"USDT";
  return s+"USDT";
 }
+function inferAssetType(display,s){
+ const d=String(display||"").trim().toUpperCase();
+ const crypto=["BTC/USD","ETH/USD","XRP/USD","SOL/USD","ADA/USD","DOGE/USD","LTC/USD","BNB/USD","AVAX/USD","DOT/USD","LINK/USD","TRX/USD"];
+ const commodities=["XAU/USD","XAG/USD","WTI OIL","BRENT OIL","NATURAL GAS","COPPER","PLATINUM","PALLADIUM"];
+ const indices=["US30","US500","NAS100","UK100","GER40","FRA40","JPN225","AUS200","HK50","EU50","SA40"];
+ const stocks=["AAPL","MSFT","NVDA","AMZN","TSLA","GOOGL","META","NFLX","AMD","AVGO","JPM","V"];
+ if(crypto.includes(d))return "crypto";
+ if(commodities.includes(d))return "commodities";
+ if(indices.includes(d))return "indices";
+ if(stocks.includes(d))return "stocks";
+ if(/^[A-Z]{3}\/([A-Z]{3})$/.test(d))return "forex";
+ const raw=String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+ if(["BTCUSD","ETHUSD","XRPUSD","SOLUSD","ADAUSD","DOGEUSD","LTCUSD","BNBUSD","AVAXUSD","DOTUSD","LINKUSD","TRXUSD"].includes(raw))return "crypto";
+ if(/^[A-Z]{6}$/.test(raw))return "forex";
+ return String(assetType||"crypto").toLowerCase();
+}
 function pairLabel(){
+ if(assetDisplay)return assetDisplay;
  const s=normalizedSymbol();
  if(s.endsWith("USDT"))return s.slice(0,-4)+"/USDT";
  if(s.endsWith("USD"))return s.slice(0,-3)+"/USD";
@@ -99,6 +116,8 @@ function injectCss(){
 
 function rebuildDom(){
  const r=root();if(!r)return false;
+ const pairEl=$("pairName");
+ if(pairEl)pairEl.textContent=pairLabel();
  r.className="chart gtxKengly";
  r.innerHTML=`<div class="gtxKenglyHeader">
  <span class="gtxKenglyBadge live">● LIVE</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
@@ -362,7 +381,14 @@ function showLiveError(e){
 async function retryLive(requestId=assetRequestId){if(!started||requestId!==assetRequestId)return;try{await loadLibrary();await refresh(requestId)}catch(e){if(requestId!==assetRequestId)return;showLiveError(e);reconnectTimer=setTimeout(()=>retryLive(requestId),3000)}}
 
 async function boot(){
- if(started||!root())return;started=true;injectCss();rebuildDom();bindExpiry();
+ if(started||!root())return;
+ started=true;
+ assetDisplay=String(store.get("gotradex_asset_display","")).trim();
+ assetType=inferAssetType(assetDisplay,assetType,symbol);
+ const storedDisplay=assetDisplay||pairLabel();
+ if(storedDisplay)store.set("gotradex_asset_display",storedDisplay);
+ store.set("gotradex_asset_type",assetType);
+ injectCss();rebuildDom();bindExpiry();
  try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=null}
  catch(e){showLiveError(e);closeSocket();reconnectTimer=setTimeout(retryLive,3000)}
 }
@@ -370,14 +396,16 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 
 window.GoTradeXChartEngine={
  boot,refresh,
- setSymbol:(s,type)=>{
+ setSymbol:(s,type,display)=>{
  const requestId=++assetRequestId;
  clearTimeout(reconnectTimer);reconnectTimer=null;
  closeSocket();
  symbol=String(s||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"");
- assetType=String(type||store.get("gotradex_asset_type","crypto")).toLowerCase();
+ assetDisplay=String(display||store.get("gotradex_asset_display","")).trim();
+ assetType=inferAssetType(assetDisplay,type||store.get("gotradex_asset_type","crypto"));
  store.set("gotradex_chart_symbol",symbol);
  store.set("gotradex_asset_type",assetType);
+ store.set("gotradex_asset_display",assetDisplay||pairLabel());
  resolvedMarket=null;resolvedKey="";
  const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
  // Clear the previous asset immediately. Never leave old candles visible while the new feed loads.
