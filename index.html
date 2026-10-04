@@ -293,10 +293,10 @@ function updateGtxAdminMenu(){
   if(b) b.hidden=!gtxIsAdminUser();
 }
 updateGtxAdminMenu();
-document.querySelectorAll(".menuItem").forEach(b=>b.onclick=()=>{if(b.dataset.section==="Chart AI"){document.getElementById("menuDrawer").classList.remove("open");openChartAI();return}if(b.dataset.section==="Privacy Policy"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("privacyPage").classList.add("open");return}if(b.dataset.section==="Terms & Conditions"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("termsPage").classList.add("open");return}if(b.dataset.section==="Admin Portal"){if(!gtxIsAdminUser()){b.hidden=true;return}document.getElementById("menuDrawer").classList.remove("open");document.getElementById("adminPage").classList.add("open");return}if(b.dataset.section==="Chat AI"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("chatPage").classList.add("open");loadChat();document.getElementById("chatInput").focus();return}if(b.dataset.section==="Help"){openHelp();return}if(b.dataset.section==="Support"){openSupport();return}if(b.dataset.section==="My Team"){document.getElementById("menuDrawer").classList.remove("open");openMyTeam();return}if(b.dataset.section==="Agent AI"){document.getElementById("menuDrawer").classList.remove("open");openAgentAI();return}document.getElementById("menuMessage").textContent=b.dataset.section+" section ready.";});
+document.querySelectorAll(".menuItem").forEach(b=>b.onclick=()=>{if(b.dataset.section==="Wallet"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("walletDrawer")?.classList.add("open");document.getElementById("walletMessage").textContent="Choose a deposit or withdrawal option below.";return}if(b.dataset.section==="Portfolio"){document.getElementById("menuDrawer").classList.remove("open");const p=document.getElementById("portfolioPage");if(p){p.classList.add("open")}else{document.getElementById("menuMessage").textContent="Portfolio section is ready."; }return}if(b.dataset.section==="Chart AI"){document.getElementById("menuDrawer").classList.remove("open");openChartAI();return}if(b.dataset.section==="Privacy Policy"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("privacyPage").classList.add("open");return}if(b.dataset.section==="Terms & Conditions"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("termsPage").classList.add("open");return}if(b.dataset.section==="Admin Portal"){if(!gtxIsAdminUser()){b.hidden=true;return}document.getElementById("menuDrawer").classList.remove("open");document.getElementById("adminPage").classList.add("open");return}if(b.dataset.section==="Chat AI"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("chatPage").classList.add("open");loadChat();document.getElementById("chatInput").focus();return}if(b.dataset.section==="Help"){openHelp();return}if(b.dataset.section==="Support"){openSupport();return}if(b.dataset.section==="My Team"){document.getElementById("menuDrawer").classList.remove("open");openMyTeam();return}if(b.dataset.section==="Agent AI"){document.getElementById("menuDrawer").classList.remove("open");openAgentAI();return}document.getElementById("menuMessage").textContent=b.dataset.section+" section ready.";});
 document.querySelectorAll("[data-profile-action]").forEach(b=>b.addEventListener("click",()=>{
   const a=b.dataset.profileAction;
-  if(a==="account"){const m=localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO";document.getElementById("gtxProfileMode").textContent=m;document.getElementById("menuMessage").textContent=m+" account selected.";return}
+  if(a==="profile"){document.getElementById("menuDrawer").classList.remove("open");openGtxProfile();return}if(a==="account"){const m=localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO";document.getElementById("gtxProfileMode").textContent=m;document.getElementById("menuMessage").textContent=m+" account selected.";return}
   if(a==="settings"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("menuMessage").textContent="";const s=document.querySelector('.menuItem[data-section="Settings"]');if(s)s.click();return}
   if(a==="security"){document.getElementById("menuMessage").textContent="Security settings are available in your account security area.";return}
   if(a==="notifications"){document.getElementById("menuMessage").textContent="Notification settings are available in your account settings.";return}
@@ -1411,5 +1411,76 @@ body.gtx-subscreen-open .pairbar{display:none!important}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",hook,{once:true});
   else hook();
 })();
-</script><script src="keypad-fix.js?v=20261004"></script><script src="agent-ai-fix.js?v=20261004"></script></body>
+</script><script src="keypad-fix.js?v=20261004"></script><script src="agent-ai-fix.js?v=20261004"></script><script>
+(function(){
+  function gtxProfileStore(){
+    try{return JSON.parse(localStorage.getItem("gotradex_profile")||"{}")}catch(e){return {}}
+  }
+  function gtxProfileSave(p){try{localStorage.setItem("gotradex_profile",JSON.stringify(p))}catch(e){}}
+  window.openGtxProfile=function(){
+    let d=document.getElementById("gtxProfileDrawer");
+    if(!d){
+      d=document.createElement("div");d.id="gtxProfileDrawer";d.className="drawer";d.innerHTML=
+      '<div class="panel gtxProfilePanel">'+
+      '<button class="close" type="button" id="gtxProfileClose">Close</button>'+
+      '<h2>My Profile</h2>'+
+      '<div class="gtxProfileCard"><div class="gtxProfileAvatar big" id="gtxProfileEditAvatar">R</div><div><strong id="gtxProfileEditId">Trader ID: GTX-000001</strong><span id="gtxProfileEditMode">DEMO ACCOUNT</span></div></div>'+
+      '<label class="gtxProfileField"><span>Display name</span><input id="gtxProfileDisplayName" maxlength="40" placeholder="Your trading name"></label>'+
+      '<label class="gtxProfileField"><span>Email</span><input id="gtxProfileEmail" type="email" readonly></label>'+
+      '<label class="gtxProfileField"><span>Referral code</span><input id="gtxProfileReferral" maxlength="24" placeholder="GTX-REF"></label>'+
+      '<div class="gtxProfileReadonly"><span>Account status</span><strong>ACTIVE</strong></div>'+
+      '<div class="gtxProfileReadonly"><span>Verification</span><strong id="gtxProfileVerification">Email status will appear after authentication</strong></div>'+
+      '<button class="gtxProfileSave" id="gtxProfileSave" type="button">SAVE PROFILE</button>'+
+      '<div class="status" id="gtxProfileMessage"></div>'+
+      '<div class="gtxProfileNotice">Your profile details are stored locally until a verified account-profile table is connected. No payment or trading balance is changed here.</div>'+
+      '</div>';
+      document.body.appendChild(d);
+      d.addEventListener("click",e=>{if(e.target===d)d.classList.remove("open")});
+      document.getElementById("gtxProfileClose").onclick=()=>d.classList.remove("open");
+      document.getElementById("gtxProfileSave").onclick=()=>{
+        const p=gtxProfileStore();
+        p.displayName=(document.getElementById("gtxProfileDisplayName").value||"Ryan Trading Account").trim().slice(0,40);
+        p.referralCode=(document.getElementById("gtxProfileReferral").value||"GTX-REF").trim().toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,24);
+        if(!p.referralCode)p.referralCode="GTX-REF";
+        gtxProfileSave(p);updateGtxProfileMenu();document.getElementById("gtxProfileMessage").textContent="✓ Profile saved on this device.";
+      };
+    }
+    const p=gtxProfileStore();
+    const name=p.displayName||localStorage.getItem("gotradex_profile_name")||"Ryan Trading Account";
+    const ref=p.referralCode||"GTX-REF";
+    const mode=localStorage.getItem("gotradex_account_mode")==="REAL"?"LIVE":"DEMO";
+    document.getElementById("gtxProfileDisplayName").value=name;
+    document.getElementById("gtxProfileReferral").value=ref;
+    document.getElementById("gtxProfileEditMode").textContent=mode+" ACCOUNT";
+    document.getElementById("gtxProfileEditAvatar").textContent=(name.charAt(0)||"R").toUpperCase();
+    document.getElementById("gtxProfileVerification").textContent=localStorage.getItem("gotradex_email_verified")==="true"?"EMAIL VERIFIED":"EMAIL NOT VERIFIED";
+    let email="";
+    try{const raw=localStorage.getItem("gotradex_current_user");const u=raw?JSON.parse(raw):null;email=u?.email||u?.user?.email||""}catch(e){}
+    document.getElementById("gtxProfileEmail").value=email||"Authenticated account email";
+    d.classList.add("open");
+  };
+  const originalUpdate=window.updateGtxProfileMenu;
+  window.updateGtxProfileMenu=function(){
+    const p=gtxProfileStore(),name=p.displayName||"Ryan Trading Account";
+    const n=document.getElementById("gtxProfileMenuName"),av=document.getElementById("gtxProfileAvatar");
+    if(n)n.textContent=name;if(av)av.textContent=(name.charAt(0)||"R").toUpperCase();
+    const id=document.getElementById("gtxProfileMenuId");if(id)id.textContent="Trader ID: GTX-000001";
+    const mode=document.getElementById("gtxProfileMode");if(mode)mode.textContent=localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO";
+  };
+})();
+</script>
+<style id="gtx-profile-ui">
+.gtxProfilePanel{width:min(390px,94vw)}
+.gtxProfileCard{display:flex;align-items:center;gap:12px;background:#102945;border:1px solid #23466d;border-radius:12px;padding:12px;margin:4px 0 14px}
+.gtxProfileCard strong{display:block;font-size:13px}.gtxProfileCard span{display:block;color:#8fa8c4;font-size:10px;margin-top:4px}
+.gtxProfileAvatar.big{width:46px;height:46px;border-radius:12px;background:#176fca;display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px}
+.gtxProfileField{display:block;margin:10px 0}.gtxProfileField span,.gtxProfileReadonly span{display:block;color:#8fa8c4;font-size:10px;margin-bottom:5px}
+.gtxProfileField input{width:100%;height:42px;background:#081b33;color:#fff;border:1px solid #23466d;border-radius:8px;padding:0 11px;outline:none}
+.gtxProfileField input:focus{border-color:#176fca}
+.gtxProfileReadonly{display:flex;justify-content:space-between;gap:10px;background:#102945;border:1px solid #23466d;border-radius:8px;padding:10px;margin:8px 0}
+.gtxProfileReadonly strong{font-size:10px;text-align:right}
+.gtxProfileSave{width:100%;height:43px;border-radius:9px;background:#176fca;color:#fff;font-weight:900;margin-top:8px}
+.gtxProfileNotice{margin-top:10px;padding:10px;background:#081b33;border:1px dashed #23466d;border-radius:8px;color:#8fa8c4;font-size:10px;line-height:1.45}
+</style>
+</body>
 </html>
