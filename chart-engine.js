@@ -730,7 +730,7 @@ async function boot(){
  if(storedDisplay)store.set("gotradex_asset_display",storedDisplay);
  store.set("gotradex_asset_type",assetType);
  injectCss();rebuildDom();bindExpiry();
- try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=null}
+ try{try{await loadLibrary()}catch(_){/* Fallback canvas renderer is built in. */} bindControls(); await refresh(); clearInterval(poll);poll=null}
  catch(e){showLiveError(e);closeSocket();reconnectTimer=setTimeout(retryLive,3000)}
 }
 function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.has(name))active.delete(name);else active.add(name);buildIndicators();return active.has(name)}
