@@ -160,9 +160,10 @@ async function fetchTwelveDataCandles(){
  const auth=window.GTXBybitAuth;
  if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
  const client=auth.ensureClient();
- if(["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return [];
+ const subMinute=["5 Seconds","15 Seconds","30 Seconds"].includes(tf);
+ const requestedTimeframe=subMinute?"1 Minute":tf;
  const {data,error}=await client.functions.invoke("gotradex-market-data",{
-  body:{action:"chart",symbol:normalizedExternalSymbol(),assetType,timeframe:tf}
+  body:{action:"chart",symbol:normalizedExternalSymbol(),assetType,timeframe:requestedTimeframe}
  });
  if(error)throw Error(error.message||"Forex/stock market-data request failed.");
  if(!data?.ok)throw Error(data?.error||"Forex/stock market-data feed unavailable.");
@@ -170,7 +171,6 @@ async function fetchTwelveDataCandles(){
  if(!rows.length)throw Error("No candles received for "+pairLabel()+".");
  const normalized=rows.map(x=>({time:Number(x.time),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)}))
   .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
- if(["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return [];
  return normalized;
 }
 async function fetchCandles(){return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();}
