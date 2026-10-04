@@ -595,7 +595,7 @@ document.getElementById("userAutoBotFund").onclick=()=>{
   document.getElementById("walletBtn").click();
 };document.querySelectorAll(".chartToolOption").forEach(b=>b.onclick=()=>{
   const tool=b.dataset.tool||b.textContent.trim();
-  const supported=["Alligator","Fractals","EMA / SMA","Supertrend","Parabolic SAR","Bollinger Bands","Keltner Channels","Donchian Channels","Support & Resistance","Horizontal Line"];
+  const supported=["Alligator","Fractals","EMA / SMA","Bollinger Bands","Parabolic SAR","Supertrend","Ichimoku Cloud","RSI","MACD","Stochastic","ATR","Support & Resistance","Horizontal Line"];
   const engine=window.GoTradeXChartEngine;
   if(supported.includes(tool)&&engine?.toggleIndicator){
     const on=engine.toggleIndicator(tool);
@@ -1783,10 +1783,19 @@ async function adminTransactions(){
   }).join(""):'<div class="adminTransaction"><strong>No matching records</strong><span>No deposits, withdrawals or ledger entries match the current filter.</span></div>';
  }catch(e){list.innerHTML='<div class="adminTransaction"><strong>Ledger unavailable</strong><span>'+String(e?.message||"Admin access or wallet tables are unavailable.")+'</span></div>'}
 }
-async function review(kind,id,action){
+async function exportAdminTransactions(){
+ const items=[...document.querySelectorAll("#adminTransactionList .adminTransaction")];
+ const rows=[["record","details"]];
+ items.forEach(el=>rows.push([el.querySelector("strong")?.textContent?.trim()||"",[...el.querySelectorAll("span")].map(x=>x.textContent.trim()).join(" | ")]));
+ const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\n");
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="gotradex-transactions.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ const list=document.getElementById("adminTransactionList");if(list){const st=document.createElement("div");st.className="status";st.textContent="Transaction CSV export created.";list.appendChild(st)}
+}
+function review(kind,id,action){
  try{const fn=kind==="deposit"?"gotradex_review_deposit":"gotradex_review_withdrawal";const args=kind==="deposit"?{p_deposit_id:id,p_action:action,p_rejection_reason:action==="reject"?"Rejected from Admin Portal":null}:{p_withdrawal_id:id,p_action:action,p_rejection_reason:action==="reject"?"Rejected from Admin Portal":null};const {error}=await client().rpc(fn,args);if(error)throw error;await adminTransactions()}catch(e){alert(e?.message||"Review failed.")}
 }
-document.addEventListener("DOMContentLoaded",()=>{refreshWallet();$("depositBtn")?.addEventListener("click",refreshWallet);$("adminTransactionsRefresh")?.addEventListener("click",adminTransactions);$("transactionFilter")?.addEventListener("input",adminTransactions);$("adminTransactionList")?.addEventListener("click",e=>{const b=e.target.closest("[data-pay-review]");if(b)review(b.dataset.payKind,b.dataset.payId,b.dataset.payReview)});});
+document.addEventListener("DOMContentLoaded",()=>{refreshWallet();$("depositBtn")?.addEventListener("click",refreshWallet);$("adminTransactionsRefresh")?.addEventListener("click",adminTransactions);$("adminTransactionsExport")?.addEventListener("click",exportAdminTransactions);$("transactionFilter")?.addEventListener("input",adminTransactions);$("adminTransactionList")?.addEventListener("click",e=>{const b=e.target.closest("[data-pay-review]");if(b)review(b.dataset.payKind,b.dataset.payId,b.dataset.payReview)});});
 window.GoTradeXRefreshWallet=refreshWallet;window.GoTradeXAdminTransactions=adminTransactions;
 })();
 </script></body>
