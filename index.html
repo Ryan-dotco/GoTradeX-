@@ -1372,7 +1372,7 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     var root=document.querySelector(".chart");
     if(!root || !root.querySelector("#candles")) return;
     var s=document.createElement("script");
-    s.src="chart-engine.js?v=gtx-final-live-20261004-1";
+    s.src="chart-engine.js?v=gtx-otc-feed-fix-20261004-2";
     s.dataset.gtxFinalChart="1";
     s.onload=function(){try{window.GoTradeXChartEngine&&window.GoTradeXChartEngine.boot&&window.GoTradeXChartEngine.boot()}catch(e){}};
     document.head.appendChild(s);
