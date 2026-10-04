@@ -22,7 +22,7 @@ let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
 let trade=null,completedTrade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
 
-function root(){return document.querySelector(".chart")}
+function root(){return document.getElementById("gotradex-main-chart")||document.querySelector(".chart")}
 function normalizedSymbol(){return String(symbol||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"")}
 function pairSymbol(){
  const s=normalizedSymbol();
@@ -254,7 +254,37 @@ function syncCandleModeButton(){
  b.textContent=candleMode==="heikin"?"HEIKIN ASHI":"CANDLES";
  b.title=candleMode==="heikin"?"Switch to standard candlesticks":"Switch to Heikin Ashi";
 }
-function renderCandleSeries(){
+function drawGoTradeXCanvas(){
+ const host=$("gtxKenglyHost");if(!host)return;
+ let c=host.querySelector("canvas.gtxVisibleCanvas");
+ if(!c){c=document.createElement("canvas");c.className="gtxVisibleCanvas";host.appendChild(c)}
+ const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight),d=Math.min(2,window.devicePixelRatio||1);
+ c.width=Math.round(w*d);c.height=Math.round(h*d);c.style.cssText="position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:5";
+ const ctx=c.getContext("2d");ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
+ const data=displayCandles().slice(-70);
+ ctx.fillStyle="#071827";ctx.fillRect(0,0,w,h);
+ const pad={l:8,r:72,t:8,b:24};
+ ctx.strokeStyle="rgba(120,160,200,.10)";ctx.lineWidth=1;
+ for(let g=0;g<=4;g++){const y=pad.t+g*(h-pad.t-pad.b)/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();}
+ if(!data.length){
+  ctx.fillStyle="#9db4cc";ctx.font="12px sans-serif";ctx.textAlign="center";ctx.fillText(isOtcMode()?"Connecting to GoTradeX OTC candles…":"Waiting for verified LIVE market data…",w/2,h/2);
+  return;
+ }
+ let lo=Math.min(...data.map(x=>x.low)),hi=Math.max(...data.map(x=>x.high));if(!(hi>lo)){hi=lo+assetLocalUnit();}
+ const span=hi-lo,innerH=h-pad.t-pad.b,innerW=w-pad.l-pad.r;
+ const y=p=>pad.t+(hi-p)/span*innerH;
+ for(let g=0;g<=4;g++){const val=hi-(g/4)*span,yy=pad.t+g*innerH/4;ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.textAlign="left";ctx.fillText(Number(val).toFixed(assetPricePrecision()),w-pad.r+6,yy+3);}
+ const cw=innerW/data.length;
+ data.forEach((x,i)=>{
+  const xx=pad.l+i*cw+cw/2,up=x.close>=x.open,yo=y(x.open),yc=y(x.close),yh=y(x.high),yl=y(x.low);
+  const bodyW=Math.max(3,Math.min(14,cw*.62));ctx.strokeStyle=up?"#19c765":"#e5394f";ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();
+  const top=Math.min(yo,yc),bh=Math.max(2,Math.abs(yo-yc));ctx.fillRect(xx-bodyW/2,top,bodyW,bh);
+ });
+ const last=data[data.length-1];
+ ctx.fillStyle="#f5c542";ctx.font="10px sans-serif";ctx.textAlign="left";ctx.fillText(Number(last.close).toFixed(assetPricePrecision()),w-pad.r+6,y(last.close)+3);
+ ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText(isOtcMode()?"OTC • GoTradeX Synthetic":"LIVE • Verified feed",8,h-8);
+}\nfunction renderCandleSeries(){
  if(!series)return;
  const data=displayCandles();
  series.setData(data);
@@ -316,7 +346,7 @@ function makeChart(){
  buildIndicators();showRecentChartWindow();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();
 }
 
-function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(chart&&host.clientWidth&&host.clientHeight)chart.resize(host.clientWidth,host.clientHeight);updateTradeOverlay()});resizeObserver.observe(host)}
+function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(chart&&host.clientWidth&&host.clientHeight)chart.resize(host.clientWidth,host.clientHeight);drawGoTradeXCanvas();updateTradeOverlay()});resizeObserver.observe(host)}
 function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});if(series&&x){try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}}updateTradeOverlay()}
 
 function closeSocket(){try{ws?.close()}catch(_){}try{tdWs?.close()}catch(_){}ws=null;tdWs=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
