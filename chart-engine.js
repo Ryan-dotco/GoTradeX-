@@ -189,40 +189,56 @@ function otcGaussian(key,t){
  return Math.sqrt(-2*Math.log(a))*Math.cos(Math.PI*2*b);
 }
 function otcRegime(t){
- const q=Math.floor(Number(t)/300);
- const x=Math.sin(q*.73)+Math.sin(q*.19)*.7;
- return x>.9?1:x<-.9?-1:0;
+ const q=Math.floor(Number(t)/900);
+ const x=Math.sin(q*.41)+Math.sin(q*.13)*.65+Math.sin(q*.071)*.35;
+ return x>.95?1:x<-.95?-1:0;
+}
+// GoTradeX OTC is a deterministic synthetic market, not random noise.
+// The path is built from persistent regimes + correlated returns so each
+// candle opens from the previous candle's close and develops naturally.
+function otcReturn(key,bucket,step){
+ const regime=otcRegime(bucket);
+ const z1=otcGaussian(key+"|ret",bucket);
+ const z2=otcGaussian(key+"|ret2",bucket-step);
+ const persistence=z2*.22;
+ const wave=Math.sin(bucket/997)*.00018+Math.sin(bucket/2417)*.00012;
+ const volatility=.00022+Math.abs(otcGaussian(key+"|vol",Math.floor(bucket/step)*step))*.00065;
+ const shock=Math.abs(z1)>2.25?Math.sign(z1)*volatility*.9:0;
+ return Math.max(-.012,Math.min(.012,regime*.00028+(z1*.72+persistence)*volatility+wave+shock));
+}
+function otcPathPrice(t){
+ const step=60;
+ const bucket=Math.floor(Number(t)/step)*step;
+ const key=normalizedSymbol()+"|"+pairLabel();
+ const base=Math.max(assetLocalUnit(),basePriceForLocalOtc());
+ const anchor=Math.floor(bucket/(step*60))*step*60;
+ let price=base;
+ // Deterministic cumulative walk from a stable anchor. This prevents
+ // candles from snapping independently around the base price.
+ for(let b=anchor+step;b<=bucket;b+=step){
+  price=Math.max(assetLocalUnit(),price*(1+otcReturn(key,b,step)));
+ }
+ return price;
 }
 function localOtcPrice(t){
- const b=basePriceForLocalOtc(),k=normalizedSymbol()+"|"+pairLabel(),n=Number(t)||Date.now()/1000;
- const trend=Math.sin(n/170)*.0018+Math.sin(n/610)*.0032;
- const swing=Math.sin(n/31)*.0022;
- const noise=otcGaussian(k,n)*.00055;
- return Math.max(assetLocalUnit(),b*(1+trend+swing+noise));
+ return otcPathPrice(t);
 }
 function localOtcCandle(bucket,step){
  const k=normalizedSymbol()+"|"+pairLabel();
- const base=Math.max(assetLocalUnit(),basePriceForLocalOtc());
- const regime=otcRegime(bucket);
- const z=otcGaussian(k+"|return",bucket);
- const z2=otcGaussian(k+"|micro",bucket+step);
- const z3=otcGaussian(k+"|range",bucket-step);
- const prev=Math.max(assetLocalUnit(),localOtcPrice(bucket-step));
- const volatility=.00045+Math.abs(otcGaussian(k+"|vol",bucket))*.0019;
- const drift=regime*.00042+Math.sin(bucket/257)*.00022+Math.sin(bucket/911)*.00016;
- const shock=Math.abs(z3)>1.45?Math.sign(z3)*.0018:0;
- const ret=Math.max(-.018,Math.min(.018,drift+z*volatility+shock));
- const open=prev;
- const close=Math.max(assetLocalUnit(),open*(1+ret));
+ const safeStep=Math.max(1,Number(step)||60);
+ const open=otcPathPrice(bucket-safeStep);
+ const close=Math.max(assetLocalUnit(),open*(1+otcReturn(k,bucket,safeStep)));
+ const micro1=otcGaussian(k+"|micro1",bucket);
+ const micro2=otcGaussian(k+"|micro2",bucket-safeStep);
  const body=Math.abs(close-open);
- const range=Math.max(body*1.35,base*(.00045+Math.abs(otcGaussian(k+"|range-size",bucket))*.0024));
- const asymUp=.22+otcHash(k+"|upper",bucket)*.78;
- const asymDown=.22+otcHash(k+"|lower",bucket)*.78;
- const upper=Math.max(assetLocalUnit(),range*(.18+Math.abs(z2)*.42)*asymUp);
- const lower=Math.max(assetLocalUnit(),range*(.18+Math.abs(otcGaussian(k+"|lower-z",bucket))*.42)*asymDown);
+ // Wicks are derived from the candle's own movement. No arbitrary
+ // synthetic spikes are injected.
+ const range=Math.max(body*1.15,Math.abs(open)*(.00018+Math.abs(micro1)*.00042));
+ const upper=range*(.28+Math.min(1.2,Math.abs(micro2))*.22);
+ const lower=range*(.28+Math.min(1.2,Math.abs(otcGaussian(k+"|micro3",bucket)))*.22);
  const high=Math.max(open,close)+upper;
  const low=Math.max(assetLocalUnit(),Math.min(open,close)-lower);
- const volume=Math.round(700+Math.abs(ret)*base*180000+otcHash(k+"|volume",bucket)*3200);
+ const volume=Math.round(500+Math.abs(close-open)/Math.max(assetLocalUnit(),open)*100000+otcHash(k+"|volume",bucket)*1800);
  return {time:bucket,open,high,low,close,volume};
 }
 function shapeOtcCandle(candle,previousClose){
