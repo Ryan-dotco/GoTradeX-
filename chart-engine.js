@@ -297,7 +297,7 @@ async function connectSocket(requestId=assetRequestId){
   fallbackPoll();
   thisWs.onopen=()=>{
     if(request!==assetRequestId||thisWs!==tdWs){try{thisWs.close()}catch(_){};return}
-    if(src){src.classList.remove("stale");src.textContent="LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();}
+    if(src)updateFeedStatus();
   };
   thisWs.onmessage=e=>{
     if(request!==assetRequestId||thisWs!==tdWs)return;
@@ -307,7 +307,7 @@ async function connectSocket(requestId=assetRequestId){
         const p=Number(m?.price),t=Number(m?.timestamp||Date.now())/1000;
         if(Number.isFinite(p))updateLivePrice(p,t);
       }else if(m?.event==="proxy-status"){
-        if(src)src.textContent="LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();
+        if(src)updateFeedStatus();
       }else if(m?.event==="proxy-error"||m?.event==="proxy-closed"){
         if(src)src.textContent="LIVE FEED ERROR • "+String(m?.message||m?.reason||"Twelve Data connection closed");
       }
@@ -324,11 +324,7 @@ async function connectSocket(requestId=assetRequestId){
   clearInterval(liveFreshTimer);
   liveFreshTimer=setInterval(()=>{
     if(request!==assetRequestId||thisWs!==tdWs)return;
-    const stale=lastLiveUpdateAt>0&&(Date.now()-lastLiveUpdateAt)>20000;
-    if(src){
-      src.classList.toggle("stale",stale);
-      src.textContent=stale?"STALE • waiting for live "+pairLabel():"LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();
-    }
+    if(src)updateFeedStatus();
   },1000);
   return;
  }
@@ -360,6 +356,24 @@ async function connectSocket(requestId=assetRequestId){
   const src=$("gtxKenglySource");if(src)src.textContent="LIVE FEED WAITING • "+(e?.message||"Connecting…");
   if(started)reconnectTimer=setTimeout(()=>connectSocket(requestId).catch(()=>{}),3000);
  }
+}
+function isForexWeekendClosed(){
+ if(assetType!=="forex")return false;
+ const d=new Date();
+ const day=d.getUTCDay();
+ return day===0 || day===6;
+}
+function updateFeedStatus(){
+ const src=$("gtxKenglySource");
+ if(!src)return;
+ if(isForexWeekendClosed()){
+  src.classList.add("stale");
+  src.textContent="MARKET CLOSED • Forex weekend • Last AUD/USD price";
+  return;
+ }
+ const stale=lastLiveUpdateAt>0&&(Date.now()-lastLiveUpdateAt)>20000;
+ src.classList.toggle("stale",stale);
+ src.textContent=stale?"STALE • waiting for live "+pairLabel():"LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();
 }
 function updateLivePrice(p,sourceTime){
  if(!Number.isFinite(Number(p)))return false;
