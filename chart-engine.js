@@ -269,9 +269,26 @@ function syncCandleModeButton(){
  b.textContent=candleMode==="heikin"?"HEIKIN ASHI":"CANDLES";
  b.title=candleMode==="heikin"?"Switch to standard candlesticks":"Switch to Heikin Ashi";
 }
+function drawFallbackCandles(){
+ const host=$("gtxKenglyHost"); if(!host)return;
+ let canvas=host.querySelector("canvas.gtxFallbackCanvas");
+ if(!canvas){canvas=document.createElement("canvas");canvas.className="gtxFallbackCanvas";canvas.style.cssText="position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;";host.appendChild(canvas);}
+ const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight),dpr=Math.min(2,window.devicePixelRatio||1);
+ canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+ const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+ ctx.fillStyle="#071827";ctx.fillRect(0,0,w,h);
+ const data=displayCandles().slice(-60); if(!data.length)return;
+ let lo=Math.min(...data.map(x=>x.low)),hi=Math.max(...data.map(x=>x.high)); if(!(hi>lo)){hi=lo+1}
+ const pad={l:6,r:64,t:8,b:22},cw=(w-pad.l-pad.r)/Math.max(1,data.length),span=hi-lo;
+ const y=p=>pad.t+(hi-p)/span*(h-pad.t-pad.b);
+ ctx.strokeStyle="rgba(120,160,200,.12)";ctx.lineWidth=1;
+ for(let g=0;g<=4;g++){const yy=pad.t+g*(h-pad.t-pad.b)/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();const val=hi-(g/4)*span;ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText(val.toFixed(assetPricePrecision()),w-pad.r+5,yy+3)}
+ data.forEach((x,i)=>{const xx=pad.l+i*cw+cw/2,ow=y(x.open),ch=y(x.close),yh=y(x.high),yl=y(x.low),up=x.close>=x.open;ctx.strokeStyle=up?"#19c765":"#e5394f";ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();const top=Math.min(ow,ch),bh=Math.max(2,Math.abs(ow-ch));ctx.fillRect(xx-Math.max(2,cw*.34),top,Math.max(3,cw*.68),bh);});
+ ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText("LIVE",6,h-7);
+}
 function renderCandleSeries(){
- if(!series)return;
  const data=displayCandles();
+ if(!series){drawFallbackCandles();return;}
  series.setData(data);
  if(data.length){
   try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
@@ -321,8 +338,9 @@ function showRecentChartWindow(){
  }catch(_){}
 }
 function makeChart(){
- const host=$("gtxKenglyHost");if(!host||!window.LightweightCharts)throw Error("Lightweight Charts library unavailable");
- if(chart)try{chart.remove()}catch(_){}
+ const host=$("gtxKenglyHost");if(!host)throw Error("Chart host unavailable");
+ if(chart)try{chart.remove()}catch(_){} chart=null; series=null;
+ if(!window.LightweightCharts){drawFallbackCandles();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();return;}
  chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
  series=chart.addSeries(LightweightCharts.CandlestickSeries,{priceScaleId:"right",upColor:"#19c765",downColor:"#e5394f",borderUpColor:"#19c765",borderDownColor:"#e5394f",wickUpColor:"#19c765",wickDownColor:"#e5394f",borderVisible:true,priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}});
  renderCandleSeries();
