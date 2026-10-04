@@ -741,11 +741,54 @@ syncGtxKenglyVisibility();
       if(a==="help"){if(typeof openHelp==="function")openHelp(); else show("helpPage");return;}
       if(a==="profile"){if(typeof openGtxProfile==="function")return openGtxProfile();return openAccountPage("My Profile","<strong>Trader ID:</strong> GTX-000001<br><strong>Account:</strong> Ryan Trading Account<br><strong>Mode:</strong> "+(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO"));}
       if(a==="account")return openAccountPage("Account","<strong>Current mode:</strong> "+(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO")+"<br><br>Use the DEMO / REAL controls on the trading screen to change account mode.");
-      if(a==="settings")return openAccountPage("Settings","Account settings are available here. Trading controls remain unchanged.");
-      if(a==="security")return openAccountPage("Security","Security controls are available here. Connect the verified authentication/security layer before treating these settings as live account controls.");
-      if(a==="notifications")return openAccountPage("Notifications","Notification preferences are available here.");
+      if(a==="settings"){openGtxSettings();return;}
+      if(a==="security"){openGtxSecurity();return;}
+      if(a==="notifications"){openGtxNotifications();return;}
     };
   });
+
+  function gtxPrefBool(key,def=true){const v=localStorage.getItem(key);return v===null?def:v==="true"}
+  function gtxSettingsRow(id,label,desc,checked){
+    return '<button type="button" id="'+id+'" class="option" style="text-align:left;display:block">'+
+      '<strong>'+label+'</strong><small style="display:block;color:#8fa8c4;margin-top:4px">'+desc+'</small>'+
+      '<span style="display:block;margin-top:7px;color:#fff;font-weight:900">'+(checked?"ON":"OFF")+'</span></button>';
+  }
+  function openGtxSettings(){
+    const compact=gtxPrefBool("gotradex_compact_ui",true);
+    const confirm=gtxPrefBool("gotradex_confirm_trades",true);
+    openSimplePanel("Settings",
+      '<div class="adminSlot"><strong>Interface</strong>These preferences are saved on this device and do not change account balances or trading permissions.</div>'+
+      gtxSettingsRow("gtxCompactToggle","Compact mobile layout","Keep the trading interface optimized for smaller phone screens.",compact)+
+      gtxSettingsRow("gtxConfirmToggle","Trade confirmation","Require a confirmation step before a future supported trade action.",confirm)+
+      '<div class="adminSlot"><strong>Account mode</strong>'+ (localStorage.getItem("gotradex_account_mode")==="REAL"?"LIVE":"DEMO") +' — change it using the account selector on the trading screen.</div>');
+    byId("gtxCompactToggle").onclick=()=>{
+      const v=!gtxPrefBool("gotradex_compact_ui",true);localStorage.setItem("gotradex_compact_ui",String(v));
+      document.body.classList.toggle("gtxCompactMode",v);openGtxSettings();
+    };
+    byId("gtxConfirmToggle").onclick=()=>{
+      const v=!gtxPrefBool("gotradex_confirm_trades",true);localStorage.setItem("gotradex_confirm_trades",String(v));openGtxSettings();
+    };
+  }
+  function openGtxSecurity(){
+    const session=!!localStorage.getItem("gotradex_logged_in_user")||!!localStorage.getItem("gotradex_current_user")||!!localStorage.getItem("gotradex_session");
+    openSimplePanel("Security",
+      '<div class="adminSlot"><strong>Session status</strong>'+ (session?"A local GoTradeX session is present.":"No local GoTradeX session marker was found.") +'</div>'+
+      '<div class="adminSlot"><strong>Real-money protection</strong>BUY, SELL and live AutoBot execution remain protected until a verified broker connection is configured.</div>'+
+      '<div class="adminSlot"><strong>Password & authentication</strong>Use the configured Supabase authentication flow for password and recovery changes. This panel does not store passwords.</div>');
+  }
+  function openGtxNotifications(){
+    const push=gtxPrefBool("gotradex_notify_trades",true);
+    const market=gtxPrefBool("gotradex_notify_market",true);
+    const system=gtxPrefBool("gotradex_notify_system",true);
+    openSimplePanel("Notifications",
+      '<div class="adminSlot"><strong>Notification preferences</strong>These switches control local app preferences. Push delivery requires a configured notification service.</div>'+
+      gtxSettingsRow("gtxNotifyTrades","Trade updates","Show local trade-status notifications when supported.",push)+
+      gtxSettingsRow("gtxNotifyMarket","Market alerts","Allow local market-alert preferences.",market)+
+      gtxSettingsRow("gtxNotifySystem","System messages","Show important GoTradeX system messages.",system));
+    const bind=(id,key)=>byId(id).onclick=()=>{const v=!gtxPrefBool(key,true);localStorage.setItem(key,String(v));openGtxNotifications()};
+    bind("gtxNotifyTrades","gotradex_notify_trades");bind("gtxNotifyMarket","gotradex_notify_market");bind("gtxNotifySystem","gotradex_notify_system");
+  }
+  document.body.classList.toggle("gtxCompactMode",gtxPrefBool("gotradex_compact_ui",true));
 
   /* Make every Close / Back button deterministic, including buttons added later. */
   document.addEventListener("click",function(e){
