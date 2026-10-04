@@ -244,6 +244,28 @@ function localOtcCandle(bucket,step){
 function shapeOtcCandle(candle,previousClose){
  return candle;
 }
+function seedOtcCandles(){
+ const step=Math.max(1,Number(TF[tf]||60));
+ const end=Math.floor(Date.now()/1000/step)*step;
+ const out=[];
+ let previousClose=null;
+ for(let i=239;i>=0;i--){
+  const bucket=end-i*step;
+  const raw=localOtcCandle(bucket,step);
+  // Keep the visible OTC series continuous even before the network endpoint responds.
+  if(previousClose!=null){
+   const scale=previousClose/Math.max(assetLocalUnit(),Number(raw.open)||previousClose);
+   raw.open=previousClose;
+   raw.high=Math.max(raw.high*scale,raw.open,raw.close*scale);
+   raw.low=Math.max(assetLocalUnit(),Math.min(raw.low*scale,raw.open,raw.close*scale));
+   raw.close=Math.max(assetLocalUnit(),raw.close*scale);
+  }
+  out.push(raw);
+  previousClose=raw.close;
+ }
+ return out;
+}
+
 async function fetchSyntheticCandles(){
  const step=Math.max(1,Number(TF[tf]||60));
  const end=Math.floor(Date.now()/1000/step)*step;
@@ -924,6 +946,10 @@ async function boot(){
  if(storedDisplay)store.set("gotradex_asset_display",storedDisplay);
  store.set("gotradex_asset_type",assetType);
  injectCss();rebuildDom();bindExpiry();
+ // Seed OTC synchronously so the chart is never empty while the 24/7 feed connects.
+ if(isOtcMode()){
+  try{candles=seedOtcCandles();renderCandleSeries()}catch(e){console.error("GoTradeX OTC seed failed",e)}
+ }
  // Build the visible chart immediately. Market data is connected afterward.
  try{makeChart()}catch(e){console.error("GoTradeX initial chart build failed",e)}
  try{
