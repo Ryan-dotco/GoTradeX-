@@ -159,6 +159,7 @@ async function fetchTwelveDataCandles(){
  const auth=window.GTXBybitAuth;
  if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
  const client=auth.ensureClient();
+ if(["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return [];
  const {data,error}=await client.functions.invoke("gotradex-market-data",{
   body:{action:"chart",symbol:normalizedExternalSymbol(),assetType,timeframe:tf}
  });
