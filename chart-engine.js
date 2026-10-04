@@ -124,7 +124,7 @@ function injectCss(){
 .gtxKenglyStage{position:relative!important;flex:1 1 auto!important;min-height:150px!important;width:100%!important;overflow:hidden!important}
 .gtxKenglyHost{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
 .gtxKenglyHost canvas{touch-action:none!important}
-.gtxKenglyOverlay{position:absolute!important;inset:0!important;pointer-events:none!important;z-index:12!important;overflow:hidden!important}
+.gtxKenglyOverlay{position:absolute!important;inset:0!important;pointer-events:none!important;z-index:12!important;overflow:hidden!important;background:transparent!important;opacity:1!important}
 .gtxTradeFlag{position:absolute!important;transform:translate(-50%,-100%)!important;padding:3px 6px!important;border-radius:4px!important;background:#0d2438!important;border:1px solid #3d7198!important;color:#fff!important;font:900 8px/11px sans-serif!important;box-shadow:0 2px 8px #0008!important;animation:gtxFlagPulse 1s ease-in-out infinite!important;white-space:nowrap!important;z-index:3!important}.gtxTradeVertical{position:absolute!important;top:0!important;bottom:0!important;width:2px!important;transform:translateX(-1px)!important;background:repeating-linear-gradient(to bottom,currentColor 0 7px,transparent 7px 12px)!important;opacity:.9!important;z-index:1!important}.gtxTradePoint{position:absolute!important;width:9px!important;height:9px!important;border-radius:50%!important;transform:translate(-50%,-50%)!important;background:#071827!important;border:2px solid currentColor!important;box-shadow:0 0 8px currentColor!important;z-index:4!important}
 .gtxTradeFlag.buy{border-color:#36c275!important;color:#72efaa!important}
 .gtxTradeFlag.sell{border-color:#e05b70!important;color:#ff9aaa!important}
@@ -265,7 +265,7 @@ function drawGoTradeXCanvas(){
  return;
 }
 function renderCandleSeries(){
- const host=$("gtxKenglyHost"); if(host)host.querySelectorAll("canvas.gtxVisibleCanvas").forEach(x=>x.remove());
+ const host=$("gtxKenglyHost");\n if(host){\n  // Remove every legacy/custom canvas from the chart host. Native Lightweight Charts\n  // canvases live inside .tv-lightweight-charts and are intentionally preserved.\n  host.querySelectorAll("canvas").forEach(x=>{\n   if(!x.closest(".tv-lightweight-charts"))x.remove();\n  });\n  host.querySelectorAll(".gtxVisibleCanvas,.gtxCandleCanvas,.candle-overlay-canvas,.candleCanvas").forEach(x=>x.remove());\n  host.style.background="#071827";\n }
  const data=displayCandles();
  if(series){
   series.setData(data);
