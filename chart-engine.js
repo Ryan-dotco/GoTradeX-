@@ -175,15 +175,29 @@ async function fetchTwelveDataCandles(){
   .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
  return normalized;
 }
+function localOtcNoise(key,t){
+ const s=String(key)+"|"+Math.floor(Number(t)/18),h=[...s].reduce((a,ch)=>((a*33+ch.charCodeAt(0))>>>0),2166136261)>>>0;
+ return (h/4294967296)*2-1;
+}
+function localOtcPrice(t){
+ const b=basePriceForLocalOtc(), k=normalizedSymbol()+"|"+pairLabel();
+ const a=localOtcNoise(k+"a",t/3),b1=localOtcNoise(k+"b",t/9),c=localOtcNoise(k+"c",t/30);
+ return Math.max(assetLocalUnit(),b*(1+a*.0009+b1*.002+c*.004));
+}
+function basePriceForLocalOtc(){const d=String(pairLabel()).replace(/\\s+OTC$/i,"");const map={"EUR/USD":1.085,"GBP/USD":1.275,"USD/JPY":149.5,"XAU/USD":2650,"BTC/USD":62000,"ETH/USD":2450,"XRP/USD":.52,"SOL/USD":145};return Number(map[d]||100)}
+function assetLocalUnit(){const p=basePriceForLocalOtc();return p<1?.00001:p<10?.0001:p<100?.001:.01}
+function localOtcCandle(bucket,step){const o=localOtcPrice(bucket),c=localOtcPrice(bucket+step),mid=(o+c)/2,r=Math.abs(localOtcNoise("r|"+normalizedSymbol(),bucket)),w=mid*(.0015+r*.004);return {time:bucket,open:o,high:Math.max(o,c)+w*(.6+r),low:Math.max(assetLocalUnit(),Math.min(o,c)-w*(.6+(1-r))),close:c,volume:Math.round(800+r*3200)}}
 async function fetchSyntheticCandles(){
  const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
  const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
- const res=await fetch(u,{cache:"no-store",headers:{"Accept":"application/json"}});
- let data=null;try{data=await res.json()}catch(_){data=null}
- if(!res.ok)throw Error(data?.error||("GoTradeX synthetic OTC request failed (HTTP "+res.status+")."));
- if(!data?.ok)throw Error(data?.error||"GoTradeX synthetic OTC market unavailable.");
- const rows=Array.isArray(data.candles)?data.candles:[];
- if(!rows.length)throw Error("No GoTradeX synthetic candles received.");
+ let rows=[];
+ try{
+  const res=await fetch(u,{cache:"no-store",headers:{"Accept":"application/json"}});
+  const data=await res.json().catch(()=>null);
+  if(res.ok&&data?.ok&&Array.isArray(data.candles))rows=data.candles;
+ }catch(_){rows=[]}
+ if(!rows.length){const step=Math.max(1,Number(TF[tf]||60)),end=Math.floor(Date.now()/1000/step)*step;for(let i=499;i>=0;i--)rows.push(localOtcCandle(end-i*step,step));}
+
  const out=[];
  let prev=null;
  for(const x of rows){
@@ -317,13 +331,18 @@ async function connectSocket(requestId=assetRequestId){
    try{
     const u=endpoint+"?action=price&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel());
     const res=await fetch(u,{cache:"no-store",headers:{"Accept":"application/json"}});
-    const data=await res.json();
-    if(!res.ok)throw Error(data?.error||("HTTP "+res.status));
+    const data=await res.json().catch(()=>null);
     const p=Number(data?.price),t=Number(data?.timestamp||Date.now()/1000);
-    if(Number.isFinite(p))updateLivePrice(p,t);
-    if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LIVE 24/7";}
+    if(res.ok&&Number.isFinite(p)){
+      updateLivePrice(p,t);
+      if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LIVE 24/7";}
+    }else{
+      updateLivePrice(localOtcPrice(Date.now()/1000),Date.now()/1000);
+      if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LOCAL ENGINE";}
+    }
    }catch(e){
-    if(src)src.textContent="OTC SYNTHETIC FEED ERROR • Retrying…";
+    updateLivePrice(localOtcPrice(Date.now()/1000),Date.now()/1000);
+    if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LOCAL ENGINE";}
    }
   };
   if(src)src.textContent="OTC • GoTradeX Synthetic • CONNECTING…";
