@@ -265,6 +265,7 @@ function drawGoTradeXCanvas(){
  return;
 }
 function renderCandleSeries(){
+ const host=$("gtxKenglyHost"); if(host)host.querySelectorAll("canvas.gtxVisibleCanvas").forEach(x=>x.remove());
  const data=displayCandles();
  if(series){
   series.setData(data);
