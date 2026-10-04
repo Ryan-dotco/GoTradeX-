@@ -16,7 +16,7 @@ let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
 let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute"),marketMode=String(store.get("gotradex_market_mode","LIVE")).toUpperCase()==="OTC"?"OTC":"LIVE";
 let active=new Set(),started=false,ws=null,tdWs=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
-let candleMode=["candles","heikin","bars","line","area"].includes(String(store.get("gotradex_candle_mode","candles")))?String(store.get("gotradex_candle_mode","candles")):"candles";
+let candleMode=String(store.get("gotradex_candle_mode","candles"))==="heikin"?"heikin":"candles";
 let lastLiveUpdateAt=0,liveFreshTimer=null;
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
@@ -109,7 +109,7 @@ function injectCss(){
  if($("gtx-kengly-v6-css"))return;
  const s=document.createElement("style");s.id="gtx-kengly-v6-css";
  s.textContent=`
-.gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:180px!important;overflow:hidden!important;background:#071827!important;color:#dbe9f7!important}
+.gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#071827!important;color:#dbe9f7!important}
 .gtxKenglyHeader{flex:0 0 auto!important;display:flex!important;align-items:center!important;gap:7px!important;width:100%!important;box-sizing:border-box!important;padding:3px 7px!important;background:#071827!important;z-index:20!important;white-space:nowrap!important;overflow:hidden!important}
 .gtxKenglyBadge{font:800 9px/16px sans-serif!important;padding:0 6px!important;border-radius:9px!important;background:#10304a!important;color:#9fc8e8!important}
 .gtxKenglyBadge.live{background:#123c2b!important;color:#5ee39a!important}.gtxKenglyBadge.otc{background:#2a1644!important;color:#c9a0ff!important}
@@ -117,8 +117,7 @@ function injectCss(){
 .gtxKenglyTf{font:700 9px/16px sans-serif!important;color:#9db4cc!important}
 .gtxKenglySource{margin-left:auto!important;font:800 8px/16px sans-serif!important;color:#5ee39a!important}
 .gtxKenglySource.stale{color:#ff9aaa!important}.gtxCandleMode{margin-left:4px!important;border:1px solid #2b527d!important;border-radius:7px!important;background:#0b2033!important;color:#dbe9f7!important;font:800 8px/15px sans-serif!important;padding:0 6px!important;white-space:nowrap!important}
-.gtxKenglyStage{position:relative!important;flex:1 1 0!important;height:auto!important;min-height:220px!important;width:100%!important;overflow:hidden!important}
-@media(max-width:600px){.gtxKenglyStage{min-height:220px!important}.gtxKengly{min-height:220px!important}}
+.gtxKenglyStage{position:relative!important;flex:1 1 auto!important;min-height:150px!important;width:100%!important;overflow:hidden!important}
 .gtxKenglyHost{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
 .gtxKenglyHost canvas{touch-action:none!important}
 .gtxKenglyOverlay{position:absolute!important;inset:0!important;pointer-events:none!important;z-index:12!important;overflow:hidden!important}
@@ -177,105 +176,45 @@ async function fetchTwelveDataCandles(){
  return normalized;
 }
 function localOtcNoise(key,t){
- const s=String(key)+"|"+Math.floor(Number(t)/5),h=[...s].reduce((a,ch)=>((a*33+ch.charCodeAt(0))>>>0),2166136261)>>>0;
+ const s=String(key)+"|"+Math.floor(Number(t)/18),h=[...s].reduce((a,ch)=>((a*33+ch.charCodeAt(0))>>>0),2166136261)>>>0;
  return (h/4294967296)*2-1;
 }
-function otcHash(key,t){
- const s=String(key)+"|"+Math.floor(Number(t)/5),h=[...s].reduce((a,ch)=>((a*1664525+ch.charCodeAt(0)+1013904223)>>>0),2166136261)>>>0;
- return h/4294967296;
-}
-function otcGaussian(key,t){
- const a=Math.max(0.000001,otcHash(key+"|a",t)),b=Math.max(0.000001,otcHash(key+"|b",t));
- return Math.sqrt(-2*Math.log(a))*Math.cos(Math.PI*2*b);
-}
-function otcRegime(t){
- const q=Math.floor(Number(t)/900);
- const x=Math.sin(q*.41)+Math.sin(q*.13)*.65+Math.sin(q*.071)*.35;
- return x>.95?1:x<-.95?-1:0;
-}
-// GoTradeX OTC is a deterministic synthetic market, not random noise.
-// The path is built from persistent regimes + correlated returns so each
-// candle opens from the previous candle's close and develops naturally.
-function otcReturn(key,bucket,step){
- const regime=otcRegime(bucket);
- const z1=otcGaussian(key+"|ret",bucket);
- const z2=otcGaussian(key+"|ret2",bucket-step);
- const persistence=z2*.22;
- const wave=Math.sin(bucket/997)*.00018+Math.sin(bucket/2417)*.00012;
- const volatility=.00022+Math.abs(otcGaussian(key+"|vol",Math.floor(bucket/step)*step))*.00065;
- const shock=Math.abs(z1)>2.25?Math.sign(z1)*volatility*.9:0;
- return Math.max(-.012,Math.min(.012,regime*.00028+(z1*.72+persistence)*volatility+wave+shock));
-}
-function otcPathPrice(t){
- const step=60;
- const bucket=Math.floor(Number(t)/step)*step;
- const key=normalizedSymbol()+"|"+pairLabel();
- const base=Math.max(assetLocalUnit(),basePriceForLocalOtc());
- const anchor=Math.floor(bucket/(step*60))*step*60;
- let price=base;
- // Deterministic cumulative walk from a stable anchor. This prevents
- // candles from snapping independently around the base price.
- for(let b=anchor+step;b<=bucket;b+=step){
-  price=Math.max(assetLocalUnit(),price*(1+otcReturn(key,b,step)));
- }
- return price;
-}
 function localOtcPrice(t){
- return otcPathPrice(t);
+ const b=basePriceForLocalOtc(), k=normalizedSymbol()+"|"+pairLabel();
+ const a=localOtcNoise(k+"a",t/3),b1=localOtcNoise(k+"b",t/9),c=localOtcNoise(k+"c",t/30);
+ return Math.max(assetLocalUnit(),b*(1+a*.0009+b1*.002+c*.004));
 }
-function localOtcCandle(bucket,step){
- const k=normalizedSymbol()+"|"+pairLabel();
- const safeStep=Math.max(1,Number(step)||60);
- const open=otcPathPrice(bucket-safeStep);
- const close=Math.max(assetLocalUnit(),open*(1+otcReturn(k,bucket,safeStep)));
- const micro1=otcGaussian(k+"|micro1",bucket);
- const micro2=otcGaussian(k+"|micro2",bucket-safeStep);
- const body=Math.abs(close-open);
- // Wicks are derived from the candle's own movement. No arbitrary
- // synthetic spikes are injected.
- const range=Math.max(body*1.15,Math.abs(open)*(.00018+Math.abs(micro1)*.00042));
- const upper=range*(.28+Math.min(1.2,Math.abs(micro2))*.22);
- const lower=range*(.28+Math.min(1.2,Math.abs(otcGaussian(k+"|micro3",bucket)))*.22);
- const high=Math.max(open,close)+upper;
- const low=Math.max(assetLocalUnit(),Math.min(open,close)-lower);
- const volume=Math.round(500+Math.abs(close-open)/Math.max(assetLocalUnit(),open)*100000+otcHash(k+"|volume",bucket)*1800);
- return {time:bucket,open,high,low,close,volume};
-}
-function shapeOtcCandle(candle,previousClose){
- return candle;
-}
-function seedOtcCandles(){
- const step=Math.max(1,Number(TF[tf]||60));
- const end=Math.floor(Date.now()/1000/step)*step;
- const out=[];
- let previousClose=null;
- for(let i=239;i>=0;i--){
-  const bucket=end-i*step;
-  const raw=localOtcCandle(bucket,step);
-  // Keep the visible OTC series continuous even before the network endpoint responds.
-  if(previousClose!=null){
-   const scale=previousClose/Math.max(assetLocalUnit(),Number(raw.open)||previousClose);
-   raw.open=previousClose;
-   raw.high=Math.max(raw.high*scale,raw.open,raw.close*scale);
-   raw.low=Math.max(assetLocalUnit(),Math.min(raw.low*scale,raw.open,raw.close*scale));
-   raw.close=Math.max(assetLocalUnit(),raw.close*scale);
-  }
-  out.push(raw);
-  previousClose=raw.close;
- }
- return out;
-}
-
+function basePriceForLocalOtc(){const d=String(pairLabel()).replace(/\\s+OTC$/i,"");const map={"EUR/USD":1.085,"GBP/USD":1.275,"USD/JPY":149.5,"XAU/USD":2650,"BTC/USD":62000,"ETH/USD":2450,"XRP/USD":.52,"SOL/USD":145};return Number(map[d]||100)}
+function assetLocalUnit(){const p=basePriceForLocalOtc();return p<1?.00001:p<10?.0001:p<100?.001:.01}
+function localOtcCandle(bucket,step){const o=localOtcPrice(bucket),c=localOtcPrice(bucket+step),mid=(o+c)/2,r=Math.abs(localOtcNoise("r|"+normalizedSymbol(),bucket)),w=mid*(.0015+r*.004);return {time:bucket,open:o,high:Math.max(o,c)+w*(.6+r),low:Math.max(assetLocalUnit(),Math.min(o,c)-w*(.6+(1-r))),close:c,volume:Math.round(800+r*3200)}}
 async function fetchSyntheticCandles(){
- const step=Math.max(1,Number(TF[tf]||60));
- const end=Math.floor(Date.now()/1000/step)*step;
+ const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
+ const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
+ let rows=[];
+ try{
+  const res=await fetch(u,{cache:"no-store",headers:{"Accept":"application/json"}});
+  const data=await res.json().catch(()=>null);
+  if(res.ok&&data?.ok&&Array.isArray(data.candles))rows=data.candles;
+ }catch(_){rows=[]}
+ if(!rows.length){const step=Math.max(1,Number(TF[tf]||60)),end=Math.floor(Date.now()/1000/step)*step;for(let i=499;i>=0;i--)rows.push(localOtcCandle(end-i*step,step));}
+
  const out=[];
- let previous=null;
- for(let i=239;i>=0;i--){
-  const raw=localOtcCandle(end-i*step,step);
-  const shaped=shapeOtcCandle(raw,previous?.close);
-  out.push(shaped);
-  previous=shaped;
+ let prev=null;
+ for(const x of rows){
+  const t=Number(x.time),o=Number(x.open),h=Number(x.high),l=Number(x.low),cl=Number(x.close),v=Number(x.volume||0);
+  if(!Number.isFinite(t)||![o,h,l,cl].every(Number.isFinite))continue;
+  const hi=Math.max(o,h,l,cl),lo=Math.min(o,h,l,cl);
+  let open=o,close=cl;
+  if(prev){
+   // Guard against a synthetic feed jump: keep each new candle anchored to the prior close.
+   const maxJump=Math.max(Math.abs(prev.close)*0.08,0.000001);
+   if(Math.abs(open-prev.close)>maxJump)open=prev.close;
+   if(Math.abs(close-open)>maxJump)close=open+Math.sign(close-open)*maxJump;
+  }
+  const high=Math.max(hi,open,close);
+  const low=Math.min(lo,open,close);
+  out.push({time:t,open,high,low,close,volume:v});
+  prev=out[out.length-1];
  }
  return out;
 }
@@ -294,7 +233,7 @@ async function loadCandles(requestId=assetRequestId){
  if(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)){const src0=$("gtxKenglySource");if(src0)src0.textContent="LIVE TICKS • building "+tf+" candles • "+pairLabel();}
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
- if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • GoTradeX • LOCAL 24/7":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
+ if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • GoTradeX Synthetic • LIVE 24/7":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
  return true;
 }
 
@@ -309,136 +248,22 @@ function heikinCandles(){
  });
  return out;
 }
-const CANDLE_MODES=["candles","heikin","bars","line","area"];
-const CANDLE_MODE_LABELS={candles:"CANDLES",heikin:"HEIKIN ASHI",bars:"BARS",line:"LINE",area:"AREA"};
 function displayCandles(){return candleMode==="heikin"?heikinCandles():candles;}
-function chartLineData(){
- const src=displayCandles();
- return src.map(x=>({time:x.time,value:x.close}));
-}
 function syncCandleModeButton(){
  const b=$("gtxCandleMode");if(!b)return;
- b.textContent=CANDLE_MODE_LABELS[candleMode]||"CANDLES";
- b.title="Chart style: "+(CANDLE_MODE_LABELS[candleMode]||"CANDLES")+" • tap to change";
-}
-function removeMainSeries(){
- if(!chart||!series)return;
- try{chart.removeSeries(series)}catch(_){}
- series=null;
- priceLine=null;
-}
-function ensureMainSeries(){
- if(!chart)return;
- if(series?.__gtxMode===candleMode)return;
- removeMainSeries();
- const common={priceScaleId:"right",priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}};
- if(candleMode==="bars"){
-  series=chart.addSeries(LightweightCharts.BarSeries,{...common,upColor:"#19c765",downColor:"#e5394f",thinBars:false});
- }else if(candleMode==="line"){
-  series=chart.addSeries(LightweightCharts.LineSeries,{...common,color:"#42a5ff",lineWidth:3,crosshairMarkerVisible:true});
- }else if(candleMode==="area"){
-  series=chart.addSeries(LightweightCharts.AreaSeries,{...common,lineColor:"#42a5ff",lineWidth:2,topColor:"rgba(66,165,255,.24)",bottomColor:"rgba(66,165,255,.02)"});
- }else{
-  series=chart.addSeries(LightweightCharts.CandlestickSeries,{
-   ...common,
-   upColor:"#19c765",downColor:"#e5394f",
-   borderUpColor:"#19c765",borderDownColor:"#e5394f",
-   wickUpColor:"#19c765",wickDownColor:"#e5394f",
-   borderVisible:true
-  });
- }
- series.__gtxMode=candleMode;
-}
-function drawFallbackCandles(){
- const host=$("gtxKenglyHost"); if(!host)return;
- let canvas=host.querySelector("canvas.gtxFallbackCanvas");
- if(!canvas){canvas=document.createElement("canvas");canvas.className="gtxFallbackCanvas";canvas.style.cssText="position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;";host.appendChild(canvas);}
- const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight),dpr=Math.min(2,window.devicePixelRatio||1);
- canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
- const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
- ctx.fillStyle="#071827";ctx.fillRect(0,0,w,h);
- const data=displayCandles().slice(-60); if(!data.length)return;
- let lo=Math.min(...data.map(x=>x.low)),hi=Math.max(...data.map(x=>x.high)); if(!(hi>lo)){hi=lo+1}
- const pad={l:6,r:64,t:8,b:22},cw=(w-pad.l-pad.r)/Math.max(1,data.length),span=hi-lo;
- const y=p=>pad.t+(hi-p)/span*(h-pad.t-pad.b);
- ctx.strokeStyle="rgba(120,160,200,.12)";ctx.lineWidth=1;
- for(let g=0;g<=4;g++){const yy=pad.t+g*(h-pad.t-pad.b)/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();const val=hi-(g/4)*span;ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText(val.toFixed(assetPricePrecision()),w-pad.r+5,yy+3)}
- if(candleMode==="line"||candleMode==="area"){
-  ctx.beginPath();
-  data.forEach((x,i)=>{const xx=pad.l+i*cw+cw/2,yy=y(x.close);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});
-  if(candleMode==="area"){ctx.lineTo(pad.l+(data.length-.5)*cw,h-pad.b);ctx.lineTo(pad.l+cw/2,h-pad.b);ctx.closePath();ctx.fillStyle="rgba(66,165,255,.14)";ctx.fill();}
-  ctx.strokeStyle="#42a5ff";ctx.lineWidth=3;ctx.stroke();
- }else{
-  data.forEach((x,i)=>{const xx=pad.l+i*cw+cw/2,ow=y(x.open),ch=y(x.close),yh=y(x.high),yl=y(x.low),up=x.close>=x.open;ctx.strokeStyle=up?"#19c765":"#e5394f";ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();if(candleMode==="bars"){ctx.beginPath();ctx.moveTo(xx-cw*.22,ow);ctx.lineTo(xx,ow);ctx.moveTo(xx,ch);ctx.lineTo(xx+cw*.22,ch);ctx.stroke();}else{const top=Math.min(ow,ch),bh=Math.max(2,Math.abs(ow-ch));ctx.fillRect(xx-Math.max(2,cw*.34),top,Math.max(3,cw*.68),bh);}});
- }
- ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText("LIVE",6,h-7);
-}
-function drawNativeCandles(){
- const rootEl=root(); if(!rootEl)return;
- let cv=rootEl.querySelector("canvas.gtxStandaloneCandles");
- if(!cv){
-  cv=document.createElement("canvas");
-  cv.className="gtxStandaloneCandles";
-  cv.setAttribute("aria-label","GoTradeX candlestick chart");
-  rootEl.appendChild(cv);
- }
- const rect=rootEl.getBoundingClientRect();
- const w=Math.max(320,Math.floor(rect.width||rootEl.clientWidth||window.innerWidth||360));
- const h=Math.max(240,Math.floor(rect.height||rootEl.clientHeight||300));
- const dpr=Math.min(2,window.devicePixelRatio||1);
- cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
- cv.style.cssText="position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:100%!important;display:block!important;z-index:999!important;pointer-events:none!important;background:#071827!important";
- const ctx=cv.getContext("2d"); if(!ctx)return;
- ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
- ctx.fillStyle="#071827";ctx.fillRect(0,0,w,h);
- const data=displayCandles().filter(x=>[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(Number(v)))).slice(-60);
- const left=10,right=72,top=28,bottom=28;
- const pw=Math.max(10,w-left-right),ph=Math.max(10,h-top-bottom);
- if(!data.length){
-  ctx.fillStyle="#dbe9f7";ctx.font="900 13px sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
-  ctx.fillText(isOtcMode()?"OTC 24/7 • BUILDING MARKET":"LIVE • CONNECTING TO MARKET",w/2,h/2);
-  ctx.textAlign="left";return;
- }
- let lo=Infinity,hi=-Infinity;
- data.forEach(x=>{lo=Math.min(lo,x.low,x.open,x.close);hi=Math.max(hi,x.high,x.open,x.close)});
- if(!(hi>lo)){const p=Math.max(1,Math.abs(hi)*.002);lo-=p;hi+=p}
- const span=hi-lo,y=v=>top+(hi-v)/span*ph;
- ctx.font="10px sans-serif";ctx.textBaseline="middle";ctx.strokeStyle="rgba(120,160,200,.12)";
- for(let i=0;i<=5;i++){
-  const yy=top+ph*i/5;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right,yy);ctx.stroke();
-  ctx.fillStyle="#9db4cc";ctx.fillText(Number(hi-span*i/5).toFixed(assetPricePrecision()),w-right+5,yy);
- }
- const sx=pw/data.length,bw=Math.max(4,Math.min(20,sx*.65));
- data.forEach((x,i)=>{
-  const xx=left+i*sx+sx/2,oy=y(x.open),cy=y(x.close),hy=y(x.high),ly=y(x.low),up=x.close>=x.open,fill=up?"#18d46a":"#ff3f55";
-  ctx.strokeStyle=fill;ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(xx,hy);ctx.lineTo(xx,ly);ctx.stroke();
-  ctx.fillStyle=fill;ctx.fillRect(Math.round(xx-bw/2),Math.round(Math.min(oy,cy)),Math.max(3,Math.round(bw)),Math.max(3,Math.round(Math.abs(oy-cy))));
- });
- const last=data[data.length-1],py=y(last.close);
- ctx.strokeStyle="#f5c542";ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(left,py);ctx.lineTo(w-right,py);ctx.stroke();ctx.setLineDash([]);
- ctx.fillStyle="#f5c542";ctx.fillRect(w-right,py-9,right-4,18);
- ctx.fillStyle="#071827";ctx.font="900 10px sans-serif";ctx.fillText(Number(last.close).toFixed(assetPricePrecision()),w-right+5,py);
- ctx.fillStyle="#dbe9f7";ctx.font="900 11px sans-serif";ctx.textBaseline="alphabetic";
- ctx.fillText((isOtcMode()?"OTC 24/7 • GoTradeX Synthetic":"LIVE • "+pairLabel()),10,18);
- ctx.fillStyle="#7891aa";ctx.font="9px sans-serif";ctx.fillText(pairLabel(),10,h-8);
+ b.textContent=candleMode==="heikin"?"HEIKIN ASHI":"CANDLES";
+ b.title=candleMode==="heikin"?"Switch to standard candlesticks":"Switch to Heikin Ashi";
 }
 function renderCandleSeries(){
- const data=displayCandles();
- // Native renderer is the primary visible chart. Always render it after data changes.
- try{drawNativeCandles()}catch(e){console.error("GoTradeX native candle render failed",e)}
- if(!chart){return;}
- try{ensureMainSeries()}catch(_){series=null;return;}
  if(!series)return;
- const rendered=(candleMode==="line"||candleMode==="area")?chartLineData():data;
- try{series.setData(rendered)}catch(_){return;}
- if(rendered.length){
+ const data=displayCandles();
+ series.setData(data);
+ if(data.length){
   try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
  }
 }
 function toggleCandleMode(){
- const i=CANDLE_MODES.indexOf(candleMode);
- candleMode=CANDLE_MODES[(i+1)%CANDLE_MODES.length];
+ candleMode=candleMode==="heikin"?"candles":"heikin";
  store.set("gotradex_candle_mode",candleMode);
  syncCandleModeButton();
  renderCandleSeries();
@@ -481,26 +306,17 @@ function showRecentChartWindow(){
  }catch(_){}
 }
 function makeChart(){
- const host=$("gtxKenglyHost");if(!host)throw Error("Chart host unavailable");
- if(chart)try{chart.remove()}catch(_){} chart=null; series=null;
- if(!window.LightweightCharts){drawFallbackCandles();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();return;}
- try{
-  chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
-  ensureMainSeries();
-  renderCandleSeries();
- }catch(e){
-  try{chart?.remove()}catch(_){}
-  chart=null;series=null;
-  drawFallbackCandles();
-  root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();
-  return;
- }
+ const host=$("gtxKenglyHost");if(!host||!window.LightweightCharts)throw Error("Lightweight Charts library unavailable");
+ if(chart)try{chart.remove()}catch(_){}
+ chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
+ series=chart.addSeries(LightweightCharts.CandlestickSeries,{priceScaleId:"right",upColor:"#19c765",downColor:"#e5394f",borderUpColor:"#19c765",borderDownColor:"#e5394f",wickUpColor:"#19c765",wickDownColor:"#e5394f",borderVisible:true,priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}});
+ renderCandleSeries();
  const last=candles.at(-1)?.close;
  if(Number.isFinite(last))priceLine=series.createPriceLine({price:last,color:"#f5c542",lineWidth:2,lineStyle:2,axisLabelVisible:true,title:"LIVE"});
  buildIndicators();showRecentChartWindow();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();
 }
 
-function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(host.clientWidth&&host.clientHeight){if(chart)chart.resize(host.clientWidth,host.clientHeight);if(candles.length)drawNativeCandles();}updateTradeOverlay()});resizeObserver.observe(host);if(host.clientWidth&&host.clientHeight&&candles.length)drawNativeCandles()}
+function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(chart&&host.clientWidth&&host.clientHeight)chart.resize(host.clientWidth,host.clientHeight);updateTradeOverlay()});resizeObserver.observe(host)}
 function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});if(series&&x){try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}}updateTradeOverlay()}
 
 function closeSocket(){try{ws?.close()}catch(_){}try{tdWs?.close()}catch(_){}ws=null;tdWs=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
@@ -522,16 +338,16 @@ async function connectSocket(requestId=assetRequestId){
       if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LIVE 24/7";}
     }else{
       updateLivePrice(localOtcPrice(Date.now()/1000),Date.now()/1000);
-      if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX • LOCAL 24/7";}
+      if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LOCAL ENGINE";}
     }
    }catch(e){
     updateLivePrice(localOtcPrice(Date.now()/1000),Date.now()/1000);
-    if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX • LOCAL 24/7";}
+    if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LOCAL ENGINE";}
    }
   };
-  if(src)src.textContent="OTC • GoTradeX • LOCAL 24/7 • CONNECTING…";
+  if(src)src.textContent="OTC • GoTradeX Synthetic • CONNECTING…";
   await tick();
-  poll=setInterval(tick,500);
+  poll=setInterval(tick,1000);
   return;
  }
  if(usesExternalMarket()){
@@ -607,30 +423,12 @@ async function connectSocket(requestId=assetRequestId){
   const thisWs=ws;
   ws.onopen=()=>{
    if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration){try{thisWs.close()}catch(_){};return}
-   const topics=["tickers."+market.symbol];
-   const klineInterval=API[tf];
-   if(klineInterval)topics.push("kline."+klineInterval+"."+market.symbol);
-   ws.send(JSON.stringify({op:"subscribe",args:topics}));
-   const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit WebSocket • "+market.symbol;
+   ws.send(JSON.stringify({op:"subscribe",args:["tickers."+market.symbol]}));
+   const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Bybit WebSocket";
   };
   ws.onmessage=e=>{try{
    if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration)return;
-   const m=JSON.parse(e.data);
-   if(String(m?.topic||"").startsWith("kline.")){
-    const rows=Array.isArray(m?.data)?m.data:[];
-    rows.forEach(k=>{
-     const t=Number(k?.start||k?.timestamp||m?.ts||Date.now())/1000;
-     const o=Number(k?.open),h=Number(k?.high),l=Number(k?.low),c=Number(k?.close);
-     if([t,o,h,l,c].every(Number.isFinite)){
-      const existing=candles.find(x=>Number(x.time)===Math.floor(t));
-      if(existing){existing.open=o;existing.high=h;existing.low=l;existing.close=c;existing.volume=Number(k?.volume||existing.volume||0)}
-      else candles.push({time:Math.floor(t),open:o,high:h,low:l,close:c,volume:Number(k?.volume||0)});
-      candles=dedupe(candles).slice(-500);
-      renderCandleSeries();updateInfo();
-     }
-    });
-   }
-   const p=Number(m?.data?.lastPrice),t=Number(m?.ts||Date.now());
+   const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice),t=Number(m?.ts||Date.now());
    if(Number.isFinite(p))updateLivePrice(p,t/1000);
   }catch(_){}};
   ws.onerror=()=>{try{thisWs.close()}catch(_){}};
@@ -683,16 +481,6 @@ function updateLivePrice(p,sourceTime){
   x.close=price;
   x.high=Math.max(Number(x.high),price);
   x.low=Math.min(Number(x.low),price);
- }
- if(isOtcMode()){
-  const previous=candles.length>1?candles[candles.length-2]:null;
-  const base=Math.max(assetLocalUnit(),Number(previous?.close)||price);
-  const move=price-base;
-  const vol=Math.max(assetLocalUnit(),base*(.00035+Math.abs(otcGaussian(normalizedSymbol()+"|livevol",t))*.0012));
-  x.open=previous?base:Math.max(assetLocalUnit(),price-move);
-  x.close=price;
-  x.high=Math.max(x.open,x.close)+vol*(.25+otcHash(normalizedSymbol()+"|livehi",t)*.75);
-  x.low=Math.max(assetLocalUnit(),Math.min(x.open,x.close)-vol*(.25+otcHash(normalizedSymbol()+"|livelo",t)*.75));
  }
  try{
   renderCandleSeries();
@@ -830,53 +618,28 @@ function updateExpiryDisplay(){
 function bindExpiry(){clearInterval(expiryTimer);expiryTimer=setInterval(updateExpiryDisplay,250)}
 
 async function refresh(requestId=assetRequestId){
- if(requestId!==assetRequestId)return;
- // Start the realtime feed FIRST. History must never block the live chart.
- const liveFeedPromise=connectSocket(requestId).catch(e=>{
-  if(requestId!==assetRequestId)return;
-  const src=$("gtxKenglySource");
-  if(src)src.textContent=isOtcMode()?"OTC • GoTradeX • LOCAL 24/7 • RETRYING…":"LIVE FEED WAITING • "+String(e?.message||"Connecting…");
- });
  try{
-  try{
-   const loaded=await loadCandles(requestId);
-   if(loaded&&requestId===assetRequestId){
-    if(!chart)makeChart();
-    renderCandleSeries();
-    buildIndicators();
-    showRecentChartWindow();
-    updateInfo();
-   }
-  }catch(e){
-   // A failed/slow history request must not leave the chart blank.
-   // Bybit ticker/kline WebSocket continues independently and will build candles.
-   if(requestId===assetRequestId){
-    const box=$("gtxKenglyError");
-    if(box)box.hidden=true;
-    const src=$("gtxKenglySource");
-    if(src&&!isOtcMode())src.textContent="LIVE • waiting for Bybit WebSocket candles…";
-    console.warn("GoTradeX history unavailable; realtime feed remains active:",e);
-   }
-   if(!chart)try{makeChart()}catch(_){}
-   renderCandleSeries();
-  }
- }finally{
-  // Do not await the live feed here: WebSocket must remain independent of REST history.
-  void liveFeedPromise;
+  if(!(await loadCandles(requestId)))return;
+  if(requestId!==assetRequestId)return;
+
+  if(!chart)makeChart();else{renderCandleSeries();buildIndicators();showRecentChartWindow();updateInfo()}
+  connectSocket(requestId).catch(()=>{});
+ }catch(e){
+  if(!chart&&window.LightweightCharts){try{makeChart()}catch(_){}}
+  throw e;
  }
 }
 
 function showLiveError(e){
  const box=$("gtxKenglyError"),src=$("gtxKenglySource");
  const msg=String(e?.message||"Market data is not available");
- if(src)src.textContent=isOtcMode()?"OTC LOCAL ENGINE ERROR • Retrying…":"LIVE FEED ERROR • Retrying…";
- if(box){box.hidden=false;box.innerHTML=(isOtcMode()?"OTC LOCAL MARKET UNAVAILABLE":"LIVE CANDLE FEED UNAVAILABLE")+"<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>"+(isOtcMode()?"Retrying GoTradeX local market…":"Retrying live market data…")+"</span>"}
+ if(src)src.textContent=isOtcMode()?"OTC SYNTHETIC FEED ERROR • Retrying…":"LIVE FEED ERROR • Retrying…";
+ if(box){box.hidden=false;box.innerHTML=(isOtcMode()?"OTC SYNTHETIC MARKET UNAVAILABLE":"LIVE CANDLE FEED UNAVAILABLE")+"<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>"+(isOtcMode()?"Retrying GoTradeX synthetic market…":"Retrying live market data…")+"</span>"}
 }
 async function retryLive(requestId=assetRequestId){if(!started||requestId!==assetRequestId)return;try{await loadLibrary();await refresh(requestId)}catch(e){if(requestId!==assetRequestId)return;showLiveError(e);reconnectTimer=setTimeout(()=>retryLive(requestId),3000)}}
 
 async function boot(){
- if(started)return;
- if(!root()){setTimeout(()=>boot().catch(()=>{}),500);return;}
+ if(started||!root())return;
  // Start every chart from the currently selected asset/mode.
  assetRequestId++;
  started=true;
@@ -886,20 +649,7 @@ async function boot(){
  if(storedDisplay)store.set("gotradex_asset_display",storedDisplay);
  store.set("gotradex_asset_type",assetType);
  injectCss();rebuildDom();bindExpiry();
- // Seed OTC synchronously so the chart is never empty while the 24/7 feed connects.
- if(isOtcMode()){
-  try{candles=seedOtcCandles();renderCandleSeries()}catch(e){console.error("GoTradeX OTC seed failed",e)}
- }
- // Build the visible chart immediately. Market data is connected afterward.
- try{makeChart()}catch(e){console.error("GoTradeX initial chart build failed",e)}
- try{
-  try{await loadLibrary()}catch(_){/* Native renderer works without external chart libraries. */}
-  bindControls();
-  try{await refresh()}catch(e){showLiveError(e);console.error("GoTradeX market connection failed",e)}
-  clearInterval(poll);poll=null;
-  requestAnimationFrame(()=>{try{renderCandleSeries();observeSize()}catch(_){}}); 
-  setTimeout(()=>{try{renderCandleSeries()}catch(_){}} ,250);
- }
+ try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=null}
  catch(e){showLiveError(e);closeSocket();reconnectTimer=setTimeout(retryLive,3000)}
 }
 function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.has(name))active.delete(name);else active.add(name);buildIndicators();return active.has(name)}
@@ -917,3 +667,35 @@ window.GoTradeXChartEngine={
  assetType=inferAssetType(assetDisplay,type||store.get("gotradex_asset_type","crypto"));
  store.set("gotradex_chart_symbol",symbol);
  store.set("gotradex_asset_type",assetType);
+ store.set("gotradex_asset_display",assetDisplay||pairLabel());
+ resolvedMarket=null;resolvedKey="";
+ const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();const topPair=$("gtxKenglyPair");if(topPair)topPair.textContent=pairLabel();
+ // Clear the previous asset immediately. Never leave old candles visible while the new feed loads.
+ candles=[];
+ if(series){try{series.setData([])}catch(_){} }
+ clearIndicators();
+ try{priceLine?.applyOptions({price:NaN})}catch(_){}
+ const errBox=$("gtxKenglyError");if(errBox)errBox.hidden=true;
+ const source=$("gtxKenglySource");if(source)source.textContent=isOtcMode()?"OTC • GoTradeX Synthetic • CONNECTING…":"Connecting to "+pairLabel()+"…";
+ updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
+},
+ setMarketMode:mode=>{
+  marketMode=String(mode).toUpperCase()==="OTC"?"OTC":"LIVE";
+  store.set("gotradex_market_mode",marketMode);
+  resolvedMarket=null;resolvedKey="";
+  clearTimeout(reconnectTimer);reconnectTimer=null;closeSocket();
+  const src=$("gtxKenglySource");if(src)src.textContent=marketMode==="OTC"?"OTC FEED NOT CONFIGURED • No fake market data":"Connecting to "+pairLabel()+"…";
+  refresh().catch(showLiveError);
+ },
+ setBroker:()=>{
+ liveBroker="BYBIT";
+ resolvedMarket=null;resolvedKey="";
+ store.set("gotradex_chart_broker","BYBIT");
+ refresh().catch(showLiveError);
+},
+ setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
+ toggleIndicator,
+ startTrade
+};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else setTimeout(boot,0);
+})();
