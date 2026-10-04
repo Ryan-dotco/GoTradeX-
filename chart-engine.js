@@ -16,6 +16,7 @@ let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
 let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,tdWs=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
+let candleMode=String(store.get("gotradex_candle_mode","candles"))==="heikin"?"heikin":"candles";
 let lastLiveUpdateAt=0,liveFreshTimer=null;
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
@@ -113,7 +114,7 @@ function injectCss(){
 .gtxKenglyPair{font:900 11px/16px sans-serif!important;color:#fff!important}
 .gtxKenglyTf{font:700 9px/16px sans-serif!important;color:#9db4cc!important}
 .gtxKenglySource{margin-left:auto!important;font:800 8px/16px sans-serif!important;color:#5ee39a!important}
-.gtxKenglySource.stale{color:#ff9aaa!important}
+.gtxKenglySource.stale{color:#ff9aaa!important}.gtxCandleMode{margin-left:4px!important;border:1px solid #2b527d!important;border-radius:7px!important;background:#0b2033!important;color:#dbe9f7!important;font:800 8px/15px sans-serif!important;padding:0 6px!important;white-space:nowrap!important}
 .gtxKenglyStage{position:relative!important;flex:1 1 auto!important;min-height:150px!important;width:100%!important;overflow:hidden!important}
 .gtxKenglyHost{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
 .gtxKenglyHost canvas{touch-action:none!important}
@@ -138,7 +139,7 @@ function rebuildDom(){
  r.className="chart gtxKengly";
  r.innerHTML=`<div class="gtxKenglyHeader">
  <span class="gtxKenglyBadge live">● LIVE</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
-<span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span>
+<span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span><button class="gtxCandleMode" id="gtxCandleMode" type="button">CANDLES</button>
  </div><div class="gtxKenglyStage"><div class="gtxKenglyHost" id="gtxKenglyHost"></div><div class="gtxKenglyOverlay" id="gtxKenglyOverlay"></div><div class="gtxKenglyError" id="gtxKenglyError" hidden></div></div>`;
  return true;
 }
@@ -183,17 +184,50 @@ async function loadCandles(){
  if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
 }
 
+function heikinCandles(){
+ const out=[];
+ let prevOpen=null,prevClose=null;
+ candles.forEach((x)=>{
+  const close=(x.open+x.high+x.low+x.close)/4;
+  const open=prevOpen==null?(x.open+x.close)/2:(prevOpen+prevClose)/2;
+  out.push({time:x.time,open,high:Math.max(x.high,open,close),low:Math.min(x.low,open,close),close,volume:x.volume});
+  prevOpen=open;prevClose=close;
+ });
+ return out;
+}
+function displayCandles(){return candleMode==="heikin"?heikinCandles():candles;}
+function syncCandleModeButton(){
+ const b=$("gtxCandleMode");if(!b)return;
+ b.textContent=candleMode==="heikin"?"HEIKIN ASHI":"CANDLES";
+ b.title=candleMode==="heikin"?"Switch to standard candlesticks":"Switch to Heikin Ashi";
+}
+function renderCandleSeries(){
+ if(!series)return;
+ const data=displayCandles();
+ series.setData(data);
+ if(data.length){
+  try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
+ }
+}
+function toggleCandleMode(){
+ candleMode=candleMode==="heikin"?"candles":"heikin";
+ store.set("gotradex_candle_mode",candleMode);
+ syncCandleModeButton();
+ renderCandleSeries();
+ showRecentChartWindow();
+ updateInfo();
+}
 function sma(v,p){const o=[];for(let i=p-1;i<v.length;i++)o.push({time:candles[i].time,value:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p});return o}
 function ema(v,p){const o=[],k=2/(p+1);let e=null;v.forEach((x,i)=>{e=e==null?x:x*k+e*(1-k);if(i>=p-1)o.push({time:candles[i].time,value:e})});return o}
 function addLine(data,color,width=1,title=""){if(!chart)return null;const s=chart.addSeries(LightweightCharts.LineSeries,{color,lineWidth:width,priceLineVisible:false,lastValueVisible:false,title,crosshairMarkerVisible:false});s.setData(data);indicatorSeries.push(s);return s}
 function clearIndicators(){indicatorSeries.forEach(s=>{try{chart.removeSeries(s)}catch(_){}});indicatorSeries=[]}
 function buildIndicators(){
  clearIndicators();if(!chart||!candles.length)return;
- const c=candles.map(x=>x.close);
+ const sourceCandles=displayCandles();\n const c=sourceCandles.map(x=>x.close);
  if(active.has("EMA / SMA")){addLine(ema(c,9),"#f5c542",2,"EMA 9");addLine(ema(c,21),"#5ea7ff",2,"EMA 21");addLine(sma(c,50),"#b58cff",1,"SMA 50")}
  if(active.has("Alligator")){addLine(sma(c,5),"#57d68d",2,"Jaw");addLine(sma(c,8),"#f5c542",2,"Teeth");addLine(sma(c,13),"#ff6b6b",2,"Lips")}
- if(active.has("Bollinger Bands")){const m=sma(c,20),u=[],d=[];for(let i=19;i<c.length;i++){const q=c.slice(i-19,i+1),a=q.reduce((x,y)=>x+y,0)/20,sd=Math.sqrt(q.reduce((x,y)=>x+(y-a)**2,0)/20);u.push({time:candles[i].time,value:a+2*sd});d.push({time:candles[i].time,value:a-2*sd})}addLine(m,"#8fa8c4");addLine(u,"#9c7cff");addLine(d,"#9c7cff")}
- if(active.has("Fractals")){const h=candles.map(x=>x.high),l=candles.map(x=>x.low),hi=[],lo=[];for(let i=2;i<c.length-2;i++){if(h[i]>h[i-1]&&h[i]>h[i-2]&&h[i]>h[i+1]&&h[i]>h[i+2])hi.push({time:candles[i].time,value:h[i]});if(l[i]<l[i-1]&&l[i]<l[i-2]&&l[i]<l[i+1]&&l[i]<l[i+2])lo.push({time:candles[i].time,value:l[i]})}addLine(hi,"#ff9f43",2,"Fractal High");addLine(lo,"#48dbfb",2,"Fractal Low")}
+ if(active.has("Bollinger Bands")){const m=sma(c,20),u=[],d=[];for(let i=19;i<c.length;i++){const q=c.slice(i-19,i+1),a=q.reduce((x,y)=>x+y,0)/20,sd=Math.sqrt(q.reduce((x,y)=>x+(y-a)**2,0)/20);u.push({time:sourceCandles[i].time,value:a+2*sd});d.push({time:sourceCandles[i].time,value:a-2*sd})}addLine(m,"#8fa8c4");addLine(u,"#9c7cff");addLine(d,"#9c7cff")}
+ if(active.has("Fractals")){const h=sourceCandles.map(x=>x.high),l=sourceCandles.map(x=>x.low),hi=[],lo=[];for(let i=2;i<c.length-2;i++){if(h[i]>h[i-1]&&h[i]>h[i-2]&&h[i]>h[i+1]&&h[i]>h[i+2])hi.push({time:sourceCandles[i].time,value:h[i]});if(l[i]<l[i-1]&&l[i]<l[i-2]&&l[i]<l[i+1]&&l[i]<l[i+2])lo.push({time:sourceCandles[i].time,value:l[i]})}addLine(hi,"#ff9f43",2,"Fractal High");addLine(lo,"#48dbfb",2,"Fractal Low")}
 }
 
 function assetPricePrecision(){
@@ -212,7 +246,7 @@ function assetPriceMinMove(){
 function showRecentChartWindow(){
  if(!chart||!candles.length)return;
  try{
-  const count=Math.min(80,candles.length);
+  const count=Math.min(36,candles.length);
   chart.timeScale().setVisibleLogicalRange({from:Math.max(0,candles.length-count),to:candles.length+4});
   chart.priceScale("right").applyOptions({visible:true,autoScale:true,minimumWidth:78,ticksVisible:true,alignLabels:true});
  }catch(_){}
@@ -222,7 +256,7 @@ function makeChart(){
  if(chart)try{chart.remove()}catch(_){}
  chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
  series=chart.addSeries(LightweightCharts.CandlestickSeries,{priceScaleId:"right",upColor:"#19c765",downColor:"#e5394f",borderUpColor:"#19c765",borderDownColor:"#e5394f",wickUpColor:"#19c765",wickDownColor:"#e5394f",borderVisible:true,priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}});
- series.setData(candles);
+ renderCandleSeries();
  const last=candles.at(-1)?.close;
  if(Number.isFinite(last))priceLine=series.createPriceLine({price:last,color:"#f5c542",lineWidth:2,lineStyle:2,axisLabelVisible:true,title:"LIVE"});
  buildIndicators();showRecentChartWindow();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();
@@ -344,7 +378,7 @@ function updateLivePrice(p,sourceTime){
   x.low=Math.min(Number(x.low),price);
  }
  try{
-  if(series)series.setData(candles);
+  renderCandleSeries();
   if(chart){showRecentChartWindow();chart.timeScale().scrollToRealTime();}
  }catch(_){}
  if(priceLine)priceLine.applyOptions({price});
@@ -374,7 +408,7 @@ async function fast(){
 function loadLibrary(){return new Promise((resolve,reject)=>{if(window.LightweightCharts)return resolve();const old=document.querySelector('script[data-gtx-kengly-lib="1"]');if(old){old.addEventListener("load",resolve,{once:true});old.addEventListener("error",reject,{once:true});return}const s=document.createElement("script");s.src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js";s.dataset.gtxKenglyLib="1";s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
 
 function renderIndicators(){const g=$("gtxKenglyGrid");if(!g)return;g.innerHTML="";INDS.forEach(n=>{const b=document.createElement("button");b.textContent=n;b.className=active.has(n)?"on":"";b.onclick=()=>{active.has(n)?active.delete(n):active.add(n);renderIndicators();buildIndicators()};g.appendChild(b)})}
-function bindControls(){renderIndicators();["buy","sell"].forEach(id=>{const b=$(id);if(!b||b.dataset.gtxTradeBound==="1")return;b.dataset.gtxTradeBound="1";b.addEventListener("click",()=>startTrade(id==="buy"?"BUY":"SELL"),{capture:false})})}
+function bindControls(){renderIndicators();syncCandleModeButton();const mode=$("gtxCandleMode");if(mode&&!mode.dataset.gtxBound){mode.dataset.gtxBound="1";mode.addEventListener("click",toggleCandleMode)}["buy","sell"].forEach(id=>{const b=$(id);if(!b||b.dataset.gtxTradeBound==="1")return;b.dataset.gtxTradeBound="1";b.addEventListener("click",()=>startTrade(id==="buy"?"BUY":"SELL"),{capture:false})})}
 
 function readTradeControls(){
  const amountEl=$("amountValueText");
@@ -483,7 +517,7 @@ async function refresh(requestId=assetRequestId){
   await loadCandles();
   if(requestId!==assetRequestId)return;
 
-  if(!chart)makeChart();else{series?.setData(candles);buildIndicators();showRecentChartWindow();updateInfo()}
+  if(!chart)makeChart();else{renderCandleSeries();buildIndicators();showRecentChartWindow();updateInfo()}
   connectSocket(requestId).catch(()=>{});
  }catch(e){
   if(!chart&&window.LightweightCharts){try{makeChart()}catch(_){}}
