@@ -227,6 +227,18 @@ async function connectSocket(requestId=assetRequestId){
     +"&symbol="+encodeURIComponent(normalizedExternalSymbol());
   const thisWs=new WebSocket(endpoint);
   tdWs=thisWs;
+  clearInterval(poll);
+  poll=null;
+  const fallbackPoll=async()=>{
+   if(request!==assetRequestId||thisWs!==tdWs||lastLiveUpdateAt&&Date.now()-lastLiveUpdateAt<2500)return;
+   try{
+    const {data}=await client.functions.invoke("gotradex-market-data",{body:{action:"price",symbol:normalizedExternalSymbol(),assetType}});
+    const fp=Number(data?.price);
+    if(Number.isFinite(fp))updateLivePrice(fp,Number(data?.timestamp||Date.now())/1000);
+   }catch(_){}
+  };
+  poll=setInterval(fallbackPoll,2000);
+  fallbackPoll();
   thisWs.onopen=()=>{
     if(request!==assetRequestId||thisWs!==tdWs){try{thisWs.close()}catch(_){};return}
     if(src){src.classList.remove("stale");src.textContent="LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();}
@@ -294,11 +306,30 @@ async function connectSocket(requestId=assetRequestId){
  }
 }
 function updateLivePrice(p,sourceTime){
+ if(!Number.isFinite(Number(p)))return false;
+ const price=Number(p);
  lastLiveUpdateAt=Date.now();
- const step=TF[tf]||60,base=Number.isFinite(Number(sourceTime))?Number(sourceTime):Date.now()/1000,t=Math.floor(base/step)*step;let x=candles.at(-1);
- if(!x||t>x.time){x={time:t,open:p,high:p,low:p,close:p,volume:0};candles.push(x);candles=candles.slice(-500)}
- else{x.close=p;x.high=Math.max(x.high,p);x.low=Math.min(x.low,p)}
- series?.update(x);priceLine?.applyOptions({price:p});if(trade)updateTrade(p);updateInfo();
+ const step=Math.max(1,Number(TF[tf]||60));
+ const base=Number.isFinite(Number(sourceTime))?Number(sourceTime):Date.now()/1000;
+ const t=Math.floor(base/step)*step;
+ let x=candles.at(-1);
+ if(!x||Number(x.time)!==t){
+  x={time:t,open:price,high:price,low:price,close:price,volume:0};
+  candles.push(x);
+  if(candles.length>500)candles=candles.slice(-500);
+ }else{
+  x.close=price;
+  x.high=Math.max(Number(x.high),price);
+  x.low=Math.min(Number(x.low),price);
+ }
+ try{
+  if(series)series.setData(candles);
+  if(chart)chart.timeScale().scrollToRealTime();
+ }catch(_){}
+ if(priceLine)priceLine.applyOptions({price});
+ if(trade)updateTrade(price);
+ updateInfo();
+ return true;
 }
 async function fast(){
  if(!started||!candles.length)return;
