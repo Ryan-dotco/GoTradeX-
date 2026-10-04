@@ -175,8 +175,22 @@ async function fetchTwelveDataCandles(){
   .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
  return normalized;
 }
+async function fetchSyntheticCandles(){
+ const auth=window.GTXBybitAuth;
+ if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
+ const client=auth.ensureClient();
+ const {data,error}=await client.functions.invoke("gotradex-synthetic-market",{
+  body:{action:"chart",symbol:normalizedSymbol(),display:pairLabel(),timeframe:tf,limit:500}
+ });
+ if(error)throw Error(error.message||"GoTradeX synthetic OTC request failed.");
+ if(!data?.ok)throw Error(data?.error||"GoTradeX synthetic OTC market unavailable.");
+ const rows=Array.isArray(data.candles)?data.candles:[];
+ if(!rows.length)throw Error("No GoTradeX synthetic candles received.");
+ return rows.map(x=>({time:Number(x.time),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)}))
+  .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
+}
 async function fetchCandles(){
- if(isOtcMode())return fetchTwelveDataCandles();
+ if(isOtcMode())return fetchSyntheticCandles();
  return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();
 }
 
@@ -186,7 +200,7 @@ async function loadCandles(){
  if(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)){const src0=$("gtxKenglySource");if(src0)src0.textContent="LIVE TICKS • building "+tf+" candles • "+pairLabel();}
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
- if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • OTCharts • recorded candles • LIVE stream unavailable on Free plan":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
+ if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • GoTradeX Synthetic • LIVE 24/7":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
 }
 
 function heikinCandles(){
@@ -273,7 +287,33 @@ function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)
 
 function closeSocket(){try{ws?.close()}catch(_){}try{tdWs?.close()}catch(_){}ws=null;tdWs=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
 async function connectSocket(requestId=assetRequestId){
- if(isOtcMode() || usesExternalMarket()){
+ if(isOtcMode()){
+  closeSocket();
+  const request=requestId;
+  const auth=window.GTXBybitAuth;
+  const src=$("gtxKenglySource");
+  if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
+  const client=auth.ensureClient();
+  const tick=async()=>{
+   if(request!==assetRequestId)return;
+   try{
+    const {data,error}=await client.functions.invoke("gotradex-synthetic-market",{
+     body:{action:"price",symbol:normalizedSymbol(),display:pairLabel()}
+    });
+    if(error)throw error;
+    const p=Number(data?.price),t=Number(data?.timestamp||Date.now()/1000);
+    if(Number.isFinite(p))updateLivePrice(p,t);
+    if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LIVE 24/7";}
+   }catch(e){
+    if(src)src.textContent="OTC SYNTHETIC FEED ERROR • Retrying…";
+   }
+  };
+  if(src)src.textContent="OTC • GoTradeX Synthetic • CONNECTING…";
+  await tick();
+  poll=setInterval(tick,1000);
+  return;
+ }
+ if(usesExternalMarket()){
   closeSocket();
   const request=requestId;
   const auth=window.GTXBybitAuth;
@@ -376,7 +416,7 @@ function updateFeedStatus(){
  if(!src)return;
  if(isOtcMode()){
   src.classList.remove("stale");
-  src.textContent="OTC • OTCharts • recorded candles • LIVE stream unavailable on Free plan";
+  src.textContent="OTC • GoTradeX Synthetic • LIVE 24/7";
   return;
  }
  if(isForexWeekendClosed()){
@@ -556,8 +596,8 @@ async function refresh(requestId=assetRequestId){
 function showLiveError(e){
  const box=$("gtxKenglyError"),src=$("gtxKenglySource");
  const msg=String(e?.message||"Market data is not available");
- if(src)src.textContent="LIVE FEED ERROR • Retrying…";
- if(box){box.hidden=false;box.innerHTML="LIVE CANDLE FEED UNAVAILABLE<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>Retrying live market data…</span>"}
+ if(src)src.textContent=isOtcMode()?"OTC SYNTHETIC FEED ERROR • Retrying…":"LIVE FEED ERROR • Retrying…";
+ if(box){box.hidden=false;box.innerHTML=(isOtcMode()?"OTC SYNTHETIC MARKET UNAVAILABLE":"LIVE CANDLE FEED UNAVAILABLE")+"<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>"+(isOtcMode()?"Retrying GoTradeX synthetic market…":"Retrying live market data…")+"</span>"}
 }
 async function retryLive(requestId=assetRequestId){if(!started||requestId!==assetRequestId)return;try{await loadLibrary();await refresh(requestId)}catch(e){if(requestId!==assetRequestId)return;showLiveError(e);reconnectTimer=setTimeout(()=>retryLive(requestId),3000)}}
 
@@ -596,7 +636,7 @@ window.GoTradeXChartEngine={
  clearIndicators();
  try{priceLine?.applyOptions({price:NaN})}catch(_){}
  const errBox=$("gtxKenglyError");if(errBox)errBox.hidden=true;
- const source=$("gtxKenglySource");if(source)source.textContent=isOtcMode()?"OTC FEED NOT CONFIGURED • No fake market data":"Connecting to "+pairLabel()+"…";
+ const source=$("gtxKenglySource");if(source)source.textContent=isOtcMode()?"OTC • GoTradeX Synthetic • CONNECTING…":"Connecting to "+pairLabel()+"…";
  updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
 },
  setMarketMode:mode=>{
