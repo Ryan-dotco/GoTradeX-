@@ -319,7 +319,9 @@ function toggleCandleMode(){
 }
 function sma(v,p){const o=[];for(let i=p-1;i<v.length;i++)o.push({time:candles[i].time,value:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p});return o}
 function ema(v,p){const o=[],k=2/(p+1);let e=null;v.forEach((x,i)=>{e=e==null?x:x*k+e*(1-k);if(i>=p-1)o.push({time:candles[i].time,value:e})});return o}
-function addLine(data,color,width=1,title="",pane=0){if(!chart||!Array.isArray(data)||!data.length)return null;const s=chart.addSeries(LightweightCharts.LineSeries,{color,lineWidth:width,priceLineVisible:false,lastValueVisible:false,title,crosshairMarkerVisible:false},pane);s.setData(data);indicatorSeries.push(s);return s}\nfunction addHistogram(data,color,title="",pane=0){if(!chart||!Array.isArray(data)||!data.length)return null;const s=chart.addSeries(LightweightCharts.HistogramSeries,{color,priceLineVisible:false,lastValueVisible:false,title,base:0},pane);s.setData(data);indicatorSeries.push(s);return s}\nfunction fitIndicatorPane(){try{const p=chart?.panes?.()?.[1];if(p)p.setHeight(82)}catch(_){} }
+function addLine(data,color,width=1,title="",pane=0){if(!chart||!Array.isArray(data)||!data.length)return null;const s=chart.addSeries(LightweightCharts.LineSeries,{color,lineWidth:width,priceLineVisible:false,lastValueVisible:false,title,crosshairMarkerVisible:false},pane);s.setData(data);indicatorSeries.push(s);return s}
+function addHistogram(data,color,title="",pane=0){if(!chart||!Array.isArray(data)||!data.length)return null;const s=chart.addSeries(LightweightCharts.HistogramSeries,{color,priceLineVisible:false,lastValueVisible:false,title,base:0},pane);s.setData(data);indicatorSeries.push(s);return s}
+function fitIndicatorPane(){try{const p=chart?.panes?.()?.[1];if(p)p.setHeight(82)}catch(_){} }
 function clearIndicators(){indicatorSeries.forEach(s=>{try{chart.removeSeries(s)}catch(_){}});indicatorSeries=[]}
 function buildIndicators(){
  clearIndicators();if(!chart||!candles.length)return;
