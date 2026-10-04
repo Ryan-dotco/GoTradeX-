@@ -240,29 +240,9 @@ async function fetchSyntheticCandles(){
    if(Math.abs(open-prev.close)>maxJump)open=prev.close;
    if(Math.abs(close-open)>maxJump)close=open+Math.sign(close-open)*maxJump;
   }
-  // OTC GoTradeX candle design:
-  // Make the body the main visual feature. Keep only short, normal wicks.
-  // This intentionally reshapes the synthetic candle presentation rather than
-  // copying oversized server-side wick ranges onto a phone-sized chart.
-  let high=Math.max(hi,open,close);
-  let low=Math.min(lo,open,close);
-  if(isOtcMode()){
-   const center=Math.max((open+close)/2,assetLocalUnit());
-   const n=Math.abs(localOtcNoise("body-design|"+t+"|"+normalizedSymbol(),t));
-   const wickN=Math.abs(localOtcNoise("wick-design|"+t+"|"+normalizedSymbol(),t));
-   const dir=close>=open?1:-1;
-   // 0.30%–0.60% body: visibly playable, while retaining a smooth synthetic path.
-   const targetBody=Math.max(assetLocalUnit(),center*(0.0030+n*0.0030));
-   const body=Math.max(Math.abs(close-open),targetBody);
-   open=Math.max(assetLocalUnit(),center-dir*body/2);
-   close=Math.max(assetLocalUnit(),center+dir*body/2);
-   // Short wicks: only 8%–18% of the body, never long spikes.
-   const wick=body*(0.08+wickN*0.10);
-   high=Math.max(open,close)+wick;
-   low=Math.max(assetLocalUnit(),Math.min(open,close)-wick);
-  }
-  let shaped={time:t,open,high,low,close,volume:v};
-  if(isOtcMode())shaped=shapeOtcCandle(shaped,prev?.close);
+  // OTC candles are intentionally body-only: no synthetic spikes or wicks.
+let shaped={time:t,open,high,low,close,volume:v};
+if(isOtcMode())shaped=shapeOtcCandle(shaped,prev?.close);
   out.push(shaped);
   prev=out[out.length-1];
  }
