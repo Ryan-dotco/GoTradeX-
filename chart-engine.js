@@ -53,7 +53,7 @@ function pairLabel(){
  return s;
 }
 function usesExternalMarket(){
- return ["forex","stocks","indices","commodities"].includes(assetType);
+ return ["forex","stocks","indices","commodities"].includes(assetType) || (assetType==="crypto" && /USD$/.test(normalizedSymbol()) && !/USDT$/.test(normalizedSymbol()));
 }
 async function resolveBybitSymbol(){
  const wanted=normalizedSymbol().replace(/[^A-Z0-9]/g,"").toUpperCase();
