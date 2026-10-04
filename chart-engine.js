@@ -260,45 +260,9 @@ function syncCandleModeButton(){
  b.title="Chart style: "+(labels[candleMode]||"CANDLES")+" • tap to change";
 }
 function drawGoTradeXCanvas(){
- const host=$("gtxKenglyHost");if(!host)return;
- let c=host.querySelector("canvas.gtxVisibleCanvas");
- if(!c){c=document.createElement("canvas");c.className="gtxVisibleCanvas";host.appendChild(c)}
- const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight),d=Math.min(2,window.devicePixelRatio||1);
- c.width=Math.round(w*d);c.height=Math.round(h*d);c.style.cssText="position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;z-index:5";
- const ctx=c.getContext("2d");ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
- const data=displayCandles().slice(-70);
- ctx.fillStyle="#071827";ctx.fillRect(0,0,w,h);
- const pad={l:8,r:72,t:8,b:24},innerH=h-pad.t-pad.b,innerW=w-pad.l-pad.r;
- ctx.strokeStyle="rgba(120,160,200,.10)";ctx.lineWidth=1;
- for(let g=0;g<=4;g++){const yy=pad.t+g*innerH/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();}
- if(!data.length){
-  ctx.fillStyle="#9db4cc";ctx.font="12px sans-serif";ctx.textAlign="center";ctx.fillText(isOtcMode()?"Connecting to GoTradeX OTC candles…":"Waiting for verified LIVE market data…",w/2,h/2);return;
- }
- let lo=Math.min(...data.map(x=>x.low)),hi=Math.max(...data.map(x=>x.high));if(!(hi>lo)){hi=lo+assetLocalUnit()}
- const span=hi-lo,y=p=>pad.t+(hi-p)/span*innerH,cw=innerW/data.length;
- for(let g=0;g<=4;g++){const val=hi-g*span/4,yy=pad.t+g*innerH/4;ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.textAlign="left";ctx.fillText(Number(val).toFixed(assetPricePrecision()),w-pad.r+6,yy+3);}
- data.forEach((x,i)=>{
-  const xx=pad.l+i*cw+cw/2,up=x.close>=x.open,yo=y(x.open),yc=y(x.close),yh=y(x.high),yl=y(x.low);
-  ctx.strokeStyle=up?"#19c765":"#e5394f";ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;
-  if(candleMode==="line"||candleMode==="area"){
-   if(i===0)ctx.beginPath();else ctx.lineTo(xx,yc);if(i===0)ctx.moveTo(xx,yc);
-   if(i===data.length-1){
-    if(candleMode==="area"){ctx.lineTo(xx,h-pad.b);ctx.lineTo(pad.l+cw/2,h-pad.b);ctx.closePath();ctx.globalAlpha=.18;ctx.fill();ctx.globalAlpha=1;ctx.beginPath();data.forEach((q,j)=>{const px=pad.l+j*cw+cw/2;const py=y(q.close);j?ctx.lineTo(px,py):ctx.moveTo(px,py)});}
-   }
-  }else if(candleMode==="bars"){
-   ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.moveTo(xx-cw*.28,yo);ctx.lineTo(xx,yo);ctx.moveTo(xx,yc);ctx.lineTo(xx+cw*.28,yc);ctx.stroke();
-  }else{
-   ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();
-   const top=Math.min(yo,yc),bh=Math.max(2,Math.abs(yo-yc)),bodyW=Math.max(3,Math.min(14,cw*.62));ctx.fillRect(xx-bodyW/2,top,bodyW,bh);
-  }
- });
- if(candleMode==="line"||candleMode==="area"){ctx.strokeStyle="#42a5ff";ctx.lineWidth=2.5;ctx.beginPath();data.forEach((q,j)=>{const px=pad.l+j*cw+cw/2,py=y(q.close);j?ctx.lineTo(px,py):ctx.moveTo(px,py)});ctx.stroke();}
- const last=data[data.length-1],lastY=y(last.close);
- ctx.strokeStyle="#f5c542";ctx.lineWidth=1;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(pad.l,lastY);ctx.lineTo(w-pad.r,lastY);ctx.stroke();ctx.setLineDash([]);
- ctx.fillStyle="#f5c542";ctx.font="10px sans-serif";ctx.textAlign="left";ctx.fillText(Number(last.close).toFixed(assetPricePrecision()),w-pad.r+6,lastY+3);
- const now=new Date(Number(last.time)*1000),clock=now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
- ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText((isOtcMode()?"OTC • GoTradeX Synthetic":"LIVE • Verified feed")+" • "+clock,8,h-8);
- ctx.textAlign="right";ctx.fillText(clock,w-pad.r,h-8);
+ // Lightweight Charts is the single visible candle renderer.
+ // The old overlay canvas duplicated candles and could hide indicator layers.
+ return;
 }
 function renderCandleSeries(){
  const data=displayCandles();
@@ -384,9 +348,11 @@ function showRecentChartWindow(){
 function makeChart(){
  const host=$("gtxKenglyHost");if(!host||!window.LightweightCharts)throw Error("Lightweight Charts library unavailable");
  if(chart)try{chart.remove()}catch(_){}
- chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:false,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
+ chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:10,rightOffset:4,minBarSpacing:5,maxBarSpacing:32},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:false,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
  series=chart.addSeries(LightweightCharts.CandlestickSeries,{priceScaleId:"right",upColor:"#19c765",downColor:"#e5394f",borderUpColor:"#19c765",borderDownColor:"#e5394f",wickUpColor:"#19c765",wickDownColor:"#e5394f",borderVisible:true,priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}});
  renderCandleSeries();
+ // Keep one authoritative candle series; right-side prices and time axis stay native.
+ series.applyOptions({wickVisible:true,borderVisible:true,upColor:"#19c765",downColor:"#e5394f",borderUpColor:"#19c765",borderDownColor:"#e5394f",wickUpColor:"#19c765",wickDownColor:"#e5394f"});
  const last=candles.at(-1)?.close;
  if(Number.isFinite(last))priceLine=series.createPriceLine({price:last,color:"#f5c542",lineWidth:2,lineStyle:2,axisLabelVisible:true,title:"LIVE"});
  buildIndicators();showRecentChartWindow();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();
