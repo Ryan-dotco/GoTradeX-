@@ -115,6 +115,9 @@ function injectCss(){
 .gtxKenglyBadge{font:800 9px/16px sans-serif!important;padding:0 6px!important;border-radius:9px!important;background:#10304a!important;color:#9fc8e8!important}
 .gtxKenglyBadge.live{background:#123c2b!important;color:#5ee39a!important}.gtxKenglyBadge.otc{background:#2a1644!important;color:#c9a0ff!important}
 .gtxKenglyPair{font:900 11px/16px sans-serif!important;color:#fff!important}
+.gtxKenglyPrice{font:900 11px/16px sans-serif!important;color:#fff!important;letter-spacing:.01em}
+.gtxKenglyChange{font:900 8px/16px sans-serif!important;padding:0 4px;border-radius:4px;background:#102945;color:#9db4cc!important}
+.gtxKenglyChange.up{color:#5ee39a!important;background:#123c2b!important}.gtxKenglyChange.down{color:#ff9aaa!important;background:#421c26!important}
 .gtxKenglyTf{font:700 9px/16px sans-serif!important;color:#9db4cc!important}
 .gtxKenglySource{margin-left:auto!important;font:800 8px/16px sans-serif!important;color:#5ee39a!important}
 .gtxKenglySource.stale{color:#ff9aaa!important}.gtxCandleMode{margin-left:4px!important;border:1px solid #2b527d!important;border-radius:7px!important;background:#0b2033!important;color:#dbe9f7!important;font:800 8px/15px sans-serif!important;padding:0 6px!important;white-space:nowrap!important}
@@ -141,8 +144,8 @@ function rebuildDom(){
  if(pairEl)pairEl.textContent=pairLabel();
  r.className="chart gtxKengly";
  r.innerHTML=`<div class="gtxKenglyHeader">
- <span class="gtxKenglyBadge ${marketMode==="OTC"?"otc":"live"}">${marketMode==="OTC"?"● OTC 24/7":"● LIVE"}</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
-<span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span><button class="gtxCandleMode" id="gtxCandleMode" type="button">CANDLES</button>
+ <span class="gtxKenglyBadge ${marketMode==="OTC"?"otc":"live"}">${marketMode==="OTC"?"● OTC 24/7":"● LIVE"}</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong><strong class="gtxKenglyPrice" id="gtxKenglyPrice">—</strong><span class="gtxKenglyChange" id="gtxKenglyChange">—</span>
+<span class="gtxKenglySource" id="gtxKenglySource">Connecting…</span><button class="gtxCandleMode" id="gtxCandleMode" type="button">CANDLES</button>
  </div><div class="gtxKenglyStage"><div class="gtxKenglyHost" id="gtxKenglyHost"></div><div class="gtxKenglyOverlay" id="gtxKenglyOverlay"></div><div class="gtxKenglyError" id="gtxKenglyError" hidden></div></div>`;
  return true;
 }
@@ -361,7 +364,7 @@ function makeChart(){
 }
 
 function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(chart&&host.clientWidth&&host.clientHeight)chart.resize(host.clientWidth,host.clientHeight);drawGoTradeXCanvas();updateTradeOverlay()});resizeObserver.observe(host)}
-function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});if(series&&x){try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}}updateTradeOverlay()}
+function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe"),pr=$("gtxKenglyPrice"),ch=$("gtxKenglyChange");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x){if(pr)pr.textContent=fmt(x.close);const prev=candles.length>1?Number(candles.at(-2).close):Number(x.open);const pct=Number.isFinite(prev)&&prev!==0?((Number(x.close)-prev)/prev)*100:0;if(ch){ch.textContent=(pct>=0?"+":"")+pct.toFixed(2)+"%";ch.classList.toggle("up",pct>=0);ch.classList.toggle("down",pct<0)}if(priceLine)priceLine.applyOptions({price:x.close});if(series){try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){} }}else{if(pr)pr.textContent="—";if(ch)ch.textContent="—"}updateTradeOverlay()}
 
 function closeSocket(){try{ws?.close()}catch(_){}try{tdWs?.close()}catch(_){}ws=null;tdWs=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
 async function connectSocket(requestId=assetRequestId){
