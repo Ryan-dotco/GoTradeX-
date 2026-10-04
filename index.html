@@ -294,16 +294,7 @@ function updateGtxAdminMenu(){
 }
 updateGtxAdminMenu();
 
-document.querySelectorAll("[data-profile-action]").forEach(b=>b.addEventListener("click",()=>{
-  const a=b.dataset.profileAction;
-  if(a==="profile"){document.getElementById("menuDrawer").classList.remove("open");openGtxProfile();return}if(a==="account"){const m=localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO";document.getElementById("gtxProfileMode").textContent=m;document.getElementById("menuMessage").textContent=m+" account selected.";return}
-  if(a==="settings"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("menuMessage").textContent="";const s=document.querySelector('.menuItem[data-section="Settings"]');if(s)s.click();return}
-  if(a==="security"){document.getElementById("menuMessage").textContent="Security settings are available in your account security area.";return}
-  if(a==="notifications"){document.getElementById("menuMessage").textContent="Notification settings are available in your account settings.";return}
-  if(a==="help"){document.getElementById("menuDrawer").classList.remove("open");openHelp();return}
-  if(a==="logout"){document.getElementById("menuDrawer").classList.remove("open");document.getElementById("menuMessage").textContent="";if(typeof logout==="function")logout();else if(typeof logoutAccount==="function")logoutAccount();return}
-  document.getElementById("menuMessage").textContent="Profile details are ready for the verified account profile connection.";
-}));
+
 function updateGtxProfileMenu(){
   const id=document.getElementById("gtxProfileMenuId"),name=document.getElementById("gtxProfileMenuName"),av=document.getElementById("gtxProfileAvatar"),mode=document.getElementById("gtxProfileMode");
   if(id) id.textContent="Trader ID: GTX-000001";
