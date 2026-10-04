@@ -180,13 +180,28 @@ function localOtcNoise(key,t){
  return (h/4294967296)*2-1;
 }
 function localOtcPrice(t){
- const b=basePriceForLocalOtc(), k=normalizedSymbol()+"|"+pairLabel();
- const a=localOtcNoise(k+"a",t/3),b1=localOtcNoise(k+"b",t/9),c=localOtcNoise(k+"c",t/30);
- return Math.max(assetLocalUnit(),b*(1+a*.0009+b1*.002+c*.004));
+ const b=basePriceForLocalOtc(), k=normalizedSymbol()+"|"+pairLabel(), n=Number(t)||Date.now()/1000;
+ // Continuous GoTradeX OTC prototype motion: trend + medium swing + fast movement.
+ // This is intentionally our own synthetic market, not broker/external market data.
+ const seed=localOtcNoise(k+"|seed",0);
+ const phase=seed*Math.PI*2;
+ const trend=Math.sin(n/95+phase)*.0028;
+ const swing=Math.sin(n/27+phase*1.7)*.0038;
+ const fast=Math.sin(n/6.5+phase*2.3)*.0014;
+ const micro=Math.sin(n/1.8+phase*3.1)*.00035;
+ return Math.max(assetLocalUnit(),b*(1+trend+swing+fast+micro));
 }
 function basePriceForLocalOtc(){const d=String(pairLabel()).replace(/\\s+OTC$/i,"");const map={"EUR/USD":1.085,"GBP/USD":1.275,"USD/JPY":149.5,"XAU/USD":2650,"BTC/USD":62000,"ETH/USD":2450,"XRP/USD":.52,"SOL/USD":145};return Number(map[d]||100)}
 function assetLocalUnit(){const p=basePriceForLocalOtc();return p<1?.00001:p<10?.0001:p<100?.001:.01}
-function localOtcCandle(bucket,step){const o=localOtcPrice(bucket),c=localOtcPrice(bucket+step),mid=(o+c)/2,r=Math.abs(localOtcNoise("r|"+normalizedSymbol(),bucket)),w=mid*(.0015+r*.004);return {time:bucket,open:o,high:Math.max(o,c)+w*(.6+r),low:Math.max(assetLocalUnit(),Math.min(o,c)-w*(.6+(1-r))),close:c,volume:Math.round(800+r*3200)}}
+function localOtcCandle(bucket,step){
+ const o=localOtcPrice(bucket),c=localOtcPrice(bucket+step),mid=Math.max((o+c)/2,assetLocalUnit());
+ const r=Math.abs(localOtcNoise("r|"+normalizedSymbol(),bucket));
+ const body=Math.max(Math.abs(c-o),mid*(.0012+r*.0022));
+ const dir=c>=o?1:-1;
+ const open=c-dir*body/2,close=c+dir*body/2;
+ const upper=mid*(.0008+r*.0022),lower=mid*(.0008+(1-r)*.0022);
+ return {time:bucket,open,high:Math.max(open,close)+upper,low:Math.max(assetLocalUnit(),Math.min(open,close)-lower),close,volume:Math.round(1200+r*4800)}
+}
 async function fetchSyntheticCandles(){
  const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
  const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
@@ -215,7 +230,7 @@ async function fetchSyntheticCandles(){
   // to remain visibly distinct from the wick on a phone-sized chart.
   if(isOtcMode()){
    const mid=Math.max((open+close)/2,assetLocalUnit());
-   const minBody=Math.max(assetLocalUnit(),mid*(0.0007+Math.abs(localOtcNoise("body|"+t+"|"+normalizedSymbol(),t))*0.0008));
+   const minBody=Math.max(assetLocalUnit(),mid*(0.0012+Math.abs(localOtcNoise("body|"+t+"|"+normalizedSymbol(),t))*0.0022));
    if(Math.abs(close-open)<minBody){
     const dir=localOtcNoise("dir|"+t+"|"+normalizedSymbol(),t)>=0?1:-1;
     const center=(open+close)/2;
@@ -359,7 +374,7 @@ async function connectSocket(requestId=assetRequestId){
   };
   if(src)src.textContent="OTC • GoTradeX Synthetic • CONNECTING…";
   await tick();
-  poll=setInterval(tick,1000);
+  poll=setInterval(tick,500);
   return;
  }
  if(usesExternalMarket()){
