@@ -908,7 +908,7 @@ syncGtxKenglyVisibility();
       if(s==="Wallet"){show("walletDrawer"); return;}
       if(s==="Portfolio"){openPortfolio(); return;}
       if(s==="My Team"){if(typeof openMyTeam==="function")openMyTeam(); else show("myTeamPage"); return;}
-      if(s==="Agent AI"){if(typeof openAgentAI==="function")openAgentAI(); return;}
+      if(s==="Agent AI"){if(typeof openAgentAI==="function")openAgentAI(); return;} if(s==="Facial Verification"){if(typeof openIdentityVerification==="function")openIdentityVerification(); return;}
       if(s==="About"){openSimplePanel("About GoTradeX","GoTradeX — AI-assisted market analysis and paper trading.<br><br>This interface is for demonstration and paper-trading workflows. Real-money execution requires a separately verified live connection.");return;}
       if(s==="Privacy Policy"){show("privacyPage");return;}
       if(s==="Terms & Conditions"){show("termsPage");return;}
