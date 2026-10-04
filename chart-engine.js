@@ -208,11 +208,13 @@ function shapeOtcCandle(candle,previousClose){
  const prev=Number.isFinite(Number(previousClose))?Number(previousClose):close;
  const direction=close>=prev?1:-1;
  const n=Math.abs(localOtcNoise("visible-body|"+candle.time+"|"+normalizedSymbol(),candle.time));
- const w=Math.abs(localOtcNoise("visible-wick|"+candle.time+"|"+normalizedSymbol(),candle.time));
+ // OTC prototype candles are intentionally body-only: no upper/lower spikes or wicks.
+ // The candle body is the market move; high/low are exactly the body edges.
  const body=Math.max(assetLocalUnit(),close*(0.0045+n*0.0025));
  const open=Math.max(assetLocalUnit(),close-direction*body);
- const wick=Math.max(assetLocalUnit(),body*(0.08+w*0.07));
- return {...candle,open,close,high:Math.max(open,close)+wick,low:Math.max(assetLocalUnit(),Math.min(open,close)-wick)};
+ const high=Math.max(open,close);
+ const low=Math.max(assetLocalUnit(),Math.min(open,close));
+ return {...candle,open,close,high,low};
 }
 async function fetchSyntheticCandles(){
  const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
