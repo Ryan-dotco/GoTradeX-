@@ -88,7 +88,7 @@ function normalizedExternalSymbol(){
  const raw=normalizedSymbol();
  const d=String(assetDisplay||"").trim().toUpperCase();
  if(assetType==="commodities"){
-  const map={"XAUUSD":"XAU/USD","XAGUSD":"XAG/USD","WTIOIL":"WTI/USD","BRENTOIL":"BRENT/USD","NATURALGAS":"NG/USD","COPPER":"HG1","PLATINUM":"XPT/USD","PALLADIUM":"XPD/USD"};
+  const map={"XAUUSD":"XAU/USD","XAGUSD":"XAG/USD","WTIOIL":"WTI","BRENTOIL":"XBR","NATURALGAS":"NG","COPPER":"XG","PLATINUM":"XPT","PALLADIUM":"XPD"};
   return map[raw]||d;
  }
  if(assetType==="forex"&&/^[A-Z]{6}$/.test(raw))return raw.slice(0,3)+"/"+raw.slice(3);
