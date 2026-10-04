@@ -76,11 +76,51 @@
 .gtxPayPalCheckout label{display:block;color:#8fa8c4;font-size:9px;margin-bottom:4px}.gtxPayPalCheckout input{width:100%;height:40px;box-sizing:border-box;background:#061426;color:#fff;border:1px solid #23466d;border-radius:8px;padding:0 10px;margin-bottom:7px}
 .gtxPayPalCheckout button{width:100%;height:42px;border:0;border-radius:8px;background:#ffc439;color:#111;font-weight:900;font-size:11px}
 .gtxPayPalCheckout button:disabled{opacity:.55}.gtxPayPalCheckout .status{margin-top:7px}
-</style></style><style id="gtx-payment-methods">
+</style><style id="gtx-payment-methods">
 .walletPaymentMethods{margin:12px 0;padding:12px;border:1px solid #23466d;border-radius:12px;background:#0a2038}
 .walletPaymentMethods h3{margin:0 0 8px;font-size:12px;color:#fff}.paymentMethodGrid{display:grid;grid-template-columns:1fr;gap:7px}
 .paymentMethod{min-height:48px;text-align:left;border:1px solid #23466d;border-radius:9px;background:#102945;color:#fff;padding:8px 10px;font-weight:900;font-size:11px}
 .paymentMethod span{display:block;color:#8fa8c4;font-size:9px;font-weight:700;margin-top:2px}.paymentMethod.active{border-color:#16a34a;background:#123c2b}
+</style><style id="gtx-mobile-fit-final">
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+.app{width:100%;max-width:100vw}
+.pairbar{width:100%;min-width:0;max-width:100vw;overflow:hidden}
+.pairbarLeft{min-width:0;flex:1 1 auto;overflow:hidden}
+.pairbarLeft>.asset{flex:0 1 auto;min-width:0;white-space:nowrap}
+.pairbarLeft>.mainMarketSwitch{flex:0 1 auto;min-width:0}
+.accountPicker{flex:0 0 auto}
+@media(max-width:390px){
+  .pairbar{padding-left:5px!important;padding-right:5px!important;gap:3px!important}
+  .pairbarLeft{gap:3px!important}
+  .pairbarLeft>.asset{padding-left:6px!important;padding-right:6px!important;font-size:10px}
+  .pairbarLeft>.mainMarketSwitch{min-width:88px!important}
+  .pairbarLeft>.mainMarketSwitch button{padding-left:4px!important;padding-right:4px!important}
+  .accountPickerBtn{min-width:78px!important}
+}
+@media(max-width:340px){
+  .pairbarLeft>.asset:first-child{display:none}
+  .pairbarLeft>.asset{font-size:9px;padding-left:5px!important;padding-right:5px!important}
+  .pairbarLeft>.mainMarketSwitch{min-width:82px!important}
+  .accountPickerBtn{min-width:74px!important}
+}
+.adminPage,.adminDrawer{width:100vw;max-width:100vw;box-sizing:border-box}
+.adminPanel,.adminBody{box-sizing:border-box;max-width:100%}
+.adminSection,.adminCard,.adminStat,.adminTransaction,.adminUserRow,.adminAudit,.adminReferralControl,.adminSecurityNotice,.adminSystemCard,.adminFeesCard{min-width:0;max-width:100%;box-sizing:border-box}
+.adminReferralTable,.adminReferralLedgerTable,.adminPermissionTable{min-width:0!important;width:100%;table-layout:fixed;word-break:break-word}
+.adminReferralTable th,.adminReferralTable td,.adminReferralLedgerTable th,.adminReferralLedgerTable td,.adminPermissionTable th,.adminPermissionTable td{word-break:break-word;overflow-wrap:anywhere}
+@media(max-width:520px){
+  .adminTop{padding-left:9px;padding-right:9px}
+  .adminBody{padding:9px}
+  .adminPanel{width:100vw;padding:10px}
+  .adminGrid,.adminOverviewGrid,.adminUsersGrid,.adminReferralGrid,.adminSystemGrid,.adminFeesGrid{grid-template-columns:1fr}
+  .adminReferralDetailGrid,.adminUserMeta{grid-template-columns:1fr}
+  .adminMarketsToolbar,.adminUsersControls{grid-template-columns:1fr}
+  .adminReferralActions,.adminUsersActions,.adminSystemActions,.adminFeesActions{grid-template-columns:1fr}
+  .adminPermissionTable{font-size:8px}
+  .adminPermissionTable th,.adminPermissionTable td{padding:6px 3px}
+  .adminReferralTable,.adminReferralLedgerTable{font-size:8px}
+  .adminReferralTable th,.adminReferralTable td,.adminReferralLedgerTable th,.adminReferralLedgerTable td{padding:6px 3px}
+}
 </style></head>
 <body>
 <div class="app">
