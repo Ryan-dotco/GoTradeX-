@@ -1361,5 +1361,21 @@ body.gtx-subscreen-open .pairbar{display:none!important}
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",hook,{once:true});
   else hook();
 })();
-</script><script src="keypad-fix.js?v=20261004"></script><script src="agent-ai-fix.js?v=20261004"></script></body>
+</script><script src="keypad-fix.js?v=20261004"></script><script src="agent-ai-fix.js?v=20261004"></script><script id="gtx-final-chart-loader">
+(function(){
+  function forceChart(){
+    var root=document.querySelector(".chart");
+    if(!root || !root.querySelector("#candles")) return;
+    var s=document.createElement("script");
+    s.src="chart-engine.js?v=gtx-final-live-20261004-1";
+    s.dataset.gtxFinalChart="1";
+    s.onload=function(){try{window.GoTradeXChartEngine&&window.GoTradeXChartEngine.boot&&window.GoTradeXChartEngine.boot()}catch(e){}};
+    document.head.appendChild(s);
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",function(){setTimeout(forceChart,300)}, {once:true});
+  else setTimeout(forceChart,300);
+  window.addEventListener("load",function(){setTimeout(forceChart,300)});
+})();
+</script>
+</body>
 </html>
