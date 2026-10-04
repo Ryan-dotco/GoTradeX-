@@ -186,8 +186,25 @@ async function fetchSyntheticCandles(){
  if(!data?.ok)throw Error(data?.error||"GoTradeX synthetic OTC market unavailable.");
  const rows=Array.isArray(data.candles)?data.candles:[];
  if(!rows.length)throw Error("No GoTradeX synthetic candles received.");
- return rows.map(x=>({time:Number(x.time),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)}))
-  .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
+ const out=[];
+ let prev=null;
+ for(const x of rows){
+  const t=Number(x.time),o=Number(x.open),h=Number(x.high),l=Number(x.low),cl=Number(x.close),v=Number(x.volume||0);
+  if(!Number.isFinite(t)||![o,h,l,cl].every(Number.isFinite))continue;
+  const hi=Math.max(o,h,l,cl),lo=Math.min(o,h,l,cl);
+  let open=o,close=cl;
+  if(prev){
+   // Guard against a synthetic feed jump: keep each new candle anchored to the prior close.
+   const maxJump=Math.max(Math.abs(prev.close)*0.08,0.000001);
+   if(Math.abs(open-prev.close)>maxJump)open=prev.close;
+   if(Math.abs(close-open)>maxJump)close=open+Math.sign(close-open)*maxJump;
+  }
+  const high=Math.max(hi,open,close);
+  const low=Math.min(lo,open,close);
+  out.push({time:t,open,high,low,close,volume:v});
+  prev=out[out.length-1];
+ }
+ return out;
 }
 async function fetchCandles(){
  if(isOtcMode())return fetchSyntheticCandles();
