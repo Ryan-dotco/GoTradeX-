@@ -284,13 +284,14 @@ function drawGoTradeXCanvas(){
  const last=data[data.length-1];
  ctx.fillStyle="#f5c542";ctx.font="10px sans-serif";ctx.textAlign="left";ctx.fillText(Number(last.close).toFixed(assetPricePrecision()),w-pad.r+6,y(last.close)+3);
  ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText(isOtcMode()?"OTC • GoTradeX Synthetic":"LIVE • Verified feed",8,h-8);
-}\nfunction renderCandleSeries(){
- if(!series)return;
+}
+function renderCandleSeries(){
  const data=displayCandles();
- series.setData(data);
- if(data.length){
-  try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
+ if(series){
+  series.setData(data);
+  if(data.length){try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}}
  }
+ drawGoTradeXCanvas();
 }
 function toggleCandleMode(){
  candleMode=candleMode==="heikin"?"candles":"heikin";
