@@ -265,7 +265,16 @@ function drawGoTradeXCanvas(){
  return;
 }
 function renderCandleSeries(){
- const host=$("gtxKenglyHost");\n if(host){\n  // Remove every legacy/custom canvas from the chart host. Native Lightweight Charts\n  // canvases live inside .tv-lightweight-charts and are intentionally preserved.\n  host.querySelectorAll("canvas").forEach(x=>{\n   if(!x.closest(".tv-lightweight-charts"))x.remove();\n  });\n  host.querySelectorAll(".gtxVisibleCanvas,.gtxCandleCanvas,.candle-overlay-canvas,.candleCanvas").forEach(x=>x.remove());\n  host.style.background="#071827";\n }
+ const host=$("gtxKenglyHost");
+ if(host){
+  // Remove every legacy/custom canvas from the chart host. Native Lightweight Charts
+  // canvases live inside .tv-lightweight-charts and are intentionally preserved.
+  host.querySelectorAll("canvas").forEach(x=>{
+   if(!x.closest(".tv-lightweight-charts"))x.remove();
+  });
+  host.querySelectorAll(".gtxVisibleCanvas,.gtxCandleCanvas,.candle-overlay-canvas,.candleCanvas").forEach(x=>x.remove());
+  host.style.background="#071827";
+ }
  const data=displayCandles();
  if(series){
   series.setData(data);
