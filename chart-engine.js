@@ -176,13 +176,11 @@ async function fetchTwelveDataCandles(){
  return normalized;
 }
 async function fetchSyntheticCandles(){
- const auth=window.GTXBybitAuth;
- if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
- const client=auth.ensureClient();
- const {data,error}=await client.functions.invoke("gotradex-synthetic-market",{
-  body:{action:"chart",symbol:normalizedSymbol(),display:pairLabel(),timeframe:tf,limit:500}
- });
- if(error)throw Error(error.message||"GoTradeX synthetic OTC request failed.");
+ const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
+ const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
+ const res=await fetch(u,{cache:"no-store",headers:{"Accept":"application/json"}});
+ let data=null;try{data=await res.json()}catch(_){data=null}
+ if(!res.ok)throw Error(data?.error||("GoTradeX synthetic OTC request failed (HTTP "+res.status+")."));
  if(!data?.ok)throw Error(data?.error||"GoTradeX synthetic OTC market unavailable.");
  const rows=Array.isArray(data.candles)?data.candles:[];
  if(!rows.length)throw Error("No GoTradeX synthetic candles received.");
@@ -312,17 +310,15 @@ async function connectSocket(requestId=assetRequestId){
  if(isOtcMode()){
   closeSocket();
   const request=requestId;
-  const auth=window.GTXBybitAuth;
+  const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
   const src=$("gtxKenglySource");
-  if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
-  const client=auth.ensureClient();
   const tick=async()=>{
    if(request!==assetRequestId)return;
    try{
-    const {data,error}=await client.functions.invoke("gotradex-synthetic-market",{
-     body:{action:"price",symbol:normalizedSymbol(),display:pairLabel()}
-    });
-    if(error)throw error;
+    const u=endpoint+"?action=price&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel());
+    const res=await fetch(u,{cache:"no-store",headers:{"Accept":"application/json"}});
+    const data=await res.json();
+    if(!res.ok)throw Error(data?.error||("HTTP "+res.status));
     const p=Number(data?.price),t=Number(data?.timestamp||Date.now()/1000);
     if(Number.isFinite(p))updateLivePrice(p,t);
     if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LIVE 24/7";}
