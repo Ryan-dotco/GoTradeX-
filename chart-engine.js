@@ -407,7 +407,7 @@ window.GoTradeXChartEngine={
  store.set("gotradex_asset_type",assetType);
  store.set("gotradex_asset_display",assetDisplay||pairLabel());
  resolvedMarket=null;resolvedKey="";
- const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
+ const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();const topPair=$("gtxKenglyPair");if(topPair)topPair.textContent=pairLabel();
  // Clear the previous asset immediately. Never leave old candles visible while the new feed loads.
  candles=[];
  if(series){try{series.setData([])}catch(_){} }
