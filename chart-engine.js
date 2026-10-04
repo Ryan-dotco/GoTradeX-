@@ -445,13 +445,14 @@ function drawNativeCandles(){
 }
 
 function renderCandleSeries(){
- drawNativeCandles();
  const data=displayCandles();
- if(!chart){drawFallbackCandles();return;}
- try{ensureMainSeries()}catch(_){series=null;drawFallbackCandles();return;}
- if(!series){drawFallbackCandles();return;}
+ // Native renderer is the primary visible chart. Always render it after data changes.
+ try{drawNativeCandles()}catch(e){console.error("GoTradeX native candle render failed",e)}
+ if(!chart){return;}
+ try{ensureMainSeries()}catch(_){series=null;return;}
+ if(!series)return;
  const rendered=(candleMode==="line"||candleMode==="area")?chartLineData():data;
- try{series.setData(rendered)}catch(_){drawFallbackCandles();return;}
+ try{series.setData(rendered)}catch(_){return;}
  if(rendered.length){
   try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
  }
@@ -864,7 +865,10 @@ async function boot(){
  if(storedDisplay)store.set("gotradex_asset_display",storedDisplay);
  store.set("gotradex_asset_type",assetType);
  injectCss();rebuildDom();bindExpiry();
- try{try{await loadLibrary()}catch(_){/* Fallback canvas renderer is built in. */} bindControls(); await refresh(); clearInterval(poll);poll=null}
+ try{try{await loadLibrary()}catch(_){/* Native renderer does not depend on external chart library. */} bindControls(); await refresh(); clearInterval(poll);poll=null;
+  requestAnimationFrame(()=>{try{renderCandleSeries();observeSize()}catch(_){}}); 
+  setTimeout(()=>{try{renderCandleSeries()}catch(_){}} ,250);
+ }
  catch(e){showLiveError(e);closeSocket();reconnectTimer=setTimeout(retryLive,3000)}
 }
 function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.has(name))active.delete(name);else active.add(name);buildIndicators();return active.has(name)}
