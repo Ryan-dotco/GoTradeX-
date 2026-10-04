@@ -14,7 +14,7 @@ const $=id=>document.getElementById(id);
 
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
-let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute");
+let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute"),marketMode=String(store.get("gotradex_market_mode","LIVE")).toUpperCase()==="OTC"?"OTC":"LIVE";
 let active=new Set(),started=false,ws=null,tdWs=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
 let candleMode=String(store.get("gotradex_candle_mode","candles"))==="heikin"?"heikin":"candles";
 let lastLiveUpdateAt=0,liveFreshTimer=null;
@@ -53,8 +53,9 @@ function pairLabel(){
  if(s.endsWith("USD"))return s.slice(0,-3)+"/USD";
  return s;
 }
+function isOtcMode(){return marketMode==="OTC"}
 function usesExternalMarket(){
- return ["forex","stocks","indices","commodities"].includes(assetType) || (assetType==="crypto" && /USD$/.test(normalizedSymbol()) && !/USDT$/.test(normalizedSymbol()));
+ return !isOtcMode() && (["forex","stocks","indices","commodities"].includes(assetType) || (assetType==="crypto" && /USD$/.test(normalizedSymbol()) && !/USDT$/.test(normalizedSymbol())));
 }
 async function resolveBybitSymbol(){
  const wanted=normalizedSymbol().replace(/[^A-Z0-9]/g,"").toUpperCase();
@@ -75,6 +76,7 @@ async function resolveBybitSymbol(){
  throw Error("Bybit market not available for "+pairLabel());
 }
 async function resolveMarket(force=false){
+ if(isOtcMode())return {broker:"OTC_UNCONFIGURED",symbol:normalizedSymbol(),assetType};
  const key=(usesExternalMarket()?"TD:":"BYBIT:")+assetType+":"+normalizedSymbol();
  if(!force&&resolvedMarket&&resolvedKey===key)return resolvedMarket;
  if(usesExternalMarket()){
@@ -110,7 +112,7 @@ function injectCss(){
 .gtxKengly{position:relative!important;display:flex!important;flex-direction:column!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#071827!important;color:#dbe9f7!important}
 .gtxKenglyHeader{flex:0 0 auto!important;display:flex!important;align-items:center!important;gap:7px!important;width:100%!important;box-sizing:border-box!important;padding:3px 7px!important;background:#071827!important;z-index:20!important;white-space:nowrap!important;overflow:hidden!important}
 .gtxKenglyBadge{font:800 9px/16px sans-serif!important;padding:0 6px!important;border-radius:9px!important;background:#10304a!important;color:#9fc8e8!important}
-.gtxKenglyBadge.live{background:#123c2b!important;color:#5ee39a!important}
+.gtxKenglyBadge.live{background:#123c2b!important;color:#5ee39a!important}.gtxKenglyBadge.otc{background:#2a1644!important;color:#c9a0ff!important}
 .gtxKenglyPair{font:900 11px/16px sans-serif!important;color:#fff!important}
 .gtxKenglyTf{font:700 9px/16px sans-serif!important;color:#9db4cc!important}
 .gtxKenglySource{margin-left:auto!important;font:800 8px/16px sans-serif!important;color:#5ee39a!important}
@@ -138,7 +140,7 @@ function rebuildDom(){
  if(pairEl)pairEl.textContent=pairLabel();
  r.className="chart gtxKengly";
  r.innerHTML=`<div class="gtxKenglyHeader">
- <span class="gtxKenglyBadge live">● LIVE</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
+ <span class="gtxKenglyBadge ${marketMode==="OTC"?"otc":"live"}">${marketMode==="OTC"?"● OTC 24/7":"● LIVE"}</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
 <span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span><button class="gtxCandleMode" id="gtxCandleMode" type="button">CANDLES</button>
  </div><div class="gtxKenglyStage"><div class="gtxKenglyHost" id="gtxKenglyHost"></div><div class="gtxKenglyOverlay" id="gtxKenglyOverlay"></div><div class="gtxKenglyError" id="gtxKenglyError" hidden></div></div>`;
  return true;
@@ -173,7 +175,10 @@ async function fetchTwelveDataCandles(){
   .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
  return normalized;
 }
-async function fetchCandles(){return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();}
+async function fetchCandles(){
+ if(isOtcMode())throw Error("OTC 24/7 feed is not connected yet. No fake candles are used.");
+ return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();
+}
 
 async function loadCandles(){
  const market=await resolveMarket();
@@ -268,6 +273,12 @@ function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)
 
 function closeSocket(){try{ws?.close()}catch(_){}try{tdWs?.close()}catch(_){}ws=null;tdWs=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
 async function connectSocket(requestId=assetRequestId){
+ if(isOtcMode()){
+  closeSocket();
+  const src=$("gtxKenglySource");
+  if(src){src.classList.remove("stale");src.textContent="OTC FEED NOT CONFIGURED • No fake market data";}
+  return;
+ }
  if(usesExternalMarket()){
   closeSocket();
   const request=requestId;
@@ -366,6 +377,11 @@ function isForexWeekendClosed(){
 function updateFeedStatus(){
  const src=$("gtxKenglySource");
  if(!src)return;
+ if(isOtcMode()){
+  src.classList.remove("stale");
+  src.textContent="OTC 24/7 • REAL PROVIDER REQUIRED";
+  return;
+ }
  if(isForexWeekendClosed()){
   src.classList.add("stale");
   src.textContent="MARKET CLOSED • Forex weekend • Last AUD/USD price";
@@ -566,6 +582,7 @@ window.GoTradeXChartEngine={
  boot,refresh,
  setSymbol:(s,type,display)=>{
  const requestId=++assetRequestId;
+ marketMode=String(store.get("gotradex_market_mode","LIVE")).toUpperCase()==="OTC"?"OTC":"LIVE";
  clearTimeout(reconnectTimer);reconnectTimer=null;
  closeSocket();
  symbol=String(s||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"");
@@ -582,9 +599,17 @@ window.GoTradeXChartEngine={
  clearIndicators();
  try{priceLine?.applyOptions({price:NaN})}catch(_){}
  const errBox=$("gtxKenglyError");if(errBox)errBox.hidden=true;
- const source=$("gtxKenglySource");if(source)source.textContent="Connecting to "+pairLabel()+"…";
+ const source=$("gtxKenglySource");if(source)source.textContent=isOtcMode()?"OTC FEED NOT CONFIGURED • No fake market data":"Connecting to "+pairLabel()+"…";
  updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
 },
+ setMarketMode:mode=>{
+  marketMode=String(mode).toUpperCase()==="OTC"?"OTC":"LIVE";
+  store.set("gotradex_market_mode",marketMode);
+  resolvedMarket=null;resolvedKey="";
+  clearTimeout(reconnectTimer);reconnectTimer=null;closeSocket();
+  const src=$("gtxKenglySource");if(src)src.textContent=marketMode==="OTC"?"OTC FEED NOT CONFIGURED • No fake market data":"Connecting to "+pairLabel()+"…";
+  refresh().catch(showLiveError);
+ },
  setBroker:()=>{
  liveBroker="BYBIT";
  resolvedMarket=null;resolvedKey="";
