@@ -176,62 +176,52 @@ async function fetchTwelveDataCandles(){
  return normalized;
 }
 function localOtcNoise(key,t){
- const s=String(key)+"|"+Math.floor(Number(t)/18),h=[...s].reduce((a,ch)=>((a*33+ch.charCodeAt(0))>>>0),2166136261)>>>0;
+ const s=String(key)+"|"+Math.floor(Number(t)/5),h=[...s].reduce((a,ch)=>((a*33+ch.charCodeAt(0))>>>0),2166136261)>>>0;
  return (h/4294967296)*2-1;
 }
-function localOtcPrice(t){
- const b=basePriceForLocalOtc(), k=normalizedSymbol()+"|"+pairLabel(), n=Number(t)||Date.now()/1000;
- // Continuous GoTradeX OTC prototype motion: trend + medium swing + fast movement.
- // This is intentionally our own synthetic market, not broker/external market data.
- const seed=localOtcNoise(k+"|seed",0);
- const phase=seed*Math.PI*2;
- const trend=Math.sin(n/95+phase)*.0028;
- const swing=Math.sin(n/27+phase*1.7)*.0038;
- const fast=Math.sin(n/6.5+phase*2.3)*.0014;
- const micro=Math.sin(n/1.8+phase*3.1)*.00035;
- return Math.max(assetLocalUnit(),b*(1+trend+swing+fast+micro));
+function otcHash(key,t){
+ const s=String(key)+"|"+Math.floor(Number(t)/5),h=[...s].reduce((a,ch)=>((a*1664525+ch.charCodeAt(0)+1013904223)>>>0),2166136261)>>>0;
+ return h/4294967296;
 }
-function basePriceForLocalOtc(){const d=String(pairLabel()).replace(/\\s+OTC$/i,"");const map={"EUR/USD":1.085,"GBP/USD":1.275,"USD/JPY":149.5,"XAU/USD":2650,"BTC/USD":62000,"ETH/USD":2450,"XRP/USD":.52,"SOL/USD":145};return Number(map[d]||100)}
-function assetLocalUnit(){const p=basePriceForLocalOtc();return p<1?.00001:p<10?.0001:p<100?.001:.01}
+function otcGaussian(key,t){
+ const a=Math.max(0.000001,otcHash(key+"|a",t)),b=Math.max(0.000001,otcHash(key+"|b",t));
+ return Math.sqrt(-2*Math.log(a))*Math.cos(Math.PI*2*b);
+}
+function otcRegime(t){
+ const q=Math.floor(Number(t)/300);
+ const x=Math.sin(q*.73)+Math.sin(q*.19)*.7;
+ return x>.9?1:x<-.9?-1:0;
+}
+function localOtcPrice(t){
+ const b=basePriceForLocalOtc(),k=normalizedSymbol()+"|"+pairLabel(),n=Number(t)||Date.now()/1000;
+ const trend=Math.sin(n/170)*.0018+Math.sin(n/610)*.0032;
+ const swing=Math.sin(n/31)*.0022;
+ const noise=otcGaussian(k,n)*.00055;
+ return Math.max(assetLocalUnit(),b*(1+trend+swing+noise));
+}
 function localOtcCandle(bucket,step){
- const previous=localOtcPrice(bucket);
- const next=localOtcPrice(bucket+step);
- const mid=Math.max((previous+next)/2,assetLocalUnit());
- const noise=Math.abs(localOtcNoise("body|"+normalizedSymbol(),bucket));
- const direction=next>=previous?1:-1;
- const body=Math.max(assetLocalUnit()*2,mid*(0.0015+noise*0.0025));
- const close=Math.max(assetLocalUnit(),mid+direction*body/2);
- const open=Math.max(assetLocalUnit(),mid-direction*body/2);
- return {time:bucket,open,high:Math.max(open,close),low:Math.min(open,close),close,volume:Math.round(1000+noise*4000)};
+ const k=normalizedSymbol()+"|"+pairLabel();
+ const base=Math.max(assetLocalUnit(),basePriceForLocalOtc());
+ const regime=otcRegime(bucket);
+ const z=otcGaussian(k+"|return",bucket);
+ const z2=otcGaussian(k+"|micro",bucket+step);
+ const prev=Math.max(assetLocalUnit(),localOtcPrice(bucket));
+ const volatility=.0007+Math.abs(otcGaussian(k+"|vol",bucket))*.0022;
+ const drift=regime*.00055+Math.sin(bucket/240)*.00035;
+ const ret=Math.max(-.012,Math.min(.012,drift+z*volatility));
+ const close=Math.max(assetLocalUnit(),prev*(1+ret));
+ const body=Math.abs(close-prev);
+ const bodyScale=Math.max(assetLocalUnit()*2,base*(.00025+Math.abs(otcGaussian(k+"|body",bucket))*.0014));
+ const open=close-ret>=0?Math.max(assetLocalUnit(),close-(ret>=0?Math.max(body,bodyScale):-Math.max(body,bodyScale))):prev;
+ const realOpen=Number.isFinite(open)?open:prev;
+ const bodyHigh=Math.max(realOpen,close),bodyLow=Math.min(realOpen,close);
+ const wickFactor=.18+Math.abs(z2)*.75;
+ const upper=Math.max(assetLocalUnit(),base*volatility*wickFactor*(.35+otcHash(k+"|uw",bucket)));
+ const lower=Math.max(assetLocalUnit(),base*volatility*wickFactor*(.35+otcHash(k+"|lw",bucket)));
+ return {time:bucket,open:realOpen,high:bodyHigh+upper,low:Math.max(assetLocalUnit(),bodyLow-lower),close,volume:Math.round(800+Math.abs(z)*4200)};
 }
 function shapeOtcCandle(candle,previousClose){
- if(!candle)return candle;
- const close=Math.max(Number(candle.close)||0,assetLocalUnit());
- const prev=Number.isFinite(Number(previousClose))?Number(previousClose):close;
- const direction=close>=prev?1:-1;
- const n=Math.abs(localOtcNoise("visible-body|"+candle.time+"|"+normalizedSymbol(),candle.time));
- // OTC prototype candles are intentionally body-only: no upper/lower spikes or wicks.
- // The candle body is the market move; high/low are exactly the body edges.
- const body=Math.max(assetLocalUnit(),close*(0.0045+n*0.0025));
- const open=Math.max(assetLocalUnit(),close-direction*body);
- const high=Math.max(open,close);
- const low=Math.max(assetLocalUnit(),Math.min(open,close));
- return {...candle,open,close,high,low};
-}
-async function fetchSyntheticCandles(){
- // GoTradeX OTC chart is self-contained. Generate the visible history locally
- // so the chart never depends on a remote synthetic-candle endpoint.
- const step=Math.max(1,Number(TF[tf]||60));
- const end=Math.floor(Date.now()/1000/step)*step;
- const out=[];
- let previous=null;
- for(let i=239;i>=0;i--){
-  const raw=localOtcCandle(end-i*step,step);
-  const shaped=shapeOtcCandle(raw,previous?.close);
-  out.push(shaped);
-  previous=shaped;
- }
- return out;
+ return candle;
 }
 async function fetchCandles(){
  if(isOtcMode())return fetchSyntheticCandles();
@@ -516,9 +506,14 @@ function updateLivePrice(p,sourceTime){
   x.low=Math.min(Number(x.low),price);
  }
  if(isOtcMode()){
-  const previousClose=candles.length>1?candles[candles.length-2].close:price;
-  const shaped=shapeOtcCandle(x,previousClose);
-  x.open=shaped.open;x.high=shaped.high;x.low=shaped.low;x.close=shaped.close;
+  const previous=candles.length>1?candles[candles.length-2]:null;
+  const base=Math.max(assetLocalUnit(),Number(previous?.close)||price);
+  const move=price-base;
+  const vol=Math.max(assetLocalUnit(),base*(.00035+Math.abs(otcGaussian(normalizedSymbol()+"|livevol",t))*.0012));
+  x.open=previous?base:Math.max(assetLocalUnit(),price-move);
+  x.close=price;
+  x.high=Math.max(x.open,x.close)+vol*(.25+otcHash(normalizedSymbol()+"|livehi",t)*.75);
+  x.low=Math.max(assetLocalUnit(),Math.min(x.open,x.close)-vol*(.25+otcHash(normalizedSymbol()+"|livelo",t)*.75));
  }
  try{
   renderCandleSeries();
