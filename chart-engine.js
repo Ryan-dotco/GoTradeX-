@@ -852,15 +852,39 @@ function updateExpiryDisplay(){
 function bindExpiry(){clearInterval(expiryTimer);expiryTimer=setInterval(updateExpiryDisplay,250)}
 
 async function refresh(requestId=assetRequestId){
- try{
-  if(!(await loadCandles(requestId)))return;
+ if(requestId!==assetRequestId)return;
+ // Start the realtime feed FIRST. History must never block the live chart.
+ const liveFeedPromise=connectSocket(requestId).catch(e=>{
   if(requestId!==assetRequestId)return;
-
-  if(!chart)makeChart();else{renderCandleSeries();buildIndicators();showRecentChartWindow();updateInfo()}
-  connectSocket(requestId).catch(()=>{});
- }catch(e){
-  if(!chart&&window.LightweightCharts){try{makeChart()}catch(_){}}
-  throw e;
+  const src=$("gtxKenglySource");
+  if(src)src.textContent=isOtcMode()?"OTC • GoTradeX • LOCAL 24/7 • RETRYING…":"LIVE FEED WAITING • "+String(e?.message||"Connecting…");
+ });
+ try{
+  try{
+   const loaded=await loadCandles(requestId);
+   if(loaded&&requestId===assetRequestId){
+    if(!chart)makeChart();
+    renderCandleSeries();
+    buildIndicators();
+    showRecentChartWindow();
+    updateInfo();
+   }
+  }catch(e){
+   // A failed/slow history request must not leave the chart blank.
+   // Bybit ticker/kline WebSocket continues independently and will build candles.
+   if(requestId===assetRequestId){
+    const box=$("gtxKenglyError");
+    if(box)box.hidden=true;
+    const src=$("gtxKenglySource");
+    if(src&&!isOtcMode())src.textContent="LIVE • waiting for Bybit WebSocket candles…";
+    console.warn("GoTradeX history unavailable; realtime feed remains active:",e);
+   }
+   if(!chart)try{makeChart()}catch(_){}
+   renderCandleSeries();
+  }
+ }finally{
+  // Do not await the live feed here: WebSocket must remain independent of REST history.
+  void liveFeedPromise;
  }
 }
 
