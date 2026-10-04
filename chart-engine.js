@@ -235,6 +235,43 @@ function localOtcCandle(bucket,step){
  const low=Math.max(assetLocalUnit(),Math.min(open,close)-range*(.75+Math.abs(n1)*.35));
  return {time:bucket,open,high,low,close,volume:Math.round(1000+Math.abs(n3)*4000)};
 }
+function stableNoise(key,index){
+ const s=String(key)+"|"+Math.floor(Number(index)),h=[...s].reduce((a,ch)=>((a*33+ch.charCodeAt(0))>>>0),2166136261)>>>0;
+ return (h/4294967296)*2-1;
+}
+function sanitizeSyntheticCandles(rows,step){
+ const valid=(Array.isArray(rows)?rows:[]).map(x=>({
+  time:Number(x.time),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)
+ })).filter(x=>Number.isFinite(x.time)&&Number.isFinite(x.close))
+   .sort((a,b)=>a.time-b.time);
+ const unit=assetLocalUnit();
+ const out=[];
+ let prevClose=null;
+ for(let i=0;i<valid.length;i++){
+  const x=valid[i];
+  const rawClose=x.close;
+  const anchor=Number.isFinite(prevClose)?prevClose:rawClose;
+  const maxMove=Math.max(Math.abs(anchor)*0.0015,unit*8);
+  let close=anchor+(rawClose-anchor);
+  if(Number.isFinite(anchor))close=Math.max(anchor-maxMove,Math.min(anchor+maxMove,close));
+  if(!Number.isFinite(close))continue;
+  const bodyMin=Math.max(Math.abs(close)*0.00018,unit*6);
+  let open=Number.isFinite(x.open)?x.open:anchor;
+  if(!Number.isFinite(open))open=close;
+  open=Math.max(close-maxMove,Math.min(close+maxMove,open));
+  if(Math.abs(close-open)<bodyMin){
+   const dir=stableNoise(pairLabel()+"|body",i)>=0?1:-1;
+   open=close-dir*bodyMin;
+  }
+  const body=Math.abs(close-open);
+  const wick=Math.max(body*0.55,Math.abs(close)*0.00008,unit*3);
+  const high=Math.max(open,close)+wick;
+  const low=Math.max(unit*0.5,Math.min(open,close)-wick);
+  out.push({time:Math.floor(x.time),open,high,low,close,volume:x.volume});
+  prevClose=close;
+ }
+ return dedupe(out);
+}
 async function fetchSyntheticCandles(){
  const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
  const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
@@ -244,28 +281,14 @@ async function fetchSyntheticCandles(){
   const data=await res.json().catch(()=>null);
   if(res.ok&&data?.ok&&Array.isArray(data.candles))rows=data.candles;
  }catch(_){rows=[]}
- if(!rows.length){const step=Math.max(1,Number(TF[tf]||60)),end=Math.floor(Date.now()/1000/step)*step;for(let i=499;i>=0;i--)rows.push(localOtcCandle(end-i*step,step));}
-
- const out=[];
- let prev=null;
- for(const x of rows){
-  const t=Number(x.time),o=Number(x.open),h=Number(x.high),l=Number(x.low),cl=Number(x.close),v=Number(x.volume||0);
-  if(!Number.isFinite(t)||![o,h,l,cl].every(Number.isFinite))continue;
-  const hi=Math.max(o,h,l,cl),lo=Math.min(o,h,l,cl);
-  let open=o,close=cl;
-  if(prev){
-   // Guard against a synthetic feed jump: keep each new candle anchored to the prior close.
-   const maxJump=Math.max(Math.abs(prev.close)*0.08,0.000001);
-   if(Math.abs(open-prev.close)>maxJump)open=prev.close;
-   if(Math.abs(close-open)>maxJump)close=open+Math.sign(close-open)*maxJump;
-  }
-  const high=Math.max(hi,open,close);
-  const low=Math.min(lo,open,close);
-  out.push({time:t,open,high,low,close,volume:v});
-  prev=out[out.length-1];
+ const step=Math.max(1,Number(TF[tf]||60));
+ if(!rows.length){
+  const end=Math.floor(Date.now()/1000/step)*step;
+  for(let i=499;i>=0;i--)rows.push(localOtcCandle(end-i*step,step));
  }
- return out;
+ return sanitizeSyntheticCandles(rows,step);
 }
+
 async function fetchCandles(){
  if(isOtcMode())return fetchSyntheticCandles();
  return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();
