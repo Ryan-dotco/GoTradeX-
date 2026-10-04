@@ -211,6 +211,18 @@ async function fetchSyntheticCandles(){
    if(Math.abs(open-prev.close)>maxJump)open=prev.close;
    if(Math.abs(close-open)>maxJump)close=open+Math.sign(close-open)*maxJump;
   }
+  // OTC prototype: preserve the feed direction but give the candle body enough height
+  // to remain visibly distinct from the wick on a phone-sized chart.
+  if(isOtcMode()){
+   const mid=Math.max((open+close)/2,assetLocalUnit());
+   const minBody=Math.max(assetLocalUnit(),mid*(0.0007+Math.abs(localOtcNoise("body|"+t+"|"+normalizedSymbol(),t))*0.0008));
+   if(Math.abs(close-open)<minBody){
+    const dir=localOtcNoise("dir|"+t+"|"+normalizedSymbol(),t)>=0?1:-1;
+    const center=(open+close)/2;
+    open=Math.max(assetLocalUnit(),center-dir*minBody/2);
+    close=Math.max(assetLocalUnit(),center+dir*minBody/2);
+   }
+  }
   const high=Math.max(hi,open,close);
   const low=Math.min(lo,open,close);
   out.push({time:t,open,high,low,close,volume:v});
