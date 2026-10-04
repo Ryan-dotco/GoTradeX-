@@ -194,13 +194,15 @@ function localOtcPrice(t){
 function basePriceForLocalOtc(){const d=String(pairLabel()).replace(/\\s+OTC$/i,"");const map={"EUR/USD":1.085,"GBP/USD":1.275,"USD/JPY":149.5,"XAU/USD":2650,"BTC/USD":62000,"ETH/USD":2450,"XRP/USD":.52,"SOL/USD":145};return Number(map[d]||100)}
 function assetLocalUnit(){const p=basePriceForLocalOtc();return p<1?.00001:p<10?.0001:p<100?.001:.01}
 function localOtcCandle(bucket,step){
- const o=localOtcPrice(bucket),c=localOtcPrice(bucket+step),mid=Math.max((o+c)/2,assetLocalUnit());
- const r=Math.abs(localOtcNoise("r|"+normalizedSymbol(),bucket));
- const body=Math.max(Math.abs(c-o),mid*(.0012+r*.0022));
- const dir=c>=o?1:-1;
- const open=c-dir*body/2,close=c+dir*body/2;
- const upper=mid*(.0008+r*.0022),lower=mid*(.0008+(1-r)*.0022);
- return {time:bucket,open,high:Math.max(open,close)+upper,low:Math.max(assetLocalUnit(),Math.min(open,close)-lower),close,volume:Math.round(1200+r*4800)}
+ const previous=localOtcPrice(bucket);
+ const next=localOtcPrice(bucket+step);
+ const mid=Math.max((previous+next)/2,assetLocalUnit());
+ const noise=Math.abs(localOtcNoise("body|"+normalizedSymbol(),bucket));
+ const direction=next>=previous?1:-1;
+ const body=Math.max(assetLocalUnit()*2,mid*(0.0015+noise*0.0025));
+ const close=Math.max(assetLocalUnit(),mid+direction*body/2);
+ const open=Math.max(assetLocalUnit(),mid-direction*body/2);
+ return {time:bucket,open,high:Math.max(open,close),low:Math.min(open,close),close,volume:Math.round(1000+noise*4000)};
 }
 function shapeOtcCandle(candle,previousClose){
  if(!candle)return candle;
@@ -217,34 +219,17 @@ function shapeOtcCandle(candle,previousClose){
  return {...candle,open,close,high,low};
 }
 async function fetchSyntheticCandles(){
- const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
- const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
- let rows=[];
- try{
-  const res=await fetch(u,{cache:"no-store",headers:{"Accept":"application/json"}});
-  const data=await res.json().catch(()=>null);
-  if(res.ok&&data?.ok&&Array.isArray(data.candles))rows=data.candles;
- }catch(_){rows=[]}
- if(!rows.length){const step=Math.max(1,Number(TF[tf]||60)),end=Math.floor(Date.now()/1000/step)*step;for(let i=499;i>=0;i--)rows.push(localOtcCandle(end-i*step,step));}
-
+ // GoTradeX OTC chart is self-contained. Generate the visible history locally
+ // so the chart never depends on a remote synthetic-candle endpoint.
+ const step=Math.max(1,Number(TF[tf]||60));
+ const end=Math.floor(Date.now()/1000/step)*step;
  const out=[];
- let prev=null;
- for(const x of rows){
-  const t=Number(x.time),o=Number(x.open),h=Number(x.high),l=Number(x.low),cl=Number(x.close),v=Number(x.volume||0);
-  if(!Number.isFinite(t)||![o,h,l,cl].every(Number.isFinite))continue;
-  const hi=Math.max(o,h,l,cl),lo=Math.min(o,h,l,cl);
-  let open=o,close=cl;
-  if(prev){
-   // Guard against a synthetic feed jump: keep each new candle anchored to the prior close.
-   const maxJump=Math.max(Math.abs(prev.close)*0.08,0.000001);
-   if(Math.abs(open-prev.close)>maxJump)open=prev.close;
-   if(Math.abs(close-open)>maxJump)close=open+Math.sign(close-open)*maxJump;
-  }
-  // OTC candles are intentionally body-only: no synthetic spikes or wicks.
-let shaped={time:t,open,high,low,close,volume:v};
-if(isOtcMode())shaped=shapeOtcCandle(shaped,prev?.close);
+ let previous=null;
+ for(let i=239;i>=0;i--){
+  const raw=localOtcCandle(end-i*step,step);
+  const shaped=shapeOtcCandle(raw,previous?.close);
   out.push(shaped);
-  prev=out[out.length-1];
+  previous=shaped;
  }
  return out;
 }
@@ -263,7 +248,7 @@ async function loadCandles(requestId=assetRequestId){
  if(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)){const src0=$("gtxKenglySource");if(src0)src0.textContent="LIVE TICKS • building "+tf+" candles • "+pairLabel();}
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
- if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • GoTradeX Synthetic • LIVE 24/7":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
+ if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • GoTradeX • LOCAL 24/7":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
  return true;
 }
 
@@ -368,14 +353,14 @@ async function connectSocket(requestId=assetRequestId){
       if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LIVE 24/7";}
     }else{
       updateLivePrice(localOtcPrice(Date.now()/1000),Date.now()/1000);
-      if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LOCAL ENGINE";}
+      if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX • LOCAL 24/7";}
     }
    }catch(e){
     updateLivePrice(localOtcPrice(Date.now()/1000),Date.now()/1000);
-    if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX Synthetic • LOCAL ENGINE";}
+    if(src){src.classList.remove("stale");src.textContent="OTC • GoTradeX • LOCAL 24/7";}
    }
   };
-  if(src)src.textContent="OTC • GoTradeX Synthetic • CONNECTING…";
+  if(src)src.textContent="OTC • GoTradeX • LOCAL 24/7 • CONNECTING…";
   await tick();
   poll=setInterval(tick,500);
   return;
@@ -668,8 +653,8 @@ async function refresh(requestId=assetRequestId){
 function showLiveError(e){
  const box=$("gtxKenglyError"),src=$("gtxKenglySource");
  const msg=String(e?.message||"Market data is not available");
- if(src)src.textContent=isOtcMode()?"OTC SYNTHETIC FEED ERROR • Retrying…":"LIVE FEED ERROR • Retrying…";
- if(box){box.hidden=false;box.innerHTML=(isOtcMode()?"OTC SYNTHETIC MARKET UNAVAILABLE":"LIVE CANDLE FEED UNAVAILABLE")+"<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>"+(isOtcMode()?"Retrying GoTradeX synthetic market…":"Retrying live market data…")+"</span>"}
+ if(src)src.textContent=isOtcMode()?"OTC LOCAL ENGINE ERROR • Retrying…":"LIVE FEED ERROR • Retrying…";
+ if(box){box.hidden=false;box.innerHTML=(isOtcMode()?"OTC LOCAL MARKET UNAVAILABLE":"LIVE CANDLE FEED UNAVAILABLE")+"<br><span style='font-weight:500;color:#7891aa'>"+msg.replace(/[<>&"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[m]))+"</span><br><span style='font-weight:500;color:#7891aa'>"+(isOtcMode()?"Retrying GoTradeX local market…":"Retrying live market data…")+"</span>"}
 }
 async function retryLive(requestId=assetRequestId){if(!started||requestId!==assetRequestId)return;try{await loadLibrary();await refresh(requestId)}catch(e){if(requestId!==assetRequestId)return;showLiveError(e);reconnectTimer=setTimeout(()=>retryLive(requestId),3000)}}
 
