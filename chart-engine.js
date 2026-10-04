@@ -223,7 +223,8 @@ function addLine(data,color,width=1,title=""){if(!chart)return null;const s=char
 function clearIndicators(){indicatorSeries.forEach(s=>{try{chart.removeSeries(s)}catch(_){}});indicatorSeries=[]}
 function buildIndicators(){
  clearIndicators();if(!chart||!candles.length)return;
- const sourceCandles=displayCandles();\n const c=sourceCandles.map(x=>x.close);
+ const sourceCandles=displayCandles();
+ const c=sourceCandles.map(x=>x.close);
  if(active.has("EMA / SMA")){addLine(ema(c,9),"#f5c542",2,"EMA 9");addLine(ema(c,21),"#5ea7ff",2,"EMA 21");addLine(sma(c,50),"#b58cff",1,"SMA 50")}
  if(active.has("Alligator")){addLine(sma(c,5),"#57d68d",2,"Jaw");addLine(sma(c,8),"#f5c542",2,"Teeth");addLine(sma(c,13),"#ff6b6b",2,"Lips")}
  if(active.has("Bollinger Bands")){const m=sma(c,20),u=[],d=[];for(let i=19;i<c.length;i++){const q=c.slice(i-19,i+1),a=q.reduce((x,y)=>x+y,0)/20,sd=Math.sqrt(q.reduce((x,y)=>x+(y-a)**2,0)/20);u.push({time:sourceCandles[i].time,value:a+2*sd});d.push({time:sourceCandles[i].time,value:a-2*sd})}addLine(m,"#8fa8c4");addLine(u,"#9c7cff");addLine(d,"#9c7cff")}
