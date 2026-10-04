@@ -846,7 +846,12 @@ body.gtx-subscreen-open .pairbar{display:none!important}
 .accountMenuAction:hover,.accountMenuAction:active{background:#102945}
 @media(max-width:390px){.accountPickerBtn{min-width:82px;padding-left:6px;padding-right:6px}.accountPickerMenu{right:-2px;width:210px}.accountPickerMenu .accountMode{padding-left:8px;padding-right:8px}}
 </style>
-<style id="gtx-account-mode-repair">
+<style id="gtx-account-colors">
+.pairbar .accountPickerBtn.demoActive{background:#9f1d25!important;border-color:#e53935!important}.pairbar .accountPickerBtn.demoActive span,.pairbar .accountPickerBtn.demoActive strong{color:#fff!important}
+.pairbar .accountPickerBtn.liveActive{background:#0b7a38!important;border-color:#16a34a!important}.pairbar .accountPickerBtn.liveActive span,.pairbar .accountPickerBtn.liveActive strong{color:#fff!important}
+.accountPickerMenu .accountMode.demoMode.active{background:#641820!important;border-color:#e53935!important}
+.accountPickerMenu .accountMode.realMode.active{background:#075c2c!important;border-color:#16a34a!important}
+</style><style id="gtx-account-mode-repair">
 .pairbar .accountModes{position:relative!important;z-index:20!important;pointer-events:auto!important}
 .pairbar .accountMode{position:relative!important;z-index:21!important;pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important}
 .pairbar .accountMode.active{filter:brightness(1.08)}
@@ -871,6 +876,8 @@ body.gtx-subscreen-open .pairbar{display:none!important}
     var demo=document.getElementById("demoAccountBtn"),real=document.getElementById("realAccountBtn");
     if(demo)demo.classList.toggle("active",m==="DEMO");
     if(real)real.classList.toggle("active",m==="REAL");
+    var picker=document.getElementById("accountPickerBtn");
+    if(picker){picker.classList.toggle("demoActive",m==="DEMO");picker.classList.toggle("liveActive",m==="REAL");}
     var pickerBalance=document.getElementById("accountPickerBalance"),pickerLabel=document.getElementById("accountPickerLabel");
     if(pickerBalance)pickerBalance.textContent=fmt(m==="REAL"?balances.real:balances.demo);
     if(pickerLabel)pickerLabel.textContent=(m==="REAL"?"LIVE":"DEMO")+" ▾";var pickerBtn=document.getElementById("accountPickerBtn");if(pickerBtn){pickerBtn.setAttribute("data-mode",m);pickerBtn.style.setProperty("background",m==="REAL"?"#16A34A":"#E53935","important");pickerBtn.style.setProperty("border-color",m==="REAL"?"#16A34A":"#E53935","important");}if(demo){demo.style.setProperty("background","#E53935","important");demo.style.setProperty("border-color","#E53935","important");}if(real){real.style.setProperty("background","#16A34A","important");real.style.setProperty("border-color","#16A34A","important");}
