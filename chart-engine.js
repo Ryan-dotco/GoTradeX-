@@ -138,6 +138,30 @@ function injectCss(){
  document.head.appendChild(s);
 }
 
+function purgeGreenScreenLayers(){
+ try{
+  const rootEl=root();
+  const bad=/^(rgb\\(\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*\\)|rgba\\(\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*,\\s*([0-9]{1,3})\\s*,\\s*([0-9.]+)\\s*\\))$/i;
+  document.querySelectorAll("body *").forEach(el=>{
+   if(!el||el===rootEl||el.closest(".tv-lightweight-charts"))return;
+   const r=el.getBoundingClientRect();
+   if(r.width<innerWidth*.75||r.height<innerHeight*.55)return;
+   const s=getComputedStyle(el),m=s.backgroundColor.match(bad);
+   if(!m)return;
+   const nums=m.slice(1).filter(x=>x!==undefined).map(Number);
+   const rr=nums[0],gg=nums[1],bb=nums[2],aa=nums[3];
+   if(gg>120&&gg>rr*1.35&&gg>bb*1.2&&(aa===undefined||aa>.15)){
+    if(el.id==="gtxKenglyOverlay")el.style.setProperty("background","transparent","important");
+    else if(el!==rootEl)el.remove();
+   }
+  });
+  if(rootEl){
+   rootEl.style.setProperty("background","#071827","important");
+   const stage=rootEl.querySelector(".gtxKenglyStage"); if(stage)stage.style.setProperty("background","#071827","important");
+   const host=rootEl.querySelector(".gtxKenglyHost"); if(host)host.style.setProperty("background","#071827","important");
+  }
+ }catch(_){}
+}
 function rebuildDom(){
  const r=root();if(!r)return false;
  const pairEl=$("pairName");
