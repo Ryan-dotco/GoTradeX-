@@ -14,7 +14,7 @@ const $=id=>document.getElementById(id);
 
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
-let candles=[],symbol=(String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase()==="BTCUSDT"?"BTCUSDT":"BTCUSDT"),tf=store.get("gotradex_chart_timeframe","1 Minute");
+let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
@@ -33,6 +33,9 @@ function pairLabel(){
  if(s.endsWith("USDT"))return s.slice(0,-4)+"/USDT";
  if(s.endsWith("USD"))return s.slice(0,-3)+"/USD";
  return s;
+}
+function usesExternalMarket(){
+ return ["forex","stocks","indices"].includes(assetType);
 }
 async function resolveBybitSymbol(){
  const wanted=normalizedSymbol().replace(/[^A-Z0-9]/g,"").toUpperCase();
@@ -53,13 +56,17 @@ async function resolveBybitSymbol(){
  throw Error("Bybit market not available for "+pairLabel());
 }
 async function resolveMarket(force=false){
- const key="BYBIT:"+normalizedSymbol();
+ const key=(usesExternalMarket()?"TD:":"BYBIT:")+assetType+":"+normalizedSymbol();
  if(!force&&resolvedMarket&&resolvedKey===key)return resolvedMarket;
- resolvedMarket={broker:"BYBIT",...await resolveBybitSymbol()};
+ if(usesExternalMarket()){
+  resolvedMarket={broker:"TWELVE_DATA",symbol:normalizedSymbol(),assetType};
+ }else{
+  resolvedMarket={broker:"BYBIT",...await resolveBybitSymbol()};
+ }
  resolvedKey=key;
  return resolvedMarket;
 }
-function displayBroker(){return "Bybit"}
+function displayBroker(){return usesExternalMarket()?"Twelve Data":"Bybit"}
 function fmt(v){v=Number(v);if(!Number.isFinite(v))return"—";return v>=1000?v.toFixed(2):v>=10?v.toFixed(4):v>=1?v.toFixed(5):v.toFixed(6)}
 
 function injectCss(){
@@ -112,14 +119,28 @@ async function fetchBybitCandles(){
  if(!rows.length)throw Error("No Bybit candles received");
  return rows;
 }
-async function fetchCandles(){return fetchBybitCandles();}
+async function fetchTwelveDataCandles(){
+ const auth=window.GTXBybitAuth;
+ if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
+ const client=auth.ensureClient();
+ const {data,error}=await client.functions.invoke("gotradex-market-data",{
+  body:{action:"chart",symbol:normalizedSymbol(),assetType,timeframe:tf}
+ });
+ if(error)throw Error(error.message||"Forex/stock market-data request failed.");
+ if(!data?.ok)throw Error(data?.error||"Forex/stock market-data feed unavailable.");
+ const rows=Array.isArray(data.candles)?data.candles:[];
+ if(!rows.length)throw Error("No candles received for "+pairLabel()+".");
+ return rows.map(x=>({time:Number(x.time),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)}))
+  .filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
+}
+async function fetchCandles(){return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();}
 
 async function loadCandles(){
  const market=await resolveMarket();
  candles=dedupe(await fetchCandles()).slice(-500);
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
- if(src)src.textContent="LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
+ if(src)src.textContent=usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
 }
 
 function sma(v,p){const o=[];for(let i=p-1;i<v.length;i++)o.push({time:candles[i].time,value:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p});return o}
@@ -151,6 +172,13 @@ function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)
 
 function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null}
 async function connectSocket(requestId=assetRequestId){
+ if(usesExternalMarket()){
+  closeSocket();
+  clearInterval(poll);
+  poll=setInterval(()=>fast(),120000);
+  const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel();
+  return;
+ }
  const mySocket=++socketGeneration;
  closeSocket();
  const market=await resolveMarket();
@@ -187,13 +215,21 @@ function updateLivePrice(p,sourceTime){
  series?.update(x);priceLine?.applyOptions({price:p});if(trade)updateTrade(p);updateInfo();
 }
 async function fast(){
- if(!started||!candles.length||!["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return;
+ if(!started||!candles.length)return;
  try{
   const market=await resolveMarket();
-  if(market.broker!=="BYBIT")return;
-  const r=await fetch("https://api.bybit.com/v5/market/tickers?category="+encodeURIComponent(market.category)+"&symbol="+encodeURIComponent(market.symbol),{cache:"no-store"});
-  const d=await r.json(),p=Number(d?.result?.list?.[0]?.lastPrice);
-  if(Number.isFinite(p))updateLivePrice(p)
+  if(market.broker==="BYBIT"){
+   if(!["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return;
+   const r=await fetch("https://api.bybit.com/v5/market/tickers?category="+encodeURIComponent(market.category)+"&symbol="+encodeURIComponent(market.symbol),{cache:"no-store"});
+   const d=await r.json(),p=Number(d?.result?.list?.[0]?.lastPrice);
+   if(Number.isFinite(p))updateLivePrice(p);
+  }else{
+   const auth=window.GTXBybitAuth;if(!auth||typeof auth.ensureClient!=="function")return;
+   const client=auth.ensureClient();
+   const {data}=await client.functions.invoke("gotradex-market-data",{body:{action:"price",symbol:normalizedSymbol(),assetType}});
+   const p=Number(data?.price);
+   if(Number.isFinite(p))updateLivePrice(p,Number(data?.timestamp||Date.now())/1000);
+  }
  }catch(_){}
 }
 
@@ -334,12 +370,14 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 
 window.GoTradeXChartEngine={
  boot,refresh,
- setSymbol:s=>{
+ setSymbol:(s,type)=>{
  const requestId=++assetRequestId;
  clearTimeout(reconnectTimer);reconnectTimer=null;
  closeSocket();
  symbol=String(s||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"");
+ assetType=String(type||store.get("gotradex_asset_type","crypto")).toLowerCase();
  store.set("gotradex_chart_symbol",symbol);
+ store.set("gotradex_asset_type",assetType);
  resolvedMarket=null;resolvedKey="";
  const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
  // Clear the previous asset immediately. Never leave old candles visible while the new feed loads.
