@@ -14,7 +14,7 @@ const $=id=>document.getElementById(id);
 
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
-let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),tf=store.get("gotradex_chart_timeframe","1 Minute");
+let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")||""),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
@@ -22,6 +22,20 @@ let trade=null,completedTrade=null,tradeOverlay=null,signalExpiryAt=0,expiryTime
 
 function root(){return document.querySelector(".chart")}
 function normalizedSymbol(){return String(symbol||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"")}
+function normalizedAssetType(type,s){
+ const t=String(type||"").toLowerCase();
+ if(["forex","stocks","crypto","commodities","indices"].includes(t))return t;
+ const raw=String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+ if(/^[A-Z]{6}$/.test(raw))return "forex";
+ if(["US30","US500","NAS100","UK100","GER40","FRA40","JPN225","AUS200","HK50","EU50","SA40"].includes(raw))return "indices";
+ if(["WTIOIL","BRENTOIL","NATURALGAS","COPPER","PLATINUM","PALLADIUM","XAUUSD","XAGUSD"].includes(raw))return "commodities";
+ if(/^[A-Z]{1,5}$/.test(raw))return "stocks";
+ return "crypto";
+}
+function displayLabel(){
+ if(assetDisplay)return assetDisplay;
+ return pairLabel();
+}
 function pairSymbol(){
  const s=normalizedSymbol();
  if(s.endsWith("USDT"))return s;
@@ -29,13 +43,14 @@ function pairSymbol(){
  return s+"USDT";
 }
 function pairLabel(){
+ if(assetDisplay)return assetDisplay;
  const s=normalizedSymbol();
  if(s.endsWith("USDT"))return s.slice(0,-4)+"/USDT";
  if(s.endsWith("USD"))return s.slice(0,-3)+"/USD";
  return s;
 }
 function usesExternalMarket(){
- return ["forex","stocks","indices"].includes(assetType);
+ return ["forex","stocks","indices"].includes(normalizedAssetType(assetType,symbol));
 }
 async function resolveBybitSymbol(){
  const wanted=normalizedSymbol().replace(/[^A-Z0-9]/g,"").toUpperCase();
@@ -56,6 +71,7 @@ async function resolveBybitSymbol(){
  throw Error("Bybit market not available for "+pairLabel());
 }
 async function resolveMarket(force=false){
+ assetType=normalizedAssetType(assetType,symbol);
  const key=(usesExternalMarket()?"TD:":"BYBIT:")+assetType+":"+normalizedSymbol();
  if(!force&&resolvedMarket&&resolvedKey===key)return resolvedMarket;
  if(usesExternalMarket()){
@@ -101,7 +117,7 @@ function rebuildDom(){
  const r=root();if(!r)return false;
  r.className="chart gtxKengly";
  r.innerHTML=`<div class="gtxKenglyHeader">
- <span class="gtxKenglyBadge live">● LIVE</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${pairLabel()}</strong>
+ <span class="gtxKenglyBadge live">● LIVE</span><strong class="gtxKenglyPair" id="gtxKenglyPair">${displayLabel()}</strong>
 <span class="gtxKenglySource" id="gtxKenglySource">Connecting to live feed…</span>
  </div><div class="gtxKenglyStage"><div class="gtxKenglyHost" id="gtxKenglyHost"></div><div class="gtxKenglyOverlay" id="gtxKenglyOverlay"></div><div class="gtxKenglyError" id="gtxKenglyError" hidden></div></div>`;
  return true;
@@ -137,7 +153,9 @@ async function fetchCandles(){return usesExternalMarket()?fetchTwelveDataCandles
 
 async function loadCandles(){
  const market=await resolveMarket();
+ const selectedRequest=assetRequestId;
  candles=dedupe(await fetchCandles()).slice(-500);
+ if(selectedRequest!==assetRequestId)return;
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
  if(src)src.textContent=usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
@@ -168,7 +186,7 @@ function makeChart(){
 }
 
 function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(chart&&host.clientWidth&&host.clientHeight)chart.resize(host.clientWidth,host.clientHeight);updateTradeOverlay()});resizeObserver.observe(host)}
-function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});updateTradeOverlay()}
+function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=displayLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});updateTradeOverlay()}
 
 function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null}
 async function connectSocket(requestId=assetRequestId){
@@ -362,7 +380,12 @@ function showLiveError(e){
 async function retryLive(requestId=assetRequestId){if(!started||requestId!==assetRequestId)return;try{await loadLibrary();await refresh(requestId)}catch(e){if(requestId!==assetRequestId)return;showLiveError(e);reconnectTimer=setTimeout(()=>retryLive(requestId),3000)}}
 
 async function boot(){
- if(started||!root())return;started=true;injectCss();rebuildDom();bindExpiry();
+ if(started||!root())return;
+ assetType=normalizedAssetType(assetType,symbol);
+ assetDisplay=assetDisplay||pairLabel();
+ store.set("gotradex_asset_type",assetType);store.set("gotradex_asset_display",assetDisplay);
+ const initialPair=$("pairName");if(initialPair)initialPair.textContent=assetDisplay;
+ started=true;injectCss();rebuildDom();bindExpiry();
  try{await loadLibrary();bindControls();await refresh();clearInterval(poll);poll=null}
  catch(e){showLiveError(e);closeSocket();reconnectTimer=setTimeout(retryLive,3000)}
 }
@@ -370,23 +393,26 @@ function toggleIndicator(name){if(!INDS.includes(name))return false;if(active.ha
 
 window.GoTradeXChartEngine={
  boot,refresh,
- setSymbol:(s,type)=>{
+ setSymbol:(s,type,display)=>{
  const requestId=++assetRequestId;
  clearTimeout(reconnectTimer);reconnectTimer=null;
  closeSocket();
  symbol=String(s||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"");
- assetType=String(type||store.get("gotradex_asset_type","crypto")).toLowerCase();
+ assetType=normalizedAssetType(type,s);
+ assetDisplay=String(display||store.get("gotradex_asset_display","")||"").trim();
  store.set("gotradex_chart_symbol",symbol);
  store.set("gotradex_asset_type",assetType);
+ store.set("gotradex_asset_display",assetDisplay||pairLabel());
  resolvedMarket=null;resolvedKey="";
- const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();
+ const pairEl=$("pairName");if(pairEl)pairEl.textContent=displayLabel();
  // Clear the previous asset immediately. Never leave old candles visible while the new feed loads.
  candles=[];
  if(series){try{series.setData([])}catch(_){} }
  clearIndicators();
  try{priceLine?.applyOptions({price:NaN})}catch(_){}
  const errBox=$("gtxKenglyError");if(errBox)errBox.hidden=true;
- const source=$("gtxKenglySource");if(source)source.textContent="Connecting to "+pairLabel()+"…";
+ const livePair=$("pairName");if(livePair)livePair.textContent=displayLabel();
+ const source=$("gtxKenglySource");if(source)source.textContent="Connecting to "+displayLabel()+"…";
  updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
 },
  setBroker:()=>{
