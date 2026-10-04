@@ -14,8 +14,6 @@ function boot(){
  bind("marketMoreBtn",()=>open("chartToolsDrawer"));
  bind("mainAutoBotBtn",()=>{close("menuDrawer");open("adminPage");const s=by("adminAutoBot");if(s){document.querySelectorAll(".adminSection").forEach(x=>x.classList.remove("open"));s.classList.add("open");}});
  document.querySelectorAll("[data-close]").forEach(b=>{b.addEventListener("click",()=>close(b.dataset.close))});
- const canvas=by("candleCanvas");
- if(canvas&&!canvas.dataset.gtxRecoveryCanvas){canvas.dataset.gtxRecoveryCanvas="1";window.addEventListener("resize",()=>window.drawDemoCandles?.());}
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
 })();
