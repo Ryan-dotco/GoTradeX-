@@ -283,7 +283,11 @@ function drawGoTradeXCanvas(){
  });
  const last=data[data.length-1];
  ctx.fillStyle="#f5c542";ctx.font="10px sans-serif";ctx.textAlign="left";ctx.fillText(Number(last.close).toFixed(assetPricePrecision()),w-pad.r+6,y(last.close)+3);
- ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText(isOtcMode()?"OTC • GoTradeX Synthetic":"LIVE • Verified feed",8,h-8);
+ ctx.strokeStyle="#f5c542";ctx.lineWidth=1;ctx.setLineDash([6,5]);
+ const lastY=y(last.close);ctx.beginPath();ctx.moveTo(pad.l,lastY);ctx.lineTo(w-pad.r,lastY);ctx.stroke();ctx.setLineDash([]);
+ const now=new Date(Number(last.time)*1000);const clock=now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+ ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.textAlign="left";ctx.fillText((isOtcMode()?"OTC • GoTradeX Synthetic":"LIVE • Verified feed")+" • "+clock,8,h-8);
+ ctx.textAlign="right";ctx.fillText(clock,w-pad.r,h-8);
 }
 function renderCandleSeries(){
  const data=displayCandles();
@@ -715,7 +719,7 @@ window.GoTradeXChartEngine={
   store.set("gotradex_market_mode",marketMode);
   resolvedMarket=null;resolvedKey="";
   clearTimeout(reconnectTimer);reconnectTimer=null;closeSocket();
-  const src=$("gtxKenglySource");if(src)src.textContent=marketMode==="OTC"?"OTC FEED NOT CONFIGURED • No fake market data":"Connecting to "+pairLabel()+"…";
+  const src=$("gtxKenglySource");if(src)src.textContent=marketMode==="OTC"?"OTC • GoTradeX Synthetic • CONNECTING…":"Connecting to "+pairLabel()+"…";
   refresh().catch(showLiveError);
  },
  setBroker:()=>{
