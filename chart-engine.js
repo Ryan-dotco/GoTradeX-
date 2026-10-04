@@ -16,7 +16,7 @@ let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
 let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute"),marketMode=String(store.get("gotradex_market_mode","LIVE")).toUpperCase()==="OTC"?"OTC":"LIVE";
 let active=new Set(),started=false,ws=null,tdWs=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
-let candleMode=String(store.get("gotradex_candle_mode","candles"))==="heikin"?"heikin":"candles";
+let candleMode=["candles","heikin","bars","line","area"].includes(String(store.get("gotradex_candle_mode","candles")))?String(store.get("gotradex_candle_mode","candles")):"candles";
 let lastLiveUpdateAt=0,liveFreshTimer=null;
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
@@ -205,20 +205,24 @@ function localOtcCandle(bucket,step){
  const regime=otcRegime(bucket);
  const z=otcGaussian(k+"|return",bucket);
  const z2=otcGaussian(k+"|micro",bucket+step);
- const prev=Math.max(assetLocalUnit(),localOtcPrice(bucket));
- const volatility=.0007+Math.abs(otcGaussian(k+"|vol",bucket))*.0022;
- const drift=regime*.00055+Math.sin(bucket/240)*.00035;
- const ret=Math.max(-.012,Math.min(.012,drift+z*volatility));
- const close=Math.max(assetLocalUnit(),prev*(1+ret));
- const body=Math.abs(close-prev);
- const bodyScale=Math.max(assetLocalUnit()*2,base*(.00025+Math.abs(otcGaussian(k+"|body",bucket))*.0014));
- const open=close-ret>=0?Math.max(assetLocalUnit(),close-(ret>=0?Math.max(body,bodyScale):-Math.max(body,bodyScale))):prev;
- const realOpen=Number.isFinite(open)?open:prev;
- const bodyHigh=Math.max(realOpen,close),bodyLow=Math.min(realOpen,close);
- const wickFactor=.18+Math.abs(z2)*.75;
- const upper=Math.max(assetLocalUnit(),base*volatility*wickFactor*(.35+otcHash(k+"|uw",bucket)));
- const lower=Math.max(assetLocalUnit(),base*volatility*wickFactor*(.35+otcHash(k+"|lw",bucket)));
- return {time:bucket,open:realOpen,high:bodyHigh+upper,low:Math.max(assetLocalUnit(),bodyLow-lower),close,volume:Math.round(800+Math.abs(z)*4200)};
+ const z3=otcGaussian(k+"|range",bucket-step);
+ const prev=Math.max(assetLocalUnit(),localOtcPrice(bucket-step));
+ const volatility=.00045+Math.abs(otcGaussian(k+"|vol",bucket))*.0019;
+ const drift=regime*.00042+Math.sin(bucket/257)*.00022+Math.sin(bucket/911)*.00016;
+ const shock=Math.abs(z3)>1.45?Math.sign(z3)*.0018:0;
+ const ret=Math.max(-.018,Math.min(.018,drift+z*volatility+shock));
+ const open=prev;
+ const close=Math.max(assetLocalUnit(),open*(1+ret));
+ const body=Math.abs(close-open);
+ const range=Math.max(body*1.35,base*(.00045+Math.abs(otcGaussian(k+"|range-size",bucket))*.0024));
+ const asymUp=.22+otcHash(k+"|upper",bucket)*.78;
+ const asymDown=.22+otcHash(k+"|lower",bucket)*.78;
+ const upper=Math.max(assetLocalUnit(),range*(.18+Math.abs(z2)*.42)*asymUp);
+ const lower=Math.max(assetLocalUnit(),range*(.18+Math.abs(otcGaussian(k+"|lower-z",bucket))*.42)*asymDown);
+ const high=Math.max(open,close)+upper;
+ const low=Math.max(assetLocalUnit(),Math.min(open,close)-lower);
+ const volume=Math.round(700+Math.abs(ret)*base*180000+otcHash(k+"|volume",bucket)*3200);
+ return {time:bucket,open,high,low,close,volume};
 }
 function shapeOtcCandle(candle,previousClose){
  return candle;
@@ -253,11 +257,45 @@ function heikinCandles(){
  });
  return out;
 }
+const CANDLE_MODES=["candles","heikin","bars","line","area"];
+const CANDLE_MODE_LABELS={candles:"CANDLES",heikin:"HEIKIN ASHI",bars:"BARS",line:"LINE",area:"AREA"};
 function displayCandles(){return candleMode==="heikin"?heikinCandles():candles;}
+function chartLineData(){
+ const src=displayCandles();
+ return src.map(x=>({time:x.time,value:x.close}));
+}
 function syncCandleModeButton(){
  const b=$("gtxCandleMode");if(!b)return;
- b.textContent=candleMode==="heikin"?"HEIKIN ASHI":"CANDLES";
- b.title=candleMode==="heikin"?"Switch to standard candlesticks":"Switch to Heikin Ashi";
+ b.textContent=CANDLE_MODE_LABELS[candleMode]||"CANDLES";
+ b.title="Chart style: "+(CANDLE_MODE_LABELS[candleMode]||"CANDLES")+" • tap to change";
+}
+function removeMainSeries(){
+ if(!chart||!series)return;
+ try{chart.removeSeries(series)}catch(_){}
+ series=null;
+ priceLine=null;
+}
+function ensureMainSeries(){
+ if(!chart)return;
+ if(series?.__gtxMode===candleMode)return;
+ removeMainSeries();
+ const common={priceScaleId:"right",priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}};
+ if(candleMode==="bars"){
+  series=chart.addSeries(LightweightCharts.BarSeries,{...common,upColor:"#19c765",downColor:"#e5394f",thinBars:false});
+ }else if(candleMode==="line"){
+  series=chart.addSeries(LightweightCharts.LineSeries,{...common,color:"#42a5ff",lineWidth:3,crosshairMarkerVisible:true});
+ }else if(candleMode==="area"){
+  series=chart.addSeries(LightweightCharts.AreaSeries,{...common,lineColor:"#42a5ff",lineWidth:2,topColor:"rgba(66,165,255,.24)",bottomColor:"rgba(66,165,255,.02)"});
+ }else{
+  series=chart.addSeries(LightweightCharts.CandlestickSeries,{
+   ...common,
+   upColor:"#19c765",downColor:"#e5394f",
+   borderUpColor:"#19c765",borderDownColor:"#e5394f",
+   wickUpColor:"#19c765",wickDownColor:"#e5394f",
+   borderVisible:true
+  });
+ }
+ series.__gtxMode=candleMode;
 }
 function drawFallbackCandles(){
  const host=$("gtxKenglyHost"); if(!host)return;
@@ -273,19 +311,29 @@ function drawFallbackCandles(){
  const y=p=>pad.t+(hi-p)/span*(h-pad.t-pad.b);
  ctx.strokeStyle="rgba(120,160,200,.12)";ctx.lineWidth=1;
  for(let g=0;g<=4;g++){const yy=pad.t+g*(h-pad.t-pad.b)/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();const val=hi-(g/4)*span;ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText(val.toFixed(assetPricePrecision()),w-pad.r+5,yy+3)}
- data.forEach((x,i)=>{const xx=pad.l+i*cw+cw/2,ow=y(x.open),ch=y(x.close),yh=y(x.high),yl=y(x.low),up=x.close>=x.open;ctx.strokeStyle=up?"#19c765":"#e5394f";ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();const top=Math.min(ow,ch),bh=Math.max(2,Math.abs(ow-ch));ctx.fillRect(xx-Math.max(2,cw*.34),top,Math.max(3,cw*.68),bh);});
+ if(candleMode==="line"||candleMode==="area"){
+  ctx.beginPath();
+  data.forEach((x,i)=>{const xx=pad.l+i*cw+cw/2,yy=y(x.close);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});
+  if(candleMode==="area"){ctx.lineTo(pad.l+(data.length-.5)*cw,h-pad.b);ctx.lineTo(pad.l+cw/2,h-pad.b);ctx.closePath();ctx.fillStyle="rgba(66,165,255,.14)";ctx.fill();}
+  ctx.strokeStyle="#42a5ff";ctx.lineWidth=3;ctx.stroke();
+ }else{
+  data.forEach((x,i)=>{const xx=pad.l+i*cw+cw/2,ow=y(x.open),ch=y(x.close),yh=y(x.high),yl=y(x.low),up=x.close>=x.open;ctx.strokeStyle=up?"#19c765":"#e5394f";ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();if(candleMode==="bars"){ctx.beginPath();ctx.moveTo(xx-cw*.22,ow);ctx.lineTo(xx,ow);ctx.moveTo(xx,ch);ctx.lineTo(xx+cw*.22,ch);ctx.stroke();}else{const top=Math.min(ow,ch),bh=Math.max(2,Math.abs(ow-ch));ctx.fillRect(xx-Math.max(2,cw*.34),top,Math.max(3,cw*.68),bh);}});
+ }
  ctx.fillStyle="#9db4cc";ctx.font="10px sans-serif";ctx.fillText("LIVE",6,h-7);
 }
 function renderCandleSeries(){
  const data=displayCandles();
- if(!series){drawFallbackCandles();return;}
- series.setData(data);
- if(data.length){
+ if(!chart||!series){drawFallbackCandles();return;}
+ ensureMainSeries();
+ const rendered=(candleMode==="line"||candleMode==="area")?chartLineData():data;
+ series.setData(rendered);
+ if(rendered.length){
   try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
  }
 }
 function toggleCandleMode(){
- candleMode=candleMode==="heikin"?"candles":"heikin";
+ const i=CANDLE_MODES.indexOf(candleMode);
+ candleMode=CANDLE_MODES[(i+1)%CANDLE_MODES.length];
  store.set("gotradex_candle_mode",candleMode);
  syncCandleModeButton();
  renderCandleSeries();
@@ -332,7 +380,7 @@ function makeChart(){
  if(chart)try{chart.remove()}catch(_){} chart=null; series=null;
  if(!window.LightweightCharts){drawFallbackCandles();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();return;}
  chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
- series=chart.addSeries(LightweightCharts.CandlestickSeries,{priceScaleId:"right",upColor:"#19c765",downColor:"#e5394f",borderUpColor:"#19c765",borderDownColor:"#e5394f",wickUpColor:"#19c765",wickDownColor:"#e5394f",borderVisible:true,priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}});
+ ensureMainSeries();
  renderCandleSeries();
  const last=candles.at(-1)?.close;
  if(Number.isFinite(last))priceLine=series.createPriceLine({price:last,color:"#f5c542",lineWidth:2,lineStyle:2,axisLabelVisible:true,title:"LIVE"});
