@@ -208,13 +208,33 @@ function localOtcNoise(key,t){
  return (h/4294967296)*2-1;
 }
 function localOtcPrice(t){
- const b=basePriceForLocalOtc(), k=normalizedSymbol()+"|"+pairLabel();
- const a=localOtcNoise(k+"a",t/3),b1=localOtcNoise(k+"b",t/9),c=localOtcNoise(k+"c",t/30);
- return Math.max(assetLocalUnit(),b*(1+a*.0009+b1*.002+c*.004));
+ const base=basePriceForLocalOtc(),k=normalizedSymbol()+"|"+pairLabel();
+ const slow=localOtcNoise(k+"slow",t/300),fast=localOtcNoise(k+"fast",t/12),micro=localOtcNoise(k+"micro",t/3);
+ const drift=slow*.0009+fast*.00035+micro*.00012;
+ return Math.max(assetLocalUnit(),base*(1+drift));
 }
-function basePriceForLocalOtc(){const d=String(pairLabel()).replace(/\\s+OTC$/i,"");const map={"EUR/USD":1.085,"GBP/USD":1.275,"USD/JPY":149.5,"XAU/USD":2650,"BTC/USD":62000,"ETH/USD":2450,"XRP/USD":.52,"SOL/USD":145};return Number(map[d]||100)}
-function assetLocalUnit(){const p=basePriceForLocalOtc();return p<1?.00001:p<10?.0001:p<100?.001:.01}
-function localOtcCandle(bucket,step){const o=localOtcPrice(bucket),c=localOtcPrice(bucket+step),mid=(o+c)/2,r=Math.abs(localOtcNoise("r|"+normalizedSymbol(),bucket)),w=mid*(.0015+r*.004);return {time:bucket,open:o,high:Math.max(o,c)+w*(.6+r),low:Math.max(assetLocalUnit(),Math.min(o,c)-w*(.6+(1-r))),close:c,volume:Math.round(800+r*3200)}}
+function basePriceForLocalOtc(){
+ const d=String(pairLabel()).replace(/\\s+OTC$/i,"").toUpperCase();
+ const map={
+  "EUR/USD":1.172,"GBP/USD":1.344,"AUD/USD":0.659,"NZD/USD":0.593,"USD/JPY":148.5,
+  "USD/CAD":1.385,"USD/CHF":0.798,"EUR/GBP":0.872,"EUR/JPY":174.0,
+  "XAU/USD":3860,"XAG/USD":46.0,"WTI OIL":62,"BRENT OIL":66,
+  "BTC/USD":121000,"ETH/USD":4300,"XRP/USD":2.75,"SOL/USD":220
+ };
+ return Number(map[d]||100);
+}
+function assetLocalUnit(){const p=basePriceForLocalOtc();return p<1?.000001:p<10?.00001:p<100?.0001:.01}
+function localOtcCandle(bucket,step){
+ const base=localOtcPrice(bucket),k=normalizedSymbol()+"|"+pairLabel(),idx=Math.floor(bucket/Math.max(1,step));
+ const n1=localOtcNoise(k+"open",idx),n2=localOtcNoise(k+"close",idx+1),n3=localOtcNoise(k+"wick",idx);
+ const move=(n2-n1)*.0018+n3*.00035;
+ const open=base;
+ const close=Math.max(assetLocalUnit(),open*(1+move));
+ const range=Math.max(Math.abs(close-open)*.65,open*.00022*(.7+Math.abs(n3)));
+ const high=Math.max(open,close)+range;
+ const low=Math.max(assetLocalUnit(),Math.min(open,close)-range*(.75+Math.abs(n1)*.35));
+ return {time:bucket,open,high,low,close,volume:Math.round(1000+Math.abs(n3)*4000)};
+}
 async function fetchSyntheticCandles(){
  const endpoint="https://glffecggusetzklmyukv.functions.supabase.co/gotradex-synthetic-market";
  const u=endpoint+"?action=chart&symbol="+encodeURIComponent(normalizedSymbol())+"&display="+encodeURIComponent(pairLabel())+"&timeframe="+encodeURIComponent(tf)+"&limit=500";
