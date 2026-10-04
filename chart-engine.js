@@ -227,6 +227,19 @@ function localOtcCandle(bucket,step){
 function shapeOtcCandle(candle,previousClose){
  return candle;
 }
+async function fetchSyntheticCandles(){
+ const step=Math.max(1,Number(TF[tf]||60));
+ const end=Math.floor(Date.now()/1000/step)*step;
+ const out=[];
+ let previous=null;
+ for(let i=239;i>=0;i--){
+  const raw=localOtcCandle(end-i*step,step);
+  const shaped=shapeOtcCandle(raw,previous?.close);
+  out.push(shaped);
+  previous=shaped;
+ }
+ return out;
+}
 async function fetchCandles(){
  if(isOtcMode())return fetchSyntheticCandles();
  return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();
@@ -323,10 +336,11 @@ function drawFallbackCandles(){
 }
 function renderCandleSeries(){
  const data=displayCandles();
- if(!chart||!series){drawFallbackCandles();return;}
- ensureMainSeries();
+ if(!chart){drawFallbackCandles();return;}
+ try{ensureMainSeries()}catch(_){series=null;drawFallbackCandles();return;}
+ if(!series){drawFallbackCandles();return;}
  const rendered=(candleMode==="line"||candleMode==="area")?chartLineData():data;
- series.setData(rendered);
+ try{series.setData(rendered)}catch(_){drawFallbackCandles();return;}
  if(rendered.length){
   try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
  }
@@ -379,9 +393,17 @@ function makeChart(){
  const host=$("gtxKenglyHost");if(!host)throw Error("Chart host unavailable");
  if(chart)try{chart.remove()}catch(_){} chart=null; series=null;
  if(!window.LightweightCharts){drawFallbackCandles();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();return;}
- chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
- ensureMainSeries();
- renderCandleSeries();
+ try{
+  chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:14,rightOffset:5,minBarSpacing:6,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
+  ensureMainSeries();
+  renderCandleSeries();
+ }catch(e){
+  try{chart?.remove()}catch(_){}
+  chart=null;series=null;
+  drawFallbackCandles();
+  root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();
+  return;
+ }
  const last=candles.at(-1)?.close;
  if(Number.isFinite(last))priceLine=series.createPriceLine({price:last,color:"#f5c542",lineWidth:2,lineStyle:2,axisLabelVisible:true,title:"LIVE"});
  buildIndicators();showRecentChartWindow();root().classList.add("ready");observeSize();updateInfo();updateTradeOverlay();
@@ -748,35 +770,3 @@ window.GoTradeXChartEngine={
  assetType=inferAssetType(assetDisplay,type||store.get("gotradex_asset_type","crypto"));
  store.set("gotradex_chart_symbol",symbol);
  store.set("gotradex_asset_type",assetType);
- store.set("gotradex_asset_display",assetDisplay||pairLabel());
- resolvedMarket=null;resolvedKey="";
- const pairEl=$("pairName");if(pairEl)pairEl.textContent=pairLabel();const topPair=$("gtxKenglyPair");if(topPair)topPair.textContent=pairLabel();
- // Clear the previous asset immediately. Never leave old candles visible while the new feed loads.
- candles=[];
- if(series){try{series.setData([])}catch(_){} }
- clearIndicators();
- try{priceLine?.applyOptions({price:NaN})}catch(_){}
- const errBox=$("gtxKenglyError");if(errBox)errBox.hidden=true;
- const source=$("gtxKenglySource");if(source)source.textContent=isOtcMode()?"OTC • GoTradeX Synthetic • CONNECTING…":"Connecting to "+pairLabel()+"…";
- updateInfo();refresh(requestId).catch(e=>{if(requestId===assetRequestId)showLiveError(e)})
-},
- setMarketMode:mode=>{
-  marketMode=String(mode).toUpperCase()==="OTC"?"OTC":"LIVE";
-  store.set("gotradex_market_mode",marketMode);
-  resolvedMarket=null;resolvedKey="";
-  clearTimeout(reconnectTimer);reconnectTimer=null;closeSocket();
-  const src=$("gtxKenglySource");if(src)src.textContent=marketMode==="OTC"?"OTC FEED NOT CONFIGURED • No fake market data":"Connecting to "+pairLabel()+"…";
-  refresh().catch(showLiveError);
- },
- setBroker:()=>{
- liveBroker="BYBIT";
- resolvedMarket=null;resolvedKey="";
- store.set("gotradex_chart_broker","BYBIT");
- refresh().catch(showLiveError);
-},
- setTimeframe:x=>{if(TF[x]){tf=x;store.set("gotradex_chart_timeframe",tf);refresh().catch(showLiveError)}},
- toggleIndicator,
- startTrade
-};
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else setTimeout(boot,0);
-})();
