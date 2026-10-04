@@ -186,7 +186,7 @@ async function loadCandles(){
  if(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)){const src0=$("gtxKenglySource");if(src0)src0.textContent="LIVE TICKS • building "+tf+" candles • "+pairLabel();}
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
- if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
+ if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • OTCharts • recorded candles • LIVE stream unavailable on Free plan":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
 }
 
 function heikinCandles(){
@@ -317,7 +317,7 @@ async function connectSocket(requestId=assetRequestId){
       }else if(m?.event==="proxy-status"){
         if(src)updateFeedStatus();
       }else if(m?.event==="proxy-error"||m?.event==="proxy-closed"){
-        if(src)src.textContent="LIVE FEED ERROR • "+String(m?.message||m?.reason||"Twelve Data connection closed");
+        if(src)src.textContent=(isOtcMode()?"OTC FEED ERROR • ":"LIVE FEED ERROR • ")+String(m?.message||m?.reason||(isOtcMode()?"OTCharts stream unavailable":"Twelve Data connection closed"));
       }
     }catch(_){}
   };
@@ -376,7 +376,7 @@ function updateFeedStatus(){
  if(!src)return;
  if(isOtcMode()){
   src.classList.remove("stale");
-  src.textContent="OTC 24/7 • REAL PROVIDER REQUIRED";
+  src.textContent="OTC • OTCharts • recorded candles • LIVE stream unavailable on Free plan";
   return;
  }
  if(isForexWeekendClosed()){
