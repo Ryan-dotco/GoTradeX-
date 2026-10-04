@@ -556,7 +556,16 @@ function renderAdminUsers(){
   }).join(""):'<div class="adminSlot"><strong>No users found</strong>No local user records match the current filters. Connect the verified authentication/database layer before treating this as live account data.</div>';
   document.getElementById("adminUsersStatusText").textContent=filtered.length+" user"+(filtered.length===1?"":"s")+" shown.";
 }
-function loadAdminUsers(){renderAdminUsers()}
+async function loadAdminUsers(){
+  try{
+    if(typeof window.supabase==="undefined")return renderAdminUsers();
+    const sb=window.GoTradeXAdminSupabase||(window.GoTradeXAdminSupabase=window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));
+    const {data,error}=await sb.rpc("gotradex_admin_list_users");
+    if(error)throw error;
+    const rows=(data||[]).map(u=>({id:u.user_id,name:u.full_name||"Unnamed user",email:u.email||"",role:"user",status:u.status==="suspended"?"suspended":"active",referralCode:u.referral_code||"",createdAt:u.registered_at||""}));
+    adminUsersWrite(rows);renderAdminUsers();document.getElementById("adminUsersStatusText").textContent="Live users loaded from GoTradeX.";
+  }catch(e){renderAdminUsers();document.getElementById("adminUsersStatusText").textContent="Live users unavailable: "+(e?.message||"Admin access required.");}
+}
 function toggleAdminUser(index){
   const all=adminUsersRead(); if(!all[index]) return;
   all[index].status=String(all[index].status||"active").toLowerCase()==="active"?"suspended":"active"; adminUsersWrite(all); renderAdminUsers();
