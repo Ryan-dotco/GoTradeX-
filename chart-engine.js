@@ -211,13 +211,18 @@ async function fetchCandles(){
  return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();
 }
 
-async function loadCandles(){
+async function loadCandles(requestId=assetRequestId){
  const market=await resolveMarket();
- candles=dedupe(await fetchCandles()).slice(-500);
+ const loaded=dedupe(await fetchCandles()).slice(-500);
+ // Asset changes are transactional: an older request is never allowed to
+ // install its candles after the user has selected another asset.
+ if(requestId!==assetRequestId)return false;
+ candles=loaded;
  if(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)){const src0=$("gtxKenglySource");if(src0)src0.textContent="LIVE TICKS • building "+tf+" candles • "+pairLabel();}
  const e=$("gtxKenglyError"),src=$("gtxKenglySource");
  if(e)e.hidden=true;
  if(src&&!(usesExternalMarket()&&["5 Seconds","15 Seconds","30 Seconds"].includes(tf)))src.textContent=isOtcMode()?"OTC • GoTradeX Synthetic • LIVE 24/7":usesExternalMarket()?"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel():"LIVE • Bybit "+String(market.category).toUpperCase()+" • "+market.symbol;
+ return true;
 }
 
 function heikinCandles(){
@@ -599,7 +604,7 @@ function bindExpiry(){clearInterval(expiryTimer);expiryTimer=setInterval(updateE
 
 async function refresh(requestId=assetRequestId){
  try{
-  await loadCandles();
+  if(!(await loadCandles(requestId)))return;
   if(requestId!==assetRequestId)return;
 
   if(!chart)makeChart();else{renderCandleSeries();buildIndicators();showRecentChartWindow();updateInfo()}
@@ -620,6 +625,8 @@ async function retryLive(requestId=assetRequestId){if(!started||requestId!==asse
 
 async function boot(){
  if(started||!root())return;
+ // Start every chart from the currently selected asset/mode.
+ assetRequestId++;
  started=true;
  assetDisplay=String(store.get("gotradex_asset_display","")).trim();
  assetType=inferAssetType(assetDisplay,assetType,symbol);
@@ -637,6 +644,7 @@ window.GoTradeXChartEngine={
  setSymbol:(s,type,display)=>{
  const requestId=++assetRequestId;
  marketMode=String(store.get("gotradex_market_mode","LIVE")).toUpperCase()==="OTC"?"OTC":"LIVE";
+ // Invalidate every in-flight feed before changing the visible pair.
  clearTimeout(reconnectTimer);reconnectTimer=null;
  closeSocket();
  symbol=String(s||"BTCUSDT").toUpperCase().replace(/[^A-Z0-9_]/g,"");
