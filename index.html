@@ -548,6 +548,21 @@ syncGtxKenglyVisibility();
 <script src="chart-engine.js?v=gtx-chart-engine-rebuild-20261004-1"></script>
 <script>
 (function(){
+  function bootGoTradeXChart(){
+    try{
+      if(window.GoTradeXChartEngine&&typeof window.GoTradeXChartEngine.boot==="function"){
+        window.GoTradeXChartEngine.boot();
+      }
+    }catch(e){
+      console.error("GoTradeX chart boot failed:",e);
+    }
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootGoTradeXChart,{once:true});
+  else bootGoTradeXChart();
+})();
+</script>
+<script>
+(function(){
   function gtxProfileName(){
     const keys=["gotradex_current_user","gotradex_logged_in_user","gotradex_profile","gotradex_user","gotradex_session"];
     for(const key of keys){
