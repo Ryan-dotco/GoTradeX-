@@ -68,7 +68,13 @@
   .autoBotBtn{display:none}
   .trade{height:44px}
 }
-</style><style id="gtx-payment-methods">
+<style id="gtx-paypal-checkout">
+.gtxPayPalCheckout{margin-top:10px;padding:11px;border:1px solid #23466d;border-radius:10px;background:#081b33}
+.gtxPayPalTitle{font-weight:900;font-size:12px;margin-bottom:4px}.gtxPayPalNote{color:#8fa8c4;font-size:9px;line-height:1.45;margin-bottom:9px}
+.gtxPayPalCheckout label{display:block;color:#8fa8c4;font-size:9px;margin-bottom:4px}.gtxPayPalCheckout input{width:100%;height:40px;box-sizing:border-box;background:#061426;color:#fff;border:1px solid #23466d;border-radius:8px;padding:0 10px;margin-bottom:7px}
+.gtxPayPalCheckout button{width:100%;height:42px;border:0;border-radius:8px;background:#ffc439;color:#111;font-weight:900;font-size:11px}
+.gtxPayPalCheckout button:disabled{opacity:.55}.gtxPayPalCheckout .status{margin-top:7px}
+</style></style><style id="gtx-payment-methods">
 .walletPaymentMethods{margin:12px 0;padding:12px;border:1px solid #23466d;border-radius:12px;background:#0a2038}
 .walletPaymentMethods h3{margin:0 0 8px;font-size:12px;color:#fff}.paymentMethodGrid{display:grid;grid-template-columns:1fr;gap:7px}
 .paymentMethod{min-height:48px;text-align:left;border:1px solid #23466d;border-radius:9px;background:#102945;color:#fff;padding:8px 10px;font-weight:900;font-size:11px}
@@ -90,6 +96,14 @@
 <button type="button" class="paymentMethod" data-payment-method="BANK">🏦 Bank Transfer<span>Manual verification</span></button>
 </div>
 <div id="selectedPaymentMethod" class="status">Selected: Bank Card</div>
+<div class="gtxPayPalCheckout" id="gtxPayPalCheckout">
+  <div class="gtxPayPalTitle">Secure online payment</div>
+  <div class="gtxPayPalNote">Pay securely with PayPal or an eligible debit/credit card. Your wallet is credited only after PayPal confirms the payment.</div>
+  <label for="gtxPayPalAmount">Deposit amount (USD)</label>
+  <input id="gtxPayPalAmount" type="number" min="10" max="100000" step="0.01" inputmode="decimal" placeholder="Minimum $10">
+  <button id="gtxPayPalPay" type="button">PAY WITH PAYPAL / CARD</button>
+  <div id="gtxPayPalStatus" class="status"></div>
+</div>
 </div><div id="walletMessage" class="status"></div><div class="promoBox"><h3>Welcome Bonus</h3><p>Promotional bonus preview. A verified payment provider and backend ledger are required before any real funds or bonus are credited.</p><label for="promoDepositAmount">Deposit amount (USD)</label><input id="promoDepositAmount" type="number" min="10" step="0.01" placeholder="Enter deposit amount"><label for="promoCode">Promotion code</label><select id="promoCode" disabled><option value="">Enter a qualifying deposit amount first</option><option value="GTX2026">GTX2026 — 50% Welcome Bonus ($50–$99.99)</option><option value="GTX1002026">GTX1002026 — 100% Welcome Bonus ($100–$999.99)</option><option value="GTXVIP2026">GTXVIP2026 — 200% VIP Welcome Bonus ($1,000+)</option></select><div class="promoPreview" id="promoPreview">Enter a deposit amount and promotion code to preview eligibility.</div><button class="promoAction" id="promoCheck" type="button">Check Welcome Bonus</button><div class="promoStatus" id="promoStatus"></div></div></div></div>
 <div class="drawer" id="assetDrawer"><div class="panel"><button class="close" data-close="assetDrawer">Close</button><h2>Assets</h2><input class="assetSearch" id="assetSearch" type="search" placeholder="Search asset or pair..." autocomplete="off"><div class="category">Forex</div><div id="forexAssets"></div><div class="category">Stocks</div><div id="stockAssets"></div><div class="category">Crypto</div><div id="cryptoAssets"></div><div class="category">Commodities</div><div id="commodityAssets"></div><div class="category">Indices</div><div id="indexAssets"></div><div class="noResults" id="noResults">No matching asset found.</div></div></div><div class="drawer" id="userAutoBotDrawer">
   <div class="panel">
@@ -1549,5 +1563,54 @@ body.gtx-subscreen-open .pairbar{display:none!important}
 .gtxProfileSave{width:100%;height:43px;border-radius:9px;background:#176fca;color:#fff;font-weight:900;margin-top:8px}
 .gtxProfileNotice{margin-top:10px;padding:10px;background:#081b33;border:1px dashed #23466d;border-radius:8px;color:#8fa8c4;font-size:10px;line-height:1.45}
 </style>
-</body>
+<script id="gtx-paypal-client">
+(function(){
+"use strict";
+const URL="https://glffecggusetzklmyukv.supabase.co";
+const KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
+const FN=URL+"/functions/v1/gotradex-paypal";
+let sb=null;
+const $=id=>document.getElementById(id);
+function client(){if(!sb)sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});return sb}
+function setStatus(m,ok=false){const e=$("gtxPayPalStatus");if(e){e.textContent=m;e.style.color=ok?"#57d68d":"#ff9f43"}}
+function showPayPal(show){const e=$("gtxPayPalCheckout");if(e)e.style.display=show?"block":"none"}
+async function call(action,payload){
+ const {data,error}=await client().functions.invoke("gotradex-paypal",{body:{action,...payload,return_url:location.origin+location.pathname}});
+ if(error)throw new Error(error.message||"Payment service unavailable.");
+ if(data?.error)throw new Error(data.error);
+ return data;
+}
+async function createPayment(){
+ const amount=Number($("gtxPayPalAmount")?.value||0);
+ if(!Number.isFinite(amount)||amount<10){setStatus("Enter at least $10.00.");return}
+ const b=$("gtxPayPalPay");if(b)b.disabled=true;setStatus("Creating secure PayPal checkout…");
+ try{const d=await call("create",{amount});if(!d.approval_url)throw new Error("PayPal approval page was not returned.");sessionStorage.setItem("gtx_paypal_order",d.order_id);location.href=d.approval_url}
+ catch(e){setStatus(e.message||"Unable to start payment.");if(b)b.disabled=false}
+}
+async function captureReturn(){
+ const params=new URLSearchParams(location.search),token=params.get("token");
+ if(!token)return;
+ history.replaceState({},document.title,location.pathname);
+ try{
+   const d=await call("capture",{order_id:token});
+   if(d?.status==="captured"){
+     $("walletDrawer")?.classList.add("open");
+     setStatus("Payment confirmed. Your GoTradeX wallet has been credited.",true);
+     $("walletMessage").textContent="Deposit completed successfully: $"+Number(d.amount).toFixed(2);
+     sessionStorage.removeItem("gtx_paypal_order");
+   }
+ }catch(e){
+   $("walletDrawer")?.classList.add("open");
+   setStatus(e.message||"Payment capture failed.");
+   $("walletMessage").textContent="Payment could not be completed automatically. Please contact support before paying again.";
+ }
+}
+document.addEventListener("DOMContentLoaded",()=>{
+ showPayPal((localStorage.getItem("gotradex_payment_method")||"CARD")==="CARD");
+ $("gtxPayPalPay")?.addEventListener("click",createPayment);
+ document.querySelectorAll("[data-payment-method]").forEach(b=>b.addEventListener("click",()=>showPayPal(b.dataset.paymentMethod==="CARD")));
+ captureReturn();
+});
+})();
+</script></body>
 </html>
