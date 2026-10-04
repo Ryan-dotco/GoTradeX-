@@ -16,6 +16,7 @@ let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
 let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute");
 let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
+let lastLiveUpdateAt=0,liveFreshTimer=null;
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
 let trade=null,completedTrade=null,tradeOverlay=null,signalExpiryAt=0,expiryTimer=null;
@@ -97,6 +98,7 @@ function injectCss(){
 .gtxKenglyPair{font:900 11px/16px sans-serif!important;color:#fff!important}
 .gtxKenglyTf{font:700 9px/16px sans-serif!important;color:#9db4cc!important}
 .gtxKenglySource{margin-left:auto!important;font:800 8px/16px sans-serif!important;color:#5ee39a!important}
+.gtxKenglySource.stale{color:#ff9aaa!important}
 .gtxKenglyStage{position:relative!important;flex:1 1 auto!important;min-height:150px!important;width:100%!important;overflow:hidden!important}
 .gtxKenglyHost{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
 .gtxKenglyHost canvas{touch-action:none!important}
@@ -178,7 +180,7 @@ function buildIndicators(){
 function makeChart(){
  const host=$("gtxKenglyHost");if(!host||!window.LightweightCharts)throw Error("Lightweight Charts library unavailable");
  if(chart)try{chart.remove()}catch(_){}
- chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:10,rightOffset:5,minBarSpacing:2,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
+ chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{type:"solid",color:"#071827"},textColor:"#9db4cc",fontSize:10},grid:{vertLines:{color:"rgba(120,160,200,.09)"},horzLines:{color:"rgba(120,160,200,.09)"}},rightPriceScale:{visible:true,borderColor:"#2b527d",minimumWidth:64,ticksVisible:true,entireTextOnly:false,scaleMargins:{top:.08,bottom:.12}},timeScale:{visible:true,borderColor:"#2b527d",timeVisible:true,secondsVisible:true,barSpacing:10,rightOffset:5,minBarSpacing:2,maxBarSpacing:45},crosshair:{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{width:1,style:2,labelBackgroundColor:"#176fca"},horzLine:{width:1,style:2,labelBackgroundColor:"#176fca"}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}});
  series=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:"#19c765",downColor:"#e5394f",borderUpColor:"#19c765",borderDownColor:"#e5394f",wickUpColor:"#19c765",wickDownColor:"#e5394f",priceLineVisible:false});
  series.setData(candles);
  const last=candles.at(-1)?.close;
@@ -189,13 +191,27 @@ function makeChart(){
 function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(chart&&host.clientWidth&&host.clientHeight)chart.resize(host.clientWidth,host.clientHeight);updateTradeOverlay()});resizeObserver.observe(host)}
 function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});updateTradeOverlay()}
 
-function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null}
+function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
 async function connectSocket(requestId=assetRequestId){
  if(usesExternalMarket()){
   closeSocket();
   clearInterval(poll);
-  poll=setInterval(()=>fast(),120000);
-  const src=$("gtxKenglySource");if(src)src.textContent="LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel();
+  // Twelve Data REST /price is the secure fallback for external markets.
+  // Poll fast enough to keep the active candle moving without exposing the provider key.
+  const pollMs=(tf==="5 Seconds"||tf==="15 Seconds"||tf==="30 Seconds")?8000:10000;
+  poll=setInterval(()=>fast(),pollMs);
+  fast().catch(()=>{});
+  clearInterval(liveFreshTimer);
+  liveFreshTimer=setInterval(()=>{
+    const src=$("gtxKenglySource");
+    if(!src||!lastLiveUpdateAt)return;
+    const stale=(Date.now()-lastLiveUpdateAt)>20000;
+    src.classList.toggle("stale",stale);
+    src.textContent=stale
+      ?"STALE • waiting for live "+pairLabel()
+      :"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel();
+  },1000);
+  const src=$("gtxKenglySource");if(src){src.classList.remove("stale");src.textContent="LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel();}
   return;
  }
  const mySocket=++socketGeneration;
@@ -228,6 +244,7 @@ async function connectSocket(requestId=assetRequestId){
  }
 }
 function updateLivePrice(p,sourceTime){
+ lastLiveUpdateAt=Date.now();
  const step=TF[tf]||60,base=Number.isFinite(Number(sourceTime))?Number(sourceTime):Date.now()/1000,t=Math.floor(base/step)*step;let x=candles.at(-1);
  if(!x||t>x.time){x={time:t,open:p,high:p,low:p,close:p,volume:0};candles.push(x);candles=candles.slice(-500)}
  else{x.close=p;x.high=Math.max(x.high,p);x.low=Math.min(x.low,p)}
