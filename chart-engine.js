@@ -15,7 +15,7 @@ const $=id=>document.getElementById(id);
 let chart=null,series=null,priceLine=null,tradeLine=null,resizeObserver=null;
 let assetRequestId=0,socketGeneration=0;
 let candles=[],symbol=String(store.get("gotradex_chart_symbol","BTCUSDT")).toUpperCase().replace(/[^A-Z0-9_]/g,""),assetType=String(store.get("gotradex_asset_type","crypto")).toLowerCase(),assetDisplay=String(store.get("gotradex_asset_display","")).trim(),tf=store.get("gotradex_chart_timeframe","1 Minute");
-let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
+let active=new Set(),started=false,ws=null,tdWs=null,reconnectTimer=null,poll=null,indicatorSeries=[],liveBroker="BYBIT";
 let lastLiveUpdateAt=0,liveFreshTimer=null;
 let resolvedMarket=null,resolvedKey="";
 liveBroker="BYBIT";
@@ -53,7 +53,7 @@ function pairLabel(){
  return s;
 }
 function usesExternalMarket(){
- return ["forex","stocks","indices"].includes(assetType);
+ return ["forex","stocks","indices","commodities"].includes(assetType);
 }
 async function resolveBybitSymbol(){
  const wanted=normalizedSymbol().replace(/[^A-Z0-9]/g,"").toUpperCase();
@@ -83,6 +83,21 @@ async function resolveMarket(force=false){
  }
  resolvedKey=key;
  return resolvedMarket;
+}
+function normalizedExternalSymbol(){
+ const raw=normalizedSymbol();
+ const d=String(assetDisplay||"").trim().toUpperCase();
+ if(assetType==="commodities"){
+  const map={"XAUUSD":"XAU/USD","XAGUSD":"XAG/USD","WTIOIL":"WTI/USD","BRENTOIL":"BRENT/USD","NATURALGAS":"NG/USD","COPPER":"HG1","PLATINUM":"XPT/USD","PALLADIUM":"XPD/USD"};
+  return map[raw]||d;
+ }
+ if(assetType==="forex"&&/^[A-Z]{6}$/.test(raw))return raw.slice(0,3)+"/"+raw.slice(3);
+ if(assetType==="indices"){
+  const map={US30:"DJI",US500:"SPX",NAS100:"NDX",UK100:"FTSE",GER40:"DAX",FRA40:"CAC",JPN225:"N225",AUS200:"ASX",HK50:"HSI",EU50:"STOXX50E",SA40:"JTOPI"};
+  return map[raw]||raw;
+ }
+ if(assetType==="stocks")return d||raw;
+ return d||raw;
 }
 function displayBroker(){return usesExternalMarket()?"Twelve Data":"Bybit"}
 function fmt(v){v=Number(v);if(!Number.isFinite(v))return"—";return v>=1000?v.toFixed(2):v>=10?v.toFixed(4):v>=1?v.toFixed(5):v.toFixed(6)}
@@ -145,7 +160,7 @@ async function fetchTwelveDataCandles(){
  if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
  const client=auth.ensureClient();
  const {data,error}=await client.functions.invoke("gotradex-market-data",{
-  body:{action:"chart",symbol:normalizedSymbol(),assetType,timeframe:tf}
+  body:{action:"chart",symbol:normalizedExternalSymbol(),assetType,timeframe:tf}
  });
  if(error)throw Error(error.message||"Forex/stock market-data request failed.");
  if(!data?.ok)throw Error(data?.error||"Forex/stock market-data feed unavailable.");
@@ -191,27 +206,58 @@ function makeChart(){
 function observeSize(){const host=$("gtxKenglyHost");if(!host)return;resizeObserver?.disconnect();resizeObserver=new ResizeObserver(()=>{if(chart&&host.clientWidth&&host.clientHeight)chart.resize(host.clientWidth,host.clientHeight);updateTradeOverlay()});resizeObserver.observe(host)}
 function updateInfo(){const p=$("gtxKenglyPair"),t=$("gtxKenglyTimeframe");if(p)p.textContent=pairLabel();if(t)t.textContent=tf;const x=candles.at(-1);if(x&&priceLine)priceLine.applyOptions({price:x.close});updateTradeOverlay()}
 
-function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
+function closeSocket(){try{ws?.close()}catch(_){}try{tdWs?.close()}catch(_){}ws=null;tdWs=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(poll);poll=null;clearInterval(liveFreshTimer);liveFreshTimer=null;lastLiveUpdateAt=0}
 async function connectSocket(requestId=assetRequestId){
  if(usesExternalMarket()){
   closeSocket();
-  clearInterval(poll);
-  // Twelve Data REST /price is the secure fallback for external markets.
-  // Poll fast enough to keep the active candle moving without exposing the provider key.
-  const pollMs=(tf==="5 Seconds"||tf==="15 Seconds"||tf==="30 Seconds")?8000:10000;
-  poll=setInterval(()=>fast(),pollMs);
-  fast().catch(()=>{});
+  const request=requestId;
+  const auth=window.GTXBybitAuth;
+  const src=$("gtxKenglySource");
+  if(!auth||typeof auth.ensureClient!=="function")throw Error("Secure GoTradeX session is not ready.");
+  const client=auth.ensureClient();
+  const sessionResult=await client.auth.getSession();
+  const token=sessionResult?.data?.session?.access_token;
+  if(!token)throw Error("Sign in to GoTradeX to receive live Twelve Data prices.");
+  const endpoint="wss://glffecggusetzklmyukv.functions.supabase.co/gotradex-market-ws"
+    +"?token="+encodeURIComponent(token)
+    +"&symbol="+encodeURIComponent(normalizedExternalSymbol());
+  const thisWs=new WebSocket(endpoint);
+  tdWs=thisWs;
+  thisWs.onopen=()=>{
+    if(request!==assetRequestId||thisWs!==tdWs){try{thisWs.close()}catch(_){};return}
+    if(src){src.classList.remove("stale");src.textContent="LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();}
+  };
+  thisWs.onmessage=e=>{
+    if(request!==assetRequestId||thisWs!==tdWs)return;
+    try{
+      const m=JSON.parse(e.data);
+      if(m?.event==="price"){
+        const p=Number(m?.price),t=Number(m?.timestamp||Date.now())/1000;
+        if(Number.isFinite(p))updateLivePrice(p,t);
+      }else if(m?.event==="proxy-status"){
+        if(src)src.textContent="LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();
+      }else if(m?.event==="proxy-error"||m?.event==="proxy-closed"){
+        if(src)src.textContent="LIVE FEED ERROR • "+String(m?.message||m?.reason||"Twelve Data connection closed");
+      }
+    }catch(_){}
+  };
+  thisWs.onerror=()=>{
+    if(request===assetRequestId&&thisWs===tdWs&&src)src.textContent="LIVE FEED ERROR • Twelve Data WebSocket";
+  };
+  thisWs.onclose=()=>{
+    if(thisWs!==tdWs||request!==assetRequestId)return;
+    tdWs=null;
+    if(started)reconnectTimer=setTimeout(()=>connectSocket(request).catch(()=>{}),2000);
+  };
   clearInterval(liveFreshTimer);
   liveFreshTimer=setInterval(()=>{
-    const src=$("gtxKenglySource");
-    if(!src||!lastLiveUpdateAt)return;
-    const stale=(Date.now()-lastLiveUpdateAt)>20000;
-    src.classList.toggle("stale",stale);
-    src.textContent=stale
-      ?"STALE • waiting for live "+pairLabel()
-      :"LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel();
+    if(request!==assetRequestId||thisWs!==tdWs)return;
+    const stale=lastLiveUpdateAt>0&&(Date.now()-lastLiveUpdateAt)>20000;
+    if(src){
+      src.classList.toggle("stale",stale);
+      src.textContent=stale?"STALE • waiting for live "+pairLabel():"LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();
+    }
   },1000);
-  const src=$("gtxKenglySource");if(src){src.classList.remove("stale");src.textContent="LIVE • Twelve Data • "+assetType.toUpperCase()+" • "+pairLabel();}
   return;
  }
  const mySocket=++socketGeneration;
@@ -262,7 +308,7 @@ async function fast(){
   }else{
    const auth=window.GTXBybitAuth;if(!auth||typeof auth.ensureClient!=="function")return;
    const client=auth.ensureClient();
-   const {data}=await client.functions.invoke("gotradex-market-data",{body:{action:"price",symbol:normalizedSymbol(),assetType}});
+   const {data}=await client.functions.invoke("gotradex-market-data",{body:{action:"price",symbol:normalizedExternalSymbol(),assetType}});
    const p=Number(data?.price);
    if(Number.isFinite(p))updateLivePrice(p,Number(data?.timestamp||Date.now())/1000);
   }
