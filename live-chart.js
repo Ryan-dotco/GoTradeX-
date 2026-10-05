@@ -69,7 +69,7 @@
     document.head.appendChild(s);
   }
 
-  function installChartUiStyle(){if(document.getElementById("gtxChartUiBorderless"))return;const st=document.createElement("style");st.id="gtxChartUiBorderless";st.textContent=".gtxLWCStatusOnly{border:0!important;background:transparent!important;box-shadow:none!important;padding:2px 4px!important}.gtxLWCHead{border:0!important;box-shadow:none!important}.gtxLWCAsset{display:none!important}";document.head.appendChild(st)}
+  function installChartUiStyle(){if(document.getElementById("gtxChartUiBorderless"))return;const st=document.createElement("style");st.id="gtxChartUiBorderless";st.textContent=".gtxLWCStatusOnly{border:0!important;background:transparent!important;box-shadow:none!important;padding:2px 4px!important}.gtxLWCHead{border:0!important;box-shadow:none!important}.gtxLWCAsset{display:none!important}.gtxLWCClock{border:0!important;background:transparent!important;box-shadow:none!important}.gtxLWCControl{border:0!important;background:transparent!important;box-shadow:none!important}";document.head.appendChild(st)}
   function mount(){
     if(document.getElementById("gtxLiveChart"))return true;
     const pair=document.querySelector(".pairbar"),bottom=document.querySelector(".bottom");
