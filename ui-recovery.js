@@ -4,7 +4,7 @@ function by(id){return document.getElementById(id)}
 function open(id){const e=by(id);if(e)e.classList.add("open")}
 function close(id){const e=by(id);if(e)e.classList.remove("open")}
 function bind(id,fn){const e=by(id);if(!e)return;e.dataset.gtxRecovery="1";e.addEventListener("click",e2=>{if(e2.defaultPrevented)return;try{fn(e2)}catch(err){console.error("GoTradeX UI recovery",err)}},{capture:false})}
-function loadLiveChart(){if(window.GoTradeXLiveChart)return;const s=document.createElement("script");s.src="live-chart.js?v=20261005";s.async=true;document.head.appendChild(s)}
+function loadLiveChart(){if(window.GoTradeXLiveChart)return;if(!window.GoTradeXMarketFeeds){const m=document.createElement("script");m.src="market-data.js?v=20261005";m.async=true;m.onload=()=>{if(window.GoTradeXLiveChart)return;const s=document.createElement("script");s.src="live-chart.js?v=20261005";s.async=true;document.head.appendChild(s)};document.head.appendChild(m);return}const s=document.createElement("script");s.src="live-chart.js?v=20261005";s.async=true;document.head.appendChild(s)}
 function boot(){
  loadLiveChart();
  bind("menuBtn",()=>open("menuDrawer"));
