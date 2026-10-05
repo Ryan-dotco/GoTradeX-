@@ -1,0 +1,41 @@
+name: GoTradeX chart checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  chart-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax check chart and market feed
+        run: |
+          node --check live-chart.js
+          node --check market-data.js
+      - name: Verify chart architecture
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const chart=fs.readFileSync('live-chart.js','utf8');
+          const index=fs.readFileSync('index.html','utf8');
+          const required=[
+            'normalizeEpochMs',
+            'gtxChartSettings',
+            'extendedPatternMarkers',
+            'fractalMarkers',
+            'alligatorData',
+            'supertrendData',
+            'ichimoku',
+            'psarData',
+            'renderPanel',
+            'Kenkley’s Lines'
+          ];
+          for(const x of required) if(!chart.includes(x)) throw new Error('Missing chart feature: '+x);
+          if(chart.includes('gtxLWCChartTF')||chart.includes('gtxLWCTZ')) throw new Error('Obsolete chart-box controls remain');
+          if(!index.includes('live-chart.js?v=20261005lwc9')) throw new Error('Chart cache-buster not updated');
+          console.log('GoTradeX chart architecture checks passed');
+          NODE
