@@ -48,7 +48,17 @@
   }
 
   function label(){
-    try{return localStorage.getItem("gotradex_asset_display")||"BTC/USDT"}catch(e){return "BTC/USDT"}
+    try{
+      const stored=String(localStorage.getItem("gotradex_asset_display")||"").trim();
+      const visible=String(document.getElementById("pairName")?.textContent||"").trim().replace(/\s+OTC$/i,"");
+      const visibleKnown=!!cryptoMap[visible]||!!directTwelve[visible]||/^[A-Z]{1,6}$/.test(visible);
+      if(visibleKnown && visible!==stored){
+        localStorage.setItem("gotradex_asset_display",visible);
+        localStorage.setItem("gotradex_chart_symbol",visible.replace(/[^A-Za-z0-9]/g,"").toUpperCase());
+        return visible;
+      }
+      return stored||visible||"BTC/USD";
+    }catch(e){return "BTC/USD"}
   }
 
   function mode(){
