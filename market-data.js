@@ -34,11 +34,15 @@
     "Copper":"COPPER/USD","Platinum":"XPT/USD","Palladium":"XPD/USD"
   };
 
-  function key(){
-    try{
-      return window.GTXMarketDataConfig?.twelveDataApiKey ||
-        localStorage.getItem("gotradex_twelvedata_api_key") || "";
-    }catch(e){ return ""; }
+  function key(){ return ""; }
+
+  async function serverInvoke(body){
+    const sb = window.GoTradeXMarketSupabase || (window.GoTradeXMarketSupabase =
+      window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));
+    const {data,error}=await sb.functions.invoke("gotradex-market-data",{body});
+    if(error) throw new Error(error.message||"Secure market-data function failed.");
+    if(!data?.ok) throw new Error(data?.error||"No verified market data was returned.");
+    return data;
   }
 
   function type(){
@@ -66,84 +70,42 @@
     return {available:false,provider:"NONE",reason:"No verified provider mapping exists for "+l+".",label:l,type:t};
   }
 
-  async function twelveSearch(symbol){
-    const k=key();
-    if(!k) throw new Error("Twelve Data API key is not configured.");
-    const u=CFG.twelveRest+"/symbol_search?symbol="+encodeURIComponent(symbol)+"&apikey="+encodeURIComponent(k);
-    const r=await fetch(u,{cache:"no-store"}), j=await r.json();
-    if(j.status==="error") throw new Error(j.message||"Twelve Data symbol lookup failed.");
-    const rows=Array.isArray(j.data)?j.data:(Array.isArray(j)?j:[]);
-    const exact=rows.find(x=>String(x.symbol||"").toUpperCase()===String(symbol).toUpperCase());
-    const first=exact||rows[0];
-    if(!first) throw new Error("Provider did not return a verified symbol for "+symbol+".");
-    return String(first.symbol||"");
-  }
+  async function twelveSearch(symbol){ return String(symbol||"").trim().toUpperCase(); }
 
   function intervals(sec){
-    if(sec<60) return null;
-    if(sec===60) return "1min";
-    if(sec===120) return "2min";
-    if(sec===300) return "5min";
-    if(sec===900) return "15min";
-    if(sec===1800) return "30min";
-    if(sec===3600) return "1h";
-    if(sec===14400) return "4h";
-    if(sec===86400) return "1day";
-    if(sec===2592000) return "1month";
-    if(sec===7776000) return "3month";
-    if(sec===15552000) return "6month";
-    if(sec===31536000) return "1year";
-    return null;
+    if(sec===60)return "1min"; if(sec===300)return "5min"; if(sec===900)return "15min";
+    if(sec===1800)return "30min"; if(sec===3600)return "1h"; if(sec===14400)return "4h";
+    if(sec===86400)return "1day"; if(sec===2592000)return "1month"; return null;
+  }
+  function timeframeName(sec){
+    const m={60:"1 Minute",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day",2592000:"1 Month"};
+    return m[sec]||null;
   }
 
   async function twelveHistory(symbol,sec){
-    const k=key();
-    if(!k) throw new Error("Twelve Data API key is not configured.");
-    const iv=intervals(sec);
-    if(!iv) throw new Error("This provider does not supply a verified "+sec+"-second candle interval.");
-    const u=CFG.twelveRest+"/time_series?symbol="+encodeURIComponent(symbol)+"&interval="+iv+"&outputsize=200&apikey="+encodeURIComponent(k);
-    const r=await fetch(u,{cache:"no-store"}), j=await r.json();
-    if(j.status==="error" || !Array.isArray(j.values))
-      throw new Error(j.message||"No verified historical data was returned.");
-    return j.values.slice().reverse().map(x=>({
-      t:new Date(x.datetime).getTime(),o:Number(x.open),h:Number(x.high),
-      l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)
-    })).filter(x=>Number.isFinite(x.c));
+    const tf=timeframeName(sec);
+    if(!tf) return [];
+    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:type(),symbol,timeframe:tf});
+    const candles=Array.isArray(d.candles)?d.candles:[];
+    return candles.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)})).filter(x=>Number.isFinite(x.c));
   }
 
   async function twelvePrice(symbol){
-    const k=key();
-    if(!k) throw new Error("Twelve Data API key is not configured.");
-    const u=CFG.twelveRest+"/price?symbol="+encodeURIComponent(symbol)+"&apikey="+encodeURIComponent(k);
-    const r=await fetch(u,{cache:"no-store"}), j=await r.json();
-    if(j.status==="error" || !Number.isFinite(Number(j.price)))
-      throw new Error(j.message||"No verified live price was returned.");
-    return {price:Number(j.price),time:Date.now()};
+    const d=await serverInvoke({action:"price",marketMode:"LIVE",assetType:type(),symbol});
+    if(!Number.isFinite(Number(d.price))) throw new Error("No verified live price was returned.");
+    return {price:Number(d.price),time:Number(d.timestamp)||Date.now()};
   }
 
   async function twelveSocket(symbol,onTick,onStatus){
-    const k=key();
-    if(!k) throw new Error("Twelve Data API key is not configured.");
-    const ws=new WebSocket(CFG.twelveWs+"?apikey="+encodeURIComponent(k));
-    ws.onopen=()=>{
-      onStatus("SUBSCRIBING");
-      ws.send(JSON.stringify({action:"subscribe",params:{symbols:symbol}}));
+    let stopped=false;
+    const poll=async()=>{
+      if(stopped)return;
+      try{const p=await twelvePrice(symbol);onTick(p);onStatus("LIVE • TWELVE DATA",true)}
+      catch(e){onStatus("NO VERIFIED LIVE FEED",false)}
     };
-    ws.onmessage=e=>{
-      try{
-        const j=JSON.parse(e.data);
-        if(j.event==="subscribe-status"){
-          const ok=String(j.status||"").toLowerCase()==="ok";
-          onStatus(ok?"LIVE TICK STREAM":"SUBSCRIPTION REJECTED",ok);
-          if(!ok) onStatus("NO VERIFIED LIVE FEED",false);
-        }
-        if(j.event==="price" && Number.isFinite(Number(j.price)))
-          onTick({price:Number(j.price),time:Number(j.timestamp)*1000||Date.now()});
-      }catch(_){}
-    };
-    ws.onerror=()=>onStatus("FEED ERROR",false);
-    ws.onclose=()=>onStatus("DISCONNECTED",false);
-    return ws;
+    await poll();
+    const timer=setInterval(poll,5000);
+    return {close(){stopped=true;clearInterval(timer)}};
   }
 
   window.GoTradeXMarketFeeds={
