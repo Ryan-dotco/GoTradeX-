@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS public.gotradex_market_worker (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE public.gotradex_market_worker ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "no client access to market worker" ON public.gotradex_market_worker;
+CREATE POLICY "no client access to market worker" ON public.gotradex_market_worker FOR ALL TO authenticated USING (false) WITH CHECK (false);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.gotradex_market_state;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.gotradex_user_trades;
 
 CREATE OR REPLACE FUNCTION public.gotradex_touch_market_subscription(p_symbol text)
 RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog,public AS $$
