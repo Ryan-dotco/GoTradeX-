@@ -76,7 +76,9 @@ async function pollLoop(active:any[],deadline:number){
  }
 }
 async function runWorker(id:string){
- const active=await activeSymbols(),deadline=Date.now()+RUN_MS-5000;
+ const active=await activeSymbols();
+ if(!active.td.length&&!active.bybit.length) return;
+ const deadline=Date.now()+RUN_MS-5000;
  const wsPromise=Promise.all([connectTD(active.td),connectBybit(active.bybit)]);
  await Promise.all([wsPromise,pollLoop([...active.td,...active.bybit],deadline)]);
  await renew(id);
