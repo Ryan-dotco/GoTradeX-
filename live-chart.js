@@ -190,6 +190,12 @@
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
 
+  function historyReady(){
+    // Never paint a tiny one/two-candle chart and then progressively zoom it out.
+    // The first render requires a real historical window.
+    return state.candles.length >= 12;
+  }
+
   async function resolveTwelveSymbol(f){
     if(f.provider!=="TWELVE_DATA_LOOKUP")return f.symbol;
     return await feed().twelveSearch(f.symbol);
@@ -216,6 +222,13 @@
 
     loadBybitHistory().then(()=>{
       if(id!==state.connectionId)return;
+      if(!historyReady()){
+        state.connected=false;
+        status("WAITING FOR HISTORY",false);
+        notice("Waiting for enough verified historical candles before displaying the chart…",true);
+        setTimeout(()=>{if(id===state.connectionId)connect()},2500);
+        return;
+      }
       renderHistory();
       const ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
       state.ws=ws;
@@ -264,11 +277,21 @@
     resolveTwelveSymbol(f).then(async symbol=>{
       if(id!==state.connectionId)return;
       state.symbol=symbol;state.provider="TWELVE_DATA";
-      if(state.sec>=60){
-        await loadTwelveHistory(symbol);
-        if(id!==state.connectionId)return;
-        renderHistory();
+      if(state.sec<60){
+        state.connected=false;
+        status("NO VERIFIED HISTORY",false);
+        notice("This verified provider does not supply startup history for sub-minute candles. No synthetic candles are generated.",true);
+        return;
       }
+      await loadTwelveHistory(symbol);
+      if(id!==state.connectionId)return;
+      if(!historyReady()){
+        state.connected=false;
+        status("WAITING FOR HISTORY",false);
+        notice("Waiting for enough verified historical candles before displaying the chart…",true);
+        return;
+      }
+      renderHistory();
       const socket=await feed().twelveSocket(symbol,
         tick=>{if(id===state.connectionId)addTick(tick.time,tick.price,0)},
         (msg,ok)=>{
