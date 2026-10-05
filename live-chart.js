@@ -21,7 +21,7 @@
   let state={
     tf:"5 Seconds",sec:5,candles:[],price:null,prev:null,ws:null,
     provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
-    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",poll:null,connectionId:0
+    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",poll:null,connectionId:0,historyReady:false
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -116,7 +116,7 @@
         c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;
         byBucket.set(b,c);
       });
-      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-80);
+      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-80);\n      state.historyReady=state.candles.length>=12;
     }else{
       const u=CFG.bybitRest+"?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+Math.max(1,Math.round(state.sec/60))+"&limit=200";
       const r=await fetch(u,{cache:"no-store"}),j=await r.json();
@@ -213,7 +213,7 @@
     const f=selection();
     state.mode=String(f.mode||"LIVE");state.type=f.type||"";
     state.assetLabel=f.label||"";
-    state.candles=[];state.price=null;state.tradeStart=null;state.tradeEnd=null;
+    state.candles=[];state.price=null;state.tradeStart=null;state.tradeEnd=null;state.historyReady=false;
     if(state.mode!=="LIVE"){closeSocket();status("OTC • FEED REQUIRED",false);notice("OTC 24/7 selected. No fake candles are generated; a verified OTC feed must be connected.",true);draw();return}
     if(f.provider==="BYBIT")connectBybit();
     else if(String(f.provider).startsWith("TWELVE_DATA"))connectTwelve();
@@ -239,7 +239,7 @@
     cv.width=Math.floor(w*dpr);cv.height=Math.floor(h*dpr);
     const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
     const left=8,right=62,top=30,bottom=25,cw=Math.max(1,w-left-right),ch=Math.max(1,h-top-bottom);
-    const cs=state.candles.slice(-80);if(!cs.length){document.getElementById("gtxLCPrice")?.setAttribute("hidden","");return}
+    const cs=state.candles.slice(-80);\n    if(!cs.length || (state.provider==="BYBIT" && state.sec<60 && !state.historyReady)){\n      document.getElementById("gtxLCPrice")?.setAttribute("hidden","");\n      return;\n    }
     let lo=Math.min(...cs.map(x=>x.l)),hi=Math.max(...cs.map(x=>x.h)),pad=(hi-lo||1)*.08;lo-=pad;hi+=pad;
     const py=p=>top+(hi-p)/(hi-lo)*ch;
     // Keep a stable, comfortable candle width instead of stretching the
