@@ -586,7 +586,7 @@
     if(t.has("Supertrend"))createToolSeries("SUPERTREND",supertrendData(),"#22c55e",2);
     if(t.has("Ichimoku Cloud")){const i=ichimoku();createToolSeries("ICHIMOKU-conv",i.conv,"#f59e0b");createToolSeries("ICHIMOKU-base",i.base,"#3b82f6");createToolSeries("ICHIMOKU-spanA",i.spanA,"#22c55e");createToolSeries("ICHIMOKU-spanB",i.spanB,"#ef4444")}
     if(t.has("Parabolic SAR"))createToolSeries("PSAR",psarData(),"#f5a623",1);
-    state.candleSeries?.setMarkers(t.has("Patterns")?extendedPatternMarkers():t.has("Fractals")?fractalMarkers():[]);
+    const markerSet=[];if(t.has("Patterns"))markerSet.push(...extendedPatternMarkers());if(t.has("Fractals"))markerSet.push(...fractalMarkers());state.candleSeries?.setMarkers(markerSet.slice(-120));
     const panels=[["Awesome Oscillator","AO",aoData(),null,null],["RSI","RSI",rsiData(),0,100],["MACD","MACD",macdData(),null,null],["Stochastic","Stochastic",stochData(),0,100],["CCI","CCI",cciData(),-200,200],["Williams %R","Williams %R",williamsData(),-100,0],["ATR","ATR",atrData(),null,null]];
     const activePanels=new Set();
     panels.forEach(([key,title,data,min,max])=>{if(t.has(key)){activePanels.add(key);renderPanel(key,title,data,min,max)}});
@@ -597,6 +597,15 @@
     else{clearToolSeries("BOLL")}
     if(t.has("Donchian Channels")){createToolSeries("DONCHIAN-high",state.candles.map((c,i)=>({time:Math.floor(c.t/1000),value:highest(i,20)})),"#64748b");createToolSeries("DONCHIAN-low",state.candles.map((c,i)=>({time:Math.floor(c.t/1000),value:lowest(i,20)})),"#64748b")}else{clearToolSeries("DONCHIAN")}
     if(t.has("Support & Resistance")){clearToolSeries("SR");const n=state.candles.length;if(n){const hi=highest(n-1,50),lo=lowest(n-1,50);createToolSeries("SR-high",state.candles.map(c=>({time:Math.floor(c.t/1000),value:hi})),"#ef4444",1);createToolSeries("SR-low",state.candles.map(c=>({time:Math.floor(c.t/1000),value:lo})),"#22c55e",1)}}else clearToolSeries("SR");
+    if(t.has("Kenkley’s Lines")){createToolSeries("KENKLEY-fast",ema(34),"#22c55e");createToolSeries("KENKLEY-slow",ema(89),"#f59e0b")}else{clearToolSeries("KENKLEY")}
+    if(t.has("Kangaroo")){clearToolSeries("KANGAROO");const m=state.candles.slice(20).map((c,k)=>{const i=k+20;return c.c>highest(i-1,20)?{time:Math.floor(c.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"K"}:null}).filter(Boolean);state.candleSeries?.setMarkers([...(t.has("Patterns")?extendedPatternMarkers():[]),...(t.has("Fractals")?fractalMarkers():[]),...m].slice(-120))} 
+    if(t.has("Lion")){clearToolSeries("LION");const d=ema(8);createToolSeries("LION",d,"#f97316",2)}else clearToolSeries("LION");
+    if(t.has("Keltner Channels")){clearToolSeries("KELTNER");const m=ema(20),a=atrData(20),am=new Map(a.map(x=>[x.time,x.value]));createToolSeries("KELTNER-mid",m,"#f59e0b");createToolSeries("KELTNER-up",m.map(x=>({time:x.time,value:x.value+(am.get(x.time)||0)*2})),"#94a3b8",1);createToolSeries("KELTNER-low",m.map(x=>({time:x.time,value:x.value-(am.get(x.time)||0)*2})),"#94a3b8",1)}else clearToolSeries("KELTNER");
+    if(t.has("Fibonacci Retracement")){clearToolSeries("FIBR");const n=state.candles.length;if(n){const hi=highest(n-1,100),lo=lowest(n-1,100),d=hi-lo;[0,.236,.382,.5,.618,.786,1].forEach((q,j)=>createToolSeries("FIBR-"+j,state.candles.map(c=>({time:Math.floor(c.t/1000),value:hi-d*q})),"#8b5cf6",1))}}else clearToolSeries("FIBR");
+    if(t.has("Fibonacci Extension")){clearToolSeries("FIBE");const n=state.candles.length;if(n){const hi=highest(n-1,100),lo=lowest(n-1,100),d=hi-lo;[1.272,1.618,2].forEach((q,j)=>createToolSeries("FIBE-"+j,state.candles.map(c=>({time:Math.floor(c.t/1000),value:hi+d*(q-1)})),"#a78bfa",1))}}else clearToolSeries("FIBE");
+    if(t.has("Trend Line")){clearToolSeries("TREND");const d=state.candles.slice(-60);if(d.length>1)createToolSeries("TREND",[{time:Math.floor(d[0].t/1000),value:d[0].c},{time:Math.floor(d[d.length-1].t/1000),value:d[d.length-1].c}],"#38bdf8",2)}else clearToolSeries("TREND");
+    if(t.has("Horizontal Line")){clearToolSeries("HLINE");if(Number.isFinite(state.price))createToolSeries("HLINE",state.candles.map(c=>({time:Math.floor(c.t/1000),value:state.price})),"#f5a623",1)}else clearToolSeries("HLINE");
+    if(t.has("Vertical Line"))status("VERTICAL LINE: select a candle with the crosshair",true);
   }
   function openSettings(){
     const e=document.getElementById("gtxChartSettings");if(e)e.classList.add("open");
