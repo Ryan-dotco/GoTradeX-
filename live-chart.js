@@ -20,8 +20,8 @@
     }
   };
 
-  let state={tf:"5 Seconds",sec:5,candles:[],price:null,prev:null,ws:null,
-    connected:false,tradeStart:null,tradeEnd:null,flag:null,raf:0};
+  let state={tf:"5 Seconds",sec:5,candles:[],price:null,prev:null,ws:null,symbol:"BTCUSDT",assetLabel:"BTC/USDT",mode:"LIVE",
+    connected:false,tradeStart:null,tradeEnd:null,flag:null,raf:0,lastAssetKey:""};
 
   function injectStyle(){
     if(document.getElementById("gtx-live-chart-style")) return;
@@ -95,7 +95,7 @@
     }
     try{
       const interval=Math.max(1,Math.round(state.sec/60));
-      const u=CFG.rest+"?category=spot&symbol="+CFG.symbol+"&interval="+interval+"&limit=200";
+      if(!readSelection()){notice("No verified live historical feed for "+state.assetLabel+".",true);draw();return}\n      const u=CFG.rest+"?category=spot&symbol="+state.symbol+"&interval="+interval+"&limit=200";
       const r=await fetch(u,{cache:"no-store"});const j=await r.json();
       const rows=j&&j.result&&j.result.list||[];
       state.candles=rows.reverse().map(x=>({t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])})).filter(x=>x.c>0);
@@ -104,12 +104,12 @@
     }catch(e){notice("Live stream connected. Historical candles unavailable; building from verified trades.",true);draw()}
   }
 
-  function connect(){
+  function readSelection(){\n    let mode="LIVE",label="BTC/USDT",symbol="BTCUSDT";\n    try{mode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase();label=localStorage.getItem("gotradex_asset_display")||"BTC/USDT";symbol=(localStorage.getItem("gotradex_chart_symbol")||"BTCUSDT").replace(/[^A-Za-z0-9]/g,"").toUpperCase()}catch(_){}\n    if(mode!=="LIVE")mode="OTC";\n    state.mode=mode;state.assetLabel=label;state.symbol=symbol||"BTCUSDT";\n    return mode==="LIVE" && /USDT$/.test(state.symbol);\n  }\n\n  function connect(){
     if(state.ws){try{state.ws.close()}catch(e){}}
     setStatus("CONNECTING • BYBIT",false);notice("Connecting to verified live market data…",true);
-    const ws=new WebSocket(CFG.ws);state.ws=ws;
+    if(!readSelection()){state.connected=false;setStatus("NO VERIFIED LIVE FEED",false);notice(state.mode==="OTC"?"OTC 24/7 selected. No fake candles are generated; a verified OTC feed must be connected.":"This selected asset does not have a verified Bybit Spot feed.",true);draw();return}\n    const ws=new WebSocket(CFG.ws);state.ws=ws;
     ws.onopen=()=>{state.connected=true;setStatus("LIVE • BYBIT WEBSOCKET",true);notice("",false);
-      ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+CFG.symbol]}));
+      ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol]}));
     };
     ws.onmessage=e=>{
       try{
@@ -163,7 +163,7 @@
 
   function boot(){
     if(!mount()){setTimeout(boot,300);return}
-    loadHistory();connect();observeTradeMarkers();
+    readSelection();state.lastAssetKey="";watchSelection();observeTradeMarkers();setInterval(watchSelection,700);
     window.GoTradeXLiveChart={setTimeframe,reconnect:connect,state};
   }
   window.GoTradeXLiveChart={boot,setTimeframe,reconnect:connect,state};
