@@ -120,15 +120,60 @@
   }
 
   async function twelveSocket(symbol,onTick,onStatus){
-    let stopped=false;
+    let stopped=false,ws=null,timer=null,fallbackTimer=null,opened=false;
+    const sb=window.GoTradeXMarketSupabase||(window.GoTradeXMarketSupabase=
+      window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));
+
     const poll=async()=>{
       if(stopped)return;
       try{const p=await twelvePrice(symbol);onTick(p);onStatus("LIVE • TWELVE DATA",true)}
-      catch(e){onStatus("NO VERIFIED LIVE FEED",false)}
+      catch(e){onStatus("WAITING • TWELVE DATA",false)}
     };
-    await poll();
-    // Keep Twelve Data polling below the common 8-credit/minute ceiling.\n    // Sub-minute candles remain sourced only from real provider ticks.\n    const timer=setInterval(poll,10000);
-    return {close(){stopped=true;clearInterval(timer)}};
+    const startFallback=async()=>{
+      if(stopped||timer)return;
+      // Free Basic has only 8 API credits/minute. Keep HTTP polling conservative;
+      // the WebSocket is preferred because it is server-pushed and much faster.
+      await poll();
+      if(stopped)return;
+      timer=setInterval(poll,15000);
+    };
+
+    try{
+      const {data}=await sb.auth.getSession();
+      const token=data?.session?.access_token||"";
+      if(!token) throw new Error("No authenticated GoTradeX session is available for the live market stream.");
+      const base="https://glffecggusetzklmyukv.supabase.co/functions/v1/gotradex-market-ws";
+      ws=new WebSocket(base+"?access_token="+encodeURIComponent(token)+"&symbol="+encodeURIComponent(symbol));
+      onStatus("CONNECTING • TWELVE DATA",false);
+      const failTimer=setTimeout(()=>{if(!opened&&!stopped)startFallback()},4500);
+      ws.onopen=()=>{opened=true;clearTimeout(failTimer);onStatus("LIVE • TWELVE DATA",true)};
+      ws.onmessage=e=>{
+        if(stopped)return;
+        try{
+          const d=JSON.parse(String(e.data||"{}"));
+          if(d.event==="price" && Number.isFinite(Number(d.price))){
+            onTick({price:Number(d.price),time:Number(d.timestamp)||Date.now()});
+            onStatus("LIVE • TWELVE DATA",true);
+          }else if(d.event==="subscribe-status" && String(d.status||"").toLowerCase()==="failed"){
+            startFallback();
+          }else if(d.event==="proxy-status" && d.status!=="connected"){
+            startFallback();
+          }
+        }catch(_){}
+      };
+      ws.onerror=()=>{if(!opened)startFallback()};
+      ws.onclose=()=>{if(!stopped)startFallback()};
+      fallbackTimer=failTimer;
+    }catch(_){
+      await startFallback();
+    }
+
+    return {close(){
+      stopped=true;
+      if(timer)clearInterval(timer);
+      if(fallbackTimer)clearTimeout(fallbackTimer);
+      try{ws?.close()}catch(_){}
+    }};
   }
 
   window.GoTradeXMarketFeeds={
