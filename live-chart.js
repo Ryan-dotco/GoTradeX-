@@ -82,6 +82,7 @@
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead gtxLWCStatusOnly">'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
+        '<span class="gtxLWCClock" id="gtxLWCClock" aria-label="Current chart date and time"></span>'+
       '</div>'+
       '<div id="gtxIndicatorPanels" class="gtxIndicatorPanels"></div>'+
       '<div class="gtxLWCTradeLine" id="gtxLWCTradeStart"></div>'+
