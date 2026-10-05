@@ -98,13 +98,34 @@
   }
 
   async function loadBybitHistory(){
-    const u=CFG.bybitRest+"?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+Math.max(1,Math.round(state.sec/60))+"&limit=200";
-    const r=await fetch(u,{cache:"no-store"}),j=await r.json();
-    if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
-    const rows=j?.result?.list||[];
-    state.candles=rows.slice().reverse().map(x=>({
-      t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])
-    })).filter(x=>Number.isFinite(x.c));
+    // For 5/15/30-second views, build the initial window from REAL recent
+    // Bybit trades. This prevents the chart from opening with one giant
+    // stretched candle while the WebSocket slowly creates new buckets.
+    if(state.sec<60){
+      const u="https://api.bybit.com/v5/market/recent-trade?category=spot&symbol="+encodeURIComponent(state.symbol)+"&limit=1000";
+      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
+      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit recent trades unavailable.");
+      const rows=(j?.result?.list||[]).slice().reverse();
+      const byBucket=new Map();
+      rows.forEach(x=>{
+        const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);
+        if(!Number.isFinite(ts)||!Number.isFinite(p))return;
+        const b=bucket(ts,state.sec);
+        let c=byBucket.get(b);
+        if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
+        c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;
+        byBucket.set(b,c);
+      });
+      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-80);
+    }else{
+      const u=CFG.bybitRest+"?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+Math.max(1,Math.round(state.sec/60))+"&limit=200";
+      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
+      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
+      const rows=j?.result?.list||[];
+      state.candles=rows.slice().reverse().map(x=>({
+        t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])
+      })).filter(x=>Number.isFinite(x.c));
+    }
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
 
@@ -220,13 +241,21 @@
     const left=8,right=62,top=30,bottom=25,cw=Math.max(1,w-left-right),ch=Math.max(1,h-top-bottom);
     const cs=state.candles.slice(-80);if(!cs.length){document.getElementById("gtxLCPrice")?.setAttribute("hidden","");return}
     let lo=Math.min(...cs.map(x=>x.l)),hi=Math.max(...cs.map(x=>x.h)),pad=(hi-lo||1)*.08;lo-=pad;hi+=pad;
-    const py=p=>top+(hi-p)/(hi-lo)*ch,step=cw/Math.max(1,cs.length);
+    const py=p=>top+(hi-p)/(hi-lo)*ch;
+    // Keep a stable, comfortable candle width instead of stretching the
+    // first few live candles across the whole chart. On mobile this targets
+    // roughly 24-32 visible candles; as more candles arrive, older ones leave
+    // the window rather than making each candle grow/shrink dramatically.
+    const targetPx=Math.max(24,Math.min(34,w<600?28:32));
+    const step=Math.min(targetPx,cw/Math.max(1,cs.length));
+    const plotW=step*cs.length;
+    const plotLeft=left+Math.max(0,cw-plotW);
     g.strokeStyle="#12304f";g.lineWidth=1;
     for(let i=0;i<5;i++){const y=top+ch*i/4;g.beginPath();g.moveTo(left,y);g.lineTo(left+cw,y);g.stroke()}
     g.font="9px system-ui";g.fillStyle="#7e9ab5";g.textAlign="left";
     for(let i=0;i<5;i++)g.fillText(fmt(hi-(hi-lo)*i/4),w-right+5,top+9+ch*i/4);
     cs.forEach((c,i)=>{
-      const x=left+step*i+step*.5,up=c.c>=c.o,body=Math.max(2,Math.abs(py(c.o)-py(c.c)));
+      const x=plotLeft+step*i+step*.5,up=c.c>=c.o,body=Math.max(2,Math.abs(py(c.o)-py(c.c)));
       g.strokeStyle=up?"#22c55e":"#ef4444";g.lineWidth=Math.max(2,Math.min(4,step*.35));
       g.beginPath();g.moveTo(x,py(c.h));g.lineTo(x,py(c.l));g.stroke();
       g.fillStyle=up?"#22c55e":"#ef4444";
@@ -246,10 +275,10 @@
     }
     const flag=document.getElementById("gtxLCFlag");
     if(flag&&state.tradeStart){
-      const x=markerX(state.tradeStart.time,left,cw,cs)||left+cw*.18;
+      const x=markerX(state.tradeStart.time,plotLeft,plotW,cs)||plotLeft+step*.5;
       flag.style.left=x+"px";flag.style.top=py(state.tradeStart.price)+"px";flag.style.display="block";
       g.strokeStyle="#f5a623";g.setLineDash([4,4]);g.beginPath();g.moveTo(x,top);g.lineTo(x,top+ch);g.stroke();
-      if(state.tradeEnd){const ex=markerX(state.tradeEnd.time,left,cw,cs)||x;g.strokeStyle="#fff";g.beginPath();g.moveTo(ex,top);g.lineTo(ex,top+ch);g.stroke()}
+      if(state.tradeEnd){const ex=markerX(state.tradeEnd.time,plotLeft,plotW,cs)||x;g.strokeStyle="#fff";g.beginPath();g.moveTo(ex,top);g.lineTo(ex,top+ch);g.stroke()}
       g.setLineDash([]);
     }
   }
