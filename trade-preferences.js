@@ -22,10 +22,8 @@
     const saved=cleanTime(localStorage.getItem(TIME_KEY));
     if(!btn||!saved)return;
     btn.textContent=saved+" ▾";
-    const chart=window.GoTradeXLiveChart;
-    if(chart&&typeof chart.setTimeframe==="function"&&chart.state?.tf!==saved){
-      chart.setTimeframe(saved);
-    }
+    // Trade expiry is intentionally independent from the chart analysis timeframe.
+    // The chart defaults to M5 and has its own timeframe selector.
   }
   function saveTimeFromButton(){
     const btn=document.getElementById("timeBtn");
