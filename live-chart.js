@@ -301,24 +301,68 @@
     const box=document.getElementById("gtxLiveChart");
     if(!box||box.dataset.interactive==="1")return;
     box.dataset.interactive="1";
-    let dragging=false,lastX=0,pinchDist=0,pinchZoom=1;
+    let pointers=new Map(),dragLastX=0,pinchStartDist=0,pinchStartZoom=1,pinchStartPan=0;
+
     const redraw=()=>{state.zoom=Math.max(.5,Math.min(8,state.zoom));draw()};
+    const distance=(p1,p2)=>Math.hypot(p1.x-p2.x,p1.y-p2.y);
+
     box.addEventListener("wheel",e=>{
       e.preventDefault();
-      const old=state.zoom,dir=e.deltaY<0?1.18:1/1.18;
-      state.zoom=Math.max(.5,Math.min(8,old*dir));
-      const rect=box.getBoundingClientRect(),mx=e.clientX-rect.left,left=8,right=62,cw=Math.max(1,box.clientWidth-left-right);
-      const anchor=Math.max(0,Math.min(cw,mx-left));
-      state.pan=Math.max(0,state.pan+(anchor+state.pan)*(state.zoom/old-1));
+      const oldZoom=state.zoom;
+      const factor=e.deltaY<0?1.2:1/1.2;
+      state.zoom=Math.max(.5,Math.min(8,oldZoom*factor));
+      const rect=box.getBoundingClientRect(),left=8,right=62,cw=Math.max(1,box.clientWidth-left-right);
+      const anchor=Math.max(0,Math.min(cw,e.clientX-rect.left-left));
+      state.pan=Math.max(0,state.pan+(anchor+state.pan)*(state.zoom/oldZoom-1));
       redraw();
     },{passive:false});
-    box.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;dragging=true;lastX=e.clientX;box.setPointerCapture?.(e.pointerId)});
-    box.addEventListener("pointermove",e=>{if(!dragging)return;const dx=e.clientX-lastX;lastX=e.clientX;state.pan-=dx;redraw()});
-    box.addEventListener("pointerup",()=>dragging=false);
-    box.addEventListener("pointercancel",()=>dragging=false);
-    box.addEventListener("touchstart",e=>{if(e.touches.length===2){pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);pinchZoom=state.zoom}},{passive:true});
-    box.addEventListener("touchmove",e=>{if(e.touches.length!==2||!pinchDist)return;e.preventDefault();const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);state.zoom=pinchZoom*(d/pinchDist);redraw()},{passive:false});
-    box.addEventListener("touchend",()=>pinchDist=0,{passive:true});
+
+    box.addEventListener("pointerdown",e=>{
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      try{box.setPointerCapture(e.pointerId)}catch(_){}
+      if(pointers.size===1){
+        dragLastX=e.clientX;
+      }else if(pointers.size===2){
+        const ps=[...pointers.values()];
+        pinchStartDist=Math.max(1,distance(ps[0],ps[1]));
+        pinchStartZoom=state.zoom;
+        pinchStartPan=state.pan;
+      }
+      e.preventDefault();
+    },{passive:false});
+
+    box.addEventListener("pointermove",e=>{
+      if(!pointers.has(e.pointerId))return;
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pointers.size===1){
+        const dx=e.clientX-dragLastX;
+        dragLastX=e.clientX;
+        state.pan-=dx;
+        redraw();
+      }else if(pointers.size===2){
+        const ps=[...pointers.values()];
+        const d=Math.max(1,distance(ps[0],ps[1]));
+        state.zoom=Math.max(.5,Math.min(8,pinchStartZoom*(d/pinchStartDist)));
+        // Keep the existing horizontal position while pinch-zooming.
+        state.pan=pinchStartPan;
+        redraw();
+      }
+      e.preventDefault();
+    },{passive:false});
+
+    const endPointer=e=>{
+      pointers.delete(e.pointerId);
+      try{box.releasePointerCapture(e.pointerId)}catch(_){}
+      if(pointers.size===1){
+        const p=[...pointers.values()][0];
+        dragLastX=p.x;
+      }else if(pointers.size<2){
+        pinchStartDist=0;
+      }
+    };
+    box.addEventListener("pointerup",endPointer);
+    box.addEventListener("pointercancel",endPointer);
+    box.addEventListener("pointerleave",()=>{});
   }
 
   function observeTradeMarkers(){
