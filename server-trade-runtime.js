@@ -8,7 +8,7 @@
   const URL="https://glffecggusetzklmyukv.supabase.co";
   const KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
   const ENGINE=URL+"/functions/v1/gotradex-trade-engine";
-  let sb=null, syncTimer=null, syncing=false;
+  let sb=null, syncTimer=null, syncing=false, realtimeChannel=null, realtimeUserId=null;
 
   function client(){
     if(!sb && window.supabase?.createClient) sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -67,16 +67,35 @@
     }catch(e){ /* reconnect quietly; chart/feed status remains independent */ }
     finally{syncing=false;}
   }
+  async function setupRealtime(){
+    const s=client(); if(!s?.channel)return;
+    try{
+      const {data}=await s.auth.getSession();
+      const uid=data?.session?.user?.id;
+      if(!uid || uid===realtimeUserId) return;
+      if(realtimeChannel) await s.removeChannel(realtimeChannel);
+      realtimeUserId=uid;
+      realtimeChannel=s.channel("gotradex-server-trades-"+uid)
+        .on("postgres_changes",{
+          event:"*",
+          schema:"public",
+          table:"gotradex_user_trades",
+          filter:"user_id=eq."+uid
+        },()=>{ sync(); })
+        .subscribe();
+    }catch(e){ /* five-second sync remains the recovery path */ }
+  }
   function install(){
     const buy=document.getElementById("buy"),sell=document.getElementById("sell");
     if(buy)buy.onclick=()=>open("BUY");
     if(sell)sell.onclick=()=>open("SELL");
+    setupRealtime();
     sync();
     if(syncTimer)clearInterval(syncTimer);
     syncTimer=setInterval(sync,5000);
-    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")sync()});
-    window.addEventListener("pageshow",sync);
-    window.addEventListener("online",sync);
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){setupRealtime();sync()}});
+    window.addEventListener("pageshow",()=>{setupRealtime();sync()});
+    window.addEventListener("online",()=>{setupRealtime();sync()});
   }
   window.GoTradeXServerRuntime={call,sync,open,last:null};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
