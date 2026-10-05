@@ -9,8 +9,6 @@
   if(window.GoTradeXMarketFeeds) return;
 
   const CFG = {
-    twelveRest: "https://api.twelvedata.com",
-    twelveWs: "wss://ws.twelvedata.com/v1/quotes/price",
     bybitWs: "wss://stream.bybit.com/v5/public/spot",
     bybitRest: "https://api.bybit.com/v5/market/kline"
   };
