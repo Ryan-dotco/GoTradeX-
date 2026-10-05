@@ -16,7 +16,7 @@
   }
   function secondsFromUi(){
     const text=String(document.getElementById("timeBtn")?.textContent||"5 Seconds");
-    const m=text.match(/(\d+)\s*(Second|Seconds|Minute|Minutes|Hour|Hours|Day|Days|Month|Months|Year|Years)/i);
+    const m=text.match(/(d+)s*(Second|Seconds|Minute|Minutes|Hour|Hours|Day|Days|Month|Months|Year|Years)/i);
     if(!m)return 5;
     const n=Number(m[1]),u=m[2].toLowerCase();
     if(u.startsWith("second"))return n;
@@ -31,7 +31,7 @@
     return Number.isFinite(n)&&n>0?n:10;
   }
   function asset(){
-    return String(document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"BTC/USD").replace(/\s+(LIVE|OTC)$/i,"").trim();
+    return String(document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"BTC/USD").replace(/s+(LIVE|OTC)$/i,"").trim();
   }
   async function call(action,extra={}){
     const s=client(); if(!s)throw new Error("Supabase client unavailable.");
@@ -66,19 +66,32 @@
   async function sync(){
     if(syncing)return; syncing=true;
     try{
+      // Keep the selected asset registered server-side before doing anything else.
+      // This survives phone sleep/backgrounding and lets the server worker continue.
       await touchMarketSubscription();
-      const j=await call("sync");
+
+      let j={ok:true,open:[]};
+      try{
+        j=await call("sync");
+      }catch(_){
+        // A missing/expired trade must never prevent market-state recovery.
+        // The chart can still synchronize directly from the authoritative market table.
+      }
+
       const market=await marketState(asset());
       j.market_state=market;
       window.GoTradeXServerRuntime.last=j;
+
       const open=(j.open||[]).filter(x=>x.result==="OPEN");
       if(open.length){
         const t=open[0];
         status("LIVE SERVER • "+t.asset+" • "+t.direction+" • "+Math.max(0,Math.ceil((new Date(t.expires_at)-Date.now())/1000))+"s");
       }
+
       window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:j}));
-    }catch(e){ /* reconnect quietly; chart/feed status remains independent */ }
-    finally{syncing=false;}
+    }catch(e){
+      // Recovery remains on the next five-second sync/realtime reconnect.
+    }finally{syncing=false;}
   }
   async function setupRealtime(){
     const s=client(); if(!s?.channel)return;
