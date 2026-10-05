@@ -704,8 +704,26 @@
     }
   }
 
+  function observeServerSync(){
+    if(state.serverSyncInstalled)return;
+    state.serverSyncInstalled=true;
+    window.addEventListener("gotradex:server-sync",e=>{
+      const d=e.detail||{};
+      const m=d.market_state;
+      if(!m||!Number.isFinite(Number(m.price)))return;
+      const selected=selection();
+      const normalize=v=>String(v||"").toUpperCase().replace(/\\s+(LIVE|OTC)$/,"").replace(/\\s+/g,"");
+      const current=normalize(selected.label||state.assetLabel);
+      const incoming=normalize(m.symbol||m.asset);
+      if(current&&incoming&&current!==incoming)return;
+      addTick(m.tick_at||Date.now(),Number(m.price),0);
+      if(state.historyLoaded) updateLiveSeries(state.candles[state.candles.length-1]);
+    });
+  }
+
   function boot(){
     installChartUiStyle();
+    observeServerSync();
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
