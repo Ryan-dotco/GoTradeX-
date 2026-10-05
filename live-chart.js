@@ -25,7 +25,8 @@
     connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,volumeSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
-    chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null
+    chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
+    booted:false,markersInstalled:false
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -389,6 +390,7 @@
     });
     applySeriesVisibility();
     state.chart.timeScale().subscribeSizeChange(()=>positionTradeOverlay());
+    state.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>positionTradeOverlay());
   }
 
   function applySeriesVisibility(){
@@ -430,6 +432,13 @@
     notice("",false);
   }
 
+  function smaValue(period){
+    if(state.candles.length<period)return null;
+    let sum=0;
+    for(let i=state.candles.length-period;i<state.candles.length;i++)sum+=Number(state.candles[i].c);
+    return sum/period;
+  }
+
   function updateLiveSeries(c){
     if(!state.chart||!state.historyLoaded){
       if(state.candles.length>=2){try{buildChart();renderHistory()}catch(e){notice(e.message||"Chart engine error.",true)}}
@@ -440,7 +449,10 @@
     state.lineSeries.update({time:item.time,value:item.close});
     state.areaSeries.update({time:item.time,value:item.close});
     if(Number(c.v)>0)state.volumeSeries.update({time:item.time,value:Number(c.v),color:c.c>=c.o?"#26a69a99":"#ef535099"});
-    state.ma50.setData(sma(50));state.ma100.setData(sma(100));state.ma200.setData(sma(200));
+    for(const [series,period] of [[state.ma50,50],[state.ma100,100],[state.ma200,200]]){
+      const value=smaValue(period);
+      if(value!==null)series.update({time:item.time,value});
+    }
     state.price=c.c;
     updateCurrentPriceLine();
     positionTradeOverlay();
@@ -460,6 +472,8 @@
   }
 
   function observeTradeMarkers(){
+    if(state.markersInstalled)return;
+    state.markersInstalled=true;
     document.addEventListener("click",e=>{
       const b=e.target.closest("#buy,#sell");
       if(!b||!Number.isFinite(state.price))return;
@@ -525,7 +539,7 @@
 
   function watchSelection(){
     const f=selection();
-    const k=[f.provider,f.symbol,f.label,f.type,state.mode,state.tf].join("|");
+    const k=[f.provider,f.symbol,f.label,f.type,String(f.mode||"LIVE").toUpperCase()].join("|");
     if(k!==state.lastAssetKey){
       state.lastAssetKey=k;
       connect();
@@ -533,7 +547,9 @@
   }
 
   function boot(){
+    if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
+    state.booted=true;
     installLibraryAndStart();
     observeTradeMarkers();
     setInterval(watchSelection,700);
