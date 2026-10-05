@@ -127,7 +127,7 @@
       catch(e){onStatus("NO VERIFIED LIVE FEED",false)}
     };
     await poll();
-    const timer=setInterval(poll,5000);
+    // Keep Twelve Data polling below the common 8-credit/minute ceiling.\n    // Sub-minute candles remain sourced only from real provider ticks.\n    const timer=setInterval(poll,10000);
     return {close(){stopped=true;clearInterval(timer)}};
   }
 
