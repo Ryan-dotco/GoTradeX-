@@ -100,20 +100,6 @@
     updateTypeButtons();
     applyTimeFormatting();
     startClock();
-    
-        applySeriesVisibility();
-      });
-    });
-
-    try{
-      const saved=localStorage.getItem(CHART_KEY);
-      if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];tfSelect.value=saved}
-      const savedType=localStorage.getItem(TYPE_KEY);
-      if(["candle","line","mountain"].includes(savedType))state.chartType=savedType;
-    }catch(_){}
-    updateTypeButtons();
-    applyTimeFormatting();
-    startClock();
     installSettingsUi();
     return true;
   }
