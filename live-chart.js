@@ -11,8 +11,7 @@
     intervals:{
       "5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
       "2 Minutes":120,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,
-      "1 Hour":3600,"4 Hours":14400,"1 Day":86400,"1 Month":2592000,
-      "3 Months":7776000,"6 Months":15552000,"1 Year":31536000
+      "1 Hour":3600,"4 Hours":14400
     }
   };
 
