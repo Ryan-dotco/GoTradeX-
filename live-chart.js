@@ -331,7 +331,6 @@
     if(!CFG.intervals[tf])return;
     state.tf=tf;state.sec=CFG.intervals[tf];
     try{localStorage.setItem(CHART_KEY,tf)}catch(_){}
-    const s=document.getElementById("gtxLWCChartTF");if(s)s.value=tf;
     connect();
   }
 
