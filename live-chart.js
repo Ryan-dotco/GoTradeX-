@@ -69,6 +69,7 @@
     document.head.appendChild(s);
   }
 
+  function installChartUiStyle(){if(document.getElementById("gtxChartUiBorderless"))return;const st=document.createElement("style");st.id="gtxChartUiBorderless";st.textContent=".gtxLWCStatusOnly{border:0!important;background:transparent!important;box-shadow:none!important;padding:2px 4px!important}.gtxLWCHead{border:0!important;box-shadow:none!important}.gtxLWCAsset{display:none!important}";document.head.appendChild(st)}
   function mount(){
     if(document.getElementById("gtxLiveChart"))return true;
     const pair=document.querySelector(".pairbar"),bottom=document.querySelector(".bottom");
@@ -79,8 +80,7 @@
     box.setAttribute("aria-label","GoTradeX verified live candlestick chart");
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
-      '<div class="gtxLWCHead">'+
-        '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
+      '<div class="gtxLWCHead gtxLWCStatusOnly">'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
       '</div>'+
       '<div id="gtxIndicatorPanels" class="gtxIndicatorPanels"></div>'+
@@ -705,6 +705,7 @@
   }
 
   function boot(){
+    installChartUiStyle();
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
