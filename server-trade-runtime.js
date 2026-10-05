@@ -53,6 +53,11 @@
       await sync();
     }catch(e){status(e?.message||"Trade could not be opened.");}
   }
+  async function touchMarketSubscription(){
+    const s=client(); if(!s) return;
+    const a=asset(); if(!a) return;
+    try{ await s.rpc("gotradex_touch_market_subscription",{p_symbol:String(a).toUpperCase()}); }catch(e){}
+  }
   async function marketState(assetName){
     const s=client(); if(!s) return null;
     const {data}=await s.from("gotradex_market_state").select("*").eq("symbol",String(assetName||asset()).toUpperCase()).maybeSingle();
@@ -61,6 +66,7 @@
   async function sync(){
     if(syncing)return; syncing=true;
     try{
+      await touchMarketSubscription();
       const j=await call("sync");
       const market=await marketState(asset());
       j.market_state=market;
@@ -89,6 +95,16 @@
           table:"gotradex_user_trades",
           filter:"user_id=eq."+uid
         },()=>{ sync(); })
+        .on("postgres_changes",{
+          event:"*",
+          schema:"public",
+          table:"gotradex_market_state"
+        },payload=>{
+          const m=payload?.new;
+          if(m?.symbol){
+            window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:{market_state:m,open:[]}}));
+          }
+        })
         .subscribe();
     }catch(e){ /* five-second sync remains the recovery path */ }
   }
