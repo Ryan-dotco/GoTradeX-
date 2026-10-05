@@ -21,7 +21,7 @@
   let state={
     tf:"5 Seconds",sec:5,candles:[],price:null,prev:null,ws:null,
     provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
-    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",poll:null
+    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",poll:null,connectionId:0
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -109,6 +109,7 @@
   }
 
   async function connectBybit(){
+    const id=++state.connectionId;
     closeSocket();const f=selection();
     if(!f.available||f.provider!=="BYBIT"){
       status("NO VERIFIED LIVE FEED",false);notice(f.reason||"Selected asset is not available on the verified Bybit Spot feed.",true);return;
@@ -118,21 +119,24 @@
     notice(state.sec<60?"Waiting for real Bybit trades to build "+state.tf+" candles…":"Loading verified Bybit candles…",true);
     try{
       if(state.sec>=60)await loadBybitHistory();
+      if(id!==state.connectionId)return;
       draw();
       const ws=new WebSocket(CFG.bybitWs);state.ws=ws;
       ws.onopen=()=>{
+        if(id!==state.connectionId){try{ws.close()}catch(_){}return}
         state.connected=true;status("LIVE • BYBIT WEBSOCKET",true);notice("",false);
         ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol]}));
       };
       ws.onmessage=e=>{
+        if(id!==state.connectionId)return;
         try{
           const j=JSON.parse(e.data);
           if(Array.isArray(j.data))j.data.forEach(t=>addTick(Number(t.T||Date.now()),Number(t.p),Number(t.v)));
         }catch(_){}
       };
-      ws.onerror=()=>{state.connected=false;status("FEED ERROR",false);notice("Bybit live stream error. Retrying…",true)};
-      ws.onclose=()=>{state.connected=false;status("RECONNECTING • BYBIT",false);setTimeout(connect,2500)};
-    }catch(e){state.connected=false;status("FEED ERROR",false);notice(e.message||"Verified Bybit data unavailable.",true)}
+      ws.onerror=()=>{if(id!==state.connectionId)return;state.connected=false;status("FEED ERROR",false);notice("Bybit live stream error. Retrying…",true)};
+      ws.onclose=()=>{if(id!==state.connectionId)return;state.connected=false;status("RECONNECTING • BYBIT",false);setTimeout(()=>{if(id===state.connectionId)connect()},2500)};
+    }catch(e){if(id!==state.connectionId)return;state.connected=false;status("FEED ERROR",false);notice(e.message||"Verified Bybit data unavailable.",true)}
   }
 
   async function resolveTwelveSymbol(f){
@@ -146,6 +150,7 @@
   }
 
   function connectTwelve(){
+    const id=++state.connectionId;
     closeSocket();const f=selection();
     if(!f.available||!String(f.provider).startsWith("TWELVE_DATA")){
       status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified provider is available for this asset.",true);return;
@@ -153,28 +158,37 @@
     // Twelve Data credentials stay server-side in Supabase Edge Functions.
     status("VERIFYING • TWELVE DATA",false);notice("Checking verified provider access for "+f.label+"…",true);
     resolveTwelveSymbol(f).then(async symbol=>{
+      if(id!==state.connectionId)return;
       state.symbol=symbol;state.provider="TWELVE_DATA";
       if(state.sec>=60){
-        await loadTwelveHistory(symbol);draw();
+        await loadTwelveHistory(symbol);
+        if(id!==state.connectionId)return;
+        draw();
         try{
-          const p=await feed().twelvePrice(symbol);state.price=p.price;draw();
+          const p=await feed().twelvePrice(symbol);
+          if(id!==state.connectionId)return;
+          state.price=p.price;draw();
         }catch(_){}
       }
       const ws=await feed().twelveSocket(symbol,
-        tick=>addTick(tick.time,tick.price,0),
+        tick=>{if(id===state.connectionId)addTick(tick.time,tick.price,0)},
         (msg,ok)=>{
+          if(id!==state.connectionId)return;
           status(ok?"LIVE • TWELVE DATA":msg,!!ok);
           if(ok)notice("",false);
         }
       );
+      if(id!==state.connectionId){try{ws.close()}catch(_){}return}
       state.ws=ws;
     }).catch(e=>{
+      if(id!==state.connectionId)return;
       state.connected=false;status("NO VERIFIED LIVE FEED",false);
       notice(e.message||"The selected symbol is not available through the configured verified provider.",true);
     });
   }
 
   function connect(){
+    ++state.connectionId;
     const f=selection();
     state.mode=String(f.mode||"LIVE");state.type=f.type||"";
     state.assetLabel=f.label||"";
