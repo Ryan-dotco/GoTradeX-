@@ -261,6 +261,11 @@
     // Keep the horizontal price grid so traders can align candle history with the time scale.
     g.strokeStyle="#12304f";g.lineWidth=1;
     for(let i=0;i<5;i++){const y=top+ch*i/4;g.beginPath();g.moveTo(left,y);g.lineTo(left+cw,y);g.stroke()}
+    const gridCount=Math.max(4,Math.min(8,Math.floor(cw/70)));
+    for(let i=0;i<=gridCount;i++){
+      const x=left+cw*i/gridCount;
+      g.beginPath();g.moveTo(x,top);g.lineTo(x,top+ch);g.stroke();
+    }
     g.font="9px system-ui";g.fillStyle="#7e9ab5";g.textAlign="left";
     for(let i=0;i<5;i++)g.fillText(fmt(hi-(hi-lo)*i/4),w-right+5,top+9+ch*i/4);
     cs.forEach((c,i)=>{
