@@ -139,7 +139,7 @@
     status("CONNECTING • BYBIT",false);
     notice(state.sec<60?"Waiting for real Bybit trades to build "+state.tf+" candles…":"Loading verified Bybit candles…",true);
     try{
-      if(state.sec>=60)await loadBybitHistory();
+      await loadBybitHistory();
       if(id!==state.connectionId)return;
       draw();
       const ws=new WebSocket(CFG.bybitWs);state.ws=ws;
@@ -257,10 +257,10 @@
     for(let i=0;i<5;i++)g.fillText(fmt(hi-(hi-lo)*i/4),w-right+5,top+9+ch*i/4);
     cs.forEach((c,i)=>{
       const x=plotLeft+step*i+step*.5,up=c.c>=c.o,body=Math.max(2,Math.abs(py(c.o)-py(c.c)));
-      g.strokeStyle=up?"#22c55e":"#ef4444";g.lineWidth=Math.max(2,Math.min(4,step*.35));
+      g.strokeStyle=up?"#22c55e":"#ef4444";g.lineWidth=Math.max(1,Math.min(2,step*.08));
       g.beginPath();g.moveTo(x,py(c.h));g.lineTo(x,py(c.l));g.stroke();
       g.fillStyle=up?"#22c55e":"#ef4444";
-      g.fillRect(x-Math.max(2,step*.3),Math.min(py(c.o),py(c.c)),Math.max(4,step*.6),body);
+      g.fillRect(x-Math.max(2,step*.22),Math.min(py(c.o),py(c.c)),Math.max(4,step*.44),body);
       if(i%Math.max(1,Math.floor(cs.length/5))===0){
         g.fillStyle="#708aa3";g.font="8px system-ui";g.textAlign="center";
         g.fillText(new Date(c.t).toLocaleTimeString([],{
