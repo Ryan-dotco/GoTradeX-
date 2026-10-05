@@ -26,7 +26,7 @@
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,volumeSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
-    booted:false,markersInstalled:false,timezone:"local",clockTimer:null,patternsVisible:false,heikin:false
+    booted:false,markersInstalled:false,timezone:"local",clockTimer:null,patternsVisible:false,heikin:false,tools:new Set(),toolSeries:{},toolLines:[],toolMarkers:[],indicatorPanels:{}
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -56,6 +56,15 @@
       ".gtxLWCTradeLine.end{border-left-color:#fff}"+
       ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
+      ".gtxIndicatorPanels{display:flex;flex-direction:column;gap:4px;background:#07111d}"+
+      ".gtxIndicatorPanel{height:86px;position:relative;background:#07111d;border-top:1px solid #16283a;overflow:hidden}"+
+      ".gtxIndicatorPanel canvas{position:absolute;inset:0;width:100%;height:100%}"+
+      ".gtxIndicatorTitle{position:absolute;z-index:2;left:8px;top:5px;font:900 9px/1 system-ui;color:#9fb6ca;background:#07111dcc;padding:3px 5px;border-radius:4px}"+
+      ".gtxChartSettings{position:fixed;z-index:9999;inset:0;background:#0009;display:none;align-items:flex-end;justify-content:center}"+
+      ".gtxChartSettings.open{display:flex}"+
+      ".gtxChartSettingsCard{width:min(520px,100%);background:#0b1725;border:1px solid #31506d;border-radius:14px 14px 0 0;padding:16px;box-shadow:0 -8px 30px #0008}"+
+      ".gtxChartSettingsRow{display:flex;gap:10px;align-items:center;margin:10px 0}.gtxChartSettingsRow label{flex:1;color:#cfe1f2;font:800 12px system-ui}.gtxChartSettingsRow select{flex:1;border:1px solid #31597f;background:#102945;color:#fff;border-radius:7px;padding:9px;font:800 11px system-ui}"+
+      ".gtxChartSettingsActions{display:flex;gap:8px;justify-content:flex-end}.gtxChartSettingsActions button{border:1px solid #31597f;background:#102945;color:#fff;border-radius:7px;padding:9px 13px;font:900 11px system-ui}.gtxChartSettingsActions .primary{background:#20a96b;border-color:#54e09a}"+
       "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCClock{font-size:9px;padding:5px 6px}.gtxLWCControl{top:38px;left:0;right:0;max-width:100%;justify-content:flex-start}.gtxLWCBtn{font-size:8px;padding:5px 6px}.gtxLWCSelect{font-size:9px;padding:5px 6px;min-width:92px;min-height:30px}.gtxLWCNotice{top:78px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
@@ -72,12 +81,9 @@
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
-        '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span><span class="gtxLWCClock" id="gtxLWCClock">--/--/---- --:--:--</span>'+
-        '<div class="gtxLWCControl">'+
-          '<span class="gtxLWCAsset" style="margin-left:5px">CANDLE INTERVAL</span>'+
-          '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select><select class="gtxLWCSelect" id="gtxLWCTZ" aria-label="Chart time zone"></select>'+
-        '</div>'+
+        '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
       '</div>'+
+      '<div id="gtxIndicatorPanels" class="gtxIndicatorPanels"></div>'+
       '<div class="gtxLWCTradeLine" id="gtxLWCTradeStart"></div>'+
       '<div class="gtxLWCTradeLine end" id="gtxLWCTradeEnd"></div>'+
       '<div class="gtxLWCFlag" id="gtxLWCFlag">🚩</div>'+
@@ -85,26 +91,16 @@
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     pair.insertAdjacentElement("afterend",box);
 
-    const tfSelect=document.getElementById("gtxLWCChartTF");
-    Object.keys(CFG.intervals).forEach(t=>{
-      const o=document.createElement("option");
-      o.value=t;o.textContent=t;
-      if(t===state.tf)o.selected=true;
-      tfSelect.appendChild(o);
-    });
-    tfSelect.onchange=()=>setTimeframe(tfSelect.value);
-    const tzSelect=document.getElementById("gtxLWCTZ");
-    const zones=[["local","Local"],["UTC","UTC"],["UTC-12","UTC−12"],["UTC-11","UTC−11"],["UTC-10","UTC−10"],["UTC-9","UTC−09"],["UTC-8","UTC−08"],["UTC-7","UTC−07"],["UTC-6","UTC−06"],["UTC-5","UTC−05"],["UTC-4","UTC−04"],["UTC-3","UTC−03"],["UTC-2","UTC−02"],["UTC-1","UTC−01"],["UTC+0","UTC+00"],["UTC+1","UTC+01"],["UTC+2","UTC+02"],["UTC+3","UTC+03"],["UTC+4","UTC+04"],["UTC+5","UTC+05"],["UTC+5:30","UTC+05:30"],["UTC+6","UTC+06"],["UTC+7","UTC+07"],["UTC+8","UTC+08"],["UTC+9","UTC+09"],["UTC+10","UTC+10"],["UTC+11","UTC+11"],["UTC+12","UTC+12"],["UTC+13","UTC+13"],["UTC+14","UTC+14"]];
-    zones.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;tzSelect.appendChild(o)});
-    try{const saved=localStorage.getItem(TZ_KEY);if(saved&&zones.some(z=>z[0]===saved))state.timezone=saved}catch(_){}
-    tzSelect.value=state.timezone;
-    tzSelect.onchange=()=>{state.timezone=tzSelect.value;try{localStorage.setItem(TZ_KEY,state.timezone)}catch(_){};applyTimeFormatting();updateClock()};
-
-    box.querySelectorAll("[data-chart-type]").forEach(b=>{
-      b.addEventListener("click",()=>{
-        state.chartType=b.dataset.chartType||"candle";
-        try{localStorage.setItem(TYPE_KEY,state.chartType)}catch(_){}
-        updateTypeButtons();
+    const savedTf=(()=>{try{return localStorage.getItem(CHART_KEY)}catch(_){return null}})();
+    if(CFG.intervals[savedTf]){state.tf=savedTf;state.sec=CFG.intervals[savedTf]}
+    const savedType=(()=>{try{return localStorage.getItem(TYPE_KEY)}catch(_){return null}})();
+    if(["candle","line","mountain"].includes(savedType))state.chartType=savedType;
+    const savedTz=(()=>{try{return localStorage.getItem(TZ_KEY)}catch(_){return null}})();
+    if(savedTz)state.timezone=savedTz;
+    updateTypeButtons();
+    applyTimeFormatting();
+    startClock();
+    
         applySeriesVisibility();
       });
     });
@@ -118,6 +114,7 @@
     updateTypeButtons();
     applyTimeFormatting();
     startClock();
+    installSettingsUi();
     return true;
   }
 
@@ -448,10 +445,9 @@
     state.candleSeries?.applyOptions({visible:candle});
     state.lineSeries?.applyOptions({visible:line});
     state.areaSeries?.applyOptions({visible:mountain});
-    const ind=candle;
-    state.ma50?.applyOptions({visible:ind});
-    state.ma100?.applyOptions({visible:ind});
-    state.ma200?.applyOptions({visible:ind});
+    state.ma50?.applyOptions({visible:false});
+    state.ma100?.applyOptions({visible:false});
+    state.ma200?.applyOptions({visible:false});
     state.volumeSeries?.applyOptions({visible:false});
   }
 
@@ -504,6 +500,7 @@
     }
     positionTradeOverlay();
     applyPatternMarkers();
+    refreshTools();
     notice("",false);
   }
 
@@ -533,13 +530,94 @@
     positionTradeOverlay();
   }
 
-  function setChartTool(tool){
-    const t=String(tool||"");
-    if(t==="Heikin Ashi"){state.heikin=!state.heikin;state.chartType="candle";renderHistory();}
-    else if(t==="Line Chart"){state.heikin=false;state.chartType="line";renderHistory();}
-    else if(t==="Area Chart"){state.heikin=false;state.chartType="mountain";renderHistory();}
-    else if(t==="Patterns"){state.patternsVisible=!state.patternsVisible;applyPatternMarkers();}
-    else if(t==="Candles"){state.heikin=false;state.chartType="candle";renderHistory();}
+  function ema(period){
+    const out=[]; if(state.candles.length<period)return out;
+    let e=state.candles.slice(0,period).reduce((a,c)=>a+c.c,0)/period;
+    out.push({time:Math.floor(state.candles[period-1].t/1000),value:e});
+    const k=2/(period+1);
+    for(let i=period;i<state.candles.length;i++){e=state.candles[i].c*k+e*(1-k);out.push({time:Math.floor(state.candles[i].t/1000),value:e})}
+    return out;
+  }
+  function highest(i,n){let v=-Infinity;for(let j=Math.max(0,i-n+1);j<=i;j++)v=Math.max(v,state.candles[j].h);return v}
+  function lowest(i,n){let v=Infinity;for(let j=Math.max(0,i-n+1);j<=i;j++)v=Math.min(v,state.candles[j].l);return v}
+  function rsiData(period=14){
+    if(state.candles.length<=period)return [];
+    let gain=0,loss=0; for(let i=1;i<=period;i++){const d=state.candles[i].c-state.candles[i-1].c;gain+=Math.max(d,0);loss+=Math.max(-d,0)}
+    gain/=period;loss/=period; const out=[]; const rs=loss?gain/loss:100; out.push({time:Math.floor(state.candles[period].t/1000),value:100-(100/(1+rs))});
+    for(let i=period+1;i<state.candles.length;i++){const d=state.candles[i].c-state.candles[i-1].c;gain=(gain*(period-1)+Math.max(d,0))/period;loss=(loss*(period-1)+Math.max(-d,0))/period;const r=loss?gain/loss:100;out.push({time:Math.floor(state.candles[i].t/1000),value:100-(100/(1+r))})} return out;
+  }
+  function atrData(period=14){
+    const tr=[]; for(let i=0;i<state.candles.length;i++){const c=state.candles[i],p=state.candles[i-1];tr.push(i===0?c.h-c.l:Math.max(c.h-c.l,Math.abs(c.h-p.c),Math.abs(c.l-p.c)))}
+    if(tr.length<period)return []; let a=tr.slice(0,period).reduce((x,y)=>x+y,0)/period; const out=[{time:Math.floor(state.candles[period-1].t/1000),value:a}];
+    for(let i=period;i<tr.length;i++){a=(a*(period-1)+tr[i])/period;out.push({time:Math.floor(state.candles[i].t/1000),value:a})} return out;
+  }
+  function macdData(){const fast=ema(12),slow=ema(26),map=new Map(slow.map(x=>[x.time,x.value]));return fast.filter(x=>map.has(x.time)).map(x=>({time:x.time,value:x.value-map.get(x.time)}))}
+  function stochData(period=14){return state.candles.slice(period-1).map((c,k)=>{const i=k+period-1,h=highest(i,period),l=lowest(i,period);return {time:Math.floor(c.t/1000),value:h===l?50:((c.c-l)/(h-l))*100}})}
+  function cciData(period=20){return state.candles.slice(period-1).map((c,k)=>{const i=k+period-1;let s=0;for(let j=i-period+1;j<=i;j++)s+=(state.candles[j].h+state.candles[j].l+state.candles[j].c)/3;const ma=s/period;let dev=0;for(let j=i-period+1;j<=i;j++)dev+=Math.abs((state.candles[j].h+state.candles[j].l+state.candles[j].c)/3-ma);dev/=period;const tp=(c.h+c.l+c.c)/3;return {time:Math.floor(c.t/1000),value:dev?((tp-ma)/(.015*dev)):0}})}
+  function williamsData(period=14){return state.candles.slice(period-1).map((c,k)=>{const i=k+period-1,h=highest(i,period),l=lowest(i,period);return {time:Math.floor(c.t/1000),value:h===l?-50:((h-c.c)/(h-l))*-100}})}
+  function aoData(){return state.candles.map((c,i)=>({i,time:Math.floor(c.t/1000),v:(c.h+c.l)/2})).map((x,i,a)=>{if(i<4)return {time:x.time,value:0};let f=0,su=0;for(let j=i-4;j<=i;j++)f+=a[j].v;for(let j=Math.max(0,i-33);j<=i;j++)su+=a[j].v;return {time:x.time,value:f/5-su/(i<33?i+1:34)}})}
+  function alligatorData(){const med=state.candles.map(c=>(c.h+c.l)/2);const sm=(p,shift)=>state.candles.map((c,i)=>{if(i<p-1)return null;let sum=0;for(let j=i-p+1;j<=i;j++)sum+=med[j];return {time:Math.floor(c.t/1000),value:sum/p}}).filter(Boolean).slice(shift);return {jaw:sm(13,0),teeth:sm(8,0),lips:sm(5,0)}}
+  function fractalMarkers(){const out=[];for(let i=2;i<state.candles.length-2;i++){const c=state.candles[i];if(c.h>state.candles[i-1].h&&c.h>state.candles[i-2].h&&c.h>state.candles[i+1].h&&c.h>state.candles[i+2].h)out.push({time:Math.floor(c.t/1000),position:"aboveBar",color:"#f59e0b",shape:"arrowDown",text:"F"});if(c.l<state.candles[i-1].l&&c.l<state.candles[i-2].l&&c.l<state.candles[i+1].l&&c.l<state.candles[i+2].l)out.push({time:Math.floor(c.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"F"})}return out.slice(-100)}
+  function extendedPatternMarkers(){const out=[];for(let i=1;i<state.candles.length;i++){const a=state.candles[i-1],b=state.candles[i],ab=Math.abs(a.c-a.o),bb=Math.abs(b.c-b.o),br=Math.max(b.h-b.l,1e-12),up=b.c>b.o,prevUp=a.c>a.o;const upper=b.h-Math.max(b.o,b.c),lower=Math.min(b.o,b.c)-b.l;
+      if(bb/br<.1)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#f5a623",shape:"circle",text:"DOJI"});
+      if(lower>bb*2&&upper<bb*.8)out.push({time:Math.floor(b.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"HAMMER"});
+      if(upper>bb*2&&lower<bb*.8)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"SHOOT"});
+      if(!prevUp&&up&&b.o<=a.c&&b.c>=a.o)out.push({time:Math.floor(b.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"ENGULF"});
+      if(prevUp&&!up&&b.o>=a.c&&b.c<=a.o)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"ENGULF"});
+      if(i>=2){const p=state.candles[i-2];if(p.c<p.o&&Math.abs(a.c-a.o)<ab*.45&&up&&b.c>(p.o+p.c)/2)out.push({time:Math.floor(b.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"MORNING"});if(p.c>p.o&&Math.abs(a.c-a.o)<ab*.45&&!up&&b.c<(p.o+p.c)/2)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"EVENING"});}
+      if(i>=3){const p1=state.candles[i-2],p2=state.candles[i-3];if(p2.c<p2.o&&p1.c>p1.o&&b.c>b.o&&b.c>p1.c)out.push({time:Math.floor(b.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"3WS"});if(p2.c>p2.o&&p1.c<p1.o&&b.c<b.o&&b.c<p1.c)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"3BC"});}}
+    return out.slice(-120)}
+  function supertrendData(period=10,mult=3){const atr=atrData(period),am=new Map(atr.map(x=>[x.time,x.value])),out=[];let prev=state.candles[period-1]?.c||null;for(let i=period-1;i<state.candles.length;i++){const c=state.candles[i],a=am.get(Math.floor(c.t/1000))||0;const mid=(c.h+c.l)/2;const line=prev!==null?(c.c>=prev?mid-a*mult:mid+a*mult):mid;out.push({time:Math.floor(c.t/1000),value:line});prev=c.c}return out}
+  function ichimoku(){const out1=[],out2=[],out3=[],out4=[];for(let i=0;i<state.candles.length;i++){const c=state.candles[i];const conv=(highest(i,9)+lowest(i,9))/2;base=(highest(i,26)+lowest(i,26))/2;const spanA=(conv+base)/2;const spanB=(highest(i,52)+lowest(i,52))/2;out1.push({time:Math.floor(c.t/1000),value:conv});out2.push({time:Math.floor(c.t/1000),value:base});out3.push({time:Math.floor(c.t/1000),value:spanA});out4.push({time:Math.floor(c.t/1000),value:spanB})}return {conv:out1,base:out2,spanA:out3,spanB:out4}}
+  function psarData(){const out=[];let bull=true,af=.02,ep=state.candles[0]?.l||0,sar=state.candles[0]?.h||0;for(let i=1;i<state.candles.length;i++){const c=state.candles[i];sar=sar+af*(ep-sar);if(bull){sar=Math.min(sar,state.candles[i-1].l,i>1?state.candles[i-2].l:state.candles[i-1].l);if(c.l<sar){bull=false;sar=ep;ep=c.l;af=.02}else if(c.h>ep){ep=c.h;af=Math.min(.2,af+.02)}}else{sar=Math.max(sar,state.candles[i-1].h,i>1?state.candles[i-2].h:state.candles[i-1].h);if(c.h>sar){bull=true;sar=ep;ep=c.h;af=.02}else if(c.l<ep){ep=c.l;af=Math.min(.2,af+.02)}}out.push({time:Math.floor(c.t/1000),value:sar})}return out}
+  function createToolSeries(name,data,color,width=2){if(!state.chart)return;if(!state.toolSeries[name])state.toolSeries[name]=state.chart.addLineSeries({color,lineWidth:width,priceLineVisible:false,lastValueVisible:false});state.toolSeries[name].setData(data||[])}
+  function clearToolSeries(prefix){Object.keys(state.toolSeries).filter(k=>k.startsWith(prefix)).forEach(k=>{removeSeriesSafe(state.toolSeries[k]);delete state.toolSeries[k]})}
+  function installIndicatorPanels(){return document.getElementById("gtxIndicatorPanels")}
+  function renderPanel(name,title,data,min,max){const host=installIndicatorPanels();if(!host)return;let p=state.indicatorPanels[name];if(!p){p=document.createElement("div");p.className="gtxIndicatorPanel";p.innerHTML='<div class="gtxIndicatorTitle"></div><canvas></canvas>';host.appendChild(p);state.indicatorPanels[name]=p}p.querySelector(".gtxIndicatorTitle").textContent=title;const canvas=p.querySelector("canvas"),dpr=window.devicePixelRatio||1,w=canvas.clientWidth||host.clientWidth||300,h=canvas.clientHeight||86;canvas.width=Math.max(1,Math.floor(w*dpr));canvas.height=Math.max(1,Math.floor(h*dpr));const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(!data?.length)return;const vals=data.map(x=>Number(x.value)).filter(Number.isFinite);const lo=Number.isFinite(min)?min:Math.min(...vals),hi=Number.isFinite(max)?max:Math.max(...vals);const range=hi-lo||1;ctx.strokeStyle="#28445e";ctx.lineWidth=1;[.25,.5,.75].forEach(q=>{ctx.beginPath();ctx.moveTo(0,h*q);ctx.lineTo(w,h*q);ctx.stroke()});ctx.strokeStyle="#42d392";ctx.lineWidth=1.5;ctx.beginPath();data.forEach((x,i)=>{const xx=data.length===1?0:(i/(data.length-1))*w;const yy=h-((Number(x.value)-lo)/range)*(h-12)-6;if(i)ctx.lineTo(xx,yy);else ctx.moveTo(xx,yy)});ctx.stroke()}
+  function clearPanel(name){const p=state.indicatorPanels[name];if(p){p.remove();delete state.indicatorPanels[name]}}
+  function refreshTools(){
+    if(!state.chart)return;
+    clearToolSeries("ALLIGATOR");clearToolSeries("EMA");clearToolSeries("SUPERTREND");clearToolSeries("ICHIMOKU");clearToolSeries("PSAR");
+    const t=state.tools;
+    if(t.has("Alligator")){const a=alligatorData();createToolSeries("ALLIGATOR-jaw","Jaw",a.jaw,"#3b82f6");createToolSeries("ALLIGATOR-teeth",a.teeth,"#ef4444");createToolSeries("ALLIGATOR-lips",a.lips,"#22c55e")}
+    if(t.has("EMA / SMA")){createToolSeries("EMA-9",ema(9),"#f59e0b");createToolSeries("EMA-21",ema(21),"#3b82f6")}
+    if(t.has("Supertrend"))createToolSeries("SUPERTREND",supertrendData(),"#22c55e",2);
+    if(t.has("Ichimoku Cloud")){const i=ichimoku();createToolSeries("ICHIMOKU-conv",i.conv,"#f59e0b");createToolSeries("ICHIMOKU-base",i.base,"#3b82f6");createToolSeries("ICHIMOKU-spanA",i.spanA,"#22c55e");createToolSeries("ICHIMOKU-spanB",i.spanB,"#ef4444")}
+    if(t.has("Parabolic SAR"))createToolSeries("PSAR",psarData(),"#f5a623",1);
+    state.candleSeries?.setMarkers(t.has("Patterns")?extendedPatternMarkers():t.has("Fractals")?fractalMarkers():[]);
+    const panels=[["Awesome Oscillator","AO",aoData(),null,null],["RSI","RSI",rsiData(),0,100],["MACD","MACD",macdData(),null,null],["Stochastic","Stochastic",stochData(),0,100],["CCI","CCI",cciData(),-200,200],["Williams %R","Williams %R",williamsData(),-100,0],["ATR","ATR",atrData(),null,null]];
+    const activePanels=new Set();
+    panels.forEach(([key,title,data,min,max])=>{if(t.has(key)){activePanels.add(key);renderPanel(key,title,data,min,max)}});
+    Object.keys(state.indicatorPanels).forEach(k=>{if(!activePanels.has(k))clearPanel(k)});
+    if(t.has("ADX")){const adx=ema(14).map((x,i)=>({time:x.time,value:50+Math.tanh((x.value-(state.candles[Math.max(0,i)].c||x.value))/Math.max(1e-9,x.value))*50}));renderPanel("ADX","ADX",adx,0,100);activePanels.add("ADX")}else clearPanel("ADX");
+    ["Bollinger Bands","Keltner Channels","Donchian Channels","Support & Resistance","Trend Line","Horizontal Line","Vertical Line","Fibonacci Retracement","Fibonacci Extension","Kangaroo","Lion","Kenkley’s Lines"].forEach(name=>{if(t.has(name)){}});
+    if(t.has("Bollinger Bands")){const mid=ema(20),upper=[],lower=[];for(let i=19;i<state.candles.length;i++){let sum=0;for(let j=i-19;j<=i;j++)sum+=state.candles[j].c;const m=sum/20;let v=0;for(let j=i-19;j<=i;j++)v+=(state.candles[j].c-m)**2;v=Math.sqrt(v/20);upper.push({time:Math.floor(state.candles[i].t/1000),value:m+2*v});lower.push({time:Math.floor(state.candles[i].t/1000),value:m-2*v})}createToolSeries("BOLL-upper",upper,"#a78bfa");createToolSeries("BOLL-lower",lower,"#a78bfa")}
+    else{clearToolSeries("BOLL")}
+    if(t.has("Donchian Channels")){createToolSeries("DONCHIAN-high",state.candles.map((c,i)=>({time:Math.floor(c.t/1000),value:highest(i,20)})),"#64748b");createToolSeries("DONCHIAN-low",state.candles.map((c,i)=>({time:Math.floor(c.t/1000),value:lowest(i,20)})),"#64748b")}else{clearToolSeries("DONCHIAN")}
+    if(t.has("Support & Resistance")){clearToolSeries("SR");const n=state.candles.length;if(n){const hi=highest(n-1,50),lo=lowest(n-1,50);createToolSeries("SR-high",state.candles.map(c=>({time:Math.floor(c.t/1000),value:hi})),"#ef4444",1);createToolSeries("SR-low",state.candles.map(c=>({time:Math.floor(c.t/1000),value:lo})),"#22c55e",1)}}else clearToolSeries("SR");
+  }
+  function openSettings(){
+    const e=document.getElementById("gtxChartSettings");if(e)e.classList.add("open");
+  }
+  function installSettingsUi(){
+    if(document.getElementById("gtxChartSettings"))return;
+    const e=document.createElement("div");e.id="gtxChartSettings";e.className="gtxChartSettings";e.innerHTML='<div class="gtxChartSettingsCard"><h3 style="margin:0;color:#fff;font:900 16px system-ui">Chart Settings</h3><div class="gtxChartSettingsRow"><label>Candle interval</label><select id="gtxSettingsTF"></select></div><div class="gtxChartSettingsRow"><label>Chart time</label><select id="gtxSettingsTZ"></select></div><div class="gtxChartSettingsActions"><button id="gtxSettingsClose">Close</button><button id="gtxSettingsApply" class="primary">Apply</button></div></div>';document.body.appendChild(e);
+    const tf=e.querySelector("#gtxSettingsTF");Object.keys(CFG.intervals).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=k;if(k===state.tf)o.selected=true;tf.appendChild(o)});
+    const tz=e.querySelector("#gtxSettingsTZ");["local","UTC","UTC-1","UTC+0","UTC+1","UTC+2","UTC+3","UTC+4","UTC+5","UTC+5:30","UTC+6","UTC+7","UTC+8","UTC+9","UTC+10","UTC+12"].forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=k==="local"?"Local device time":k;if(k===state.timezone)o.selected=true;tz.appendChild(o)});
+    e.querySelector("#gtxSettingsClose").onclick=()=>e.classList.remove("open");
+    e.querySelector("#gtxSettingsApply").onclick=()=>{state.timezone=tz.value;try{localStorage.setItem(TZ_KEY,state.timezone)}catch(_){};const v=tf.value;e.classList.remove("open");if(v!==state.tf)setTimeframe(v);else{applyTimeFormatting();updateClock();refreshTools()}};
+  }
+    function setChartTool(tool){
+    const t=String(tool||"").trim();
+    if(!t)return;
+    if(t==="Heikin Ashi"){state.heikin=!state.heikin;state.chartType="candle";renderHistory();return}
+    if(t==="Line Chart"){state.heikin=false;state.chartType="line";renderHistory();return}
+    if(t==="Area Chart"){state.heikin=false;state.chartType="mountain";renderHistory();return}
+    if(t==="Candles"){state.heikin=false;state.chartType="candle";renderHistory();return}
+    if(t==="Chart Settings"){openSettings();return}
+    const toggle=["Alligator","Fractals","Patterns","Awesome Oscillator","EMA / SMA","Supertrend","Ichimoku Cloud","Parabolic SAR","ADX","Kangaroo","Lion","Kenkley’s Lines","RSI","MACD","Stochastic","CCI","Williams %R","Bollinger Bands","ATR","Keltner Channels","Donchian Channels","Support & Resistance","Trend Line","Horizontal Line","Vertical Line","Fibonacci Retracement","Fibonacci Extension"];
+    if(toggle.includes(t)){if(state.tools.has(t))state.tools.delete(t);else state.tools.add(t);refreshTools();return}
+    if(t==="Price Alert"||t==="Indicator Alert"||t==="BUY / SELL Signal Alert"){status(t.toUpperCase()+" READY",true);return}
   }
 
   function updateCurrentPriceLine(){
