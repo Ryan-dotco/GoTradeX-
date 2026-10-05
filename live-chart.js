@@ -174,7 +174,9 @@
       });
       state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
     }else{
-      const interval=Math.max(1,Math.round(state.sec/60));
+      const bybitIntervals={60:"1",120:"2",300:"5",900:"15",1800:"30",3600:"60",7200:"120",14400:"240",86400:"D",604800:"W",2592000:"M"};
+      const interval=bybitIntervals[state.sec];
+      if(!interval)throw new Error("Bybit does not provide a native candle interval for "+state.tf+".");
       const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+interval+"&limit=500";
       const r=await fetch(u,{cache:"no-store"}),j=await r.json();
       if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
