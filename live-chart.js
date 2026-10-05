@@ -247,7 +247,8 @@
     // roughly 24-32 visible candles; as more candles arrive, older ones leave
     // the window rather than making each candle grow/shrink dramatically.
     const targetPx=Math.max(24,Math.min(34,w<600?28:32));
-    const step=Math.min(targetPx,cw/Math.max(1,cs.length));
+    const targetVisible=Math.max(24,Math.min(32,Math.floor(cw/targetPx)));
+    const step=cs.length>targetVisible ? cw/targetVisible : targetPx;
     const plotW=step*cs.length;
     const plotLeft=left+Math.max(0,cw-plotW);
     g.strokeStyle="#12304f";g.lineWidth=1;
