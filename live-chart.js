@@ -135,9 +135,11 @@
       b.classList.toggle("active",b.dataset.chartType===state.chartType);
     });
   }
+  function normalizeEpochMs(v){const n=Number(v);if(!Number.isFinite(n))return Date.now();return n<1e11?Math.floor(n*1000):Math.floor(n)}
   function bucket(ms,sec){return Math.floor(ms/1000/sec)*sec*1000}
 
   function addTick(ts,price,volume){
+    ts=normalizeEpochMs(ts);
     if(!Number.isFinite(price)||!Number.isFinite(ts))return;
     const b=bucket(ts,state.sec);
     let c=state.candles[state.candles.length-1];
@@ -408,7 +410,7 @@
       autoSize:true,
       layout:{background:{type:C.ColorType.Solid,color:"#07111d"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
-      rightPriceScale:{visible:true,borderVisible:false,minimumWidth:58,scaleMargins:{top:.08,bottom:.12}},
+      rightPriceScale:{visible:true,borderVisible:false,minimumWidth:72,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
       timeScale:{borderVisible:false,timeVisible:true,secondsVisible:state.sec<60,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false},
       crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
