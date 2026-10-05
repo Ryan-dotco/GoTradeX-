@@ -464,7 +464,7 @@
 
   function updateLiveSeries(c){
     if(!state.chart||!state.historyLoaded){
-      if(state.candles.length>=2){try{buildChart();renderHistory()}catch(e){notice(e.message||"Chart engine error.",true)}}
+      if(historyReady()){try{buildChart();renderHistory()}catch(e){notice(e.message||"Chart engine error.",true)}}
       return;
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
