@@ -67,6 +67,20 @@ export default {
       return json({ ok:false, error:"Unauthorized scheduler call." }, 401);
     }
 
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (serviceKey) {
+      try {
+        const { data: lease } = await ctx.supabaseAdmin.from("gotradex_market_worker").select("lease_until").eq("id",true).maybeSingle();
+        if (!lease?.lease_until || new Date(lease.lease_until).getTime() < Date.now()) {
+          fetch("https://glffecggusetzklmyukv.supabase.co/functions/v1/gotradex-market-stream-worker", {
+            method:"POST",
+            headers:{"Content-Type":"application/json","Authorization":"Bearer "+serviceKey,"apikey":serviceKey},
+            body:JSON.stringify({source:"trade-scheduler"})
+          }).catch(e=>console.error("market worker start",e));
+        }
+      } catch (e) { console.error("market worker lease check",e); }
+    }
+
     const now = new Date().toISOString();
     const { data: openTrades, error } = await ctx.supabaseAdmin
       .from("gotradex_user_trades")
