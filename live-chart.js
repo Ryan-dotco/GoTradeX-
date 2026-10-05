@@ -1,47 +1,62 @@
-/* GoTradeX Live Chart Layer — verified feeds only.
- * Bybit Spot: crypto live trades + historical klines.
- * Twelve Data: forex, metals, commodities, stocks and indices when a valid
- * feed/key is configured. No random/demo candles are generated.
+/* GoTradeX LIVE Chart Layer — TradingView Lightweight Charts experiment.
+ * Uses the existing verified GoTradeX feed registry; no synthetic/demo candles.
+ * The chart timeframe is independent from the trade-expiration timeframe.
  */
 (function(){
   "use strict";
   if(window.GoTradeXLiveChart) return;
 
+  const LWC_URL="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js";
   const CFG={
     intervals:{
       "5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
       "2 Minutes":120,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,
       "1 Hour":3600,"4 Hours":14400,"1 Day":86400,"1 Month":2592000,
       "3 Months":7776000,"6 Months":15552000,"1 Year":31536000
-    },
-    bybitWs:"wss://stream.bybit.com/v5/public/spot",
-    bybitRest:"https://api.bybit.com/v5/market/kline"
+    }
   };
 
+  const CHART_KEY="gotradex_chart_timeframe";
+  const TYPE_KEY="gotradex_chart_type";
+
   let state={
-    tf:"5 Seconds",sec:5,candles:[],price:null,prev:null,ws:null,
+    tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
     provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
-    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",poll:null,connectionId:0
+    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
+    chart:null,candleSeries:null,lineSeries:null,areaSeries:null,volumeSeries:null,
+    ma50:null,ma100:null,ma200:null,currentPriceLine:null,
+    chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
+    booted:false,markersInstalled:false
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
   function selection(){
-    const f=feed(); return f ? f.resolve() : {available:false,reason:"Market feed registry is not loaded."};
+    const f=feed();
+    return f ? f.resolve() : {available:false,reason:"Market feed registry is not loaded."};
   }
+
   function injectStyle(){
-    if(document.getElementById("gtx-live-chart-style"))return;
-    const s=document.createElement("style");s.id="gtx-live-chart-style";
+    if(document.getElementById("gtx-lwc-style"))return;
+    const s=document.createElement("style");
+    s.id="gtx-lwc-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:clamp(280px,48vh,520px);min-height:280px;background:#061525;border:1px solid #16395f;border-radius:12px;overflow:hidden;box-sizing:border-box;touch-action:pan-y}"+
-      "#gtxLiveCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}"+
-      ".gtxLCHead{position:absolute;z-index:4;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}.gtxLCHead>*{pointer-events:auto}"+
-      ".gtxLCBadge{font:900 9px/1 system-ui;color:#fff;background:#16a34a;border:1px solid #4ade80;border-radius:5px;padding:5px 7px}"+
-      ".gtxLCStatus{font:800 9px/1 system-ui;color:#a8bfd7;background:#081b31dd;border:1px solid #193d61;border-radius:5px;padding:5px 7px}"+
-      ".gtxLCSelect{margin-left:auto;background:#102945;color:#fff;border:1px solid #31597f;border-radius:6px;padding:5px 7px;font:800 9px system-ui}"+
-      ".gtxLCPrice{position:absolute;right:3px;z-index:5;padding:3px 5px;border-radius:4px;background:#f5a623;color:#071524;font:900 10px/1 system-ui;transform:translateY(-50%);pointer-events:none}"+
-      ".gtxLCFlag{position:absolute;z-index:6;transform:translate(-50%,-100%);font:900 12px/1 system-ui;display:none;filter:drop-shadow(0 2px 3px #000)}"+
-      ".gtxLCNotice{position:absolute;inset:50px 55px 35px 10px;display:grid;place-items:center;text-align:center;color:#6f8eac;font:800 11px/1.4 system-ui;pointer-events:none}.gtxLCNotice[hidden]{display:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(270px,45vh,430px);min-height:270px}.gtxLCSelect,.gtxLCStatus,.gtxLCBadge{font-size:8px;padding:4px 5px}.gtxLCPrice{font-size:9px}}";
+      "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
+      "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
+      ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
+      ".gtxLWCHead>*{pointer-events:auto}"+
+      ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
+      ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
+      ".gtxLWCControl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}"+
+      ".gtxLWCBtn{border:1px solid #31597f;background:#102945;color:#dcecff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;cursor:pointer}"+
+      ".gtxLWCBtn.active{background:#20a96b;color:#fff;border-color:#54e09a}"+
+      ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
+      ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
+      ".gtxLWCNotice[hidden]{display:none}"+
+      ".gtxLWCTradeLine{position:absolute;z-index:9;top:0;bottom:28px;width:2px;display:none;pointer-events:none;border-left:2px dashed #f5a623}"+
+      ".gtxLWCTradeLine.end{border-left-color:#fff}"+
+      ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
+      ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
+      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -50,31 +65,72 @@
     const pair=document.querySelector(".pairbar"),bottom=document.querySelector(".bottom");
     if(!pair||!bottom||!bottom.parentNode)return false;
     injectStyle();
-    const box=document.createElement("section");box.id="gtxLiveChart";
+    const box=document.createElement("section");
+    box.id="gtxLiveChart";
     box.setAttribute("aria-label","GoTradeX verified live candlestick chart");
     box.innerHTML=
-      '<canvas id="gtxLiveCanvas"></canvas>'+
-      '<div class="gtxLCHead"><span class="gtxLCBadge">LIVE</span><span class="gtxLCStatus" id="gtxLCStatus">CONNECTING</span><select class="gtxLCSelect" id="gtxLCTF" aria-label="Chart timeframe"></select></div>'+
-      '<div class="gtxLCPrice" id="gtxLCPrice" hidden></div><div class="gtxLCFlag" id="gtxLCFlag">🚩</div>'+
-      '<div class="gtxLCNotice" id="gtxLCNotice">Connecting to a verified market-data feed…</div>';
+      '<div id="gtxLWC"></div>'+
+      '<div class="gtxLWCHead">'+
+        '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
+        '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
+        '<div class="gtxLWCControl">'+
+          '<button class="gtxLWCBtn active" data-chart-type="candle" type="button">Candles</button>'+
+          '<button class="gtxLWCBtn" data-chart-type="line" type="button">Line</button>'+
+          '<button class="gtxLWCBtn" data-chart-type="mountain" type="button">Mountain</button>'+
+          '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
+        '</div>'+
+      '</div>'+
+      '<div class="gtxLWCTradeLine" id="gtxLWCTradeStart"></div>'+
+      '<div class="gtxLWCTradeLine end" id="gtxLWCTradeEnd"></div>'+
+      '<div class="gtxLWCFlag" id="gtxLWCFlag">🚩</div>'+
+      '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
+      '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     pair.insertAdjacentElement("afterend",box);
-    const sel=document.getElementById("gtxLCTF");
+
+    const tfSelect=document.getElementById("gtxLWCChartTF");
     Object.keys(CFG.intervals).forEach(t=>{
-      const o=document.createElement("option");o.value=t;o.textContent=t;
-      if(t===state.tf)o.selected=true;sel.appendChild(o);
+      const o=document.createElement("option");
+      o.value=t;o.textContent=t;
+      if(t===state.tf)o.selected=true;
+      tfSelect.appendChild(o);
     });
-    sel.onchange=()=>setTimeframe(sel.value);
-    if(window.ResizeObserver)new ResizeObserver(draw).observe(box);
-    window.addEventListener("resize",draw,{passive:true});
+    tfSelect.onchange=()=>setTimeframe(tfSelect.value);
+
+    box.querySelectorAll("[data-chart-type]").forEach(b=>{
+      b.addEventListener("click",()=>{
+        state.chartType=b.dataset.chartType||"candle";
+        try{localStorage.setItem(TYPE_KEY,state.chartType)}catch(_){}
+        updateTypeButtons();
+        applySeriesVisibility();
+      });
+    });
+
+    try{
+      const saved=localStorage.getItem(CHART_KEY);
+      if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];tfSelect.value=saved}
+      const savedType=localStorage.getItem(TYPE_KEY);
+      if(["candle","line","mountain"].includes(savedType))state.chartType=savedType;
+    }catch(_){}
+    updateTypeButtons();
     return true;
   }
 
   function status(t,ok){
-    const e=document.getElementById("gtxLCStatus");if(!e)return;
-    e.textContent=t;e.style.color=ok?"#8ff0ae":"#a8bfd7";
+    const e=document.getElementById("gtxLWCStatus");if(!e)return;
+    e.textContent=t;e.style.color=ok?"#8ff0ae":"#b5c7d8";
+    e.style.borderColor=ok?"#1f6c40":"#31506d";
   }
   function notice(t,show=true){
-    const e=document.getElementById("gtxLCNotice");if(e){e.textContent=t;e.hidden=!show}
+    const e=document.getElementById("gtxLWCNotice");if(e){e.textContent=t;e.hidden=!show}
+  }
+  function assetText(){
+    const a=document.getElementById("gtxLWCAsset");
+    if(a)a.textContent=(state.mode==="LIVE"?"LIVE":"OTC")+" • "+(state.assetLabel||"");
+  }
+  function updateTypeButtons(){
+    document.querySelectorAll("#gtxLiveChart [data-chart-type]").forEach(b=>{
+      b.classList.toggle("active",b.dataset.chartType===state.chartType);
+    });
   }
   function bucket(ms,sec){return Math.floor(ms/1000/sec)*sec*1000}
 
@@ -85,58 +141,59 @@
     if(!c||c.t!==b){
       c={t:b,o:price,h:price,l:price,c:price,v:Number(volume||0)};
       state.candles.push(c);
-      if(state.candles.length>220)state.candles.shift();
+      if(state.candles.length>500)state.candles.shift();
     }else{
-      c.h=Math.max(c.h,price);c.l=Math.min(c.l,price);c.c=price;c.v+=Number(volume||0);
+      c.h=Math.max(c.h,price);
+      c.l=Math.min(c.l,price);
+      c.c=price;
+      c.v+=Number(volume||0);
     }
-    state.prev=state.price;state.price=price;draw();
+    state.prev=state.price;
+    state.price=price;
+    updateLiveSeries(c);
   }
 
   function closeSocket(){
     if(state.ws){try{state.ws.close()}catch(_){}state.ws=null}
-    if(state.poll){clearInterval(state.poll);state.poll=null}
   }
 
   async function loadBybitHistory(){
-    const u=CFG.bybitRest+"?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+Math.max(1,Math.round(state.sec/60))+"&limit=200";
-    const r=await fetch(u,{cache:"no-store"}),j=await r.json();
-    if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
-    const rows=j?.result?.list||[];
-    state.candles=rows.slice().reverse().map(x=>({
-      t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])
-    })).filter(x=>Number.isFinite(x.c));
+    if(state.sec<60){
+      const u="https://api.bybit.com/v5/market/recent-trade?category=spot&symbol="+encodeURIComponent(state.symbol)+"&limit=1000";
+      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
+      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit recent trades unavailable.");
+      const rows=(j?.result?.list||[]).slice().reverse();
+      const byBucket=new Map();
+      rows.forEach(x=>{
+        const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);
+        if(!Number.isFinite(ts)||!Number.isFinite(p))return;
+        const b=bucket(ts,state.sec);
+        let c=byBucket.get(b);
+        if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
+        c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;
+        byBucket.set(b,c);
+      });
+      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
+    }else{
+      const bybitIntervals={60:"1",120:"2",300:"5",900:"15",1800:"30",3600:"60",7200:"120",14400:"240",86400:"D",604800:"W",2592000:"M"};
+      const interval=bybitIntervals[state.sec];
+      if(!interval)throw new Error("Bybit does not provide a native candle interval for "+state.tf+".");
+      const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+interval+"&limit=500";
+      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
+      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
+      const rows=j?.result?.list||[];
+      state.candles=rows.slice().reverse().map(x=>({
+        t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])
+      })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
+    }
+    state.candles.sort((a,b)=>a.t-b.t);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
 
-  async function connectBybit(){
-    const id=++state.connectionId;
-    closeSocket();const f=selection();
-    if(!f.available||f.provider!=="BYBIT"){
-      status("NO VERIFIED LIVE FEED",false);notice(f.reason||"Selected asset is not available on the verified Bybit Spot feed.",true);return;
-    }
-    state.provider=f.provider;state.symbol=f.symbol;
-    status("CONNECTING • BYBIT",false);
-    notice(state.sec<60?"Waiting for real Bybit trades to build "+state.tf+" candles…":"Loading verified Bybit candles…",true);
-    try{
-      if(state.sec>=60)await loadBybitHistory();
-      if(id!==state.connectionId)return;
-      draw();
-      const ws=new WebSocket(CFG.bybitWs);state.ws=ws;
-      ws.onopen=()=>{
-        if(id!==state.connectionId){try{ws.close()}catch(_){}return}
-        state.connected=true;status("LIVE • BYBIT WEBSOCKET",true);notice("",false);
-        ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol]}));
-      };
-      ws.onmessage=e=>{
-        if(id!==state.connectionId)return;
-        try{
-          const j=JSON.parse(e.data);
-          if(Array.isArray(j.data))j.data.forEach(t=>addTick(Number(t.T||Date.now()),Number(t.p),Number(t.v)));
-        }catch(_){}
-      };
-      ws.onerror=()=>{if(id!==state.connectionId)return;state.connected=false;status("FEED ERROR",false);notice("Bybit live stream error. Retrying…",true)};
-      ws.onclose=()=>{if(id!==state.connectionId)return;state.connected=false;status("RECONNECTING • BYBIT",false);setTimeout(()=>{if(id===state.connectionId)connect()},2500)};
-    }catch(e){if(id!==state.connectionId)return;state.connected=false;status("FEED ERROR",false);notice(e.message||"Verified Bybit data unavailable.",true)}
+  function historyReady(){
+    // Never paint a tiny one/two-candle chart and then progressively zoom it out.
+    // The first render requires a real historical window.
+    return state.candles.length >= 12;
   }
 
   async function resolveTwelveSymbol(f){
@@ -146,40 +203,106 @@
 
   async function loadTwelveHistory(symbol){
     state.candles=await feed().twelveHistory(symbol,state.sec);
+    state.candles=state.candles.filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
+  }
+
+  function connectBybit(){
+    const id=++state.connectionId;
+    closeSocket();
+    const f=selection();
+    if(!f.available||f.provider!=="BYBIT"){
+      state.connected=false;status("NO VERIFIED LIVE FEED",false);
+      notice(f.reason||"Selected asset is not available on the verified Bybit Spot feed.",true);
+      return;
+    }
+    state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
+    state.connected=false;status("LOADING • BYBIT",false);
+    notice("Loading verified historical candles…",true);
+
+    loadBybitHistory().then(()=>{
+      if(id!==state.connectionId)return;
+      if(!historyReady()){
+        state.connected=false;
+        status("WAITING FOR HISTORY",false);
+        notice("Waiting for enough verified historical candles before displaying the chart…",true);
+        setTimeout(()=>{if(id===state.connectionId)connect()},2500);
+        return;
+      }
+      renderHistory();
+      const ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
+      state.ws=ws;
+      ws.onopen=()=>{
+        if(id!==state.connectionId){try{ws.close()}catch(_){}return}
+        state.connected=true;
+        status("LIVE • BYBIT WEBSOCKET",true);
+        notice("",false);
+        ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol]}));
+      };
+      ws.onmessage=e=>{
+        if(id!==state.connectionId)return;
+        try{
+          const j=JSON.parse(e.data);
+          if(Array.isArray(j.data))j.data.forEach(t=>addTick(Number(t.T||Date.now()),Number(t.p),Number(t.v)));
+        }catch(_){}
+      };
+      ws.onerror=()=>{
+        if(id!==state.connectionId)return;
+        state.connected=false;status("FEED ERROR",false);notice("Bybit live stream error. Retrying…",true);
+      };
+      ws.onclose=()=>{
+        if(id!==state.connectionId)return;
+        state.connected=false;status("RECONNECTING • BYBIT",false);
+        setTimeout(()=>{if(id===state.connectionId)connect()},2500);
+      };
+    }).catch(e=>{
+      if(id!==state.connectionId)return;
+      state.connected=false;status("FEED ERROR",false);
+      notice(e.message||"Verified Bybit historical data unavailable.",true);
+    });
   }
 
   function connectTwelve(){
     const id=++state.connectionId;
-    closeSocket();const f=selection();
+    closeSocket();
+    const f=selection();
     if(!f.available||!String(f.provider).startsWith("TWELVE_DATA")){
-      status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified provider is available for this asset.",true);return;
+      state.connected=false;status("NO VERIFIED LIVE FEED",false);
+      notice(f.reason||"No verified provider is available for this asset.",true);
+      return;
     }
-    // Twelve Data credentials stay server-side in Supabase Edge Functions.
-    status("VERIFYING • TWELVE DATA",false);notice("Checking verified provider access for "+f.label+"…",true);
+    state.assetLabel=f.label;assetText();
+    status("VERIFYING • TWELVE DATA",false);
+    notice("Loading verified historical candles…",true);
     resolveTwelveSymbol(f).then(async symbol=>{
       if(id!==state.connectionId)return;
       state.symbol=symbol;state.provider="TWELVE_DATA";
-      if(state.sec>=60){
-        await loadTwelveHistory(symbol);
-        if(id!==state.connectionId)return;
-        draw();
-        try{
-          const p=await feed().twelvePrice(symbol);
-          if(id!==state.connectionId)return;
-          state.price=p.price;draw();
-        }catch(_){}
+      if(state.sec<60){
+        state.connected=false;
+        status("NO VERIFIED HISTORY",false);
+        notice("This verified provider does not supply startup history for sub-minute candles. No synthetic candles are generated.",true);
+        return;
       }
-      const ws=await feed().twelveSocket(symbol,
+      await loadTwelveHistory(symbol);
+      if(id!==state.connectionId)return;
+      if(!historyReady()){
+        state.connected=false;
+        status("WAITING FOR HISTORY",false);
+        notice("Waiting for enough verified historical candles before displaying the chart…",true);
+        return;
+      }
+      renderHistory();
+      const socket=await feed().twelveSocket(symbol,
         tick=>{if(id===state.connectionId)addTick(tick.time,tick.price,0)},
         (msg,ok)=>{
           if(id!==state.connectionId)return;
+          state.connected=!!ok;
           status(ok?"LIVE • TWELVE DATA":msg,!!ok);
           if(ok)notice("",false);
         }
       );
-      if(id!==state.connectionId){try{ws.close()}catch(_){}return}
-      state.ws=ws;
+      if(id!==state.connectionId){try{socket.close()}catch(_){}return}
+      state.ws=socket;
     }).catch(e=>{
       if(id!==state.connectionId)return;
       state.connected=false;status("NO VERIFIED LIVE FEED",false);
@@ -190,90 +313,277 @@
   function connect(){
     ++state.connectionId;
     const f=selection();
-    state.mode=String(f.mode||"LIVE");state.type=f.type||"";
+    state.mode=String(f.mode||"LIVE").toUpperCase();
+    state.type=f.type||"";
     state.assetLabel=f.label||"";
-    state.candles=[];state.price=null;state.tradeStart=null;state.tradeEnd=null;
-    if(state.mode!=="LIVE"){closeSocket();status("OTC • FEED REQUIRED",false);notice("OTC 24/7 selected. No fake candles are generated; a verified OTC feed must be connected.",true);draw();return}
+    state.candles=[];state.price=null;state.prev=null;state.tradeStart=null;state.tradeEnd=null;
+    state.historyLoaded=false;state.initialRangeSet=false;assetText();
+    if(state.mode!=="LIVE"){
+      closeSocket();state.connected=false;status("OTC • FEED REQUIRED",false);
+      notice("OTC 24/7 selected. No fake candles are generated; a verified OTC feed must be connected.",true);
+      return;
+    }
     if(f.provider==="BYBIT")connectBybit();
     else if(String(f.provider).startsWith("TWELVE_DATA"))connectTwelve();
-    else{closeSocket();status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified live feed is connected for this asset.",true);draw()}
+    else{closeSocket();state.connected=false;status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified live feed is connected for this asset.",true)}
   }
 
   function setTimeframe(tf){
     if(!CFG.intervals[tf])return;
-    state.tf=tf;state.sec=CFG.intervals[tf];state.candles=[];connect();
+    state.tf=tf;state.sec=CFG.intervals[tf];
+    try{localStorage.setItem(CHART_KEY,tf)}catch(_){}
+    const s=document.getElementById("gtxLWCChartTF");if(s)s.value=tf;
+    connect();
   }
 
-  function fmt(n){return Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
-  function markerX(ts,left,cw,cs){
-    if(!Number.isFinite(ts)||!cs.length)return null;
-    const first=cs[0].t,last=cs[cs.length-1].t,span=Math.max(1,last-first);
-    return left+Math.max(0,Math.min(1,(ts-first)/span))*cw;
+  function precisionForPrice(p){
+    const n=Math.abs(Number(p)||0);
+    if(n>=1000)return 2;
+    if(n>=100)return 3;
+    if(n>=1)return state.type==="forex"||state.type==="metals"?5:4;
+    return 6;
   }
 
-  function draw(){
-    const box=document.getElementById("gtxLiveChart"),cv=document.getElementById("gtxLiveCanvas");
-    if(!box||!cv)return;
-    const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1)),w=box.clientWidth,h=box.clientHeight;
-    cv.width=Math.floor(w*dpr);cv.height=Math.floor(h*dpr);
-    const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
-    const left=8,right=62,top=30,bottom=25,cw=Math.max(1,w-left-right),ch=Math.max(1,h-top-bottom);
-    const cs=state.candles.slice(-80);if(!cs.length){document.getElementById("gtxLCPrice")?.setAttribute("hidden","");return}
-    let lo=Math.min(...cs.map(x=>x.l)),hi=Math.max(...cs.map(x=>x.h)),pad=(hi-lo||1)*.08;lo-=pad;hi+=pad;
-    const py=p=>top+(hi-p)/(hi-lo)*ch,step=cw/Math.max(1,cs.length);
-    g.strokeStyle="#12304f";g.lineWidth=1;
-    for(let i=0;i<5;i++){const y=top+ch*i/4;g.beginPath();g.moveTo(left,y);g.lineTo(left+cw,y);g.stroke()}
-    g.font="9px system-ui";g.fillStyle="#7e9ab5";g.textAlign="left";
-    for(let i=0;i<5;i++)g.fillText(fmt(hi-(hi-lo)*i/4),w-right+5,top+9+ch*i/4);
-    cs.forEach((c,i)=>{
-      const x=left+step*i+step*.5,up=c.c>=c.o,body=Math.max(2,Math.abs(py(c.o)-py(c.c)));
-      g.strokeStyle=up?"#22c55e":"#ef4444";g.lineWidth=Math.max(2,Math.min(4,step*.35));
-      g.beginPath();g.moveTo(x,py(c.h));g.lineTo(x,py(c.l));g.stroke();
-      g.fillStyle=up?"#22c55e":"#ef4444";
-      g.fillRect(x-Math.max(2,step*.3),Math.min(py(c.o),py(c.c)),Math.max(4,step*.6),body);
-      if(i%Math.max(1,Math.floor(cs.length/5))===0){
-        g.fillStyle="#708aa3";g.font="8px system-ui";g.textAlign="center";
-        g.fillText(new Date(c.t).toLocaleTimeString([],{
-          hour:"2-digit",minute:"2-digit",second:state.sec<60?"2-digit":undefined
-        }),x,h-7);
-      }
+  function sma(period){
+    const out=[];
+    for(let i=period-1;i<state.candles.length;i++){
+      let sum=0;
+      for(let j=i-period+1;j<=i;j++)sum+=state.candles[j].c;
+      out.push({time:Math.floor(state.candles[i].t/1000),value:sum/period});
+    }
+    return out;
+  }
+
+  function seriesCandleData(){
+    return state.candles.map(c=>({
+      time:Math.floor(c.t/1000),
+      open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)
+    }));
+  }
+
+  function seriesLineData(){
+    return state.candles.map(c=>({time:Math.floor(c.t/1000),value:Number(c.c)}));
+  }
+
+  function volumeData(){
+    return state.candles.filter(c=>Number.isFinite(Number(c.v))&&Number(c.v)>0).map(c=>({
+      time:Math.floor(c.t/1000),
+      value:Number(c.v),
+      color:c.c>=c.o?"#26a69a99":"#ef535099"
+    }));
+  }
+
+  function removeSeriesSafe(s){
+    if(!s||!state.chart)return;
+    try{state.chart.removeSeries(s)}catch(_){}
+  }
+
+  function buildChart(){
+    if(state.chart)return;
+    const C=window.LightweightCharts;
+    const host=document.getElementById("gtxLWC");
+    if(!C||!host)throw new Error("Lightweight Charts library did not load.");
+    state.chart=C.createChart(host,{
+      autoSize:true,
+      layout:{background:{type:C.ColorType.Solid,color:"#07111d"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
+      grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
+      rightPriceScale:{visible:true,borderVisible:false,minimumWidth:58,scaleMargins:{top:.08,bottom:.12}},
+      leftPriceScale:{visible:false,borderVisible:false},
+      timeScale:{borderVisible:false,timeVisible:true,secondsVisible:state.sec<60,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false},
+      crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
+      handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
+      handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}
     });
-    if(Number.isFinite(state.price)){
-      const y=py(state.price),p=document.getElementById("gtxLCPrice");
-      if(p){p.textContent=fmt(state.price);p.hidden=false;p.style.top=y+"px"}
-      g.strokeStyle="#f5a623";g.setLineDash([5,4]);g.lineWidth=1;
-      g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.setLineDash([]);
+
+    state.candleSeries=state.chart.addCandlestickSeries({
+      upColor:"#22c55e",downColor:"#ef4444",
+      borderUpColor:"#22c55e",borderDownColor:"#ef4444",
+      wickUpColor:"#a7f3c2",wickDownColor:"#fca5a5",
+      priceLineVisible:false,lastValueVisible:true
+    });
+    state.lineSeries=state.chart.addLineSeries({color:"#42d392",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+    state.areaSeries=state.chart.addAreaSeries({lineColor:"#42d392",topColor:"#42d39255",bottomColor:"#42d39205",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+    state.volumeSeries=state.chart.addHistogramSeries({priceFormat:{type:"volume"},priceScaleId:"volume",scaleMargins:{top:.82,bottom:0},base:0});
+    state.ma50=state.chart.addLineSeries({color:"#22e36f",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+    state.ma100=state.chart.addLineSeries({color:"#f59e0b",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+    state.ma200=state.chart.addLineSeries({color:"#3b82f6",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+    state.currentPriceLine=state.candleSeries.createPriceLine({
+      price:0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Dashed,
+      axisLabelVisible:true,title:"LIVE"
+    });
+    applySeriesVisibility();
+    state.chart.timeScale().subscribeSizeChange(()=>positionTradeOverlay());
+    state.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>positionTradeOverlay());
+  }
+
+  function applySeriesVisibility(){
+    if(!state.chart)return;
+    const candle=state.chartType==="candle";
+    const line=state.chartType==="line";
+    const mountain=state.chartType==="mountain";
+    state.candleSeries?.applyOptions({visible:candle});
+    state.lineSeries?.applyOptions({visible:line});
+    state.areaSeries?.applyOptions({visible:mountain});
+    const ind=candle;
+    state.ma50?.applyOptions({visible:ind});
+    state.ma100?.applyOptions({visible:ind});
+    state.ma200?.applyOptions({visible:ind});
+    state.volumeSeries?.applyOptions({visible:true});
+  }
+
+  function renderHistory(){
+    if(!state.chart)buildChart();
+    const candles=seriesCandleData();
+    const lines=seriesLineData();
+    state.candleSeries.setData(candles);
+    state.lineSeries.setData(lines);
+    state.areaSeries.setData(lines);
+    state.volumeSeries.setData(volumeData());
+    state.ma50.setData(sma(50));
+    state.ma100.setData(sma(100));
+    state.ma200.setData(sma(200));
+    state.historyLoaded=candles.length>0;
+    state.initialRangeSet=false;
+    applySeriesVisibility();
+    updateCurrentPriceLine();
+    if(candles.length){
+      const from=Math.max(0,candles.length-60);
+      state.chart.timeScale().setVisibleLogicalRange({from,to:candles.length+4});
+      state.initialRangeSet=true;
     }
-    const flag=document.getElementById("gtxLCFlag");
-    if(flag&&state.tradeStart){
-      const x=markerX(state.tradeStart.time,left,cw,cs)||left+cw*.18;
-      flag.style.left=x+"px";flag.style.top=py(state.tradeStart.price)+"px";flag.style.display="block";
-      g.strokeStyle="#f5a623";g.setLineDash([4,4]);g.beginPath();g.moveTo(x,top);g.lineTo(x,top+ch);g.stroke();
-      if(state.tradeEnd){const ex=markerX(state.tradeEnd.time,left,cw,cs)||x;g.strokeStyle="#fff";g.beginPath();g.moveTo(ex,top);g.lineTo(ex,top+ch);g.stroke()}
-      g.setLineDash([]);
+    positionTradeOverlay();
+    notice("",false);
+  }
+
+  function smaValue(period){
+    if(state.candles.length<period)return null;
+    let sum=0;
+    for(let i=state.candles.length-period;i<state.candles.length;i++)sum+=Number(state.candles[i].c);
+    return sum/period;
+  }
+
+  function updateLiveSeries(c){
+    if(!state.chart||!state.historyLoaded){
+      if(historyReady()){try{buildChart();renderHistory()}catch(e){notice(e.message||"Chart engine error.",true)}}
+      return;
     }
+    const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
+    state.candleSeries.update(item);
+    state.lineSeries.update({time:item.time,value:item.close});
+    state.areaSeries.update({time:item.time,value:item.close});
+    if(Number(c.v)>0)state.volumeSeries.update({time:item.time,value:Number(c.v),color:c.c>=c.o?"#26a69a99":"#ef535099"});
+    for(const [series,period] of [[state.ma50,50],[state.ma100,100],[state.ma200,200]]){
+      const value=smaValue(period);
+      if(value!==null)series.update({time:item.time,value});
+    }
+    state.price=c.c;
+    updateCurrentPriceLine();
+    positionTradeOverlay();
+  }
+
+  function updateCurrentPriceLine(){
+    if(!state.currentPriceLine||!Number.isFinite(state.price))return;
+    const C=window.LightweightCharts;
+    state.currentPriceLine.applyOptions({
+      price:Number(state.price),
+      color:"#f5a623",
+      lineWidth:1,
+      lineStyle:C.LineStyle.Dashed,
+      axisLabelVisible:true,
+      title:"LIVE"
+    });
   }
 
   function observeTradeMarkers(){
+    if(state.markersInstalled)return;
+    state.markersInstalled=true;
     document.addEventListener("click",e=>{
-      const b=e.target.closest("#buy,#sell");if(!b||!Number.isFinite(state.price))return;
-      state.tradeStart={time:Date.now(),price:state.price,side:b.id==="buy"?"BUY":"SELL"};state.tradeEnd=null;draw();
+      const b=e.target.closest("#buy,#sell");
+      if(!b||!Number.isFinite(state.price))return;
+      state.tradeStart={time:bucket(Date.now(),state.sec),price:state.price,side:b.id==="buy"?"BUY":"SELL"};
+      state.tradeEnd=null;
+      try{
+        const markerTime=Math.floor(state.tradeStart.time/1000);
+        state.candleSeries?.setMarkers([{
+          time:markerTime,
+          position:b.id==="buy"?"belowBar":"aboveBar",
+          color:b.id==="buy"?"#22c55e":"#ef4444",
+          shape:b.id==="buy"?"arrowUp":"arrowDown",
+          text:b.id==="buy"?"BUY":"SELL",
+          size:2
+        }]);
+      }catch(_){}
+      positionTradeOverlay();
     },true);
+  }
+
+  function positionTradeOverlay(){
+    if(!state.chart||!state.tradeStart)return;
+    const x=state.chart.timeScale().timeToCoordinate(Math.floor(state.tradeStart.time/1000));
+    const line=document.getElementById("gtxLWCTradeStart");
+    const flag=document.getElementById("gtxLWCFlag");
+    if(x!==null&&x!==undefined){
+      line.style.left=x+"px";line.style.display="block";
+      flag.style.left=x+"px";
+      const y=state.candleSeries?.priceToCoordinate(state.tradeStart.price);
+      if(y!==null&&y!==undefined){flag.style.top=y+"px";flag.style.display="block"}
+    }
+    if(state.tradeEnd){
+      const ex=state.chart.timeScale().timeToCoordinate(Math.floor(state.tradeEnd.time/1000));
+      const end=document.getElementById("gtxLWCTradeEnd");
+      if(ex!==null&&ex!==undefined){end.style.left=ex+"px";end.style.display="block"}
+    }
+  }
+
+  function installLibraryAndStart(){
+    if(window.LightweightCharts){start();return}
+    if(window.__gtxLwcPromise){window.__gtxLwcPromise.then(start).catch(e=>{status("CHART ENGINE ERROR",false);notice(e.message||"Lightweight Charts could not load.",true)});return}
+    window.__gtxLwcPromise=new Promise((resolve,reject)=>{
+      const s=document.createElement("script");
+      s.src=LWC_URL;s.async=true;s.onload=()=>window.LightweightCharts?resolve():reject(new Error("Lightweight Charts loaded without its global API."));
+      s.onerror=()=>reject(new Error("Could not load the Lightweight Charts library."));
+      document.head.appendChild(s);
+    });
+    window.__gtxLwcPromise.then(start).catch(e=>{
+      status("CHART ENGINE ERROR",false);
+      notice(e.message||"Lightweight Charts could not load.",true);
+    });
+  }
+
+  function start(){
+    try{
+      buildChart();
+      connect();
+    }catch(e){
+      status("CHART ENGINE ERROR",false);
+      notice(e.message||"Unable to start the chart engine.",true);
+    }
   }
 
   function watchSelection(){
     const f=selection();
-    const k=[f.provider,f.symbol,f.label,f.type,state.tf,localStorage.getItem("gotradex_market_mode")].join("|");
-    if(k!==state.lastAssetKey){state.lastAssetKey=k;connect()}
+    const k=[f.provider,f.symbol,f.label,f.type,String(f.mode||"LIVE").toUpperCase()].join("|");
+    if(k!==state.lastAssetKey){
+      state.lastAssetKey=k;
+      connect();
+    }
   }
 
   function boot(){
+    if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
-    const sel=document.getElementById("gtxLCTF");if(sel)sel.value=state.tf;
-    window.GoTradeXLiveChart={boot,setTimeframe,reconnect:connect,state};
-    observeTradeMarkers();watchSelection();setInterval(watchSelection,700);
+    state.booted=true;
+    installLibraryAndStart();
+    observeTradeMarkers();
+    setInterval(watchSelection,700);
   }
 
-  window.GoTradeXLiveChart={boot,setTimeframe,reconnect:connect,state};
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
+  window.GoTradeXLiveChart={
+    boot,setTimeframe,reconnect:connect,state,
+    chartVersion:"Lightweight Charts 4.2.2",
+    engine:"TradingView Lightweight Charts"
+  };
+
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});
+  else boot();
 })();
