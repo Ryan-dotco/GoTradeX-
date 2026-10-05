@@ -27,7 +27,7 @@
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,volumeSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
-    booted:false,markersInstalled:false,timezone:"local",clockTimer:null
+    booted:false,markersInstalled:false,timezone:"local",clockTimer:null,patternsVisible:false,heikin:false
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -75,9 +75,7 @@
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span><span class="gtxLWCClock" id="gtxLWCClock">--/--/---- --:--:--</span>'+
         '<div class="gtxLWCControl">'+
-          '<button class="gtxLWCBtn active" data-chart-type="candle" type="button">Candles</button>'+
-          '<button class="gtxLWCBtn" data-chart-type="line" type="button">Line</button>'+
-          '<button class="gtxLWCBtn" data-chart-type="mountain" type="button">Mountain</button>'+
+          '<span class="gtxLWCAsset" style="margin-left:5px">CANDLE INTERVAL</span>'+
           '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select><select class="gtxLWCSelect" id="gtxLWCTZ" aria-label="Chart time zone"></select>'+
         '</div>'+
       '</div>'+
@@ -455,11 +453,38 @@
     state.volumeSeries?.applyOptions({visible:false});
   }
 
+  function heikinData(){
+    const out=[];let prev=null;
+    for(const c of state.candles){
+      const close=(c.o+c.h+c.l+c.c)/4;
+      const open=prev?((prev.open+prev.close)/2):((c.o+c.c)/2);
+      out.push({time:Math.floor(c.t/1000),open,high:Math.max(c.h,open,close),low:Math.min(c.l,open,close),close});
+      prev={open,close};
+    }
+    return out;
+  }
+  function patternMarkers(){
+    const out=[];
+    for(let i=1;i<state.candles.length;i++){
+      const a=state.candles[i-1],b=state.candles[i],body=Math.abs(b.c-b.o),range=Math.max(b.h-b.l,1e-12);
+      const upper=b.h-Math.max(b.o,b.c),lower=Math.min(b.o,b.c)-b.l;
+      if(body/range<.12)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#f5a623",shape:"circle",text:"DOJI"});
+      else if(a.c<a.o&&b.c>b.o&&b.o<=a.c&&b.c>=a.o)out.push({time:Math.floor(b.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"ENGULF"});
+      else if(a.c>a.o&&b.c<b.o&&b.o>=a.c&&b.c<=a.o)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"ENGULF"});
+      else if(lower>body*2&&upper<body*.8)out.push({time:Math.floor(b.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"HAMMER"});
+      else if(upper>body*2&&lower<body*.8)out.push({time:Math.floor(b.t/1000),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"SHOOT"});
+    }
+    return out.slice(-80);
+  }
+  function applyPatternMarkers(){
+    if(!state.candleSeries)return;
+    try{state.candleSeries.setMarkers(state.patternsVisible?patternMarkers():[])}catch(_){}
+  }
   function renderHistory(){
     if(!state.chart)buildChart();
     const candles=seriesCandleData();
     const lines=seriesLineData();
-    state.candleSeries.setData(candles);
+    state.candleSeries.setData(state.heikin?heikinData():candles);
     state.lineSeries.setData(lines);
     state.areaSeries.setData(lines);
     state.volumeSeries.setData([]);
@@ -476,6 +501,7 @@
       state.initialRangeSet=true;
     }
     positionTradeOverlay();
+    applyPatternMarkers();
     notice("",false);
   }
 
@@ -492,7 +518,7 @@
       return;
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
-    state.candleSeries.update(item);
+    state.candleSeries.update(state.heikin?heikinData().at(-1):item);
     state.lineSeries.update({time:item.time,value:item.close});
     state.areaSeries.update({time:item.time,value:item.close});
     // Volume histogram intentionally disabled; keep the live chart single-pane and clean.
@@ -503,6 +529,15 @@
     state.price=c.c;
     updateCurrentPriceLine();
     positionTradeOverlay();
+  }
+
+  function setChartTool(tool){
+    const t=String(tool||"");
+    if(t==="Heikin Ashi"){state.heikin=!state.heikin;state.chartType="candle";renderHistory();}
+    else if(t==="Line Chart"){state.heikin=false;state.chartType="line";renderHistory();}
+    else if(t==="Area Chart"){state.heikin=false;state.chartType="mountain";renderHistory();}
+    else if(t==="Patterns"){state.patternsVisible=!state.patternsVisible;applyPatternMarkers();}
+    else if(t==="Candles"){state.heikin=false;state.chartType="candle";renderHistory();}
   }
 
   function updateCurrentPriceLine(){
@@ -603,7 +638,7 @@
   }
 
   window.GoTradeXLiveChart={
-    boot,setTimeframe,reconnect:connect,state,
+    boot,setTimeframe,reconnect:connect,setChartTool,state,
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
