@@ -32,7 +32,7 @@
     if(document.getElementById("gtx-live-chart-style"))return;
     const s=document.createElement("style");s.id="gtx-live-chart-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:clamp(280px,48vh,520px);min-height:280px;background:#061525;border:1px solid #16395f;border-radius:12px;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
+      "#gtxLiveChart{position:relative;width:100%;height:clamp(280px,48vh,520px);min-height:280px;background:#061525;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLiveCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}"+
       ".gtxLCHead{position:absolute;z-index:4;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}.gtxLCHead>*{pointer-events:auto}"+
       ".gtxLCBadge{font:900 9px/1 system-ui;color:#fff;background:#16a34a;border:1px solid #4ade80;border-radius:5px;padding:5px 7px}"+
@@ -258,8 +258,9 @@
     const maxPan=Math.max(0,plotW-cw);
     state.pan=Math.max(0,Math.min(maxPan,state.pan));
     const plotLeft=left-state.pan;
-    // Price scale remains; quarter/grid lines are intentionally removed.
+    // Keep the horizontal price grid so traders can align candle history with the time scale.
     g.strokeStyle="#12304f";g.lineWidth=1;
+    for(let i=0;i<5;i++){const y=top+ch*i/4;g.beginPath();g.moveTo(left,y);g.lineTo(left+cw,y);g.stroke()}
     g.font="9px system-ui";g.fillStyle="#7e9ab5";g.textAlign="left";
     for(let i=0;i<5;i++)g.fillText(fmt(hi-(hi-lo)*i/4),w-right+5,top+9+ch*i/4);
     cs.forEach((c,i)=>{
