@@ -6,6 +6,7 @@ function close(id){const e=by(id);if(e)e.classList.remove("open")}
 function bind(id,fn){const e=by(id);if(!e)return;e.dataset.gtxRecovery="1";e.addEventListener("click",e2=>{if(e2.defaultPrevented)return;try{fn(e2)}catch(err){console.error("GoTradeX UI recovery",err)}},{capture:false})}
 function loadLiveChart(){if(window.GoTradeXLiveChart)return;const s=document.createElement("script");s.src="live-chart.js?v=20261005";s.async=true;s.onload=()=>window.GoTradeXLiveChart?.boot?.();document.head.appendChild(s)}
 function boot(){
+ loadLiveChart();
  bind("menuBtn",()=>open("menuDrawer"));
  bind("walletBtn",()=>open("walletDrawer"));
  bind("accountBalanceBar",()=>open("accountDrawer"));
