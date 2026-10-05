@@ -128,7 +128,7 @@
   }
 
   function fmt(n){return Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
-  function draw(){
+  function markerX(ts,left,cw,cs){if(!Number.isFinite(ts)||!cs.length)return null;const first=cs[0].t,last=cs[cs.length-1].t;const span=Math.max(1,last-first);return left+Math.max(0,Math.min(1,(ts-first)/span))*cw}\n\n  function draw(){
     const box=document.getElementById("gtxLiveChart"),cv=document.getElementById("gtxLiveCanvas");if(!box||!cv)return;
     const dpr=Math.max(1,Math.min(2,devicePixelRatio||1)),w=box.clientWidth,h=box.clientHeight;
     cv.width=Math.floor(w*dpr);cv.height=Math.floor(h*dpr);const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
@@ -149,7 +149,7 @@
       const y=py(state.price),p=document.getElementById("gtxLCPrice");if(p){p.textContent=fmt(state.price);p.hidden=false;p.style.top=y+"px"}
       g.strokeStyle="#f5a623";g.setLineDash([5,4]);g.lineWidth=1;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.setLineDash([]);
     }
-    const flag=document.getElementById("gtxLCFlag");if(flag&&state.tradeStart){const x=left+cw*.18;flag.style.left=x+"px";flag.style.top=py(state.tradeStart.price)+"px";flag.style.display="block"}
+    const flag=document.getElementById("gtxLCFlag");\n    if(flag&&state.tradeStart){const x=markerX(state.tradeStart.time,left,cw,cs)||left+cw*.18;flag.style.left=x+"px";flag.style.top=py(state.tradeStart.price)+"px";flag.style.display="block";g.strokeStyle="#f5a623";g.setLineDash([4,4]);g.lineWidth=1;g.beginPath();g.moveTo(x,top);g.lineTo(x,top+ch);g.stroke();if(state.tradeEnd){const ex=markerX(state.tradeEnd.time,left,cw,cs)||x;g.strokeStyle="#fff";g.beginPath();g.moveTo(ex,top);g.lineTo(ex,top+ch);g.stroke()}g.setLineDash([])}
   }
 
   function observeTradeMarkers(){
