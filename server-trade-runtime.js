@@ -53,10 +53,17 @@
       await sync();
     }catch(e){status(e?.message||"Trade could not be opened.");}
   }
+  async function marketState(assetName){
+    const s=client(); if(!s) return null;
+    const {data}=await s.from("gotradex_market_state").select("*").eq("symbol",String(assetName||asset()).toUpperCase()).maybeSingle();
+    return data||null;
+  }
   async function sync(){
     if(syncing)return; syncing=true;
     try{
       const j=await call("sync");
+      const market=await marketState(asset());
+      j.market_state=market;
       window.GoTradeXServerRuntime.last=j;
       const open=(j.open||[]).filter(x=>x.result==="OPEN");
       if(open.length){
@@ -97,6 +104,6 @@
     window.addEventListener("pageshow",()=>{setupRealtime();sync()});
     window.addEventListener("online",()=>{setupRealtime();sync()});
   }
-  window.GoTradeXServerRuntime={call,sync,open,last:null};
+  window.GoTradeXServerRuntime={call,sync,open,marketState,last:null};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 })();
