@@ -21,7 +21,7 @@
   let state={
     tf:"5 Seconds",sec:5,candles:[],price:null,prev:null,ws:null,
     provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
-    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",poll:null,connectionId:0,historyReady:false
+    connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",poll:null,connectionId:0,historyReady:false,zoom:1,pan:0
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -32,7 +32,7 @@
     if(document.getElementById("gtx-live-chart-style"))return;
     const s=document.createElement("style");s.id="gtx-live-chart-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:clamp(280px,48vh,520px);min-height:280px;background:#061525;border:1px solid #16395f;border-radius:12px;overflow:hidden;box-sizing:border-box;touch-action:pan-y}"+
+      "#gtxLiveChart{position:relative;width:100%;height:clamp(280px,48vh,520px);min-height:280px;background:#061525;border:1px solid #16395f;border-radius:12px;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLiveCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}"+
       ".gtxLCHead{position:absolute;z-index:4;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}.gtxLCHead>*{pointer-events:auto}"+
       ".gtxLCBadge{font:900 9px/1 system-ui;color:#fff;background:#16a34a;border:1px solid #4ade80;border-radius:5px;padding:5px 7px}"+
@@ -214,7 +214,7 @@
     const f=selection();
     state.mode=String(f.mode||"LIVE");state.type=f.type||"";
     state.assetLabel=f.label||"";
-    state.candles=[];state.price=null;state.tradeStart=null;state.tradeEnd=null;state.historyReady=false;
+    state.candles=[];state.price=null;state.tradeStart=null;state.tradeEnd=null;state.historyReady=false;state.zoom=1;state.pan=0;
     if(state.mode!=="LIVE"){closeSocket();status("OTC • FEED REQUIRED",false);notice("OTC 24/7 selected. No fake candles are generated; a verified OTC feed must be connected.",true);draw();return}
     if(f.provider==="BYBIT")connectBybit();
     else if(String(f.provider).startsWith("TWELVE_DATA"))connectTwelve();
@@ -251,16 +251,19 @@
     // first few live candles across the whole chart. On mobile this targets
     // roughly 24-32 visible candles; as more candles arrive, older ones leave
     // the window rather than making each candle grow/shrink dramatically.
-    const targetVisible=Math.max(20,Math.min(28,Math.floor(cw/28)));
-    const step=cw/targetVisible;
+    const baseVisible=Math.max(20,Math.min(28,Math.floor(cw/28)));
+    const visible=Math.max(8,Math.min(cs.length,baseVisible/state.zoom));
+    const step=cw/visible;
     const plotW=step*cs.length;
-    const plotLeft=left+Math.max(0,cw-plotW);
+    const maxPan=Math.max(0,plotW-cw);
+    state.pan=Math.max(0,Math.min(maxPan,state.pan));
+    const plotLeft=left-state.pan;
+    // Price scale remains; quarter/grid lines are intentionally removed.
     g.strokeStyle="#12304f";g.lineWidth=1;
-    for(let i=0;i<5;i++){const y=top+ch*i/4;g.beginPath();g.moveTo(left,y);g.lineTo(left+cw,y);g.stroke()}
     g.font="9px system-ui";g.fillStyle="#7e9ab5";g.textAlign="left";
     for(let i=0;i<5;i++)g.fillText(fmt(hi-(hi-lo)*i/4),w-right+5,top+9+ch*i/4);
     cs.forEach((c,i)=>{
-      const x=plotLeft+step*i+step*.5,up=c.c>=c.o,body=Math.max(2,Math.abs(py(c.o)-py(c.c)));
+      const x=plotLeft+step*i+step*.5,up=c.c>=c.o,body=Math.max(2,Math.abs(py(c.o)-py(c.c)));if(x+step<left||x-step>w-right)return;
       g.strokeStyle=up?"#22c55e":"#ef4444";g.lineWidth=1;
       g.beginPath();g.moveTo(x,py(c.h));g.lineTo(x,py(c.l));g.stroke();
       g.fillStyle=up?"#22c55e":"#ef4444";
@@ -288,6 +291,30 @@
     }
   }
 
+  function installChartInteraction(){
+    const box=document.getElementById("gtxLiveChart");
+    if(!box||box.dataset.interactive==="1")return;
+    box.dataset.interactive="1";
+    let dragging=false,lastX=0,pinchDist=0,pinchZoom=1;
+    const redraw=()=>{state.zoom=Math.max(.5,Math.min(8,state.zoom));draw()};
+    box.addEventListener("wheel",e=>{
+      e.preventDefault();
+      const old=state.zoom,dir=e.deltaY<0?1.18:1/1.18;
+      state.zoom=Math.max(.5,Math.min(8,old*dir));
+      const rect=box.getBoundingClientRect(),mx=e.clientX-rect.left,left=8,right=62,cw=Math.max(1,box.clientWidth-left-right);
+      const anchor=Math.max(0,Math.min(cw,mx-left));
+      state.pan=Math.max(0,state.pan+(anchor+state.pan)*(state.zoom/old-1));
+      redraw();
+    },{passive:false});
+    box.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;dragging=true;lastX=e.clientX;box.setPointerCapture?.(e.pointerId)});
+    box.addEventListener("pointermove",e=>{if(!dragging)return;const dx=e.clientX-lastX;lastX=e.clientX;state.pan-=dx;redraw()});
+    box.addEventListener("pointerup",()=>dragging=false);
+    box.addEventListener("pointercancel",()=>dragging=false);
+    box.addEventListener("touchstart",e=>{if(e.touches.length===2){pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);pinchZoom=state.zoom}},{passive:true});
+    box.addEventListener("touchmove",e=>{if(e.touches.length!==2||!pinchDist)return;e.preventDefault();const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);state.zoom=pinchZoom*(d/pinchDist);redraw()},{passive:false});
+    box.addEventListener("touchend",()=>pinchDist=0,{passive:true});
+  }
+
   function observeTradeMarkers(){
     document.addEventListener("click",e=>{
       const b=e.target.closest("#buy,#sell");if(!b||!Number.isFinite(state.price))return;
@@ -305,7 +332,7 @@
     if(!mount()){setTimeout(boot,300);return}
     const sel=document.getElementById("gtxLCTF");if(sel)sel.value=state.tf;
     window.GoTradeXLiveChart={boot,setTimeframe,reconnect:connect,state};
-    observeTradeMarkers();watchSelection();setInterval(watchSelection,700);
+    observeTradeMarkers();installChartInteraction();watchSelection();setInterval(watchSelection,700);
   }
 
   window.GoTradeXLiveChart={boot,setTimeframe,reconnect:connect,state};
