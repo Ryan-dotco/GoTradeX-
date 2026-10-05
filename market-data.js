@@ -56,7 +56,15 @@
   }
 
   function resolve(){
-    const l=label(), t=type();
+    const l=label();
+    const storedType=type();
+    const inferredCrypto=!!cryptoMap[l];
+    const inferredTwelve=!!directTwelve[l];
+    const inferredType=inferredCrypto ? "crypto" : inferredTwelve ? (
+      /^(XAU|XAG)\//.test(l) ? "metals" :
+      /^(WTI|Brent|Natural Gas|Copper|Platinum|Palladium)/.test(l) ? "commodities" : "forex"
+    ) : storedType;
+    const t=inferredType;
     if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
     if((t==="forex" || t==="metals" || t==="commodities") && directTwelve[l])
