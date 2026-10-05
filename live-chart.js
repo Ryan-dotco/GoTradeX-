@@ -116,7 +116,8 @@
         c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;
         byBucket.set(b,c);
       });
-      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-80);\n      state.historyReady=state.candles.length>=12;
+      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-80);
+      state.historyReady=state.candles.length>=12;
     }else{
       const u=CFG.bybitRest+"?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+Math.max(1,Math.round(state.sec/60))+"&limit=200";
       const r=await fetch(u,{cache:"no-store"}),j=await r.json();
@@ -239,16 +240,19 @@
     cv.width=Math.floor(w*dpr);cv.height=Math.floor(h*dpr);
     const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
     const left=8,right=62,top=30,bottom=25,cw=Math.max(1,w-left-right),ch=Math.max(1,h-top-bottom);
-    const cs=state.candles.slice(-80);\n    if(!cs.length || (state.provider==="BYBIT" && state.sec<60 && !state.historyReady)){\n      document.getElementById("gtxLCPrice")?.setAttribute("hidden","");\n      return;\n    }
+    const cs=state.candles.slice(-80);
+    if(!cs.length || (state.provider==="BYBIT" && state.sec<60 && !state.historyReady)){
+      document.getElementById("gtxLCPrice")?.setAttribute("hidden","");
+      return;
+    }
     let lo=Math.min(...cs.map(x=>x.l)),hi=Math.max(...cs.map(x=>x.h)),pad=(hi-lo||1)*.08;lo-=pad;hi+=pad;
     const py=p=>top+(hi-p)/(hi-lo)*ch;
     // Keep a stable, comfortable candle width instead of stretching the
     // first few live candles across the whole chart. On mobile this targets
     // roughly 24-32 visible candles; as more candles arrive, older ones leave
     // the window rather than making each candle grow/shrink dramatically.
-    const targetPx=Math.max(24,Math.min(34,w<600?28:32));
-    const targetVisible=Math.max(24,Math.min(32,Math.floor(cw/targetPx)));
-    const step=cs.length>targetVisible ? cw/targetVisible : targetPx;
+    const targetVisible=Math.max(20,Math.min(28,Math.floor(cw/28)));
+    const step=cw/targetVisible;
     const plotW=step*cs.length;
     const plotLeft=left+Math.max(0,cw-plotW);
     g.strokeStyle="#12304f";g.lineWidth=1;
@@ -257,10 +261,10 @@
     for(let i=0;i<5;i++)g.fillText(fmt(hi-(hi-lo)*i/4),w-right+5,top+9+ch*i/4);
     cs.forEach((c,i)=>{
       const x=plotLeft+step*i+step*.5,up=c.c>=c.o,body=Math.max(2,Math.abs(py(c.o)-py(c.c)));
-      g.strokeStyle=up?"#22c55e":"#ef4444";g.lineWidth=Math.max(1,Math.min(2,step*.08));
+      g.strokeStyle=up?"#22c55e":"#ef4444";g.lineWidth=1;
       g.beginPath();g.moveTo(x,py(c.h));g.lineTo(x,py(c.l));g.stroke();
       g.fillStyle=up?"#22c55e":"#ef4444";
-      g.fillRect(x-Math.max(2,step*.22),Math.min(py(c.o),py(c.c)),Math.max(4,step*.44),body);
+      g.fillRect(x-Math.max(2,step*.25),Math.min(py(c.o),py(c.c)),Math.max(5,step*.50),body);
       if(i%Math.max(1,Math.floor(cs.length/5))===0){
         g.fillStyle="#708aa3";g.font="8px system-ui";g.textAlign="center";
         g.fillText(new Date(c.t).toLocaleTimeString([],{
