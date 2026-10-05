@@ -150,11 +150,7 @@
     if(!f.available||!String(f.provider).startsWith("TWELVE_DATA")){
       status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified provider is available for this asset.",true);return;
     }
-    if(!feed().key()){
-      status("FEED NOT CONFIGURED",false);
-      notice("Twelve Data is the verified adapter for this asset class, but its API key/feed access is not configured. No fake candles are shown.",true);
-      return;
-    }
+    // Twelve Data credentials stay server-side in Supabase Edge Functions.
     status("VERIFYING • TWELVE DATA",false);notice("Checking verified provider access for "+f.label+"…",true);
     resolveTwelveSymbol(f).then(async symbol=>{
       state.symbol=symbol;state.provider="TWELVE_DATA";
@@ -172,21 +168,6 @@
         }
       );
       state.ws=ws;
-      if(state.sec>=60){
-        state.poll=setInterval(async()=>{
-          try{
-            const p=await feed().twelvePrice(symbol);
-            state.prev=state.price;state.price=p.price;
-            if(state.candles.length){
-              const c=state.candles[state.candles.length-1];
-              if(Date.now()-c.t<state.sec*1000){
-                c.h=Math.max(c.h,p.price);c.l=Math.min(c.l,p.price);c.c=p.price;
-              }
-            }
-            draw();
-          }catch(_){}
-        },10000);
-      }
     }).catch(e=>{
       state.connected=false;status("NO VERIFIED LIVE FEED",false);
       notice(e.message||"The selected symbol is not available through the configured verified provider.",true);
