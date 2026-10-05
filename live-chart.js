@@ -18,6 +18,7 @@
 
   const CHART_KEY="gotradex_chart_timeframe";
   const TYPE_KEY="gotradex_chart_type";
+  const TZ_KEY="gotradex_chart_timezone";
 
   let state={
     tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
@@ -26,7 +27,7 @@
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,volumeSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
-    booted:false,markersInstalled:false
+    booted:false,markersInstalled:false,timezone:"local",clockTimer:null
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -45,7 +46,7 @@
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
-      ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
+      ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+".gtxLWCClock{font:900 10px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #31597f;border-radius:6px;padding:6px 7px;white-space:nowrap;font-variant-numeric:tabular-nums}"+
       ".gtxLWCControl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}"+
       ".gtxLWCBtn{border:1px solid #31597f;background:#102945;color:#dcecff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;cursor:pointer}"+
       ".gtxLWCBtn.active{background:#20a96b;color:#fff;border-color:#54e09a}"+
@@ -72,12 +73,12 @@
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
-        '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
+        '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span><span class="gtxLWCClock" id="gtxLWCClock">--/--/---- --:--:--</span>'+
         '<div class="gtxLWCControl">'+
           '<button class="gtxLWCBtn active" data-chart-type="candle" type="button">Candles</button>'+
           '<button class="gtxLWCBtn" data-chart-type="line" type="button">Line</button>'+
           '<button class="gtxLWCBtn" data-chart-type="mountain" type="button">Mountain</button>'+
-          '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
+          '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select><select class="gtxLWCSelect" id="gtxLWCTZ" aria-label="Chart time zone"></select>'+
         '</div>'+
       '</div>'+
       '<div class="gtxLWCTradeLine" id="gtxLWCTradeStart"></div>'+
@@ -95,6 +96,12 @@
       tfSelect.appendChild(o);
     });
     tfSelect.onchange=()=>setTimeframe(tfSelect.value);
+    const tzSelect=document.getElementById("gtxLWCTZ");
+    const zones=[["local","Local"],["UTC","UTC"],["UTC-12","UTC−12"],["UTC-11","UTC−11"],["UTC-10","UTC−10"],["UTC-9","UTC−09"],["UTC-8","UTC−08"],["UTC-7","UTC−07"],["UTC-6","UTC−06"],["UTC-5","UTC−05"],["UTC-4","UTC−04"],["UTC-3","UTC−03"],["UTC-2","UTC−02"],["UTC-1","UTC−01"],["UTC+0","UTC+00"],["UTC+1","UTC+01"],["UTC+2","UTC+02"],["UTC+3","UTC+03"],["UTC+4","UTC+04"],["UTC+5","UTC+05"],["UTC+5:30","UTC+05:30"],["UTC+6","UTC+06"],["UTC+7","UTC+07"],["UTC+8","UTC+08"],["UTC+9","UTC+09"],["UTC+10","UTC+10"],["UTC+11","UTC+11"],["UTC+12","UTC+12"],["UTC+13","UTC+13"],["UTC+14","UTC+14"]];
+    zones.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;tzSelect.appendChild(o)});
+    try{const saved=localStorage.getItem(TZ_KEY);if(saved&&zones.some(z=>z[0]===saved))state.timezone=saved}catch(_){}
+    tzSelect.value=state.timezone;
+    tzSelect.onchange=()=>{state.timezone=tzSelect.value;try{localStorage.setItem(TZ_KEY,state.timezone)}catch(_){};applyTimeFormatting();updateClock()};
 
     box.querySelectorAll("[data-chart-type]").forEach(b=>{
       b.addEventListener("click",()=>{
@@ -112,6 +119,8 @@
       if(["candle","line","mountain"].includes(savedType))state.chartType=savedType;
     }catch(_){}
     updateTypeButtons();
+    applyTimeFormatting();
+    startClock();
     return true;
   }
 
@@ -341,6 +350,16 @@
     connect();
   }
 
+  function timezoneOffsetMs(ts){
+    if(state.timezone==="local")return -new Date(ts).getTimezoneOffset()*60000;
+    const m=state.timezone.match(/^UTC([+-])(\d+)(?::(\d+))?$/);if(!m)return 0;
+    const mins=Number(m[2])*60+Number(m[3]||0);return (m[1]==="+"?mins:-mins)*60000;
+  }
+  function formatChartTime(ts){const d=new Date(Number(ts)*1000+timezoneOffsetMs(Number(ts)*1000));const p=n=>String(n).padStart(2,"0");return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;}
+  function applyTimeFormatting(){if(state.chart)state.chart.applyOptions({localization:{timeFormatter:formatChartTime}});}
+  function updateClock(){const e=document.getElementById("gtxLWCClock");if(e){e.textContent=formatChartTime(Math.floor(Date.now()/1000));e.title=`Chart time zone: ${state.timezone}`;}}
+  function startClock(){if(state.clockTimer)clearInterval(state.clockTimer);updateClock();state.clockTimer=setInterval(updateClock,1000);}
+
   function precisionForPrice(p){
     const n=Math.abs(Number(p)||0);
     if(n>=1000)return 2;
@@ -433,7 +452,7 @@
     state.ma50?.applyOptions({visible:ind});
     state.ma100?.applyOptions({visible:ind});
     state.ma200?.applyOptions({visible:ind});
-    state.volumeSeries?.applyOptions({visible:true});
+    state.volumeSeries?.applyOptions({visible:false});
   }
 
   function renderHistory(){
@@ -443,7 +462,7 @@
     state.candleSeries.setData(candles);
     state.lineSeries.setData(lines);
     state.areaSeries.setData(lines);
-    state.volumeSeries.setData(volumeData());
+    state.volumeSeries.setData([]);
     state.ma50.setData(sma(50));
     state.ma100.setData(sma(100));
     state.ma200.setData(sma(200));
@@ -476,7 +495,7 @@
     state.candleSeries.update(item);
     state.lineSeries.update({time:item.time,value:item.close});
     state.areaSeries.update({time:item.time,value:item.close});
-    if(Number(c.v)>0)state.volumeSeries.update({time:item.time,value:Number(c.v),color:c.c>=c.o?"#26a69a99":"#ef535099"});
+    // Volume histogram intentionally disabled; keep the live chart single-pane and clean.
     for(const [series,period] of [[state.ma50,50],[state.ma100,100],[state.ma200,200]]){
       const value=smaValue(period);
       if(value!==null)series.update({time:item.time,value});
