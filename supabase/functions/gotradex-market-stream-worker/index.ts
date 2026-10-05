@@ -6,6 +6,7 @@ const SERVICE=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
 const RUN_MS=105000, HANDOFF_MS=90000, MAX_TD=8;
+const SUBSCRIPTION_TTL_MS=24*60*60*1000;
 const admin=createClient(SUPABASE_URL,SERVICE,{auth:{autoRefreshToken:false,persistSession:false}});
 const json=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
 
@@ -14,7 +15,7 @@ async function renew(id:string){await admin.rpc("gotradex_renew_market_worker",{
 async function release(id:string){await admin.rpc("gotradex_release_market_worker",{p_worker_id:id});}
 
 async function activeSymbols(){
- const cutoff=new Date(Date.now()-15*60*1000).toISOString();
+ const cutoff=new Date(Date.now()-SUBSCRIPTION_TTL_MS).toISOString();
  const [subs,open]=await Promise.all([
   admin.from("gotradex_market_subscriptions").select("symbol").gte("last_requested_at",cutoff),
   admin.from("gotradex_user_trades").select("asset,provider,provider_symbol").eq("result","OPEN").limit(100)
@@ -77,7 +78,7 @@ async function pollLoop(active:any[],deadline:number){
 }
 async function runWorker(id:string){
  const active=await activeSymbols();
- if(!active.td.length&&!active.bybit.length) return;
+ if(!active.td.length&&!active.bybit.length)return;
  const deadline=Date.now()+RUN_MS-5000;
  const wsPromise=Promise.all([connectTD(active.td),connectBybit(active.bybit)]);
  await Promise.all([wsPromise,pollLoop([...active.td,...active.bybit],deadline)]);
