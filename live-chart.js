@@ -197,8 +197,11 @@
   }
 
   function historyReady(){
-    // Never paint a tiny one/two-candle chart and then progressively zoom it out.
-    // The first render requires a real historical window.
+    // Twelve Data does not provide native 5/15/30-second history in this adapter.
+    // For those intervals, show the first candle as soon as one real provider tick
+    // arrives, then build subsequent buckets only from verified ticks.
+    if(state.provider==="TWELVE_DATA" && state.sec<60) return state.candles.length>=1;
+    // Native historical feeds still require a real historical window before render.
     return state.candles.length >= 12;
   }
 
