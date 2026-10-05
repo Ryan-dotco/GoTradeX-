@@ -68,7 +68,7 @@
     return {available:false,provider:"NONE",reason:"No verified provider mapping exists for "+l+".",label:l,type:t};
   }
 
-  async function twelveSearch(symbol){ return String(symbol||"").trim().toUpperCase(); }
+  async function twelveSearch(symbol){\n    const requested=String(symbol||"").trim().toUpperCase();\n    const d=await serverInvoke({action:"lookup",marketMode:"LIVE",assetType:type(),symbol:requested});\n    const matches=Array.isArray(d.matches)?d.matches:[];\n    if(!matches.length) throw new Error("No verified Twelve Data symbol matches were returned for "+requested+".");\n    const exact=matches.find(x=>String(x.symbol||"").toUpperCase()===requested);\n    return String((exact||matches[0]).symbol||requested);\n  }
 
   function intervals(sec){
     if(sec===60)return "1min"; if(sec===300)return "5min"; if(sec===900)return "15min";
