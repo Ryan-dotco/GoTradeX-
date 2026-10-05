@@ -277,23 +277,28 @@
     resolveTwelveSymbol(f).then(async symbol=>{
       if(id!==state.connectionId)return;
       state.symbol=symbol;state.provider="TWELVE_DATA";
-      if(state.sec<60){
-        state.connected=false;
-        status("NO VERIFIED HISTORY",false);
-        notice("This verified provider does not supply startup history for sub-minute candles. No synthetic candles are generated.",true);
-        return;
-      }
-      await loadTwelveHistory(symbol);
+      // Twelve Data provides verified live prices for this adapter. For sub-minute
+      // chart timeframes we build 5/15/30-second candles only from those real
+      // provider ticks; we never fabricate startup history.
+      if(state.sec>=60)await loadTwelveHistory(symbol);
       if(id!==state.connectionId)return;
-      if(!historyReady()){
+      if(state.sec>=60 && !historyReady()){
         state.connected=false;
         status("WAITING FOR HISTORY",false);
         notice("Waiting for enough verified historical candles before displaying the chart…",true);
         return;
       }
-      renderHistory();
+      if(state.sec>=60)renderHistory();
       const socket=await feed().twelveSocket(symbol,
-        tick=>{if(id===state.connectionId)addTick(tick.time,tick.price,0)},
+        tick=>{
+          if(id!==state.connectionId)return;
+          addTick(tick.time,tick.price,0);
+          if(!state.historyLoaded && historyReady()){
+            try{renderHistory();status("LIVE • TWELVE DATA",true);notice("",false)}catch(e){
+              status("CHART ENGINE ERROR",false);notice(e.message||"Unable to render live candles.",true);
+            }
+          }
+        },
         (msg,ok)=>{
           if(id!==state.connectionId)return;
           state.connected=!!ok;
