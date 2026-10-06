@@ -11,10 +11,20 @@ function boot(){
  bind("walletBtn",()=>open("walletDrawer"));
  bind("accountBalanceBar",()=>open("accountDrawer"));
  bind("pairName",()=>open("assetDrawer"));
+ bind("assetBtn",()=>open("assetDrawer"));
  bind("timeBtn",()=>open("timeDrawer"));
  bind("amountBtn",()=>open("keypad"));
  bind("marketMoreBtn",()=>open("chartToolsDrawer"));
  bind("mainAutoBotBtn",()=>{close("menuDrawer");open("adminPage");const s=by("adminAutoBot");if(s){document.querySelectorAll(".adminSection").forEach(x=>x.classList.remove("open"));s.classList.add("open");}});
+ document.addEventListener("click",e=>{
+   const target=e.target?.closest?.("#pairName,#assetBtn");
+   if(!target)return;
+   const drawer=by("assetDrawer");
+   if(!drawer)return;
+   e.preventDefault();
+   e.stopImmediatePropagation();
+   drawer.classList.add("open");
+ },true);
  document.querySelectorAll("[data-close]").forEach(b=>{b.addEventListener("click",()=>close(b.dataset.close))});
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else boot();
