@@ -198,6 +198,7 @@
     state.timeframe = tf;
     persist();
     dispatch("gotradex:pro-timeframe-changed", { timeframe: tf });
+    try { if (window.GoTradeXLiveChart && typeof window.GoTradeXLiveChart.setTimeframe === "function") window.GoTradeXLiveChart.setTimeframe(tf); } catch (_) {}
     return true;
   }
 
@@ -206,6 +207,12 @@
     state.chartType = type;
     persist();
     dispatch("gotradex:pro-chart-type-changed", { chartType: type });
+    try {
+      if (window.GoTradeXLiveChart && typeof window.GoTradeXLiveChart.setChartTool === "function") {
+        const map = { candle: "Candlesticks", heiken: "Heikin Ashi", line: "Line", area: "Area" };
+        window.GoTradeXLiveChart.setChartTool(map[type]);
+      }
+    } catch (_) {}
     return true;
   }
 
