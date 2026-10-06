@@ -480,7 +480,7 @@
     tools.slice(0,3).forEach(tool=>{
       const data=dataFor(tool).slice(-80),row=document.createElement("div");row.className="gtxIndicatorRow";
       const label=document.createElement("span");label.className="gtxIndicatorLabel";label.textContent=tool;row.appendChild(label);
-      const svg=document.createElementNS("http://www.w3.org/2000/svg","http://www.w3.org/2000/svg");svg.setAttribute("viewBox","0 0 500 30");svg.setAttribute("preserveAspectRatio","none");svg.classList.add("gtxIndicatorSvg");
+      const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("viewBox","0 0 500 30");svg.setAttribute("preserveAspectRatio","none");svg.classList.add("gtxIndicatorSvg");
       const values=data.map(x=>x.value).filter(Number.isFinite);const lo=Math.min(...values,0),hi=Math.max(...values,1),den=hi-lo||1;
       const pts=data.map((x,i)=>((i/(Math.max(1,data.length-1)))*500)+","+(28-((x.value-lo)/den)*26)).join(" ");
       const pl=document.createElementNS("http://www.w3.org/2000/svg","polyline");pl.setAttribute("fill","none");pl.setAttribute("stroke","#5ea7ff");pl.setAttribute("stroke-width","1.5");pl.setAttribute("points",pts);svg.appendChild(pl);row.appendChild(svg);
@@ -505,16 +505,17 @@
     if(t.has("Bollinger Bands")){const b=bollinger();addToolSeries("BOLL-mid",b.mid,"#8fa8c4",1);addToolSeries("BOLL-up",b.up,"#9c7cff",1);addToolSeries("BOLL-dn",b.dn,"#9c7cff",1)}
     if(t.has("Supertrend"))addToolSeries("SUPERTREND",supertrendData(),"#22c55e",2);
     if(t.has("Ichimoku Cloud")){const c=toolValues(),conv=[],base=[],a=[],b=[];for(let i=0;i<c.length;i++){if(i>=8)conv.push({time:Math.floor(state.candles[i].t/1000),value:(Math.max(...state.candles.slice(i-8,i+1).map(x=>x.h))+Math.min(...state.candles.slice(i-8,i+1).map(x=>x.l)))/2);if(i>=25)base.push({time:Math.floor(state.candles[i].t/1000),value:(Math.max(...state.candles.slice(i-25,i+1).map(x=>x.h))+Math.min(...state.candles.slice(i-25,i+1).map(x=>x.l)))/2);if(i>=51){const ca=conv.find(x=>x.time===Math.floor(state.candles[i].t/1000))?.value,ba=base.find(x=>x.time===Math.floor(state.candles[i].t/1000))?.value;if(Number.isFinite(ca)&&Number.isFinite(ba)){a.push({time:Math.floor(state.candles[i].t/1000),value:(ca+ba)/2});b.push({time:Math.floor(state.candles[i].t/1000),value:(Math.max(...state.candles.slice(i-51,i+1).map(x=>x.h))+Math.min(...state.candles.slice(i-51,i+1).map(x=>x.l)))/2)}}}addToolSeries("ICHI-conv",conv,"#f59e0b");addToolSeries("ICHI-base",base,"#3b82f6");addToolSeries("ICHI-A",a,"#22c55e");addToolSeries("ICHI-B",b,"#ef4444")}
-    if(t.has("Parabolic SAR"))state.candleSeries?.setMarkers([...state.candleSeries?.markers||[],...psarMarkers()].slice(-120));
-    if(t.has("Fractals"))state.candleSeries?.setMarkers(fractalMarkers());
-    if(t.has("Patterns"))state.candleSeries?.setMarkers(patternMarkers());
-    if(t.has("Kangaroo"))state.candleSeries?.setMarkers([...fractalMarkers(),...patternMarkers()].slice(-120));
+    const marks=[];if(t.has("Fractals"))marks.push(...fractalMarkers());if(t.has("Patterns"))marks.push(...patternMarkers());if(t.has("Kangaroo"))marks.push(...fractalMarkers(),...patternMarkers());if(t.has("Parabolic SAR"))marks.push(...psarMarkers());state.candleSeries?.setMarkers(marks.slice(-160));
     if(t.has("Lion"))addToolSeries("LION",emaData(8),"#f97316",2);
     if(t.has("Kenkley’s Lines")){addToolSeries("KENKLEY-fast",emaData(34),"#22c55e",2);addToolSeries("KENKLEY-slow",emaData(89),"#f59e0b",2)}
     if(t.has("Keltner Channels")){const m=emaData(20),a=atrData(20),am=new Map(a.map(x=>[x.time,x.value]));addToolSeries("KELTNER-mid",m,"#f59e0b");addToolSeries("KELTNER-up",m.map(x=>({time:x.time,value:x.value+(am.get(x.time)||0)*2})),"#94a3b8");addToolSeries("KELTNER-low",m.map(x=>({time:x.time,value:x.value-(am.get(x.time)||0)*2})),"#94a3b8")}
     if(t.has("Donchian Channels")){const hi=[],lo=[];for(let i=19;i<state.candles.length;i++){hi.push({time:Math.floor(state.candles[i].t/1000),value:Math.max(...state.candles.slice(i-19,i+1).map(x=>x.h))});lo.push({time:Math.floor(state.candles[i].t/1000),value:Math.min(...state.candles.slice(i-19,i+1).map(x=>x.l))})}addToolSeries("DON-hi",hi,"#64748b");addToolSeries("DON-lo",lo,"#64748b")}
     if(t.has("Support & Resistance")&&state.candles.length){const hi=Math.max(...state.candles.slice(-50).map(x=>x.h)),lo=Math.min(...state.candles.slice(-50).map(x=>x.l));addToolSeries("SR-hi",state.candles.map(c=>({time:Math.floor(c.t/1000),value:hi})),"#ef4444");addToolSeries("SR-lo",state.candles.map(c=>({time:Math.floor(c.t/1000),value:lo})),"#22c55e")}
     if(t.has("Horizontal Line")&&Number.isFinite(state.price))addToolSeries("HLINE",state.candles.map(c=>({time:Math.floor(c.t/1000),value:state.price})),"#f5a623");
+    if(t.has("Trend Line")&&state.candles.length>1){const d=state.candles.slice(-60);addToolSeries("TREND",[{time:Math.floor(d[0].t/1000),value:d[0].c},{time:Math.floor(d[d.length-1].t/1000),value:d[d.length-1].c}],"#38bdf8",2)}
+    if(t.has("Vertical Line")&&state.candles.length){const x=state.candles[Math.max(0,state.candles.length-1)],tm=Math.floor(x.t/1000);addToolSeries("VLINE",[{time:tm,value:x.l},{time:tm,value:x.h}],"#f5a623",2)}
+    if(t.has("Fibonacci Retracement")&&state.candles.length){const d=state.candles.slice(-100),hi=Math.max(...d.map(x=>x.h)),lo=Math.min(...d.map(x=>x.l)),gap=hi-lo;[0,.236,.382,.5,.618,.786,1].forEach((q,i)=>addToolSeries("FIBR"+i,d.map(x=>({time:Math.floor(x.t/1000),value:hi-gap*q})),"#8b5cf6",1))}
+    if(t.has("Fibonacci Extension")&&state.candles.length){const d=state.candles.slice(-100),hi=Math.max(...d.map(x=>x.h)),lo=Math.min(...d.map(x=>x.l)),gap=hi-lo;[1.272,1.618,2].forEach((q,i)=>addToolSeries("FIBE"+i,d.map(x=>({time:Math.floor(x.t/1000),value:hi+gap*(q-1)})),"#a78bfa",1))}
     renderOscillatorPane();
   }
   function applyChartTool(tool){
