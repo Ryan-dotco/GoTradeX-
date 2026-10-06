@@ -40,22 +40,22 @@
     const s=document.createElement("style");
     s.id="gtx-lwc-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
+      "#gtxLiveChart{position:relative;width:100%;height:clamp(300px,52vh,560px);min-height:260px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
-      ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
+      ".gtxLWCStatus{display:none!important}"+
       ".gtxLWCControl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}"+
       ".gtxLWCBtn{border:1px solid #31597f;background:#102945;color:#dcecff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;cursor:pointer}"+
       ".gtxLWCBtn.active{background:#20a96b;color:#fff;border-color:#54e09a}"+
       ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
-      ".gtxLWCTradeLine{position:absolute;z-index:9;top:0;bottom:28px;width:2px;display:none;pointer-events:none;border-left:2px dashed #f5a623}"+
+      ".gtxLWCTradeLine{display:none!important}"+
       ".gtxLWCTradeLine.end{border-left-color:#fff}"+
-      ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
-      ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
+      ".gtxLWCFlag{display:none!important}"+
+      ".gtxLWCWatermark{display:none!important}"+
       "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
@@ -450,7 +450,6 @@
     state.historyLoaded=candles.length>0;
     state.initialRangeSet=false;
     applySeriesVisibility();
-    updateCurrentPriceLine();
     if(candles.length){
       const from=Math.max(0,candles.length-60);
       state.chart.timeScale().setVisibleLogicalRange({from,to:candles.length+4});
@@ -482,22 +481,10 @@
       if(value!==null)series.update({time:item.time,value});
     }
     state.price=c.c;
-    updateCurrentPriceLine();
     positionTradeOverlay();
   }
 
-  function updateCurrentPriceLine(){
-    if(!state.currentPriceLine||!Number.isFinite(state.price))return;
-    const C=window.LightweightCharts;
-    state.currentPriceLine.applyOptions({
-      price:Number(state.price),
-      color:"#f5a623",
-      lineWidth:1,
-      lineStyle:C.LineStyle.Dashed,
-      axisLabelVisible:true,
-      title:"LIVE"
-    });
-  }
+  
 
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
