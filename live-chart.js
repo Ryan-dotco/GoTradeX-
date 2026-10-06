@@ -297,6 +297,43 @@
     });
   }
 
+  function connectOTC(){
+    const id=++state.connectionId;
+    closeSocket();
+    const f=selection();
+    if(!f.available||f.provider!=="GOTRADEX_OTC"){
+      state.connected=false;status("OTC FEED UNAVAILABLE",false);
+      notice(f.reason||"The selected OTC asset is not available.",true);
+      return;
+    }
+    state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
+    state.connected=false;status("OTC • LOADING",false);notice("Loading isolated OTC candles…",true);
+    feed().otcHistory(f.symbol,state.sec).then(async history=>{
+      if(id!==state.connectionId)return;
+      state.candles=Array.isArray(history)?history:[];
+      if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
+      if(state.candles.length)renderHistory();
+      const socket=await feed().otcSocket(f.symbol,
+        tick=>{
+          if(id!==state.connectionId)return;
+          addTick(tick.time,tick.price,0);
+          if(!state.historyLoaded && state.candles.length)try{renderHistory()}catch(_){}
+        },
+        (msg,ok)=>{
+          if(id!==state.connectionId)return;
+          state.connected=!!ok;status(msg,!!ok);
+          if(ok)notice("",false);
+        }
+      );
+      if(id!==state.connectionId){try{socket.close()}catch(_){}return}
+      state.ws=socket;
+    }).catch(e=>{
+      if(id!==state.connectionId)return;
+      state.connected=false;status("OTC FEED ERROR",false);
+      notice(e.message||"Unable to read isolated OTC chart data.",true);
+    });
+  }
+
   function connect(){
     ++state.connectionId;
     const f=selection();
@@ -305,9 +342,9 @@
     state.assetLabel=f.label||"";
     state.candles=[];state.price=null;state.prev=null;state.tradeStart=null;state.tradeEnd=null;
     state.historyLoaded=false;state.initialRangeSet=false;assetText();
-    if(state.mode!=="LIVE"){
-      closeSocket();state.connected=false;status("OTC • FEED REQUIRED",false);
-      notice("OTC 24/7 selected. No fake candles are generated; a verified OTC feed must be connected.",true);
+    if(state.mode==="OTC"){
+      if(f.provider==="GOTRADEX_OTC")connectOTC();
+      else{closeSocket();state.connected=false;status("OTC FEED UNAVAILABLE",false);notice(f.reason||"The selected OTC asset is not available.",true)}
       return;
     }
     if(f.provider==="BYBIT")connectBybit();
