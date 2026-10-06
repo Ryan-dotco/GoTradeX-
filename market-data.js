@@ -77,11 +77,12 @@
     const t=inferredType;
     if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
-    // The verified LIVE chart fallback is BTC/USD. Keep the selected asset label,
-    // but feed its chart from the verified BTCUSDT stream until a native feed exists.
-    if(t==="crypto") return {available:true,provider:"BYBIT",symbol:"BTCUSDT",label:l,type:t,short:true,chartFallback:"BTC/USD"};
-    if(t==="forex" || t==="metals" || t==="commodities" || t==="stocks" || t==="indices")
-      return {available:true,provider:"BYBIT",symbol:"BTCUSDT",label:l,type:t,short:true,chartFallback:"BTC/USD"};
+    // Use the selected asset native symbol through the verified Twelve Data adapter.
+    // Do not substitute BTC candles for another market.
+    if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
+    if(t==="forex" && /^[A-Z]{3}\\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
+    if(t==="stocks" && /^[A-Z]{1,6}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
+    return {available:false,provider:"NONE",reason:"No verified native feed is configured for "+l+".",label:l,type:t};
     return {available:false,provider:"NONE",reason:"No verified provider mapping exists for "+l+".",label:l,type:t};
   }
 
