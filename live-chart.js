@@ -121,6 +121,32 @@
     return true;
   }
 
+  function fitDashboardChart(){
+    const box=document.getElementById("gtxLiveChart");
+    const bottom=document.querySelector(".bottom");
+    if(!box||!bottom)return;
+    const top=box.getBoundingClientRect().top;
+    const bottomTop=bottom.getBoundingClientRect().top;
+    const h=Math.max(0,Math.floor(bottomTop-top));
+    if(h>0){
+      box.style.setProperty("height",h+"px","important");
+      box.style.setProperty("min-height","0px","important");
+      box.style.setProperty("max-height",h+"px","important");
+      box.style.setProperty("flex","0 0 "+h+"px","important");
+    }
+    if(state.chart)try{state.chart.resize(box.clientWidth,box.clientHeight,true)}catch(_){}
+  }
+  function installDashboardChartSizer(){
+    fitDashboardChart();
+    requestAnimationFrame(()=>fitDashboardChart());
+    setTimeout(fitDashboardChart,250);
+    if(state.resizeObserver)try{state.resizeObserver.disconnect()}catch(_){}
+    state.resizeObserver=new ResizeObserver(fitDashboardChart);
+    const app=document.querySelector(".app"),bottom=document.querySelector(".bottom"),top=document.querySelector(".top"),pair=document.querySelector(".pairbar");
+    [app,bottom,top,pair].forEach(el=>{if(el)state.resizeObserver.observe(el)});
+    window.addEventListener("resize",fitDashboardChart,{passive:true});
+  }
+
   function updateClock(){const e=document.getElementById("gtxLWCClock");if(!e)return;const d=new Date();const p=n=>String(n).padStart(2,"0");e.textContent=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}
   function startClock(){updateClock();if(state.clockTimer)clearInterval(state.clockTimer);state.clockTimer=setInterval(updateClock,1000);}
 
