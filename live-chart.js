@@ -186,7 +186,6 @@
     state.prev=state.price;
     state.price=price;
     updateLiveSeries(c);
-    if(state.chartTools?.size)renderChartTools();
   }
 
   function closeSocket(){
@@ -518,7 +517,7 @@
     if(t.has("Support & Resistance")&&state.candles.length){const hi=Math.max(...state.candles.slice(-50).map(x=>x.h)),lo=Math.min(...state.candles.slice(-50).map(x=>x.l));addToolSeries("SR-hi",state.candles.map(c=>({time:Math.floor(c.t/1000),value:hi})),"#ef4444");addToolSeries("SR-lo",state.candles.map(c=>({time:Math.floor(c.t/1000),value:lo})),"#22c55e")}
     if(t.has("Horizontal Line")&&Number.isFinite(state.price))addToolSeries("HLINE",state.candles.map(c=>({time:Math.floor(c.t/1000),value:state.price})),"#f5a623");
     if(t.has("Trend Line")&&state.candles.length>1){const d=state.candles.slice(-60);addToolSeries("TREND",[{time:Math.floor(d[0].t/1000),value:d[0].c},{time:Math.floor(d[d.length-1].t/1000),value:d[d.length-1].c}],"#38bdf8",2)}
-    if(t.has("Vertical Line")&&state.candles.length){const x=state.candles[Math.max(0,state.candles.length-1)],tm=Math.floor(x.t/1000);addToolSeries("VLINE",[{time:tm,value:x.l},{time:tm,value:x.h}],"#f5a623",2)}
+    if(t.has("Vertical Line")&&state.candles.length){const x=state.candles[Math.max(0,state.candles.length-1)],tm=Math.floor(x.t/1000),lo=Math.max(0,tm-1),hi=tm+1;addToolSeries("VLINE",[{time:lo,value:x.l},{time:hi,value:x.h}],"#f5a623",2)}
     if(t.has("Fibonacci Retracement")&&state.candles.length){const d=state.candles.slice(-100),hi=Math.max(...d.map(x=>x.h)),lo=Math.min(...d.map(x=>x.l)),gap=hi-lo;[0,.236,.382,.5,.618,.786,1].forEach((q,i)=>addToolSeries("FIBR"+i,d.map(x=>({time:Math.floor(x.t/1000),value:hi-gap*q})),"#8b5cf6",1))}
     if(t.has("Fibonacci Extension")&&state.candles.length){const d=state.candles.slice(-100),hi=Math.max(...d.map(x=>x.h)),lo=Math.min(...d.map(x=>x.l)),gap=hi-lo;[1.272,1.618,2].forEach((q,i)=>addToolSeries("FIBE"+i,d.map(x=>({time:Math.floor(x.t/1000),value:hi+gap*(q-1)})),"#a78bfa",1))}
     renderOscillatorPane();
