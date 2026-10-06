@@ -546,6 +546,5 @@ window.GoTradeXChartEngine={
  toggleIndicator,
  startTrade
 };
-window.addEventListener("gotradex:asset-changed",e=>{const d=e?.detail||{};if(d.label)window.GoTradeXChartEngine?.setSymbol?.(String(d.label).replace(/\s+OTC$/i,"").replace(/[^A-Za-z0-9]/g,"").toUpperCase(),d.type,d.label);});
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else setTimeout(boot,0);
 })();
