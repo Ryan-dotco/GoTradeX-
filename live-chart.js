@@ -717,7 +717,11 @@
     if(window.__gtxLwcPromise){window.__gtxLwcPromise.then(start).catch(e=>{status("CHART ENGINE ERROR",false);notice(e.message||"Lightweight Charts could not load.",true)});return}
     window.__gtxLwcPromise=new Promise((resolve,reject)=>{
       const s=document.createElement("script");
-      s.src=LWC_URL;s.async=true;s.onload=()=>window.LightweightCharts?resolve():reject(new Error("Lightweight Charts loaded without its global API."));
+      s.src=LWC_URL;s.async=true;
+      s.onload=()=>{
+        if(window.LightweightCharts) resolve();
+        else reject(new Error("Lightweight Charts loaded without its global API."));
+      };
       s.onerror=()=>reject(new Error("Could not load the Lightweight Charts library."));
       document.head.appendChild(s);
     });
@@ -725,6 +729,34 @@
       status("CHART ENGINE ERROR",false);
       notice(e.message||"Lightweight Charts could not load.",true);
     });
+  }
+
+  function ensureChartHost(){
+    const host=document.getElementById("gtxLWC");
+    const box=document.getElementById("gtxLiveChart");
+    if(!host||!box)return false;
+    if(box.getBoundingClientRect().height<220){
+      box.style.height=window.innerWidth<=600?"min(440px,50dvh)":"min(560px,52dvh)";
+      box.style.minHeight=window.innerWidth<=600?"300px":"330px";
+    }
+    if(host.getBoundingClientRect().height<220){
+      host.style.height="100%";
+      host.style.minHeight="300px";
+    }
+    return true;
+  }
+
+  function start(){
+    try{
+      if(!ensureChartHost()) throw new Error("The GoTradeX chart host is not available.");
+      buildChart();
+      ensureChartHost();
+      connect();
+      setTimeout(()=>{try{ensureChartHost();state.chart?.resize?.()}catch(_){}},250);
+    }catch(e){
+      status("CHART ENGINE ERROR",false);
+      notice(e.message||"Unable to start the chart engine.",true);
+    }
   }
 
   function start(){
