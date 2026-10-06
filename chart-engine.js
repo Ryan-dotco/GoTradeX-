@@ -1,5 +1,5 @@
 /* GoTradeX Candlestick Engine V7
-   LIVE MARKET CHART — Bybit only
+   LIVE MARKET CHART — universal verified asset feed
    Keeps existing GoTradeX controls through GoTradeXChartEngine.
 */
 (()=>{"use strict";
@@ -491,7 +491,6 @@ window.GoTradeXChartEngine={
 };
 window.addEventListener("gotradex:asset-changed",e=>{
  const d=e?.detail||{};
- if(String(d.mode||"LIVE").toUpperCase()!=="LIVE")return;
  if(d.label)window.GoTradeXChartEngine?.setSymbol?.(String(d.label).replace(/\s+OTC$/i,"").replace(/[^A-Za-z0-9]/g,"").toUpperCase(),d.type,d.label);
 });
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});else setTimeout(boot,0);
