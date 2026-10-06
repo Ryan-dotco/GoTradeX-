@@ -112,12 +112,13 @@
     return candles.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
       .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
   }
-  async function twelveHistory(symbol,sec){
+  async function twelveHistory(symbol,sec,assetType){
     const tf=timeframeName(sec);
     if(!tf) return [];
-    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:type(),symbol,timeframe:tf});
+    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:String(assetType||type()).toLowerCase(),symbol,timeframe:tf});
     const candles=Array.isArray(d.candles)?d.candles:[];
-    return candles.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)})).filter(x=>Number.isFinite(x.c));
+    return candles.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
+      .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
   }
 
   async function twelvePrice(symbol){
