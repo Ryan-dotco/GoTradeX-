@@ -130,9 +130,11 @@
     if(!Number.isFinite(price)||!Number.isFinite(ts))return;
     const b=bucket(ts,state.sec);
     let c=state.candles[state.candles.length-1];
+    let newBucket=false;
     if(!c||c.t!==b){
       c={t:b,o:price,h:price,l:price,c:price,v:Number(volume||0)};
       state.candles.push(c);
+      newBucket=true;
       if(state.candles.length>500)state.candles.shift();
     }else{
       c.h=Math.max(c.h,price);
@@ -143,6 +145,17 @@
     state.prev=state.price;
     state.price=price;
     updateLiveSeries(c);
+    // Keep the bottom time scale attached to the live candle stream.
+    // If the viewer is already at the live edge, advance the viewport as
+    // each new candle bucket is created. Do not pull the user away from
+    // older candles if they deliberately scrolled back into history.
+    if(newBucket&&state.chart&&state.historyLoaded){
+      try{
+        const ts=state.chart.timeScale();
+        const pos=ts.scrollPosition();
+        if(pos===null||pos<=12)ts.scrollToRealTime();
+      }catch(_){}
+    }
   }
 
   function closeSocket(){
@@ -365,7 +378,7 @@
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
       rightPriceScale:{visible:true,borderVisible:false,minimumWidth:72,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
-      timeScale:{borderVisible:false,timeVisible:true,secondsVisible:state.sec<60,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false},
+      timeScale:{borderVisible:false,timeVisible:true,secondsVisible:state.sec<60,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false,lockVisibleTimeRangeOnResize:false},
       crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
       handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
       handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}
