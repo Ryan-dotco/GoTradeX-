@@ -220,6 +220,7 @@
     // arrives, then build subsequent buckets only from verified ticks.
     if(state.provider==="TWELVE_DATA" && state.sec<60) return state.candles.length>=1;
     // Native historical feeds still require a real historical window before render.
+    if(state.provider==="BYBIT" && state.sec<60) return state.candles.length>=1;
     return state.candles.length >= 12;
   }
 
