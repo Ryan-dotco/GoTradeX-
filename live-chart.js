@@ -40,7 +40,7 @@
     const s=document.createElement("style");
     s.id="gtx-lwc-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
+      "#gtxLiveChart{position:relative;width:100%;height:auto;min-height:0;flex:1 1 auto;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
@@ -57,7 +57,7 @@
       ".gtxLWCTradeLine.end{border-left-color:#fff}"+
       ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:auto;min-height:0;flex:1 1 auto}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -413,14 +413,11 @@
     });
     state.lineSeries=state.chart.addLineSeries({color:"#42d392",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
     state.areaSeries=state.chart.addAreaSeries({lineColor:"#42d392",topColor:"#42d39255",bottomColor:"#42d39205",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-    state.volumeSeries=state.chart.addHistogramSeries({priceFormat:{type:"volume"},priceScaleId:"volume",scaleMargins:{top:.82,bottom:0},base:0});
-    state.ma50=state.chart.addLineSeries({color:"#22e36f",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
-    state.ma100=state.chart.addLineSeries({color:"#f59e0b",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
-    state.ma200=state.chart.addLineSeries({color:"#3b82f6",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
-    state.currentPriceLine=state.candleSeries.createPriceLine({
-      price:0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Dashed,
-      axisLabelVisible:true,title:"LIVE"
-    });
+    state.volumeSeries=null;
+    state.ma50=null;
+    state.ma100=null;
+    state.ma200=null;
+    state.currentPriceLine=null;
     applySeriesVisibility();
     state.chart.timeScale().subscribeSizeChange(()=>positionTradeOverlay());
     state.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>positionTradeOverlay());
@@ -438,7 +435,7 @@
     state.ma50?.applyOptions({visible:ind});
     state.ma100?.applyOptions({visible:ind});
     state.ma200?.applyOptions({visible:ind});
-    state.volumeSeries?.applyOptions({visible:true});
+    state.volumeSeries?.applyOptions({visible:false});
   }
 
   function renderHistory(){
@@ -448,14 +445,11 @@
     state.candleSeries.setData(candles);
     state.lineSeries.setData(lines);
     state.areaSeries.setData(lines);
-    state.volumeSeries.setData(volumeData());
-    state.ma50.setData(sma(50));
-    state.ma100.setData(sma(100));
-    state.ma200.setData(sma(200));
+
     state.historyLoaded=candles.length>0;
     state.initialRangeSet=false;
     applySeriesVisibility();
-    updateCurrentPriceLine();
+
     if(candles.length){
       const from=Math.max(0,candles.length-60);
       state.chart.timeScale().setVisibleLogicalRange({from,to:candles.length+4});
@@ -481,28 +475,11 @@
     state.candleSeries.update(item);
     state.lineSeries.update({time:item.time,value:item.close});
     state.areaSeries.update({time:item.time,value:item.close});
-    if(Number(c.v)>0)state.volumeSeries.update({time:item.time,value:Number(c.v),color:c.c>=c.o?"#26a69a99":"#ef535099"});
-    for(const [series,period] of [[state.ma50,50],[state.ma100,100],[state.ma200,200]]){
-      const value=smaValue(period);
-      if(value!==null)series.update({time:item.time,value});
-    }
     state.price=c.c;
     updateCurrentPriceLine();
     positionTradeOverlay();
   }
 
-  function updateCurrentPriceLine(){
-    if(!state.currentPriceLine||!Number.isFinite(state.price))return;
-    const C=window.LightweightCharts;
-    state.currentPriceLine.applyOptions({
-      price:Number(state.price),
-      color:"#f5a623",
-      lineWidth:1,
-      lineStyle:C.LineStyle.Dashed,
-      axisLabelVisible:true,
-      title:"LIVE"
-    });
-  }
 
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
