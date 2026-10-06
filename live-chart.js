@@ -40,7 +40,7 @@
     const s=document.createElement("style");
     s.id="gtx-lwc-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:0!important;min-height:0!important;max-height:none!important;flex:1 1 0!important;align-self:stretch;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
+      "#gtxLiveChart{position:relative;width:100%;height:auto!important;min-height:300px!important;max-height:none!important;flex:1 1 auto!important;align-self:stretch;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
@@ -57,7 +57,7 @@
       ".gtxLWCTradeLine.end{border-left-color:#fff}"+
       ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+".gtxIndicatorPane{position:absolute;z-index:12;left:0;right:58px;bottom:0;display:none;max-height:112px;background:#07111ddd;border-top:1px solid #1b3146;pointer-events:none;overflow:hidden;box-sizing:border-box}"+".gtxIndicatorRow{height:36px;display:flex;align-items:center;gap:6px;padding:3px 7px;box-sizing:border-box}"+".gtxIndicatorLabel{width:74px;flex:0 0 74px;color:#8fa9bf;font:800 8px/1 system-ui;white-space:nowrap}"+".gtxIndicatorSvg{flex:1;height:30px;display:block}"+".gtxIndicatorValue{width:58px;flex:0 0 58px;text-align:right;color:#dcecff;font:800 8px/1 system-ui}"+
-      "@media(max-width:600px){#gtxLiveChart{height:0!important;min-height:0!important;max-height:none!important;flex:1 1 0!important}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:auto!important;min-height:300px!important;max-height:none!important;flex:1 1 auto!important}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -90,7 +90,7 @@
     if(app){app.style.display="flex";app.style.flexDirection="column";app.style.height="100dvh";app.style.minHeight="0";app.style.overflow="hidden"}
     if(pair){pair.style.flex="0 0 auto"}
     if(bottom){bottom.style.flex="0 0 auto"}
-    box.style.flex="1 1 0";box.style.height="0";box.style.minHeight="0";box.style.maxHeight="none";box.style.width="100%";box.style.display="block";box.style.overflow="hidden";
+    box.style.flex="1 1 auto";box.style.height="auto";box.style.minHeight="300px";box.style.maxHeight="none";box.style.width="100%";box.style.display="block";box.style.overflow="hidden";
     pair.insertAdjacentElement("afterend",box);
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
@@ -104,7 +104,7 @@
 
     box.querySelectorAll("[data-chart-type]").forEach(b=>{
       b.addEventListener("click",()=>{
-        state.chartType="candle";
+        state.chartType=b.dataset.chartType||"candle";
         try{localStorage.setItem(TYPE_KEY,state.chartType)}catch(_){}
         updateTypeButtons();
         applySeriesVisibility();
@@ -119,32 +119,6 @@
     }catch(_){}
     updateTypeButtons();
     return true;
-  }
-
-  function fitDashboardChart(){
-    const box=document.getElementById("gtxLiveChart");
-    const bottom=document.querySelector(".bottom");
-    if(!box||!bottom)return;
-    const top=box.getBoundingClientRect().top;
-    const bottomTop=bottom.getBoundingClientRect().top;
-    const h=Math.max(0,Math.floor(bottomTop-top));
-    if(h>0){
-      box.style.setProperty("height",h+"px","important");
-      box.style.setProperty("min-height","0px","important");
-      box.style.setProperty("max-height",h+"px","important");
-      box.style.setProperty("flex","0 0 "+h+"px","important");
-    }
-    if(state.chart)try{state.chart.resize(box.clientWidth,box.clientHeight,true)}catch(_){}
-  }
-  function installDashboardChartSizer(){
-    fitDashboardChart();
-    requestAnimationFrame(()=>fitDashboardChart());
-    setTimeout(fitDashboardChart,250);
-    if(state.resizeObserver)try{state.resizeObserver.disconnect()}catch(_){}
-    state.resizeObserver=new ResizeObserver(fitDashboardChart);
-    const app=document.querySelector(".app"),bottom=document.querySelector(".bottom"),top=document.querySelector(".top"),pair=document.querySelector(".pairbar");
-    [app,bottom,top,pair].forEach(el=>{if(el)state.resizeObserver.observe(el)});
-    window.addEventListener("resize",fitDashboardChart,{passive:true});
   }
 
   function updateClock(){const e=document.getElementById("gtxLWCClock");if(!e)return;const d=new Date();const p=n=>String(n).padStart(2,"0");e.textContent=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}
@@ -718,7 +692,6 @@
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
-    installDashboardChartSizer();
     startClock();
     installLibraryAndStart();
     observeTradeMarkers();
