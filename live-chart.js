@@ -44,9 +44,10 @@
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
-      ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
+      ".gtxLWCAsset{display:none!important}"+
       ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
-      ".gtxLWCControl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}"+
+      ".gtxLWCClock{font:800 10px/1 system-ui;color:#dbe9f7;background:transparent;border:0;padding:0;white-space:nowrap;font-variant-numeric:tabular-nums}"+
+      ".gtxLWCControl{display:none!important}"+
       ".gtxLWCBtn{border:1px solid #31597f;background:#102945;color:#dcecff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;cursor:pointer}"+
       ".gtxLWCBtn.active{background:#20a96b;color:#fff;border-color:#54e09a}"+
       ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
@@ -73,6 +74,7 @@
       '<div class="gtxLWCHead">'+
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
+        '<span class="gtxLWCClock" id="gtxLWCClock"></span>'+
         '<div class="gtxLWCControl">'+
           '<button class="gtxLWCBtn active" data-chart-type="candle" type="button">Candles</button>'+
           '<button class="gtxLWCBtn" data-chart-type="line" type="button">Line</button>'+
@@ -98,7 +100,7 @@
 
     box.querySelectorAll("[data-chart-type]").forEach(b=>{
       b.addEventListener("click",()=>{
-        state.chartType=b.dataset.chartType||"candle";
+        state.chartType="candle";
         try{localStorage.setItem(TYPE_KEY,state.chartType)}catch(_){}
         updateTypeButtons();
         applySeriesVisibility();
@@ -114,6 +116,9 @@
     updateTypeButtons();
     return true;
   }
+
+  function updateClock(){const e=document.getElementById("gtxLWCClock");if(!e)return;const d=new Date();const p=n=>String(n).padStart(2,"0");e.textContent=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}
+  function startClock(){updateClock();if(state.clockTimer)clearInterval(state.clockTimer);state.clockTimer=setInterval(updateClock,1000);}
 
   function status(t,ok){
     const e=document.getElementById("gtxLWCStatus");if(!e)return;
@@ -578,6 +583,7 @@
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
+    startClock();
     installLibraryAndStart();
     observeTradeMarkers();
     setInterval(watchSelection,700);
