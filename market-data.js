@@ -105,6 +105,13 @@
     return m[sec]||null;
   }
 
+  async function bybitHistory(symbol,sec){
+    const d=await serverInvoke({action:"bybit_chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:String(sec)});
+    const candles=Array.isArray(d.candles)?d.candles:[];
+    return candles.map(x=>({t:Number(x.time),o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)})
+      .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+  }
+
   async function twelveHistory(symbol,sec){
     const tf=timeframeName(sec);
     if(!tf) return [];
@@ -177,6 +184,6 @@
   }
 
   window.GoTradeXMarketFeeds={
-    config:CFG,key,resolve,twelveSearch,twelveHistory,twelvePrice,twelveSocket,intervals
+    config:CFG,key,resolve,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,intervals
   };
 })();
