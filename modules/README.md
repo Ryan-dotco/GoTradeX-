@@ -35,3 +35,8 @@ Each migration step will:
 ## First migration target
 
 Chart/indicator separation is the current target because it is already represented by dedicated files (live-chart.js, chart-engine.js, chart-indicators.js, market-data.js). Authentication, wallet, Chat AI and Admin remain frozen during this phase.
+
+
+## Protected GoTradeX Pro Engine
+
+`gotradex-pro-engine.js` is the isolated GoTradeX Pro engine supplied by Ryan. It contains the Pro asset registry (LIVE + OTC), payouts, chart modes/timeframes, indicator definitions, Heikin-Ashi/EMA/SMA/Bollinger helpers, and the handoff contract to the existing verified market/chart layer. **Do not delete, replace, or fold this file into unrelated modules.** Changes to market feeds, chart rendering, auth, wallet, trading runtime, admin, or chat must preserve this engine and its public `window.GoTradeXProEngine` API.
