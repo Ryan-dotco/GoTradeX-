@@ -150,56 +150,9 @@
   }
 
   async function loadBybitHistory(){
-    if(state.sec<60){
-      const u="https://api.bybit.com/v5/market/recent-trade?category=spot&symbol="+encodeURIComponent(state.symbol)+"&limit=1000";
-      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
-      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit recent trades unavailable.");
-      const rows=(j?.result?.list||[]).slice().reverse();
-      const byBucket=new Map();
-      rows.forEach(x=>{
-        const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);
-        if(!Number.isFinite(ts)||!Number.isFinite(p))return;
-        const b=bucket(ts,state.sec);
-        let c=byBucket.get(b);
-        if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
-        c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;
-        byBucket.set(b,c);
-      });
-      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
-    }else{
-      const bybitIntervals={60:"1",120:"2",300:"5",900:"15",1800:"30",3600:"60",7200:"120",14400:"240",86400:"D",604800:"W",2592000:"M"};
-      const interval=bybitIntervals[state.sec];
-      if(!interval)throw new Error("Bybit does not provide a native candle interval for "+state.tf+".");
-      const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+interval+"&limit=500";
-      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
-      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
-      const rows=j?.result?.list||[];
-      state.candles=rows.slice().reverse().map(x=>({
-        t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])
-      })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
-    }
-    state.candles.sort((a,b)=>a.t-b.t);
-    if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
-  }
-
-  function historyReady(){
-    // Twelve Data does not provide native 5/15/30-second history in this adapter.
-    // For those intervals, show the first candle as soon as one real provider tick
-    // arrives, then build subsequent buckets only from verified ticks.
-    if(state.provider==="TWELVE_DATA" && state.sec<60) return state.candles.length>=1;
-    // Native historical feeds still require a real historical window before render.
-    return state.candles.length >= 12;
-  }
-
-  async function resolveTwelveSymbol(f){
-    if(f.provider!=="TWELVE_DATA_LOOKUP")return f.symbol;
-    return await feed().twelveSearch(f.symbol);
-  }
-
-  async function loadTwelveHistory(symbol){
-    state.candles=await feed().twelveHistory(symbol,state.sec);
-    state.candles=state.candles.filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
-    if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
+    if(!feed()?.bybitHistory)throw new Error("Verified server market-data history is unavailable.");
+    state.candles=await feed().bybitHistory(state.symbol,state.sec);
+    if(!state.candles.length)throw new Error("No verified Bybit historical candles were returned.");
   }
 
   function connectBybit(){
