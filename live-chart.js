@@ -185,7 +185,8 @@
     }
     state.prev=state.price;
     state.price=price;
-    updateLiveSeries(c);\n    if(state.chartTools?.size)renderChartTools();
+    updateLiveSeries(c);
+    if(state.chartTools?.size)renderChartTools();
   }
 
   function closeSocket(){
@@ -401,7 +402,11 @@
     }));
   }
 
-  function heikinCandleData(){\n    let prevO=null,prevC=null;return state.candles.map(c=>{const hc=(c.o+c.h+c.l+c.c)/4,ho=prevO==null?(c.o+c.c)/2:(prevO+prevC)/2,h=Math.max(c.h,ho,hc),l=Math.min(c.l,ho,hc);prevO=ho;prevC=hc;return {time:Math.floor(c.t/1000),open:ho,high:h,low:l,close:hc}});\n  }\n\n  function seriesLineData(){
+  function heikinCandleData(){
+    let prevO=null,prevC=null;return state.candles.map(c=>{const hc=(c.o+c.h+c.l+c.c)/4,ho=prevO==null?(c.o+c.c)/2:(prevO+prevC)/2,h=Math.max(c.h,ho,hc),l=Math.min(c.l,ho,hc);prevO=ho;prevC=hc;return {time:Math.floor(c.t/1000),open:ho,high:h,low:l,close:hc}});
+  }
+
+  function seriesLineData(){
     return state.candles.map(c=>({time:Math.floor(c.t/1000),value:Number(c.c)}));
   }
 
@@ -723,7 +728,8 @@
 
   window.GoTradeXLiveChart={
     boot,setTimeframe,reconnect:connect,state,
-    setChartTool:applyChartTool,\n    chartVersion:"Lightweight Charts 4.2.2",
+    setChartTool:applyChartTool,
+    chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
 
