@@ -2124,5 +2124,35 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.gtxAdminOpenSection=openSection;
 })();
 </script>
+<script id="gtx-portal-completion-guard">
+(function(){
+  "use strict";
+  function g(id){return document.getElementById(id)}
+  function closeDrawers(){document.querySelectorAll(".drawer.open,.adminDrawer.open").forEach(function(x){x.classList.remove("open")})}
+  function portalHome(){
+    closeDrawers();
+    document.querySelectorAll(".adminSection").forEach(function(s){s.classList.remove("open");s.style.display="none"});
+    const page=g("adminPage");
+    if(page){page.classList.add("open");page.style.display="block"}
+    const ov=g("adminOverview");
+    if(ov){ov.classList.add("open");ov.style.display="block";try{if(typeof window.loadAdminOverview==="function")window.loadAdminOverview()}catch(_){}}
+    if(typeof window.syncGtxKenglyVisibility==="function")window.syncGtxKenglyVisibility();
+  }
+  function install(){
+    document.addEventListener("click",function(e){
+      const b=e.target&&e.target.closest?e.target.closest("#adminBack,#overviewBack,#usersBack,#transactionsBack,#marketsBack,#autobotBack,#referralsBack,#feesBack,#securityBack,#auditBack,#identityAdminBack,#systemSettingsBack,#executionControlBack,#adminChartAIBack,#adminChartAIClose,#adminAgentAIBack,#adminAgentAIClose,#adminChatAIClose,#adminChatAIBack"):null;
+      if(b && b.closest("#adminPage")){
+        e.preventDefault();e.stopImmediatePropagation();portalHome();return;
+      }
+    },true);
+    document.addEventListener("click",function(e){
+      const b=e.target&&e.target.closest?e.target.closest("#adminClose"):null;
+      if(b){e.preventDefault();e.stopImmediatePropagation();g("adminDrawer")?.classList.remove("open");return}
+    },true);
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
+  window.gtxAdminPortalHome=portalHome;
+})();
+</script>
 </body>
 </html>
