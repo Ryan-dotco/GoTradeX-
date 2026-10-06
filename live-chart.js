@@ -733,8 +733,13 @@
     });
   }
 
+  function observeAssetChanges(){
+    window.addEventListener("gotradex:asset-changed",()=>{try{watchSelection()}catch(_){connect()}});
+  }
+
   function boot(){
     installChartUiStyle();
+    observeAssetChanges();
     observeServerSync();
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
