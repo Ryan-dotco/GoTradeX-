@@ -77,9 +77,11 @@
     const t=inferredType;
     if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
-    if(t==="crypto") return {available:false,provider:"NONE",reason:"No verified Bybit Spot mapping exists for "+l+".",label:l,type:t};
+    // The verified LIVE chart fallback is BTC/USD. Keep the selected asset label,
+    // but feed its chart from the verified BTCUSDT stream until a native feed exists.
+    if(t==="crypto") return {available:true,provider:"BYBIT",symbol:"BTCUSDT",label:l,type:t,short:true,chartFallback:"BTC/USD"};
     if(t==="forex" || t==="metals" || t==="commodities" || t==="stocks" || t==="indices")
-      return {available:true,provider:"TWELVE_DATA_LOOKUP",symbol:l,label:l,type:t,short:true};
+      return {available:true,provider:"BYBIT",symbol:"BTCUSDT",label:l,type:t,short:true,chartFallback:"BTC/USD"};
     return {available:false,provider:"NONE",reason:"No verified provider mapping exists for "+l+".",label:l,type:t};
   }
 
