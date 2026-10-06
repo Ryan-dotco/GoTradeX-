@@ -42,15 +42,15 @@
     s.textContent=
       "#gtxLiveChart{position:relative;width:100%;height:clamp(300px,52vh,560px);min-height:260px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
-      ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
+      ".gtxLWCHead{position:absolute;z-index:30;top:6px;left:8px;display:block;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
-      ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
-      ".gtxLWCStatus{display:none!important}"+
-      ".gtxLWCControl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}"+
+      ".gtxLWCAsset{display:none!important}"+
+      ".gtxLWCStatus{display:none!important}"+".gtxLWCClock{display:block;font:800 10px/1 system-ui;color:#dbe9f7;background:transparent;border:0;padding:0;white-space:nowrap;font-variant-numeric:tabular-nums}"+
+      ".gtxLWCControl{display:none!important}"+
       ".gtxLWCBtn{border:1px solid #31597f;background:#102945;color:#dcecff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;cursor:pointer}"+
       ".gtxLWCBtn.active{background:#20a96b;color:#fff;border-color:#54e09a}"+
       ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
-      ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
+      ".gtxLWCNotice{display:none!important}"+
       ".gtxLWCNotice[hidden]{display:none}"+
       ".gtxLWCTradeLine{display:none!important}"+
       ".gtxLWCTradeLine.end{border-left-color:#fff}"+
@@ -98,7 +98,7 @@
 
     box.querySelectorAll("[data-chart-type]").forEach(b=>{
       b.addEventListener("click",()=>{
-        state.chartType=b.dataset.chartType||"candle";
+        state.chartType="candle";
         try{localStorage.setItem(TYPE_KEY,state.chartType)}catch(_){}
         updateTypeButtons();
         applySeriesVisibility();
@@ -115,7 +115,7 @@
     return true;
   }
 
-  function status(t,ok){
+  function updateClock(){const e=document.getElementById("gtxLWCClock");if(!e)return;const d=new Date();const p=n=>String(n).padStart(2,"0");e.textContent=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}\nfunction startClock(){updateClock();if(state.clockTimer)clearInterval(state.clockTimer);state.clockTimer=setInterval(updateClock,1000);}\n\nfunction status(t,ok){
     const e=document.getElementById("gtxLWCStatus");if(!e)return;
     e.textContent=t;e.style.color=ok?"#8ff0ae":"#b5c7d8";
     e.style.borderColor=ok?"#1f6c40":"#31506d";
@@ -392,7 +392,7 @@
       autoSize:true,
       layout:{background:{type:C.ColorType.Solid,color:"#07111d"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
-      rightPriceScale:{visible:true,borderVisible:false,minimumWidth:58,scaleMargins:{top:.08,bottom:.12}},
+      rightPriceScale:{visible:false,borderVisible:false,minimumWidth:0,scaleMargins:{top:.04,bottom:.08}},
       leftPriceScale:{visible:false,borderVisible:false},
       timeScale:{borderVisible:false,timeVisible:true,secondsVisible:state.sec<60,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false},
       crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
@@ -430,9 +430,9 @@
     state.lineSeries?.applyOptions({visible:line});
     state.areaSeries?.applyOptions({visible:mountain});
     const ind=candle;
-    state.ma50?.applyOptions({visible:ind});
-    state.ma100?.applyOptions({visible:ind});
-    state.ma200?.applyOptions({visible:ind});
+    state.ma50?.applyOptions({visible:false});
+    state.ma100?.applyOptions({visible:false});
+    state.ma200?.applyOptions({visible:false});
     state.volumeSeries?.applyOptions({visible:true});
   }
 
