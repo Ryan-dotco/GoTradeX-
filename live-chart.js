@@ -30,6 +30,19 @@
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
+  async function loadTwelveHistory(symbol,sec){
+    const api=feed();
+    if(!api?.twelveHistory) throw new Error("Verified Twelve Data history adapter is unavailable.");
+    const candles=await api.twelveHistory(symbol,sec);
+    if(!Array.isArray(candles)||!candles.length) throw new Error("No verified Twelve Data historical candles were returned for "+symbol+".");
+    state.candles=candles.map(x=>({
+      t:Number(x.t),o:Number(x.o),h:Number(x.h),l:Number(x.l),c:Number(x.c),v:Number(x.v||0)
+    })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+    if(!state.candles.length) throw new Error("Verified Twelve Data returned no usable candles for "+symbol+".");
+    state.price=state.candles[state.candles.length-1].c;
+  }
+
+
   function selection(){
     const f=feed();
     return f ? f.resolve() : {available:false,reason:"Market feed registry is not loaded."};
