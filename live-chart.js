@@ -6,7 +6,7 @@
   "use strict";
   if(window.GoTradeXLiveChart) return;
 
-  const LWC_URL="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js";
+  const LWC_URLS=["https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js","https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"];
   const CFG={
     intervals:{
       "5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
@@ -549,10 +549,17 @@
     if(window.LightweightCharts){start();return}
     if(window.__gtxLwcPromise){window.__gtxLwcPromise.then(start).catch(e=>{status("CHART ENGINE ERROR",false);notice(e.message||"Lightweight Charts could not load.",true)});return}
     window.__gtxLwcPromise=new Promise((resolve,reject)=>{
-      const s=document.createElement("script");
-      s.src=LWC_URL;s.async=true;s.onload=()=>window.LightweightCharts?resolve():reject(new Error("Lightweight Charts loaded without its global API."));
-      s.onerror=()=>reject(new Error("Could not load the Lightweight Charts library."));
-      document.head.appendChild(s);
+      let i=0;
+      const load=()=>{
+        if(window.LightweightCharts){resolve();return}
+        if(i>=LWC_URLS.length){reject(new Error("Could not load the Lightweight Charts library."));return}
+        const s=document.createElement("script");
+        s.src=LWC_URLS[i++];s.async=true;
+        s.onload=()=>window.LightweightCharts?resolve():load();
+        s.onerror=()=>load();
+        document.head.appendChild(s);
+      };
+      load();
     });
     window.__gtxLwcPromise.then(start).catch(e=>{
       status("CHART ENGINE ERROR",false);
@@ -563,6 +570,13 @@
   function start(){
     try{
       buildChart();
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        try{
+          const host=document.getElementById("gtxLWC");
+          if(host&&state.chart)state.chart.resize(host.clientWidth||window.innerWidth,host.clientHeight||360);
+          if(state.chart)state.chart.timeScale().fitContent();
+        }catch(_){}
+      }));
       connect();
     }catch(e){
       status("CHART ENGINE ERROR",false);
