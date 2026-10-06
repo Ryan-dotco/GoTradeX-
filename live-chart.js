@@ -6,7 +6,7 @@
   "use strict";
   if(window.GoTradeXLiveChart) return;
 
-  const LWC_URLS=["https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js","https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"];
+  const LWC_URL="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js";
   const CFG={
     intervals:{
       "5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
@@ -44,10 +44,9 @@
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
-      ".gtxLWCAsset{display:none!important}"+
+      ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
       ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
-      ".gtxLWCClock{font:800 10px/1 system-ui;color:#dbe9f7;background:transparent;border:0;padding:0;white-space:nowrap;font-variant-numeric:tabular-nums}"+
-      ".gtxLWCControl{display:none!important}"+
+      ".gtxLWCControl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}"+
       ".gtxLWCBtn{border:1px solid #31597f;background:#102945;color:#dcecff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;cursor:pointer}"+
       ".gtxLWCBtn.active{background:#20a96b;color:#fff;border-color:#54e09a}"+
       ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
@@ -63,8 +62,8 @@
 
   function mount(){
     if(document.getElementById("gtxLiveChart"))return true;
-    const chartHost=document.getElementById("gtxChart"),bottom=document.querySelector(".bottom");
-    if(!chartHost||!bottom||!bottom.parentNode)return false;
+    const pair=document.querySelector(".pairbar"),bottom=document.querySelector(".bottom");
+    if(!pair||!bottom||!bottom.parentNode)return false;
     injectStyle();
     const box=document.createElement("section");
     box.id="gtxLiveChart";
@@ -74,7 +73,6 @@
       '<div class="gtxLWCHead">'+
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
-        '<span class="gtxLWCClock" id="gtxLWCClock"></span>'+
         '<div class="gtxLWCControl">'+
           '<button class="gtxLWCBtn active" data-chart-type="candle" type="button">Candles</button>'+
           '<button class="gtxLWCBtn" data-chart-type="line" type="button">Line</button>'+
@@ -87,7 +85,7 @@
       '<div class="gtxLWCFlag" id="gtxLWCFlag">🚩</div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
-    chartHost.replaceChildren(box);
+    pair.insertAdjacentElement("afterend",box);
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
     Object.keys(CFG.intervals).forEach(t=>{
@@ -100,7 +98,7 @@
 
     box.querySelectorAll("[data-chart-type]").forEach(b=>{
       b.addEventListener("click",()=>{
-        state.chartType="candle";
+        state.chartType=b.dataset.chartType||"candle";
         try{localStorage.setItem(TYPE_KEY,state.chartType)}catch(_){}
         updateTypeButtons();
         applySeriesVisibility();
@@ -116,9 +114,6 @@
     updateTypeButtons();
     return true;
   }
-
-  function updateClock(){const e=document.getElementById("gtxLWCClock");if(!e)return;const d=new Date();const p=n=>String(n).padStart(2,"0");e.textContent=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}
-  function startClock(){updateClock();if(state.clockTimer)clearInterval(state.clockTimer);state.clockTimer=setInterval(updateClock,1000);}
 
   function status(t,ok){
     const e=document.getElementById("gtxLWCStatus");if(!e)return;
@@ -163,35 +158,16 @@
   }
 
   async function loadBybitHistory(){
-    if(state.sec<60){
-      const u="https://api.bybit.com/v5/market/recent-trade?category=spot&symbol="+encodeURIComponent(state.symbol)+"&limit=1000";
-      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
-      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit recent trades unavailable.");
-      const rows=(j?.result?.list||[]).slice().reverse();
-      const byBucket=new Map();
-      rows.forEach(x=>{
-        const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);
-        if(!Number.isFinite(ts)||!Number.isFinite(p))return;
-        const b=bucket(ts,state.sec);
-        let c=byBucket.get(b);
-        if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
-        c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;
-        byBucket.set(b,c);
-      });
-      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
-    }else{
-      const bybitIntervals={60:"1",120:"2",300:"5",900:"15",1800:"30",3600:"60",7200:"120",14400:"240",86400:"D",604800:"W",2592000:"M"};
-      const interval=bybitIntervals[state.sec];
-      if(!interval)throw new Error("Bybit does not provide a native candle interval for "+state.tf+".");
-      const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+interval+"&limit=500";
-      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
-      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
-      const rows=j?.result?.list||[];
-      state.candles=rows.slice().reverse().map(x=>({
-        t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])
-      })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
+    // Keep the 604 "100% perfect" chart UI/behavior, but route history through
+    // GoTradeX's verified server adapter instead of exposing exchange calls in the browser.
+    if(!feed()||typeof feed().bybitHistory!=="function"){
+      throw new Error("Verified crypto market-data adapter is not loaded.");
     }
-    state.candles.sort((a,b)=>a.t-b.t);
+    state.candles=await feed().bybitHistory(state.symbol,state.sec);
+    state.candles=(Array.isArray(state.candles)?state.candles:[])
+      .map(x=>({t:Number(x.t),o:Number(x.o),h:Number(x.h),l:Number(x.l),c:Number(x.c),v:Number(x.v||0)}))
+      .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite))
+      .sort((a,b)=>a.t-b.t);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
 
@@ -549,17 +525,10 @@
     if(window.LightweightCharts){start();return}
     if(window.__gtxLwcPromise){window.__gtxLwcPromise.then(start).catch(e=>{status("CHART ENGINE ERROR",false);notice(e.message||"Lightweight Charts could not load.",true)});return}
     window.__gtxLwcPromise=new Promise((resolve,reject)=>{
-      let i=0;
-      const load=()=>{
-        if(window.LightweightCharts){resolve();return}
-        if(i>=LWC_URLS.length){reject(new Error("Could not load the Lightweight Charts library."));return}
-        const s=document.createElement("script");
-        s.src=LWC_URLS[i++];s.async=true;
-        s.onload=()=>window.LightweightCharts?resolve():load();
-        s.onerror=()=>load();
-        document.head.appendChild(s);
-      };
-      load();
+      const s=document.createElement("script");
+      s.src=LWC_URL;s.async=true;s.onload=()=>window.LightweightCharts?resolve():reject(new Error("Lightweight Charts loaded without its global API."));
+      s.onerror=()=>reject(new Error("Could not load the Lightweight Charts library."));
+      document.head.appendChild(s);
     });
     window.__gtxLwcPromise.then(start).catch(e=>{
       status("CHART ENGINE ERROR",false);
@@ -570,13 +539,6 @@
   function start(){
     try{
       buildChart();
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{
-        try{
-          const host=document.getElementById("gtxLWC");
-          if(host&&state.chart)state.chart.resize(host.clientWidth||window.innerWidth,host.clientHeight||360);
-          if(state.chart)state.chart.timeScale().fitContent();
-        }catch(_){}
-      }));
       connect();
     }catch(e){
       status("CHART ENGINE ERROR",false);
@@ -597,7 +559,6 @@
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
-    startClock();
     installLibraryAndStart();
     observeTradeMarkers();
     setInterval(watchSelection,700);
