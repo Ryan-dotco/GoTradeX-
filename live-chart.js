@@ -246,16 +246,24 @@
       "US30":"DJI","US500":"SPX","NAS100":"NDX","UK100":"FTSE","GER40":"DAX",
       "FRA40":"CAC","JPN225":"N225","AUS200":"ASX","HK50":"HSI","EU50":"STOXX50E","SA40":"JTOPI"
     };
-    const query=aliases[requested]||requested;
-    const matches=await feed().twelveSearch(query);
-    if(!Array.isArray(matches)||!matches.length)throw new Error("No verified Twelve Data symbol matches were returned for "+requested+".");
-    const clean=v=>String(v||"").trim().toUpperCase();
-    const exact=matches.find(x=>clean(x.symbol)===clean(query));
-    const named=matches.find(x=>{
-      const text=clean((x.symbol||"")+" "+(x.name||""));
-      return text.includes(clean(requested).replace(/[^A-Z0-9]/g,""));
-    });
-    return String((exact||named||matches[0]).symbol||"").trim();
+    return aliases[requested]||requested;
+  }
+
+  function clearChartForNewAsset(){
+    try{
+      if(state.candleSeries)state.candleSeries.setData([]);
+      if(state.lineSeries)state.lineSeries.setData([]);
+      if(state.areaSeries)state.areaSeries.setData([]);
+      if(state.volumeSeries)state.volumeSeries.setData([]);
+      if(state.ma50)state.ma50.setData([]);
+      if(state.ma100)state.ma100.setData([]);
+      if(state.ma200)state.ma200.setData([]);
+    }catch(_){}
+    state.historyLoaded=false;
+    state.initialRangeSet=false;
+    state.price=null;
+    state.prev=null;
+    state.candles=[];
   }
 
   function connectTwelve(){
@@ -317,8 +325,10 @@
     state.mode=String(f.mode||"LIVE").toUpperCase();
     state.type=f.type||"";
     state.assetLabel=f.label||"";
-    state.candles=[];state.price=null;state.prev=null;state.tradeStart=null;state.tradeEnd=null;
-    state.historyLoaded=false;state.initialRangeSet=false;assetText();
+    state.tradeStart=null;state.tradeEnd=null;
+    clearChartForNewAsset();
+    assetText();
+    notice("Switching to verified candles for "+(state.assetLabel||"the selected asset")+"…",true);
     if(state.mode!=="LIVE"){
       closeSocket();state.connected=false;status("OTC • FEED REQUIRED",false);
       notice("OTC 24/7 selected. No fake candles are generated; a verified OTC feed must be connected.",true);
