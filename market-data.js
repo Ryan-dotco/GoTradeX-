@@ -79,6 +79,9 @@
     if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
     if(t==="forex" && /^[A-Z]{3}\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
     if(t==="stocks" && /^[A-Z]{1,6}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
+    // All listed non-crypto assets are candidates for verified Twelve Data discovery.
+    // The chart layer will confirm the exact provider symbol before rendering.
+    if(t==="commodities" || t==="metals" || t==="indices") return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
     return {available:false,provider:"NONE",reason:"No verified native feed is configured for "+l+".",label:l,type:t};
   }
 
