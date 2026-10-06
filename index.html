@@ -146,6 +146,19 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 </section>
 <header class="top"><div class="identity"><button class="menuBtn" id="menuBtn" aria-label="Menu" type="button"><span></span></button><div class="logo">GTX</div><div class="person"><strong id="profileName">Trader ID: GTX-000001</strong><span id="profileSub">Ryan Trading Account</span></div></div><button class="wallet" id="walletBtn" aria-label="Wallet"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 8.5A3.5 3.5 0 0 1 8.5 5H25a2 2 0 0 1 2 2v4H10a4 4 0 0 0 0 8h17v6a2 2 0 0 1-2 2H8.5A3.5 3.5 0 0 1 5 23.5v-15Z" fill="currentColor"/><path d="M10 12h17v7H10a3.5 3.5 0 0 1 0-7Z" fill="#12315a"/><circle cx="23" cy="15.5" r="1.5" fill="currentColor"/></svg></button></header>
 <section class="pairbar"><div class="pairbarLeft"><button class="asset" id="marketMoreBtn" type="button" aria-label="More">⋯</button><button class="asset" id="assetBtn" style="display:none" aria-hidden="true" tabindex="-1">Assets ▾</button><div class="mainMarketSwitch" id="mainMarketSwitch" aria-label="Market mode" style="display:none" aria-hidden="true"></div></div><div class="accountPicker" id="accountPicker"><button class="accountPickerBtn" id="accountPickerBtn" data-mode="DEMO" type="button" aria-haspopup="true" aria-expanded="false"><span id="accountPickerLabel">DEMO ▾</span><strong id="accountPickerBalance">$10,000.00</strong></button><div class="accountModes accountPickerMenu" id="accountPickerMenu" role="menu" aria-label="Account"><div class="accountMenuTitle">ACCOUNT</div><button class="accountMode active demoMode" id="demoAccountBtn" type="button" role="menuitem"><span>DEMO</span><strong id="demoBalance">$10,000.00</strong></button><button class="accountMode real realMode" id="realAccountBtn" type="button" role="menuitem"><span>LIVE</span><strong id="realBalance">$0.00</strong></button><div class="accountMenuDivider"></div><div class="accountMenuActions" aria-label="Account actions"><button class="accountMenuAction" id="loadDemoFundsBtn" type="button">LOAD FUNDS</button><button class="accountMenuAction" id="depositAccountBtn" type="button">DEPOSIT</button><button class="accountMenuAction" id="withdrawAccountBtn" type="button">WITHDRAW</button><button class="accountMenuAction" id="historyAccountBtn" type="button">TRANSACTION HISTORY</button><button class="accountMenuAction" id="detailsAccountBtn" type="button">ACCOUNT DETAILS</button><div id="bybitConnectionStatus" style="padding:7px 10px;color:#8fa8c4;font-size:10px">Bybit: secure connection handled by LIVE</div></div></div></div></section>
+<section class="gtx-kenghi-restore" id="gtxKenghiRestore" aria-label="Kenghi live assistant">
+  <div class="gtx-kenghi-restore-face" aria-hidden="true">
+    <div class="gtx-kenghi-restore-orbit one"></div>
+    <div class="gtx-kenghi-restore-orbit two"></div>
+    <div class="gtx-kenghi-restore-avatar"><span><i></i><i></i></span><b></b></div>
+  </div>
+  <div class="gtx-kenghi-restore-copy">
+    <span>KENGHI • LIVE ASSISTANT</span>
+    <strong>Kenghi is here</strong>
+    <small>Chat with GoTradeX support while you watch the live market.</small>
+  </div>
+  <button type="button" id="gtxKenghiChatButton">💬 Kindly Chat</button>
+</section>
 <section class="chart" id="gtxChart" aria-label="GoTradeX Kengly live candle chart"></section><section class="bottom"><div class="actions"><div class="sellWrap"><button class="asset bottomAssetSelector" id="pairName" type="button" aria-haspopup="dialog" aria-controls="assetDrawer"><span class="bottomAssetMode" id="bottomAssetMode">LIVE</span><span class="bottomAssetPair" id="bottomAssetPair">BTC/USD</span><span class="bottomAssetChevron">▾</span></button><button class="autoBotBtn" id="mainAutoBotBtn" type="button">AutoPilot</button><button class="trade sell" id="sell"><span>SELL</span><span class="tradePercent" id="sellPercent">61%</span></button></div><div class="buyWrap"><button class="time" id="timeBtn" type="button">5 Seconds ▾</button><div class="amount" id="amountPortal"><label>AMOUNT</label><button class="amountValue" id="amountBtn" type="button">$<span id="amountValueText">10</span></button></div><button class="trade buy" id="buy"><span>BUY</span><span class="tradePercent" id="buyPercent">39%</span></button></div></div><div class="status" id="status"></div></section>
 </div>
 <div class="drawer" id="menuDrawer"><div class="panel gtxMenuPanel" style="padding-bottom:40px;"><button class="close" data-close="menuDrawer">Close</button><div class="gtxMenuColumns"><section class="gtxProfileColumn"><div class="gtxProfileHead"><div class="gtxProfileAvatar" id="gtxProfileAvatar">R</div><div><strong id="gtxProfileMenuName">Ryan Trading Account</strong><span id="gtxProfileMenuId">Trader ID: GTX-000001</span></div></div><button class="gtxProfileItem" type="button" data-profile-action="profile">My Profile <span>›</span></button><button class="gtxProfileItem" type="button" data-profile-action="account">Account: <strong id="gtxProfileMode">DEMO</strong> <span>›</span></button><button class="gtxProfileItem" type="button" data-profile-action="settings">Settings <span>›</span></button><button class="gtxProfileItem" type="button" data-profile-action="security">Security <span>›</span></button><button class="gtxProfileItem" type="button" data-profile-action="notifications">Notifications <span>›</span></button><button class="gtxProfileItem" type="button" data-profile-action="help">Help &amp; Support <span>›</span></button><button class="gtxProfileItem" type="button" data-profile-action="logout">Log Out <span>›</span></button></section><section class="gtxNavColumn"><div class="gtxNavTitle">Trading</div><button class="option menuItem" data-section="Dashboard">Dashboard <span>›</span></button><button class="option menuItem" data-section="Chart AI">Chart AI <span>›</span></button><button class="option menuItem" data-section="AutoBot">AutoBot <span>›</span></button><button class="option menuItem" data-section="Chat AI">Chat AI <span>›</span></button><button class="option menuItem" data-section="Markets">Markets <span>›</span></button><button class="option menuItem" data-section="Wallet">Wallet <span>›</span></button><button class="option menuItem" data-section="Portfolio">Portfolio <span>›</span></button><button class="option menuItem" data-section="My Team">My Team <span>›</span></button><button class="option menuItem" data-section="Agent AI">Agent AI <span>›</span></button><button class="option menuItem" data-section="Facial Verification">Facial Verification <span>›</span></button><button class="option menuItem" data-section="About">About <span>›</span></button><button class="option menuItem" data-section="Privacy Policy">Privacy Policy <span>›</span></button><button class="option menuItem" data-section="Terms &amp; Conditions">Terms &amp; Conditions <span>›</span></button><button class="option menuItem" data-section="Admin Portal" id="adminPortalMenuItem" hidden>Admin Portal <span>›</span></button><div class="status" id="menuMessage"></div></section></div></div></div>
@@ -1808,7 +1821,24 @@ setTimeout(syncAccountPages,300);
 .gtxProfileReadonly strong{font-size:10px;text-align:right}
 .gtxProfileSave{width:100%;height:43px;border-radius:9px;background:#176fca;color:#fff;font-weight:900;margin-top:8px}
 .gtxProfileNotice{margin-top:10px;padding:10px;background:#081b33;border:1px dashed #23466d;border-radius:8px;color:#8fa8c4;font-size:10px;line-height:1.45}
-</style>
+<style id="gtx-kenghi-kindly-restore-css">
+.gtx-kenghi-restore{position:relative;z-index:20;display:grid;grid-template-columns:62px minmax(0,1fr) auto;align-items:center;gap:10px;margin:8px 10px 4px;padding:9px 10px;border:1px solid rgba(79,124,255,.32);border-radius:12px;background:linear-gradient(135deg,rgba(8,27,51,.96),rgba(9,31,58,.94));box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.gtx-kenghi-restore-face{position:relative;width:56px;height:56px;display:grid;place-items:center}
+.gtx-kenghi-restore-orbit{position:absolute;border:1px solid rgba(79,124,255,.42);border-radius:50%;animation:gtxKenghiRestoreSpin 5s linear infinite}
+.gtx-kenghi-restore-orbit.one{width:52px;height:22px;transform:rotate(25deg)}
+.gtx-kenghi-restore-orbit.two{width:22px;height:52px;transform:rotate(-25deg);animation-direction:reverse}
+.gtx-kenghi-restore-avatar{position:relative;width:34px;height:34px;border-radius:50%;background:linear-gradient(145deg,#2677ff,#12439d);display:grid;place-items:center;box-shadow:0 0 0 5px rgba(37,99,235,.12),0 0 18px rgba(79,124,255,.32)}
+.gtx-kenghi-restore-avatar span{display:flex;gap:7px;margin-top:-4px}
+.gtx-kenghi-restore-avatar i{display:block;width:5px;height:7px;border-radius:50%;background:#fff}
+.gtx-kenghi-restore-avatar b{position:absolute;width:14px;height:7px;left:50%;bottom:7px;transform:translateX(-50%);border-bottom:2px solid #fff;border-radius:0 0 12px 12px}
+.gtx-kenghi-restore-copy{min-width:0;display:flex;flex-direction:column;gap:2px}
+.gtx-kenghi-restore-copy span{font-size:8px;font-weight:900;letter-spacing:.5px;color:#62d8a0}
+.gtx-kenghi-restore-copy strong{font-size:14px;color:#fff}
+.gtx-kenghi-restore-copy small{font-size:9px;line-height:1.3;color:#8fa8c4}
+.gtx-kenghi-restore button{min-height:38px;padding:0 11px;border:1px solid rgba(32,201,151,.5);border-radius:9px;background:rgba(32,201,151,.1);color:#eafff7;font-size:10px;font-weight:900}
+@keyframes gtxKenghiRestoreSpin{to{transform:rotate(385deg)}}
+@media(max-width:600px){.gtx-kenghi-restore{grid-template-columns:50px minmax(0,1fr);gap:8px;margin:6px 8px 3px;padding:7px 8px}.gtx-kenghi-restore-face{width:46px;height:46px}.gtx-kenghi-restore-avatar{width:30px;height:30px}.gtx-kenghi-restore-orbit.one{width:44px;height:19px}.gtx-kenghi-restore-orbit.two{width:19px;height:44px}.gtx-kenghi-restore button{grid-column:1/-1;width:100%;height:34px}.gtx-kenghi-restore-copy strong{font-size:13px}}
+</style></style>
 <script id="gtx-paypal-client">
 (function(){
 "use strict";
@@ -2156,5 +2186,20 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.gtxAdminPortalHome=portalHome;
 })();
 </script>
-</body>
+<script id="gtx-kenghi-kindly-restore-script">
+(function(){
+  function openKindlyChat(){
+    const p=document.getElementById("supportPage");
+    if(!p)return;
+    p.classList.add("open");
+    p.style.display="block";
+    if(typeof window.GTXKindlyChatLoad==="function") window.GTXKindlyChatLoad();
+    setTimeout(function(){document.getElementById("kindlyChatInput")?.focus()},0);
+  }
+  document.addEventListener("click",function(e){
+    if(e.target.closest?.("#gtxKenghiChatButton")){e.preventDefault();openKindlyChat()}
+  },true);
+  window.GTXOpenKindlyChat=openKindlyChat;
+})();
+</script></body>
 </html>
