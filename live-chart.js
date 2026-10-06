@@ -169,46 +169,59 @@
   async function loadBybitHistory(){
     const symbol=String(state.symbol||"").toUpperCase();
     const tf=state.tf;
-    // Keep the restored candle engine, but obtain crypto history through the
-    // verified server adapter first. If that adapter is temporarily unavailable,
-    // fall back to the public Bybit endpoint; never synthesize candles.
+    const bybitSymbol=symbol.replace("/","");
+    if(!/^[A-Z0-9]+$/.test(bybitSymbol))throw new Error("Invalid verified Bybit symbol.");
+
+    // Crypto candles must not depend on Twelve Data. Fetch the verified Bybit
+    // exchange history first; the Supabase adapter remains a secondary route.
     try{
-      const d=await (async()=>{
+      if(state.sec<60){
+        const u="https://api.bybit.com/v5/market/recent-trade?category=spot&symbol="+encodeURIComponent(bybitSymbol)+"&limit=1000";
+        const r=await fetch(u,{cache:"no-store"});
+        const j=await r.json().catch(()=>({}));
+        if(!r.ok||Number(j?.retCode)!==0)throw new Error(j?.retMsg||"Bybit recent trades unavailable.");
+        const rows=(j?.result?.list||[]).slice().reverse(),byBucket=new Map();
+        rows.forEach(x=>{
+          const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);
+          if(!Number.isFinite(ts)||!Number.isFinite(p))return;
+          const b=bucket(ts,state.sec);let c=byBucket.get(b);
+          if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
+          c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=Number.isFinite(v)?v:0;byBucket.set(b,c);
+        });
+        state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
+      }else{
+        const map={60:"1",120:"2",300:"5",900:"15",1800:"30",3600:"60",7200:"120",14400:"240",86400:"D",604800:"W",2592000:"M"};
+        const interval=map[state.sec];
+        if(!interval)throw new Error("Bybit does not provide a native candle interval for "+tf+".");
+        const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(bybitSymbol)+"&interval="+interval+"&limit=500";
+        const r=await fetch(u,{cache:"no-store"});
+        const j=await r.json().catch(()=>({}));
+        if(!r.ok||Number(j?.retCode)!==0)throw new Error(j?.retMsg||"Bybit historical candles unavailable.");
+        state.candles=(j?.result?.list||[]).slice().reverse().map(x=>({
+          t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5]||0)
+        })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
+      }
+      state.candles.sort((a,b)=>a.t-b.t);
+      if(state.candles.length>=12){
+        state.provider="BYBIT";state.price=state.candles[state.candles.length-1].c;return;
+      }
+      throw new Error("Bybit returned too little verified history.");
+    }catch(primaryError){
+      // Secondary verified route through the existing Supabase adapter.
+      try{
         const sb=window.GoTradeXMarketSupabase||(window.GoTradeXMarketSupabase=
           window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));
         const r=await sb.functions.invoke("gotradex-market-data",{body:{action:"chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:tf}});
         if(r.error)throw new Error(r.error.message||"Verified crypto history request failed.");
         if(!r.data?.ok)throw new Error(r.data?.error||"No verified crypto history returned.");
-        return r.data;
-      })();
-      const rows=Array.isArray(d.candles)?d.candles:[];
-      state.candles=rows.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
-        .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
-      if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
-      if(state.candles.length>=12)return;
-    }catch(_){}
-    const bybitSymbol=symbol.replace("/","");
-    if(state.sec<60){
-      const u="https://api.bybit.com/v5/market/recent-trade?category=spot&symbol="+encodeURIComponent(bybitSymbol)+"&limit=1000";
-      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
-      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit recent trades unavailable.");
-      const rows=(j?.result?.list||[]).slice().reverse(),byBucket=new Map();
-      rows.forEach(x=>{
-        const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);if(!Number.isFinite(ts)||!Number.isFinite(p))return;
-        const b=bucket(ts,state.sec);let c=byBucket.get(b);if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
-        c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;byBucket.set(b,c);
-      });
-      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
-    }else{
-      const map={60:"1",120:"2",300:"5",900:"15",1800:"30",3600:"60",7200:"120",14400:"240",86400:"D",604800:"W",2592000:"M"};
-      const interval=map[state.sec];if(!interval)throw new Error("Bybit does not provide a native candle interval for "+tf+".");
-      const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(bybitSymbol)+"&interval="+interval+"&limit=500";
-      const r=await fetch(u,{cache:"no-store"}),j=await r.json();if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
-      const rows=j?.result?.list||[];
-      state.candles=rows.slice().reverse().map(x=>({t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5]||0)}))
-        .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
+        const rows=Array.isArray(r.data.candles)?r.data.candles:[];
+        state.candles=rows.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
+          .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+        if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
+        if(state.candles.length>=12)return;
+      }catch(_){}
+      throw primaryError;
     }
-    state.candles.sort((a,b)=>a.t-b.t);if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
   function historyReady(){
     // Never paint a tiny one/two-candle chart and then progressively zoom it out.
