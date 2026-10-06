@@ -158,25 +158,41 @@
   }
 
   async function loadBybitHistory(){
-    // Keep the 604 "100% perfect" chart UI/behavior, but route history through
-    // GoTradeX's verified server adapter instead of exposing exchange calls in the browser.
-    if(!feed()||typeof feed().bybitHistory!=="function"){
-      throw new Error("Verified crypto market-data adapter is not loaded.");
+    if(state.sec<60){
+      const u="https://api.bybit.com/v5/market/recent-trade?category=spot&symbol="+encodeURIComponent(state.symbol)+"&limit=1000";
+      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
+      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit recent trades unavailable.");
+      const rows=(j?.result?.list||[]).slice().reverse();
+      const byBucket=new Map();
+      rows.forEach(x=>{
+        const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);
+        if(!Number.isFinite(ts)||!Number.isFinite(p))return;
+        const b=bucket(ts,state.sec);
+        let c=byBucket.get(b);
+        if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
+        c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=v;
+        byBucket.set(b,c);
+      });
+      state.candles=Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
+    }else{
+      const bybitIntervals={60:"1",120:"2",300:"5",900:"15",1800:"30",3600:"60",7200:"120",14400:"240",86400:"D",604800:"W",2592000:"M"};
+      const interval=bybitIntervals[state.sec];
+      if(!interval)throw new Error("Bybit does not provide a native candle interval for "+state.tf+".");
+      const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(state.symbol)+"&interval="+interval+"&limit=500";
+      const r=await fetch(u,{cache:"no-store"}),j=await r.json();
+      if(j.retCode!==0)throw new Error(j.retMsg||"Bybit historical data unavailable.");
+      const rows=j?.result?.list||[];
+      state.candles=rows.slice().reverse().map(x=>({
+        t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),c:Number(x[4]),v:Number(x[5])
+      })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
     }
-    state.candles=await feed().bybitHistory(state.symbol,state.sec);
-    state.candles=(Array.isArray(state.candles)?state.candles:[])
-      .map(x=>({t:Number(x.t),o:Number(x.o),h:Number(x.h),l:Number(x.l),c:Number(x.c),v:Number(x.v||0)}))
-      .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite))
-      .sort((a,b)=>a.t-b.t);
+    state.candles.sort((a,b)=>a.t-b.t);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
 
   function historyReady(){
-    // Twelve Data does not provide verified 5/15/30-second historical candles.
-    // For those Forex/non-crypto intervals the first candle is created only from
-    // the first real provider tick; it is not synthetic startup history.
-    if(String(state.provider||"").startsWith("TWELVE_DATA") && state.sec<60) return state.candles.length >= 1;
-    // For normal candle intervals require a real historical window before drawing.
+    // Never paint a tiny one/two-candle chart and then progressively zoom it out.
+    // The first render requires a real historical window.
     return state.candles.length >= 12;
   }
 
@@ -186,7 +202,7 @@
   }
 
   async function loadTwelveHistory(symbol){
-    state.candles=await feed().twelveHistory(symbol,state.sec,state.type);
+    state.candles=await feed().twelveHistory(symbol,state.sec);
     state.candles=state.candles.filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
