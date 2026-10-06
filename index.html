@@ -1939,5 +1939,61 @@ async function loadAdminIdentityVerification(){
 }
 document.addEventListener("DOMContentLoaded",()=>{document.getElementById("identityAdminClose")?.addEventListener("click",()=>document.getElementById("adminIdentityVerification")?.classList.remove("open"));document.getElementById("identityAdminBack")?.addEventListener("click",()=>document.getElementById("adminIdentityVerification")?.classList.remove("open"));});
 </script><script src="market-data.js?v=20261006feed2"></script><script src="live-chart.js?v=20261006lwc11"></script><script src="trade-preferences.js?v=20261005fix1"></script><script src="server-trade-runtime.js?v=20261006runtime3"></script>
+<script id="gtx-admin-portal-runtime-guard">
+(function(){
+  "use strict";
+  function byId(id){return document.getElementById(id)}
+  function showAdminPortal(){
+    const page=byId("adminPage");
+    const drawer=byId("adminDrawer");
+    if(!page)return false;
+    if(drawer)drawer.classList.remove("open");
+    document.querySelectorAll(".drawer.open").forEach(function(el){el.classList.remove("open")});
+    document.querySelectorAll(".adminSection").forEach(function(el){
+      el.classList.remove("open");
+      el.style.display="";
+    });
+    page.classList.add("open");
+    page.style.display="block";
+    const overview=byId("adminOverview");
+    if(overview){
+      overview.classList.add("open");
+      overview.style.display="block";
+    }
+    if(typeof window.syncGtxKenglyVisibility==="function")window.syncGtxKenglyVisibility();
+    if(typeof window.loadAdminOverview==="function"){
+      try{window.loadAdminOverview()}catch(e){
+        const msg=byId("adminMessage");
+        if(msg)msg.textContent="Admin Portal opened. Overview data is unavailable: "+(e&&e.message?e.message:"load error");
+      }
+    }
+    return true;
+  }
+  function install(){
+    const portal=byId("adminPortalMenuItem");
+    if(portal)portal.hidden=false;
+    document.addEventListener("click",function(e){
+      const target=e.target&&e.target.closest?e.target.closest("#adminPortalMenuItem"):null;
+      if(target){
+        e.preventDefault();
+        e.stopPropagation();
+        showAdminPortal();
+      }
+    },true);
+    const adminMenu=byId("adminMenuBtn");
+    if(adminMenu){
+      adminMenu.addEventListener("click",function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        const drawer=byId("adminDrawer");
+        if(drawer)drawer.classList.add("open");
+      },true);
+    }
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
+  window.openAdminPortal=showAdminPortal;
+})();
+</script>
 </body>
 </html>
