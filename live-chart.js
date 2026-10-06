@@ -237,6 +237,27 @@
     return state.candles.length >= 12;
   }
 
+  async function resolveTwelveSymbol(f){
+    const requested=String(f?.symbol||f?.label||"").trim();
+    if(!requested)throw new Error("No asset symbol was supplied to the verified provider.");
+    const aliases={
+      "WTI Oil":"WTI/USD","Brent Oil":"BRENT/USD","Natural Gas":"NATGAS/USD",
+      "Copper":"HG1","Platinum":"XPT/USD","Palladium":"XPD/USD",
+      "US30":"DJI","US500":"SPX","NAS100":"NDX","UK100":"FTSE","GER40":"DAX",
+      "FRA40":"CAC","JPN225":"N225","AUS200":"ASX","HK50":"HSI","EU50":"STOXX50E","SA40":"JTOPI"
+    };
+    const query=aliases[requested]||requested;
+    const matches=await feed().twelveSearch(query);
+    if(!Array.isArray(matches)||!matches.length)throw new Error("No verified Twelve Data symbol matches were returned for "+requested+".");
+    const clean=v=>String(v||"").trim().toUpperCase();
+    const exact=matches.find(x=>clean(x.symbol)===clean(query));
+    const named=matches.find(x=>{
+      const text=clean((x.symbol||"")+" "+(x.name||""));
+      return text.includes(clean(requested).replace(/[^A-Z0-9]/g,""));
+    });
+    return String((exact||named||matches[0]).symbol||"").trim();
+  }
+
   function connectTwelve(){
     const id=++state.connectionId;
     closeSocket();
