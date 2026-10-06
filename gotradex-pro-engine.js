@@ -207,7 +207,7 @@
     state.timeframe = tf;
     persist();
     dispatch("gotradex:pro-timeframe-changed", { timeframe: tf });
-    try { if (window.GoTradeXLiveChart && typeof window.GoTradeXLiveChart.setTimeframe === "function") window.GoTradeXLiveChart.setTimeframe(tf); } catch (_) {}
+    try { if (window.GoTradeXChartEngine && typeof window.GoTradeXChartEngine.setTimeframe === "function") window.GoTradeXChartEngine.setTimeframe(tf); } catch (_) {}
     return true;
   }
 
