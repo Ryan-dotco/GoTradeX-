@@ -53,8 +53,8 @@
     const s=document.createElement("style");
     s.id="gtx-lwc-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
-      "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
+      "#gtxLiveChart{position:relative;display:block;flex:1 1 auto;flex-shrink:0;width:100%;height:clamp(330px,52vh,560px);min-height:300px;max-height:none;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none;z-index:5}"+
+      "#gtxLWC{position:absolute;inset:0;width:100%;height:100%;min-height:300px;z-index:1}"+
       ".gtxLWCHead{position:absolute;z-index:30;top:6px;left:7px;right:7px;display:block;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCAsset{display:inline-block;font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
