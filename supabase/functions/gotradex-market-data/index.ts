@@ -98,6 +98,59 @@ Deno.serve(async req => {
       return json({ ok: true, provider: "twelve_data", symbol, assetType, price: Number(d?.price), timestamp: Date.now() });
     }
     if (action === "chart") {
+      // Crypto is served directly by Bybit from this trusted server adapter.
+      // This keeps exchange credentials/API traffic off the client and prevents
+      // the frontend from calling an unsupported bybit_chart action.
+      if (assetType === "crypto") {
+        const bybitSymbol = cleanSymbol(symbol).replace("/", "");
+        if (!/^[A-Z0-9]+$/.test(bybitSymbol)) throw new Error("Invalid Bybit crypto symbol.");
+        if (["5 Seconds", "15 Seconds", "30 Seconds"].includes(tf)) {
+          const u = "https://api.bybit.com/v5/market/recent-trade?category=spot&symbol=" +
+            encodeURIComponent(bybitSymbol) + "&limit=1000";
+          const r = await fetch(u, { cache: "no-store" });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok || Number(d?.retCode) !== 0) {
+            throw new Error(String(d?.retMsg || "Bybit recent trades unavailable."));
+          }
+          const trades = Array.isArray(d?.result?.list) ? d.result.list.slice().reverse() : [];
+          const sec = tf === "5 Seconds" ? 5 : tf === "15 Seconds" ? 15 : 30;
+          const buckets = new Map<string, any>();
+          for (const x of trades) {
+            const ts = Number(x.time), p = Number(x.price), v = Number(x.size || 0);
+            if (!Number.isFinite(ts) || !Number.isFinite(p)) continue;
+            const b = Math.floor(ts / 1000 / sec) * sec;
+            let c = buckets.get(String(b));
+            if (!c) c = { time: b, open: p, high: p, low: p, close: p, volume: 0 };
+            c.high = Math.max(c.high, p); c.low = Math.min(c.low, p); c.close = p;
+            c.volume += Number.isFinite(v) ? v : 0;
+            buckets.set(String(b), c);
+          }
+          const candles = Array.from(buckets.values()).sort((a, b) => a.time - b.time).slice(-220);
+          if (!candles.length) throw new Error("No verified Bybit trade history was returned for " + bybitSymbol + ".");
+          return json({ ok: true, provider: "bybit", symbol: bybitSymbol, assetType, timeframe: tf, candles });
+        }
+        const bybitIntervals: Record<string, string> = {
+          "1 Minute":"1","2 Minutes":"2","5 Minutes":"5","15 Minutes":"15","30 Minutes":"30",
+          "1 Hour":"60","4 Hours":"240","1 Day":"D","1 Month":"M"
+        };
+        const interval = bybitIntervals[tf];
+        if (!interval) throw new Error("Bybit does not provide a native candle interval for " + tf + ".");
+        const u = "https://api.bybit.com/v5/market/kline?category=spot&symbol=" +
+          encodeURIComponent(bybitSymbol) + "&interval=" + interval + "&limit=500";
+        const r = await fetch(u, { cache: "no-store" });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || Number(d?.retCode) !== 0) {
+          throw new Error(String(d?.retMsg || "Bybit historical candles unavailable."));
+        }
+        const rows = Array.isArray(d?.result?.list) ? d.result.list.slice().reverse() : [];
+        const candles = rows.map((x: any[]) => ({
+          time: Math.floor(Number(x[0]) / 1000),
+          open: Number(x[1]), high: Number(x[2]), low: Number(x[3]), close: Number(x[4]), volume: Number(x[5] || 0)
+        })).filter((x: any) => Number.isFinite(x.time) && [x.open,x.high,x.low,x.close].every(Number.isFinite));
+        if (!candles.length) throw new Error("No verified Bybit historical candles were returned for " + bybitSymbol + ".");
+        return json({ ok: true, provider: "bybit", symbol: bybitSymbol, assetType, timeframe: tf, candles });
+      }
+
       const interval = intervalFor(tf);
       const d = await td("/time_series", { symbol, interval, outputsize: "500", order: "asc", timezone: "UTC" });
       const candles = valuesToCandles(Array.isArray(d?.values) ? d.values : []);
