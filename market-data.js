@@ -49,18 +49,15 @@
 
   function label(){
     try{
+      // The stored asset is the authoritative selection. Never infer a new asset
+      // from the legacy pairName button, because that element is also used by
+      // the chart UI and may still contain its initial BTC/USD text during boot.
       const stored=String(localStorage.getItem("gotradex_asset_display")||"").trim();
-      const visible=String(document.getElementById("pairName")?.textContent||"").trim().replace(/\s+OTC$/i,"");
-      const visibleKnown=!!cryptoMap[visible]||!!directTwelve[visible]||/^[A-Z]{1,6}$/.test(visible);
-      if(visibleKnown && visible!==stored){
-        localStorage.setItem("gotradex_asset_display",visible);
-        localStorage.setItem("gotradex_chart_symbol",visible.replace(/[^A-Za-z0-9]/g,"").toUpperCase());
-        return visible;
-      }
-      return stored||visible||"BTC/USD";
+      if(stored)return stored.replace(/\s+OTC$/i,"");
+      const visible=String(document.getElementById("bottomAssetPair")?.textContent||"").trim().replace(/\s+OTC$/i,"");
+      return visible||"BTC/USD";
     }catch(e){return "BTC/USD"}
   }
-
   function mode(){
     try{return String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(e){return "LIVE"}
   }
@@ -80,10 +77,9 @@
     // Use the selected asset native symbol through the verified Twelve Data adapter.
     // Do not substitute BTC candles for another market.
     if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
-    if(t==="forex" && /^[A-Z]{3}\\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
+    if(t==="forex" && /^[A-Z]{3}\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
     if(t==="stocks" && /^[A-Z]{1,6}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
     return {available:false,provider:"NONE",reason:"No verified native feed is configured for "+l+".",label:l,type:t};
-    return {available:false,provider:"NONE",reason:"No verified provider mapping exists for "+l+".",label:l,type:t};
   }
 
   async function twelveSearch(symbol){
