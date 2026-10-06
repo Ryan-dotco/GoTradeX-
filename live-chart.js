@@ -712,10 +712,18 @@
     }
   }
 
+  function forceNormalCandles(){
+    state.chartType="candle";
+    state.heikin=false;
+    try{localStorage.setItem(TYPE_KEY,"candle")}catch(_){}
+    try{applySeriesVisibility()}catch(_){}
+  }
+
   function boot(){
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
+    forceNormalCandles();
     startClock();
     installLibraryAndStart();
     observeTradeMarkers();
