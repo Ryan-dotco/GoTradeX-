@@ -172,8 +172,11 @@
   }
 
   function historyReady(){
-    // Never paint a tiny one/two-candle chart and then progressively zoom it out.
-    // The first render requires a real historical window.
+    // Twelve Data does not provide verified 5/15/30-second historical candles.
+    // For those Forex/non-crypto intervals the first candle is created only from
+    // the first real provider tick; it is not synthetic startup history.
+    if(String(state.provider||"").startsWith("TWELVE_DATA") && state.sec<60) return state.candles.length >= 1;
+    // For normal candle intervals require a real historical window before drawing.
     return state.candles.length >= 12;
   }
 
