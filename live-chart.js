@@ -63,8 +63,8 @@
 
   function mount(){
     if(document.getElementById("gtxLiveChart"))return true;
-    const pair=document.querySelector(".pairbar"),bottom=document.querySelector(".bottom");
-    if(!pair||!bottom||!bottom.parentNode)return false;
+    const chartHost=document.getElementById("gtxChart"),bottom=document.querySelector(".bottom");
+    if(!chartHost||!bottom||!bottom.parentNode)return false;
     injectStyle();
     const box=document.createElement("section");
     box.id="gtxLiveChart";
@@ -87,7 +87,7 @@
       '<div class="gtxLWCFlag" id="gtxLWCFlag">🚩</div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
-    pair.insertAdjacentElement("afterend",box);
+    chartHost.replaceChildren(box);
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
     Object.keys(CFG.intervals).forEach(t=>{
