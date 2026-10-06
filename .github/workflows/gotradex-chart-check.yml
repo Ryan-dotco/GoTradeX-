@@ -12,30 +12,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Syntax check chart and market feed
+      - name: Syntax check Kengly and Pro Engine
         run: |
-          node --check live-chart.js
+          node --check chart-engine.js
+          node --check gotradex-pro-engine.js
           node --check market-data.js
-      - name: Verify chart architecture
+      - name: Verify protected chart wiring
         run: |
           node - <<'NODE'
           const fs=require('fs');
-          const chart=fs.readFileSync('live-chart.js','utf8');
+          const chart=fs.readFileSync('chart-engine.js','utf8');
+          const pro=fs.readFileSync('gotradex-pro-engine.js','utf8');
           const index=fs.readFileSync('index.html','utf8');
-          const required=[
-            'normalizeEpochMs',
-            'gtxChartSettings',
-            'extendedPatternMarkers',
-            'fractalMarkers',
-            'alligatorData',
-            'supertrendData',
-            'ichimoku',
-            'psarData',
-            'renderPanel',
-            'Kenkley’s Lines'
-          ];
-          for(const x of required) if(!chart.includes(x)) throw new Error('Missing chart feature: '+x);
-          if(chart.includes('gtxLWCChartTF')||chart.includes('gtxLWCTZ')) throw new Error('Obsolete chart-box controls remain');
-          if(!index.includes('live-chart.js?v=20261005lwc9')) throw new Error('Chart cache-buster not updated');
-          console.log('GoTradeX chart architecture checks passed');
+          for(const x of ['GoTradeXChartEngine','gtxKenglyHost','CandlestickSeries','fetchCandles','boot']) if(!chart.includes(x)) throw new Error('Missing Kengly feature: '+x);
+          for(const x of ['GoTradeXProEngine','LIVE_ASSETS','OTC_ASSETS','Alligator','Bollinger Bands']) if(!pro.includes(x)) throw new Error('Missing Pro Engine feature: '+x);
+          if(!index.includes('chart-engine.js?v=gtx-kengly-final-20261006')) throw new Error('Kengly engine not wired');
+          if(!index.includes('gotradex-pro-engine.js?v=gtx-pro-engine-final-20261006')) throw new Error('Pro Engine not wired');
+          if(index.includes('style="display:none!important"></section>')) throw new Error('Hidden chart host remains');
+          console.log('GoTradeX protected Kengly + Pro Engine checks passed');
           NODE
