@@ -1251,7 +1251,7 @@ window.addEventListener("storage",syncAccountPages);
 setTimeout(syncAccountPages,300);
 })();
 </script>
-<style id="gtx-bybit-auth-code">
+<style id="gtx-registration-fields">.gtxRegistrationFields{display:grid;gap:0}.gtxRegistrationFields .gtxBybitAuthField{margin-top:10px}</style>\n<style id="gtx-bybit-auth-code">
 .gtxBybitCodeWrap{display:none;margin-top:12px;padding:12px;border:1px solid #176fca;border-radius:10px;background:#071a30}.gtxBybitCodeWrap.open{display:block}.gtxBybitCodeTitle{font-size:11px;font-weight:900;color:#fff;letter-spacing:.08em}.gtxBybitCodeHint{margin-top:5px;color:#8fa8c4;font-size:10px;line-height:1.45}.gtxBybitCodeActions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.gtxBybitCodeActions button{min-height:40px;border-radius:8px;background:#163554;color:#fff;font-weight:800;font-size:11px}.gtxBybitCodeActions button:first-child{background:#176fca}.gtxBybitAuthField input#gtxBybitAuthCode{text-align:center;letter-spacing:.28em;font-size:18px;font-weight:900}
 </style>
 <style id="gtx-account-mode-colors">
@@ -1442,6 +1442,8 @@ setTimeout(syncAccountPages,300);
       if(error)throw error;
 
       try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
+      const profileResult=await ensureRegisteredProfile(data?.user);
+      if(!profileResult.ok){status("Email verified, but your account profile could not be completed: "+profileResult.message,"error");return}
       status("✓ Email verified. Your GoTradeX account is now ACTIVE.","ok");
 
       if(data?.session){
@@ -1466,6 +1468,31 @@ setTimeout(syncAccountPages,300);
     }catch(e){status(e?.message||"Could not resend the verification code.","error")}
     finally{busy=false}
   }
+  function makeReferralCode(){
+    const suffix=Math.random().toString(36).slice(2,8).toUpperCase();
+    return "GTX-"+suffix;
+  }
+  async function ensureRegisteredProfile(user){
+    if(!user?.id)return {ok:false,message:"No authenticated user was returned."};
+    const name=(el("gtxBybitAuthName")?.value||user.user_metadata?.display_name||user.user_metadata?.full_name||"").trim().slice(0,40);
+    const referredBy=(el("gtxBybitAuthReferral")?.value||"").trim().toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,24);
+    try{
+      const db=ensureClient();
+      const {data:existing,error:readError}=await db.from("profiles").select("id,referral_code,full_name,referred_by").eq("id",user.id).maybeSingle();
+      if(readError)throw readError;
+      const payload={id:user.id,email:user.email||null,full_name:name||existing?.full_name||null,referred_by:referredBy||existing?.referred_by||null,referral_code:existing?.referral_code||makeReferralCode()};
+      const {error}=await db.from("profiles").upsert(payload,{onConflict:"id"});
+      if(error)throw error;
+      try{
+        localStorage.setItem("gotradex_profile",JSON.stringify({displayName:payload.full_name||"Trader",email:user.email||"",referralCode:payload.referral_code}));
+        localStorage.setItem("gotradex_registered","true");
+      }catch(_){ }
+      return {ok:true,profile:payload};
+    }catch(e){
+      return {ok:false,message:e?.message||"Account profile could not be completed."};
+    }
+  }
+
   async function signUp(){
     if(busy)return;
     const email=el("gtxBybitAuthEmail")?.value.trim();
@@ -1491,6 +1518,8 @@ setTimeout(syncAccountPages,300);
       }
 
       if(data.session){
+        const profileResult=await ensureRegisteredProfile(data.user||data.session.user);
+        if(!profileResult.ok)throw new Error("Account was created, but the profile could not be completed: "+profileResult.message);
         try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
         status("✓ Account created and email already verified. Your GoTradeX account is ACTIVE.","ok");
         if(localStorage.getItem("gotradex_account_mode")==="REAL"){
@@ -1657,7 +1686,7 @@ setTimeout(syncAccountPages,300);
       '<div class="gtxBybitAuthHead"><h3 id="gtxBybitAuthTitle">Secure LIVE Connection</h3><button class="gtxBybitAuthClose" id="gtxBybitAuthClose" type="button">Close</button></div>'+
       '<p class="gtxBybitAuthText">GoTradeX uses Supabase Auth to protect access to the private Bybit account. Your Bybit API secret stays on the backend and is never entered here.</p>'+
       '<label class="gtxBybitAuthField"><span>Email</span><input id="gtxBybitAuthEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>'+
-      '<label class="gtxBybitAuthField"><span>Password</span><div class="gtxPasswordWrap"><input id="gtxBybitAuthPassword" type="password" autocomplete="current-password" placeholder="Your secure password"><button class="gtxPasswordToggle" id="gtxBybitPasswordToggle" type="button" aria-label="Show password">👁</button></div></label>'+
+      '<label class="gtxBybitAuthField"><span>Password</span><div class="gtxPasswordWrap"><input id="gtxBybitAuthPassword" type="password" autocomplete="current-password" placeholder="Your secure password"><button class="gtxPasswordToggle" id="gtxBybitPasswordToggle" type="button" aria-label="Show password">👁</button></div></label><div class="gtxRegistrationFields" id="gtxRegistrationFields"><label class="gtxBybitAuthField"><span>Display name (optional)</span><input id="gtxBybitAuthName" type="text" autocomplete="name" maxlength="40" placeholder="Your trading name"></label><label class="gtxBybitAuthField"><span>Referral code (optional)</span><input id="gtxBybitAuthReferral" type="text" autocomplete="off" maxlength="24" placeholder="GTX-REF"></label></div>'+
       '<button class="gtxForgotLink" id="gtxForgotPassword" type="button">Forgot password?</button>'+
       '<div class="gtxBybitCodeWrap" id="gtxBybitCodeWrap"><div class="gtxBybitCodeTitle">EMAIL ACTIVATION</div><div class="gtxBybitCodeHint">A 6-digit code was sent to your email. Come back to GoTradeX and enter it here to activate your account.</div><label class="gtxBybitAuthField"><span>6-digit verification code</span><input id="gtxBybitAuthCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"></label><div class="gtxBybitCodeActions"><button id="gtxBybitVerifyCode" type="button">VERIFY & ACTIVATE</button><button id="gtxBybitResendCode" type="button">RESEND CODE</button></div></div>'+
       '<div class="gtxRecoveryWrap" id="gtxBybitRecoveryWrap"><div class="gtxRecoveryTitle">PASSWORD RECOVERY</div><div class="gtxRecoveryHint gtxRecoveryMode open" id="gtxBybitRecoveryRequest">We will email you a secure reset link. Follow it and return to GoTradeX to set your new password.</div><div class="gtxRecoveryHint gtxRecoveryMode" id="gtxBybitRecoverySet">Choose and confirm your new password below.</div><label class="gtxBybitAuthField"><span>New password</span><div class="gtxPasswordWrap"><input id="gtxNewPassword" type="password" autocomplete="new-password" placeholder="New password"><button class="gtxPasswordToggle" id="gtxNewPasswordToggle" type="button" aria-label="Show new password">👁</button></div></label><label class="gtxBybitAuthField"><span>Confirm new password</span><div class="gtxPasswordWrap"><input id="gtxConfirmPassword" type="password" autocomplete="new-password" placeholder="Confirm new password"><button class="gtxPasswordToggle" id="gtxConfirmPasswordToggle" type="button" aria-label="Show confirmed password">👁</button></div></label><div class="gtxRecoveryActions"><button id="gtxSendReset" class="primary" type="button">SEND RESET LINK</button><button id="gtxUpdatePassword" class="primary gtxRecoveryMode" type="button">UPDATE PASSWORD</button></div></div>'+
