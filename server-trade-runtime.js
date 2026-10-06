@@ -16,7 +16,7 @@
   }
   function secondsFromUi(){
     const text=String(document.getElementById("timeBtn")?.textContent||"5 Seconds");
-    const m=text.match(/(d+)s*(Second|Seconds|Minute|Minutes|Hour|Hours|Day|Days|Month|Months|Year|Years)/i);
+    const m=text.match(/(\d+)\s*(Second|Seconds|Minute|Minutes|Hour|Hours|Day|Days|Month|Months|Year|Years)/i);
     if(!m)return 5;
     const n=Number(m[1]),u=m[2].toLowerCase();
     if(u.startsWith("second"))return n;
@@ -31,7 +31,7 @@
     return Number.isFinite(n)&&n>0?n:10;
   }
   function asset(){
-    return String(document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"BTC/USD").replace(/s+(LIVE|OTC)$/i,"").trim();
+    return String(document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"BTC/USD").replace(/\s+(LIVE|OTC)$/i,"").trim();
   }
   async function call(action,extra={}){
     const s=client(); if(!s)throw new Error("Supabase client unavailable.");
