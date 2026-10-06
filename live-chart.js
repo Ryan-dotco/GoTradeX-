@@ -151,9 +151,8 @@
 
   async function loadBybitHistory(){
     if(!feed()?.bybitHistory)throw new Error("Verified server market-data history is unavailable.");
-    const d=await feed().bybitHistory(state.symbol,state.sec);
-    if(!Array.isArray(d)||!d.length)throw new Error("No verified Bybit historical candles were returned.");
-    state.candles=d;
+    state.candles=await feed().bybitHistory(state.symbol,state.sec);
+    if(!state.candles.length)throw new Error("No verified Bybit historical candles were returned.");
     state.candles.sort((a,b)=>a.t-b.t);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
