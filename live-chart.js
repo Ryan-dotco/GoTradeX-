@@ -186,7 +186,7 @@
   }
 
   async function loadTwelveHistory(symbol){
-    state.candles=await feed().twelveHistory(symbol,state.sec);
+    state.candles=await feed().twelveHistory(symbol,state.sec,state.type);
     state.candles=state.candles.filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
