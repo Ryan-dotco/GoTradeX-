@@ -144,7 +144,14 @@
   }
 
   function subscribeLive(symbol) {
-    dispatch("gotradex:pro-live-subscribe", { symbol: baseSymbol(symbol) });
+    const base = baseSymbol(symbol);
+    dispatch("gotradex:pro-live-subscribe", { symbol: base });
+    try {
+      if (window.GoTradeXChartEngine && typeof window.GoTradeXChartEngine.setSymbol === "function") {
+        const compact = base.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+        window.GoTradeXChartEngine.setSymbol(compact, "crypto", base);
+      }
+    } catch (_) {}
     try {
       if (window.GoTradeXLiveChart && typeof window.GoTradeXLiveChart.reconnect === "function") {
         window.GoTradeXLiveChart.reconnect();
@@ -343,6 +350,12 @@
   state.chartType = "candle";
   persist();
   try { if (window.GoTradeXLiveChart && typeof window.GoTradeXLiveChart.setChartTool === "function") window.GoTradeXLiveChart.setChartTool("Candlesticks"); } catch (_) {}
+
+  try {
+    const initial = current();
+    if (initial.type === "LIVE") subscribeLive(initial.pair);
+    else subscribeOTC(initial.base);
+  } catch (_) {}
 
   dispatch("gotradex:pro-engine-ready", {
     version: engine.version,
