@@ -250,16 +250,33 @@
     return state.candles.length >= 12;
   }
 
-  async function resolveTwelveSymbol(f){
-    const requested=String(f?.symbol||f?.label||"").trim();
-    if(!requested)throw new Error("No asset symbol was supplied to the verified provider.");
+  async async function resolveTwelveSymbol(f){
+    const raw=String(f?.symbol||f?.label||"").trim();
+    if(!raw)throw new Error("No asset symbol was supplied to the verified provider.");
     const aliases={
       "WTI Oil":"WTI/USD","Brent Oil":"BRENT/USD","Natural Gas":"NATGAS/USD",
       "Copper":"HG1","Platinum":"XPT/USD","Palladium":"XPD/USD",
       "US30":"DJI","US500":"SPX","NAS100":"NDX","UK100":"FTSE","GER40":"DAX",
-      "FRA40":"CAC","JPN225":"N225","AUS200":"ASX","HK50":"HSI","EU50":"STOXX50E","SA40":"JTOPI"
+      "FRA40":"CAC","JPN225":"N225","AUS200":"ASX","HK50":"HSI","EU50":"STOXX50E","SA40":"JTOPI",
+      "SPX":"SPX","DAX":"DAX","CAC40":"CAC","FTSE":"FTSE","NIKKEI":"N225","VIX":"VIX","RUSSELL2000":"RUT"
     };
-    return aliases[requested]||requested;
+    let requested=aliases[raw]||raw;
+    // Normalize compact forex labels such as GBPUSD -> GBP/USD before any lookup.
+    const compact=requested.replace(/[^A-Za-z]/g,"").toUpperCase();
+    if(/^[A-Z]{6}$/.test(compact)) requested=compact.slice(0,3)+"/"+compact.slice(3);
+    // Normalize common compact commodity labels.
+    const compactAliases={"WTIOIL":"WTI/USD","BRENTOIL":"BRENT/USD","NATURALGAS":"NATGAS/USD"};
+    requested=compactAliases[compact]||requested;
+    try{
+      const api=feed();
+      if(api?.twelveSearch){
+        const found=await api.twelveSearch(requested);
+        if(found)return found;
+      }
+    }catch(e){
+      // Exact native symbols remain usable when symbol discovery is unavailable.
+    }
+    return requested;
   }
 
   function clearChartForNewAsset(){
