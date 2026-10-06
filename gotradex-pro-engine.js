@@ -209,7 +209,7 @@
     dispatch("gotradex:pro-chart-type-changed", { chartType: type });
     try {
       if (window.GoTradeXLiveChart && typeof window.GoTradeXLiveChart.setChartTool === "function") {
-        const map = { candle: "Candlesticks", heiken: "Heikin Ashi", line: "Line", area: "Area" };
+        const map = { candle: "Candlesticks", heiken: "Heikin Ashi", line: "Line Chart", area: "Area Chart" };
         window.GoTradeXLiveChart.setChartTool(map[type]);
       }
     } catch (_) {}
@@ -338,6 +338,11 @@
     const type = event && event.detail ? event.detail.chartType : null;
     if (type) localStorage.setItem("gtx_pro_chart_type", type);
   });
+
+  // Normal candle mode is the protected default for the first engine boot.
+  state.chartType = "candle";
+  persist();
+  try { if (window.GoTradeXLiveChart && typeof window.GoTradeXLiveChart.setChartTool === "function") window.GoTradeXLiveChart.setChartTool("Candlesticks"); } catch (_) {}
 
   dispatch("gotradex:pro-engine-ready", {
     version: engine.version,
