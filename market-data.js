@@ -108,7 +108,7 @@
   async function bybitHistory(symbol,sec){
     const d=await serverInvoke({action:"bybit_chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:String(sec)});
     const candles=Array.isArray(d.candles)?d.candles:[];
-    return candles.map(x=>({t:Number(x.time),o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)})
+    return candles.map(x=>({t:Number(x.time),o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
       .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
   }
 
