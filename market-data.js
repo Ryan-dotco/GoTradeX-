@@ -29,7 +29,7 @@
     "EUR/JPY":"EUR/JPY","GBP/JPY":"GBP/JPY","EUR/CHF":"EUR/CHF","AUD/JPY":"AUD/JPY",
     "XAU/USD":"XAU/USD","XAG/USD":"XAG/USD","XAU/EUR":"XAU/EUR","XAG/EUR":"XAG/EUR",
     "WTI Oil":"WTI/USD","Brent Oil":"BRENT/USD","Natural Gas":"NATGAS/USD",
-    "Copper":"COPPER/USD","Platinum":"XPT/USD","Palladium":"XPD/USD"
+    "Copper":"HG1","Platinum":"XPT/USD","Palladium":"XPD/USD"
   };
 
   function key(){ return ""; }
@@ -77,11 +77,8 @@
     const t=inferredType;
     if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
-    if((t==="forex" || t==="metals" || t==="commodities") && directTwelve[l])
-      return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t,short:true};
-    if(t==="stocks" && /^[A-Z]{1,6}$/.test(l))
-      return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t,short:true};
-    if(t==="indices")
+    if(t==="crypto") return {available:false,provider:"NONE",reason:"No verified Bybit Spot mapping exists for "+l+".",label:l,type:t};
+    if(t==="forex" || t==="metals" || t==="commodities" || t==="stocks" || t==="indices")
       return {available:true,provider:"TWELVE_DATA_LOOKUP",symbol:l,label:l,type:t,short:true};
     return {available:false,provider:"NONE",reason:"No verified provider mapping exists for "+l+".",label:l,type:t};
   }
