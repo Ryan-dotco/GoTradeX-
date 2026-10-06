@@ -408,7 +408,36 @@ function updateGtxAdminMenu(){
   const b=document.getElementById("adminPortalMenuItem");
   if(b) b.hidden=!gtxIsAdminUser();
 }
-updateGtxAdminMenu();function openExecutionControl(mode){const page=document.getElementById("adminPage"),drawer=document.getElementById("adminDrawer"),section=document.getElementById("adminExecutionControl");if(!page||!section)return;drawer?.classList.remove("open");document.querySelectorAll(".adminSection").forEach(s=>s.classList.remove("open"));section.classList.add("open");page.classList.add("open");const m=String(mode||"Control Trade"),account=localStorage.getItem("gotradex_account_mode")==="REAL"?"LIVE":"DEMO",market=localStorage.getItem("gotradex_market_mode")==="OTC"?"OTC 24/7":"LIVE";document.getElementById("executionControlTitle").textContent=m;document.getElementById("executionControlMode").textContent=m.toUpperCase();document.getElementById("executionControlAccount").textContent=account;document.getElementById("executionControlMarket").textContent=market;document.getElementById("executionControlNotice").textContent=m+" is the active Admin Portal phase. Use the dashboard for chart monitoring; live execution remains protected.";}
+async function refreshGtxAdminAccess(){
+  const b=document.getElementById("adminPortalMenuItem");
+  if(!b)return;
+  if(gtxIsAdminUser()){b.hidden=false;return}
+  try{
+    const sb=window.supabase?.createClient?window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}):null;
+    if(!sb)return;
+    const {data}=await sb.auth.getUser();
+    const u=data?.user;
+    const role=String(u?.user_metadata?.role||u?.app_metadata?.role||"").toLowerCase();
+    if(role==="admin"||u?.user_metadata?.isAdmin===true||u?.app_metadata?.isAdmin===true){
+      b.hidden=false;
+      try{localStorage.setItem("gotradex_admin_mode","true")}catch(_){}
+    }
+  }catch(_){}
+}
+updateGtxAdminMenu();
+refreshGtxAdminAccess();
+function openAdminPortal(){
+  const page=document.getElementById("adminPage"),drawer=document.getElementById("adminDrawer");
+  if(!page)return;
+  drawer?.classList.remove("open");
+  document.querySelectorAll(".adminSection").forEach(s=>{s.classList.remove("open");s.style.display=""});
+  page.classList.add("open");
+  syncGtxKenglyVisibility();
+  const overview=document.getElementById("adminOverview");
+  if(overview){overview.classList.add("open");overview.style.display="block";if(typeof loadAdminOverview==="function")loadAdminOverview()}
+  const msg=document.getElementById("adminMessage");if(msg)msg.textContent="";
+}
+function openExecutionControl(mode){const page=document.getElementById("adminPage"),drawer=document.getElementById("adminDrawer"),section=document.getElementById("adminExecutionControl");if(!page||!section)return;drawer?.classList.remove("open");document.querySelectorAll(".adminSection").forEach(s=>s.classList.remove("open"));section.classList.add("open");page.classList.add("open");const m=String(mode||"Control Trade"),account=localStorage.getItem("gotradex_account_mode")==="REAL"?"LIVE":"DEMO",market=localStorage.getItem("gotradex_market_mode")==="OTC"?"OTC 24/7":"LIVE";document.getElementById("executionControlTitle").textContent=m;document.getElementById("executionControlMode").textContent=m.toUpperCase();document.getElementById("executionControlAccount").textContent=account;document.getElementById("executionControlMarket").textContent=market;document.getElementById("executionControlNotice").textContent=m+" is the active Admin Portal phase. Use the dashboard for chart monitoring; live execution remains protected.";}
 
 
 function updateGtxProfileMenu(){
@@ -422,6 +451,7 @@ updateGtxProfileMenu();
 document.getElementById("demoAccountBtn")?.addEventListener("click",()=>setTimeout(updateGtxProfileMenu,0));
 document.getElementById("realAccountBtn")?.addEventListener("click",()=>setTimeout(updateGtxProfileMenu,0));
 document.getElementById("adminMenuBtn").onclick=()=>document.getElementById("adminDrawer").classList.add("open");
+document.getElementById("adminPortalMenuItem")?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();openAdminPortal()});
 document.getElementById("adminClose").onclick=()=>document.getElementById("adminDrawer").classList.remove("open");document.getElementById("executionControlClose").onclick=()=>document.getElementById("adminExecutionControl").classList.remove("open");document.getElementById("executionControlBack").onclick=()=>document.getElementById("adminExecutionControl").classList.remove("open");document.getElementById("executionControlTradeBtn").onclick=()=>openExecutionControl("Control Trade");document.getElementById("executionTradeControlBtn").onclick=()=>openExecutionControl("Trade Control");document.getElementById("executionRobotControlBtn").onclick=()=>openExecutionControl("Robot Control");document.getElementById("executionOpenDashboardBtn").onclick=()=>{document.getElementById("adminExecutionControl").classList.remove("open");document.getElementById("adminPage").classList.remove("open");if(typeof syncGtxKenglyVisibility==="function")syncGtxKenglyVisibility()};
 document.getElementById("adminBack").onclick=()=>{document.querySelectorAll(".adminSection").forEach(s=>s.classList.remove("open"));document.getElementById("adminPage").classList.remove("open")};
 document.querySelectorAll("[data-admin-section]").forEach(b=>b.onclick=()=>{const section=b.dataset.adminSection;document.getElementById("adminDrawer").classList.remove("open");document.querySelectorAll(".adminSection").forEach(s=>{s.classList.remove("open");s.style.display=""});if(section==="Overview"){document.getElementById("adminOverview").classList.add("open");document.getElementById("adminMessage").textContent="";return}if(section==="Users"){document.getElementById("adminUsers").classList.add("open");document.getElementById("adminMessage").textContent="";loadAdminUsers();return}if(section==="Wallet & Transactions"){document.getElementById("adminTransactions").classList.add("open");document.getElementById("adminMessage").textContent="";if(typeof window.GoTradeXAdminTransactions==="function")window.GoTradeXAdminTransactions();return}if(section==="Trading & Markets"){document.getElementById("adminMarkets").classList.add("open");document.getElementById("adminMessage").textContent="";loadAdminMarkets();return}if(section==="Control Trade"||section==="Trade Control"||section==="Robot Control"){openExecutionControl(section);return}if(section==="My Team / Referrals"){document.getElementById("adminReferrals").classList.add("open");document.getElementById("adminMessage").textContent="";loadAdminReferrals();return}if(section==="Fees & Subscriptions"){document.getElementById("adminFees").classList.add("open");document.getElementById("adminMessage").textContent="";loadAdminFees();return}if(section==="Security & Permissions"){document.getElementById("adminSecurity").classList.add("open");document.getElementById("adminMessage").textContent="";if(typeof loadAdminSecurity==="function")loadAdminSecurity();return}if(section==="Activity / Audit Log"){document.getElementById("adminAudit").classList.add("open");document.getElementById("adminMessage").textContent="";if(typeof loadAdminAuditLive==="function")loadAdminAuditLive();return}if(section==="Identity Verification"){document.getElementById("adminIdentityVerification").classList.add("open");document.getElementById("adminMessage").textContent="";loadAdminIdentityVerification();return}if(section==="System Settings"){document.getElementById("adminSystemSettings").classList.add("open");document.getElementById("adminMessage").textContent="";loadAdminSystemSettings();return}if(section==="AutoBot"){const s=document.getElementById("adminAutoBot");s.classList.add("open");document.getElementById("adminMessage").textContent="";loadAutoBotSettings();return}if(section==="Agent AI"){document.getElementById("adminAgentAI").classList.add("open");document.getElementById("adminMessage").textContent="";refreshAdminAgentAI();return}if(section==="Chart AI"){document.getElementById("adminChartAI").classList.add("open");document.getElementById("adminMessage").textContent="";refreshAdminChartAI();return}document.getElementById("adminMessage").textContent=section+" selected. Controls will be built here.";});
