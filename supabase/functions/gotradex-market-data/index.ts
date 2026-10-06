@@ -84,18 +84,18 @@ Deno.serve(async req => {
       coverage: ["forex", "stocks", "indices"],
       message: configured ? "Market-data provider configured." : "Add TWELVE_DATA_API_KEY to Supabase Edge Function secrets."
     });
-    if (!configured) return json({
-      ok: false, provider: "twelve_data",
-      error: "TWELVE_DATA_API_KEY is not configured on the GoTradeX server.",
-      configurationRequired: true
-    }, 503);
     const assetType = String(body.assetType || "").toLowerCase();
     const symbol = symbolFor(assetType, String(body.symbol || ""));
     const tf = String(body.timeframe || "1 Minute");
     if (!symbol) return json({ ok: false, error: "A valid market symbol is required." }, 400);
     if (action === "price") {
+      if (!configured) return json({
+        ok: false, provider: "twelve_data",
+        error: "TWELVE_DATA_API_KEY is not configured on the GoTradeX server.",
+        configurationRequired: true
+      }, 503);
       const params: Record<string, string> = { symbol };
-      if (assetType === "forex") params.type = "forex";
+      // Twelve Data does not accept the instrument "type" selector for forex pairs.
       const d = await td("/price", params);
       return json({ ok: true, provider: "twelve_data", symbol, assetType, price: Number(d?.price), timestamp: Date.now() });
     }
@@ -153,9 +153,14 @@ Deno.serve(async req => {
         return json({ ok: true, provider: "bybit", symbol: bybitSymbol, assetType, timeframe: tf, candles });
       }
 
+      if (!configured) return json({
+        ok: false, provider: "twelve_data",
+        error: "TWELVE_DATA_API_KEY is not configured on the GoTradeX server.",
+        configurationRequired: true
+      }, 503);
       const interval = intervalFor(tf);
       const params: Record<string, string> = { symbol, interval, outputsize: "500" };
-      if (assetType === "forex") params.type = "forex";
+      // Forex symbols are passed natively as BASE/QUOTE; no type parameter is used.
       const d = await td("/time_series", params);
       const candles = valuesToCandles(Array.isArray(d?.values) ? d.values : []);
       if (!candles.length) throw new Error("No candles were returned for " + symbol + ".");
