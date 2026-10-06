@@ -41,6 +41,13 @@ function symbolFor(assetType: string, symbol: string) {
     };
     return map[s] || s;
   }
+  if (assetType === "commodities" || assetType === "metals") {
+    const map: Record<string, string> = {
+      "WTI OIL":"WTI/USD","BRENT OIL":"BRENT/USD","NATURAL GAS":"NATGAS/USD",
+      "COPPER":"HG1","PLATINUM":"XPT/USD","PALLADIUM":"XPD/USD"
+    };
+    return map[s] || s;
+  }
   return s;
 }
 
