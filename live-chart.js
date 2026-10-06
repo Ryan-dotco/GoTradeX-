@@ -590,6 +590,7 @@
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
+    installDashboardChartSizer();
     startClock();
     installLibraryAndStart();
     observeTradeMarkers();
