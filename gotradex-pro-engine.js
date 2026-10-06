@@ -149,7 +149,9 @@
     try {
       if (window.GoTradeXChartEngine && typeof window.GoTradeXChartEngine.setSymbol === "function") {
         const compact = base.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-        window.GoTradeXChartEngine.setSymbol(compact, "crypto", base);
+        const found = findAsset(symbol, "LIVE");
+        const chartType = found && found.category ? String(found.category).toLowerCase() : "crypto";
+        window.GoTradeXChartEngine.setSymbol(compact, chartType, base);
       }
     } catch (_) {}
     try {
