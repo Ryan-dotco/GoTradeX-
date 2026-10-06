@@ -733,3 +733,5 @@
   else boot();
 })();
 
+
+(function(){var s=document.createElement('script');s.src='chart-indicators.js?v=20261006';document.head.appendChild(s)})();
