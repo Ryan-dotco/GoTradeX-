@@ -94,7 +94,9 @@ Deno.serve(async req => {
     const tf = String(body.timeframe || "1 Minute");
     if (!symbol) return json({ ok: false, error: "A valid market symbol is required." }, 400);
     if (action === "price") {
-      const d = await td("/price", { symbol });
+      const params: Record<string, string> = { symbol };
+      if (assetType === "forex") params.type = "forex";
+      const d = await td("/price", params);
       return json({ ok: true, provider: "twelve_data", symbol, assetType, price: Number(d?.price), timestamp: Date.now() });
     }
     if (action === "chart") {
@@ -152,13 +154,16 @@ Deno.serve(async req => {
       }
 
       const interval = intervalFor(tf);
-      const d = await td("/time_series", { symbol, interval, outputsize: "500", order: "asc", timezone: "UTC" });
+      const params: Record<string, string> = { symbol, interval, outputsize: "500" };
+      if (assetType === "forex") params.type = "forex";
+      const d = await td("/time_series", params);
       const candles = valuesToCandles(Array.isArray(d?.values) ? d.values : []);
       if (!candles.length) throw new Error("No candles were returned for " + symbol + ".");
       return json({ ok: true, provider: "twelve_data", symbol, assetType, timeframe: tf, interval, candles });
     }
     return json({ ok: false, error: "Unsupported market-data action." }, 400);
   } catch (error) {
+    console.error("gotradex-market-data provider failure:", error);
     return json({ ok: false, error: String((error as Error)?.message || error || "Market-data request failed.") }, 502);
   }
 });
