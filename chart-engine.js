@@ -17,7 +17,7 @@ const store={get(k,d){try{return localStorage.getItem(k)||d}catch(_){return d}},
 
 let chart=null,series=null,priceLine=null,resizeObserver=null;
 let candles=[],symbol=store.get("gotradex_chart_symbol","BTCUSDT"),tf=store.get("gotradex_chart_timeframe","1 Minute");
-let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[];
+let active=new Set(),started=false,ws=null,reconnectTimer=null,poll=null,indicatorSeries=[],twelveHandle=null;
 
 function root(){return document.querySelector(".chart")}
 function pairSymbol(){let s=String(symbol||"BTCUSDT").toUpperCase().replace("/","");return s.endsWith("USDT")?s:s+"USDT"}
@@ -104,24 +104,19 @@ function normalize(rows){
 }
 function dedupe(rows){const m=new Map();rows.forEach(x=>m.set(x.time,x));return [...m.values()].sort((a,b)=>a.time-b.time)}
 async function fetchCandles(){
-  const iv=API[tf];if(!iv)throw Error("Local timeframe");
-  const res=await fetch("https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(pairSymbol())+"&interval="+iv+"&limit=500",{cache:"no-store"});
-  const data=await res.json();if(!res.ok||Number(data?.retCode)!==0)throw Error(data?.retMsg||"Market feed unavailable");
-  return normalize(data?.result?.list?.slice().reverse());
-}
-function demoCandles(){
-  const d=Array.isArray(window.demoCandleData)?window.demoCandleData:[],step=TF[tf]||60,now=Math.floor(Date.now()/1000);
-  return d.slice(-500).map((x,i)=>({time:now-(d.length-1-i)*step,open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume:Number(x.volume||0)})).filter(x=>[x.open,x.high,x.low,x.close].every(Number.isFinite));
-}
-function syntheticCandles(){
-  const step=TF[tf]||60,now=Math.floor(Date.now()/1000),out=[];let p=100;
-  for(let i=0;i<300;i++){const o=p,c=Math.max(.001,o+(Math.sin(i*.51)+Math.cos(i*.19))*.25+(Math.random()-.5)*.5),h=Math.max(o,c)+Math.random()*.25,l=Math.min(o,c)-Math.random()*.25;out.push({time:now-(299-i)*step,open:o,high:h,low:l,close:c,volume:100});p=c}
-  return out;
-}
-async function loadCandles(){
-  try{candles=dedupe(await fetchCandles());$("gtxKenglySource").textContent="LIVE • Bybit market candles"}
-  catch(_){candles=dedupe(demoCandles());$("gtxKenglySource").textContent=candles.length?"DEMO FALLBACK • Bybit unavailable":"DEMO FALLBACK • local chart data";if(!candles.length)candles=syntheticCandles()}
-  candles=candles.slice(-500);
+  const feeds=window.GoTradeXMarketFeeds;
+  if(!feeds?.resolve) throw Error("Verified market-feed registry is not loaded.");
+  const feed=feeds.resolve();
+  if(!feed?.available) throw Error(feed?.reason||"No verified live feed is available for the selected asset.");
+  const sec=TF[tf]||60;
+  const rows=feed.provider==="BYBIT"
+    ? await feeds.bybitHistory(feed.symbol,sec)
+    : await feeds.twelveHistory(feed.symbol,sec,feed.type);
+  if(!Array.isArray(rows)||!rows.length) throw Error("No verified live candles were returned for "+feed.label+".");
+  return rows.map(x=>({
+    time:Math.floor(Number(x.t)/1000),
+    open:Number(x.o),high:Number(x.h),low:Number(x.l),close:Number(x.c),volume:Number(x.v||0)
+  })).filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite)).slice(-500);
 }
 
 function sma(v,p){const out=[];for(let i=p-1;i<v.length;i++)out.push({time:candles[i].time,value:v.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p});return out}
@@ -175,24 +170,53 @@ function makeChart(){
   updateInfo();
 }
 
-function closeSocket(){try{ws?.close()}catch(_){}ws=null;clearTimeout(reconnectTimer);reconnectTimer=null}
+function closeSocket(){try{ws?.close()}catch(_){}ws=null;try{window.__gtxKenglyTwelveSocket?.close?.()}catch(_){}window.__gtxKenglyTwelveSocket=null;clearTimeout(reconnectTimer);reconnectTimer=null}
 function connectSocket(){
-  closeSocket();const s=pairSymbol();
-  try{
-    ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
-    ws.onopen=()=>{ws.send(JSON.stringify({op:"subscribe",args:["tickers."+s]}));$("gtxKenglySource").textContent="LIVE • Bybit ticker"};
-    ws.onmessage=e=>{try{const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice);if(!Number.isFinite(p))return;updateLivePrice(p)}catch(_){}};
-    ws.onerror=()=>{closeSocket();if(started)reconnectTimer=setTimeout(connectSocket,3000)};
-    ws.onclose=()=>{if(started)reconnectTimer=setTimeout(connectSocket,3000)};
-  }catch(_){reconnectTimer=setTimeout(connectSocket,3000)}
+  closeSocket();
+  const feeds=window.GoTradeXMarketFeeds;
+  const feed=feeds?.resolve?.();
+  if(!feed?.available){
+    const el=$("gtxKenglySource");
+    if(el)el.textContent="LIVE • WAITING FOR VERIFIED FEED";
+    return;
+  }
+  if(feed.provider==="BYBIT"){
+    try{
+      ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
+      ws.onopen=()=>{ws.send(JSON.stringify({op:"subscribe",args:["tickers."+feed.symbol]}));$("gtxKenglySource").textContent="LIVE • Bybit verified market feed"};
+      ws.onmessage=e=>{try{const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice);if(Number.isFinite(p))updateLivePrice(p)}catch(_){}};
+      ws.onerror=()=>{closeSocket();if(started)reconnectTimer=setTimeout(connectSocket,3000)};
+      ws.onclose=()=>{if(started)reconnectTimer=setTimeout(connectSocket,3000)};
+    }catch(_){reconnectTimer=setTimeout(connectSocket,3000)}
+    return;
+  }
+  if(feed.provider==="TWELVE_DATA" && feeds.twelveSocket){
+    feeds.twelveSocket(feed.symbol,
+      tick=>{updateLivePrice(Number(tick.price));},
+      status=>{const el=$("gtxKenglySource");if(el)el.textContent=String(status||"LIVE • TWELVE DATA");}
+    ).then(handle=>{window.__gtxKenglyTwelveSocket=handle}).catch(()=>{});
+  }
 }
+
 function updateLivePrice(p){
   const step=TF[tf]||60,t=Math.floor(Date.now()/1000/step)*step;let x=candles.at(-1);
   if(!x||t>x.time){x={time:t,open:p,high:p,low:p,close:p,volume:0};candles.push(x);candles=candles.slice(-500)}
   else{x.close=p;x.high=Math.max(x.high,p);x.low=Math.min(x.low,p)}
   series?.update(x);priceLine?.applyOptions({price:p});updateInfo();
 }
-async function fast(){if(!started||!candles.length||!["5 Seconds","15 Seconds","30 Seconds"].includes(tf))return;try{const r=await fetch("https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(pairSymbol()),{cache:"no-store"}),d=await r.json(),p=Number(d?.result?.list?.[0]?.lastPrice);if(Number.isFinite(p))updateLivePrice(p)}catch(_){}}
+async function fast(){
+  if(!started||!candles.length)return;
+  const feeds=window.GoTradeXMarketFeeds,feed=feeds?.resolve?.();
+  if(!feed?.available)return;
+  if(feed.provider==="BYBIT"){
+    try{
+      const p=await feeds.twelvePrice?.(feed.symbol);
+      if(Number.isFinite(Number(p?.price)))updateLivePrice(Number(p.price));
+    }catch(_){}
+  }else if(feed.provider==="TWELVE_DATA"&&feeds.twelvePrice){
+    try{const p=await feeds.twelvePrice(feed.symbol);if(Number.isFinite(Number(p?.price)))updateLivePrice(Number(p.price))}catch(_){}
+  }
+}
 
 function loadLibrary(){
   return new Promise((resolve,reject)=>{
