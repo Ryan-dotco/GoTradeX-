@@ -42,13 +42,33 @@ async function priceFor(asset:string,provider:string,providerSymbol:string){
   }
   throw new Error("Unsupported verified provider.");
 }
-function mapping(asset:string){
+async function mapping(asset:string){
   const a=asset.toUpperCase();
-  const crypto:Record<string,string>={"BTC/USD":"BTCUSDT","ETH/USD":"ETHUSDT","XRP/USD":"XRPUSDT","SOL/USD":"SOLUSDT","ADA/USD":"ADAUSDT","DOGE/USD":"DOGEUSDT","LTC/USD":"LTCUSDT"};
-  const fx:Record<string,string>={"EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF","AUD/USD":"AUD/USD","USD/CAD":"USD/CAD","NZD/USD":"NZD/USD","EUR/GBP":"EUR/GBP","EUR/JPY":"EUR/JPY","GBP/JPY":"GBP/JPY","USD/ZAR":"USD/ZAR","XAU/USD":"XAU/USD","XAG/USD":"XAG/USD"};
+  const crypto:Record<string,string>={
+    "BTC/USD":"BTCUSDT","ETH/USD":"ETHUSDT","XRP/USD":"XRPUSDT","SOL/USD":"SOLUSDT","ADA/USD":"ADAUSDT",
+    "DOGE/USD":"DOGEUSDT","LTC/USD":"LTCUSDT","BNB/USD":"BNBUSDT","AVAX/USD":"AVAXUSDT","DOT/USD":"DOTUSDT",
+    "LINK/USD":"LINKUSDT","TRX/USD":"TRXUSDT","TON/USD":"TONUSDT","ATOM/USD":"ATOMUSDT","UNI/USD":"UNIUSDT",
+    "BCH/USD":"BCHUSDT","ETC/USD":"ETCUSDT","XLM/USD":"XLMUSDT","NEAR/USD":"NEARUSDT","APT/USD":"APTUSDT",
+    "ARB/USD":"ARBUSDT","OP/USD":"OPUSDT","SUI/USD":"SUIUSDT","FIL/USD":"FILUSDT","ALGO/USD":"ALGOUSDT"
+  };
   if(crypto[a]) return {provider:"BYBIT",symbol:crypto[a]};
-  if(fx[a]) return {provider:"TWELVE_DATA",symbol:fx[a]};
-  return null;
+  if(!TWELVE_DATA_API_KEY) return null;
+  const aliases:Record<string,string>={
+    "WTI OIL":"WTI/USD","BRENT OIL":"BRENT/USD","NATURAL GAS":"NATGAS/USD","COPPER":"HG1",
+    "PLATINUM":"XPT/USD","PALLADIUM":"XPD/USD","US30":"DJI","US500":"SPX","NAS100":"NDX",
+    "UK100":"FTSE","GER40":"DAX","FRA40":"CAC","JPN225":"N225","AUS200":"ASX","HK50":"HSI",
+    "EU50":"STOXX50E","SA40":"JTOPI"
+  };
+  const query=aliases[a]||asset.trim();
+  const r=await fetch("https://api.twelvedata.com/symbol_search?symbol="+encodeURIComponent(query)+"&outputsize=12&apikey="+encodeURIComponent(TWELVE_DATA_API_KEY),{cache:"no-store"});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||String(d?.status||"").toLowerCase()==="error"||d?.code) throw new Error(String(d?.message||"Twelve Data symbol lookup failed."));
+  const matches=Array.isArray(d?.data)?d.data:[];
+  if(!matches.length) return null;
+  const clean=(v:string)=>String(v||"").trim().toUpperCase();
+  const exact=matches.find((x:any)=>clean(x?.symbol)===clean(query));
+  const best=exact||matches[0];
+  return best?.symbol ? {provider:"TWELVE_DATA",symbol:String(best.symbol)} : null;
 }
 async function settleDue(userId:string){
   const trades=await db("gotradex_user_trades?user_id=eq."+encodeURIComponent(userId)+"&result=eq.OPEN&expires_at=lte."+encodeURIComponent(new Date().toISOString())+"&select=*");
@@ -91,7 +111,7 @@ Deno.serve(async(req)=>{
       const expirySeconds=Math.floor(Number(body.expiry_seconds));
       if(marketMode!=="LIVE") return json({ok:false,error:"OTC server execution is not connected to a verified provider."},409);
       if(!asset || !["BUY","SELL"].includes(direction) || !Number.isFinite(amount)||amount<=0 || !Number.isFinite(expirySeconds)||expirySeconds<5) return json({ok:false,error:"Invalid trade parameters."},400);
-      const map=mapping(asset); if(!map) return json({ok:false,error:"No verified provider mapping exists for "+asset+"."},409);
+      const map=await mapping(asset); if(!map) return json({ok:false,error:"No verified provider mapping exists for "+asset+"."},409);
       const p=await priceFor(asset,map.provider,map.symbol);
       const opened=new Date();
       const expires=new Date(opened.getTime()+expirySeconds*1000);
