@@ -105,23 +105,11 @@
   }
 
   async function bybitHistory(symbol,sec){
-    const d=await serverInvoke({action:"bybit_chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:String(sec)});
-    if(sec<60 && Array.isArray(d.trades)){
-      const rows=d.trades.slice().reverse();
-      const byBucket=new Map();
-      rows.forEach(x=>{
-        const ts=Number(x.time),p=Number(x.price),v=Number(x.size||0);
-        if(!Number.isFinite(ts)||!Number.isFinite(p))return;
-        const b=Math.floor(ts/1000/sec)*sec*1000;
-        let c=byBucket.get(b);
-        if(!c)c={t:b,o:p,h:p,l:p,c:p,v:0};
-        c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p;c.v+=Number.isFinite(v)?v:0;
-        byBucket.set(b,c);
-      });
-      return Array.from(byBucket.values()).sort((a,b)=>a.t-b.t).slice(-220);
-    }
+    const tf=timeframeName(sec);
+    if(!tf) return [];
+    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:tf});
     const candles=Array.isArray(d.candles)?d.candles:[];
-    return candles.map(x=>({t:Number(x.time),o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
+    return candles.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
       .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
   }
   async function twelveHistory(symbol,sec){
