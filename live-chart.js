@@ -6,7 +6,7 @@
   "use strict";
   if(window.GoTradeXLiveChart) return;
 
-  const LWC_URL="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js";
+  const LWC_URLS=["https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js","https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"];
   const CFG={
     intervals:{
       "5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
@@ -62,8 +62,9 @@
 
   function mount(){
     if(document.getElementById("gtxLiveChart"))return true;
+    const chartHost=document.getElementById("gtxChart");
     const pair=document.querySelector(".pairbar"),bottom=document.querySelector(".bottom");
-    if(!pair||!bottom||!bottom.parentNode)return false;
+    if(!chartHost||!pair||!bottom||!bottom.parentNode)return false;
     injectStyle();
     const box=document.createElement("section");
     box.id="gtxLiveChart";
@@ -85,7 +86,7 @@
       '<div class="gtxLWCFlag" id="gtxLWCFlag">🚩</div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
-    pair.insertAdjacentElement("afterend",box);
+    chartHost.replaceChildren(box);
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
     Object.keys(CFG.intervals).forEach(t=>{
@@ -525,10 +526,17 @@
     if(window.LightweightCharts){start();return}
     if(window.__gtxLwcPromise){window.__gtxLwcPromise.then(start).catch(e=>{status("CHART ENGINE ERROR",false);notice(e.message||"Lightweight Charts could not load.",true)});return}
     window.__gtxLwcPromise=new Promise((resolve,reject)=>{
-      const s=document.createElement("script");
-      s.src=LWC_URL;s.async=true;s.onload=()=>window.LightweightCharts?resolve():reject(new Error("Lightweight Charts loaded without its global API."));
-      s.onerror=()=>reject(new Error("Could not load the Lightweight Charts library."));
-      document.head.appendChild(s);
+      let i=0;
+      const tryNext=()=>{
+        if(window.LightweightCharts){resolve();return}
+        if(i>=LWC_URLS.length){reject(new Error("Could not load the Lightweight Charts library."));return}
+        const s=document.createElement("script");
+        s.src=LWC_URLS[i++];s.async=true;
+        s.onload=()=>window.LightweightCharts?resolve():tryNext();
+        s.onerror=()=>tryNext();
+        document.head.appendChild(s);
+      };
+      tryNext();
     });
     window.__gtxLwcPromise.then(start).catch(e=>{
       status("CHART ENGINE ERROR",false);
