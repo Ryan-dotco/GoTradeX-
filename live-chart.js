@@ -115,7 +115,10 @@
     return true;
   }
 
-  function updateClock(){const e=document.getElementById("gtxLWCClock");if(!e)return;const d=new Date();const p=n=>String(n).padStart(2,"0");e.textContent=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}\nfunction startClock(){updateClock();if(state.clockTimer)clearInterval(state.clockTimer);state.clockTimer=setInterval(updateClock,1000);}\n\nfunction status(t,ok){
+  function updateClock(){const e=document.getElementById("gtxLWCClock");if(!e)return;const d=new Date();const p=n=>String(n).padStart(2,"0");e.textContent=p(d.getDate())+"-"+p(d.getMonth()+1)+"-"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());}
+function startClock(){updateClock();if(state.clockTimer)clearInterval(state.clockTimer);state.clockTimer=setInterval(updateClock,1000);}
+
+function status(t,ok){
     const e=document.getElementById("gtxLWCStatus");if(!e)return;
     e.textContent=t;e.style.color=ok?"#8ff0ae":"#b5c7d8";
     e.style.borderColor=ok?"#1f6c40":"#31506d";
