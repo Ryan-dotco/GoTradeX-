@@ -26,7 +26,7 @@
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,volumeSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
-    booted:false,markersInstalled:false
+    booted:false,markersInstalled:false,chartTools:new Set(),indicatorSeries:new Map(),oscillatorPane:null,heikin:false
   };
 
   function feed(){return window.GoTradeXMarketFeeds}
@@ -56,7 +56,7 @@
       ".gtxLWCTradeLine{position:absolute;z-index:9;top:0;bottom:28px;width:2px;display:none;pointer-events:none;border-left:2px dashed #f5a623}"+
       ".gtxLWCTradeLine.end{border-left-color:#fff}"+
       ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
-      ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
+      ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+".gtxIndicatorPane{position:absolute;z-index:12;left:0;right:58px;bottom:0;display:none;max-height:112px;background:#07111ddd;border-top:1px solid #1b3146;pointer-events:none;overflow:hidden;box-sizing:border-box}"+".gtxIndicatorRow{height:36px;display:flex;align-items:center;gap:6px;padding:3px 7px;box-sizing:border-box}"+".gtxIndicatorLabel{width:74px;flex:0 0 74px;color:#8fa9bf;font:800 8px/1 system-ui;white-space:nowrap}"+".gtxIndicatorSvg{flex:1;height:30px;display:block}"+".gtxIndicatorValue{width:58px;flex:0 0 58px;text-align:right;color:#dcecff;font:800 8px/1 system-ui}"+
       "@media(max-width:600px){#gtxLiveChart{height:0!important;min-height:0!important;max-height:none!important;flex:1 1 0!important}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
@@ -185,7 +185,7 @@
     }
     state.prev=state.price;
     state.price=price;
-    updateLiveSeries(c);
+    updateLiveSeries(c);\n    if(state.chartTools?.size)renderChartTools();
   }
 
   function closeSocket(){
@@ -401,8 +401,131 @@
     }));
   }
 
-  function seriesLineData(){
+  function heikinCandleData(){\n    let prevO=null,prevC=null;return state.candles.map(c=>{const hc=(c.o+c.h+c.l+c.c)/4,ho=prevO==null?(c.o+c.c)/2:(prevO+prevC)/2,h=Math.max(c.h,ho,hc),l=Math.min(c.l,ho,hc);prevO=ho;prevC=hc;return {time:Math.floor(c.t/1000),open:ho,high:h,low:l,close:hc}});\n  }\n\n  function seriesLineData(){
     return state.candles.map(c=>({time:Math.floor(c.t/1000),value:Number(c.c)}));
+  }
+
+  function toolValues(){
+    return state.candles.map(c=>Number(c.c)).filter(Number.isFinite);
+  }
+  function emaData(period){
+    const c=toolValues(),out=[],k=2/(period+1);let e=null;
+    c.forEach((v,i)=>{e=e==null?v:v*k+e*(1-k);if(i>=period-1)out.push({time:Math.floor(state.candles[i].t/1000),value:e})});
+    return out;
+  }
+  function smaData(period){
+    const c=toolValues(),out=[];
+    for(let i=period-1;i<c.length;i++){let sum=0;for(let j=i-period+1;j<=i;j++)sum+=c[j];out.push({time:Math.floor(state.candles[i].t/1000),value:sum/period})}
+    return out;
+  }
+  function atrData(period=14){
+    const out=[],p=Math.max(1,period);let atr=null;
+    for(let i=0;i<state.candles.length;i++){
+      const c=state.candles[i],prev=i?state.candles[i-1].c:c.o;
+      const tr=Math.max(c.h-c.l,Math.abs(c.h-prev),Math.abs(c.l-prev));
+      atr=atr==null?tr:((atr*(p-1))+tr)/p;
+      if(i>=p-1)out.push({time:Math.floor(c.t/1000),value:atr});
+    }
+    return out;
+  }
+  function rsiData(period=14){
+    const c=toolValues(),out=[];if(c.length<=period)return out;
+    let g=0,l=0;for(let i=1;i<=period;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else l-=d}
+    let ag=g/period,al=l/period;
+    out.push({time:Math.floor(state.candles[period].t/1000),value:al===0?100:100-(100/(1+ag/al))});
+    for(let i=period+1;i<c.length;i++){const d=c[i]-c[i-1];ag=(ag*(period-1)+(d>0?d:0))/period;al=(al*(period-1)+(d<0?-d:0))/period;out.push({time:Math.floor(state.candles[i].t/1000),value:al===0?100:100-(100/(1+ag/al))})}
+    return out;
+  }
+  function macdData(){
+    const a=emaData(12),b=new Map(emaData(26).map(x=>[x.time,x.value])),out=[];
+    a.forEach(x=>{const y=b.get(x.time);if(Number.isFinite(y))out.push({time:x.time,value:x.value-y})});return out;
+  }
+  function stochasticData(period=14){
+    const out=[];for(let i=period-1;i<state.candles.length;i++){let hi=-Infinity,lo=Infinity;for(let j=i-period+1;j<=i;j++){hi=Math.max(hi,state.candles[j].h);lo=Math.min(lo,state.candles[j].l)}const d=hi-lo;out.push({time:Math.floor(state.candles[i].t/1000),value:d?((state.candles[i].c-lo)/d)*100:50})}return out;
+  }
+  function cciData(period=20){
+    const out=[],tp=state.candles.map(x=>(x.h+x.l+x.c)/3);
+    for(let i=period-1;i<tp.length;i++){const q=tp.slice(i-period+1,i+1),m=q.reduce((a,b)=>a+b,0)/period,md=q.reduce((a,b)=>a+Math.abs(b-m),0)/period;out.push({time:Math.floor(state.candles[i].t/1000),value:md?(tp[i]-m)/(.015*md):0})}return out;
+  }
+  function williamsData(period=14){
+    const out=[];for(let i=period-1;i<state.candles.length;i++){let hi=-Infinity,lo=Infinity;for(let j=i-period+1;j<=i;j++){hi=Math.max(hi,state.candles[j].h);lo=Math.min(lo,state.candles[j].l)}const d=hi-lo;out.push({time:Math.floor(state.candles[i].t/1000),value:d?((hi-state.candles[i].c)/d)*-100:-50})}return out;
+  }
+  function alligatorLines(){
+    return [{name:"Jaw",data:smaData(13),color:"#4da3ff"},{name:"Teeth",data:smaData(8),color:"#efc44f"},{name:"Lips",data:smaData(5),color:"#ef6a6a"}];
+  }
+  function bollinger(){
+    const c=toolValues(),mid=[],up=[],dn=[];
+    for(let i=19;i<c.length;i++){const q=c.slice(i-19,i+1),m=q.reduce((a,b)=>a+b,0)/20,sd=Math.sqrt(q.reduce((a,b)=>a+(b-m)**2,0)/20);mid.push({time:Math.floor(state.candles[i].t/1000),value:m});up.push({time:Math.floor(state.candles[i].t/1000),value:m+2*sd});dn.push({time:Math.floor(state.candles[i].t/1000),value:m-2*sd})}
+    return {mid,up,dn};
+  }
+  function fractalMarkers(){
+    const m=[];for(let i=2;i<state.candles.length-2;i++){const c=state.candles,h=c[i].h,l=c[i].l;if(h>c[i-1].h&&h>c[i-2].h&&h>c[i+1].h&&h>c[i+2].h)m.push({time:Math.floor(c[i].t/1000),position:"aboveBar",color:"#ff9f43",shape:"arrowDown",text:"F"});if(l<c[i-1].l&&l<c[i-2].l&&l<c[i+1].l&&l<c[i+2].l)m.push({time:Math.floor(c[i].t/1000),position:"belowBar",color:"#48dbfb",shape:"arrowUp",text:"F"})}return m;
+  }
+  function patternMarkers(){
+    const m=[];for(let i=1;i<state.candles.length;i++){const a=state.candles[i-1],c=state.candles[i],bull=c.c>a.c,bear=c.c<a.c;if(bull&&c.o<=a.c&&c.c>=a.o)m.push({time:Math.floor(c.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"PAT"});else if(bear&&c.o>=a.c&&c.c<=a.o)m.push({time:Math.floor(c.t/1000),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"PAT"})}return m.slice(-80);
+  }
+  function supertrendData(){
+    const a=atrData(10),am=new Map(a.map(x=>[x.time,x.value])),out=[],c=state.candles;
+    for(let i=10;i<c.length;i++){const t=Math.floor(c[i].t/1000),atr=am.get(t)||0,mid=(c[i].h+c[i].l)/2;out.push({time:t,value:c[i].c>=mid?mid-atr*3:mid+atr*3})}return out;
+  }
+  function psarMarkers(){
+    const m=[];for(let i=2;i<state.candles.length;i++){const c=state.candles;if(c[i].l>c[i-1].l&&c[i-1].l>c[i-2].l)m.push({time:Math.floor(c[i].t/1000),position:"belowBar",color:"#f5a623",shape:"circle",text:"SAR"});if(c[i].h<c[i-1].h&&c[i-1].h<c[i-2].h)m.push({time:Math.floor(c[i].t/1000),position:"aboveBar",color:"#f5a623",shape:"circle",text:"SAR"})}return m.slice(-100);
+  }
+  function renderOscillatorPane(){
+    const pane=document.getElementById("gtxIndicatorPane");if(!pane)return;
+    const tools=["Awesome Oscillator","RSI","MACD","Stochastic","CCI","Williams %R","ATR"].filter(x=>state.chartTools.has(x));
+    pane.innerHTML="";if(!tools.length){pane.style.display="none";return}
+    pane.style.display="block";
+    const dataFor=t=>t==="RSI"?rsiData():t==="MACD"?macdData():t==="Stochastic"?stochasticData():t==="CCI"?cciData():t==="Williams %R"?williamsData():t==="ATR"?atrData():emaData(5).map((x,i)=>{const e=emaData(34)[i];return e?{time:x.time,value:x.value-e.value}:x});
+    tools.slice(0,3).forEach(tool=>{
+      const data=dataFor(tool).slice(-80),row=document.createElement("div");row.className="gtxIndicatorRow";
+      const label=document.createElement("span");label.className="gtxIndicatorLabel";label.textContent=tool;row.appendChild(label);
+      const svg=document.createElementNS("http://www.w3.org/2000/svg","http://www.w3.org/2000/svg");svg.setAttribute("viewBox","0 0 500 30");svg.setAttribute("preserveAspectRatio","none");svg.classList.add("gtxIndicatorSvg");
+      const values=data.map(x=>x.value).filter(Number.isFinite);const lo=Math.min(...values,0),hi=Math.max(...values,1),den=hi-lo||1;
+      const pts=data.map((x,i)=>((i/(Math.max(1,data.length-1)))*500)+","+(28-((x.value-lo)/den)*26)).join(" ");
+      const pl=document.createElementNS("http://www.w3.org/2000/svg","polyline");pl.setAttribute("fill","none");pl.setAttribute("stroke","#5ea7ff");pl.setAttribute("stroke-width","1.5");pl.setAttribute("points",pts);svg.appendChild(pl);row.appendChild(svg);
+      const val=document.createElement("span");val.className="gtxIndicatorValue";val.textContent=values.length?Number(values.at(-1)).toFixed(2):"—";row.appendChild(val);pane.appendChild(row);
+    });
+  }
+  function clearToolSeries(prefix){
+    for(const [key,s] of state.indicatorSeries){if(key.startsWith(prefix)){try{state.chart?.removeSeries(s)}catch(_){}state.indicatorSeries.delete(key)}}
+  }
+  function addToolSeries(key,data,color,width=1,title=""){
+    if(!state.chart||!data?.length)return;
+    const s=state.chart.addLineSeries({color,lineWidth:width,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title});
+    s.setData(data);state.indicatorSeries.set(key,s);
+  }
+  function renderChartTools(){
+    for(const s of state.indicatorSeries.values()){try{state.chart?.removeSeries(s)}catch(_){}}
+    state.indicatorSeries.clear();
+    if(!state.chart||!state.candles.length)return;
+    const t=state.chartTools;
+    if(t.has("EMA / SMA")){addToolSeries("EMA9",emaData(9),"#f5c542",2);addToolSeries("EMA21",emaData(21),"#5ea7ff",2);addToolSeries("SMA50",smaData(50),"#b58cff",1)}
+    if(t.has("Alligator"))alligatorLines().forEach(x=>addToolSeries("ALLIGATOR-"+x.name,x.data,x.color,2,x.name));
+    if(t.has("Bollinger Bands")){const b=bollinger();addToolSeries("BOLL-mid",b.mid,"#8fa8c4",1);addToolSeries("BOLL-up",b.up,"#9c7cff",1);addToolSeries("BOLL-dn",b.dn,"#9c7cff",1)}
+    if(t.has("Supertrend"))addToolSeries("SUPERTREND",supertrendData(),"#22c55e",2);
+    if(t.has("Ichimoku Cloud")){const c=toolValues(),conv=[],base=[],a=[],b=[];for(let i=0;i<c.length;i++){if(i>=8)conv.push({time:Math.floor(state.candles[i].t/1000),value:(Math.max(...state.candles.slice(i-8,i+1).map(x=>x.h))+Math.min(...state.candles.slice(i-8,i+1).map(x=>x.l)))/2);if(i>=25)base.push({time:Math.floor(state.candles[i].t/1000),value:(Math.max(...state.candles.slice(i-25,i+1).map(x=>x.h))+Math.min(...state.candles.slice(i-25,i+1).map(x=>x.l)))/2);if(i>=51){const ca=conv.find(x=>x.time===Math.floor(state.candles[i].t/1000))?.value,ba=base.find(x=>x.time===Math.floor(state.candles[i].t/1000))?.value;if(Number.isFinite(ca)&&Number.isFinite(ba)){a.push({time:Math.floor(state.candles[i].t/1000),value:(ca+ba)/2});b.push({time:Math.floor(state.candles[i].t/1000),value:(Math.max(...state.candles.slice(i-51,i+1).map(x=>x.h))+Math.min(...state.candles.slice(i-51,i+1).map(x=>x.l)))/2)}}}addToolSeries("ICHI-conv",conv,"#f59e0b");addToolSeries("ICHI-base",base,"#3b82f6");addToolSeries("ICHI-A",a,"#22c55e");addToolSeries("ICHI-B",b,"#ef4444")}
+    if(t.has("Parabolic SAR"))state.candleSeries?.setMarkers([...state.candleSeries?.markers||[],...psarMarkers()].slice(-120));
+    if(t.has("Fractals"))state.candleSeries?.setMarkers(fractalMarkers());
+    if(t.has("Patterns"))state.candleSeries?.setMarkers(patternMarkers());
+    if(t.has("Kangaroo"))state.candleSeries?.setMarkers([...fractalMarkers(),...patternMarkers()].slice(-120));
+    if(t.has("Lion"))addToolSeries("LION",emaData(8),"#f97316",2);
+    if(t.has("Kenkley’s Lines")){addToolSeries("KENKLEY-fast",emaData(34),"#22c55e",2);addToolSeries("KENKLEY-slow",emaData(89),"#f59e0b",2)}
+    if(t.has("Keltner Channels")){const m=emaData(20),a=atrData(20),am=new Map(a.map(x=>[x.time,x.value]));addToolSeries("KELTNER-mid",m,"#f59e0b");addToolSeries("KELTNER-up",m.map(x=>({time:x.time,value:x.value+(am.get(x.time)||0)*2})),"#94a3b8");addToolSeries("KELTNER-low",m.map(x=>({time:x.time,value:x.value-(am.get(x.time)||0)*2})),"#94a3b8")}
+    if(t.has("Donchian Channels")){const hi=[],lo=[];for(let i=19;i<state.candles.length;i++){hi.push({time:Math.floor(state.candles[i].t/1000),value:Math.max(...state.candles.slice(i-19,i+1).map(x=>x.h))});lo.push({time:Math.floor(state.candles[i].t/1000),value:Math.min(...state.candles.slice(i-19,i+1).map(x=>x.l))})}addToolSeries("DON-hi",hi,"#64748b");addToolSeries("DON-lo",lo,"#64748b")}
+    if(t.has("Support & Resistance")&&state.candles.length){const hi=Math.max(...state.candles.slice(-50).map(x=>x.h)),lo=Math.min(...state.candles.slice(-50).map(x=>x.l));addToolSeries("SR-hi",state.candles.map(c=>({time:Math.floor(c.t/1000),value:hi})),"#ef4444");addToolSeries("SR-lo",state.candles.map(c=>({time:Math.floor(c.t/1000),value:lo})),"#22c55e")}
+    if(t.has("Horizontal Line")&&Number.isFinite(state.price))addToolSeries("HLINE",state.candles.map(c=>({time:Math.floor(c.t/1000),value:state.price})),"#f5a623");
+    renderOscillatorPane();
+  }
+  function applyChartTool(tool){
+    if(!tool)return;
+    if(tool==="Candlesticks"){state.chartType="candle";state.heikin=false;applySeriesVisibility()}
+    else if(tool==="Heikin Ashi"){state.chartType="candle";state.heikin=true;applySeriesVisibility();renderHistory()}
+    else if(tool==="Line Chart"){state.chartType="line";state.heikin=false;applySeriesVisibility()}
+    else if(tool==="Area Chart"){state.chartType="mountain";state.heikin=false;applySeriesVisibility()}
+    else if(tool==="Chart Settings"){openSettings()}
+    else if(["Price Alert","Indicator Alert","BUY / SELL Signal Alert"].includes(tool)){notice(tool+" enabled. Use the live chart controls/status for the next alert event.",true)}
+    else {state.chartTools.has(tool)?state.chartTools.delete(tool):state.chartTools.add(tool);renderChartTools()}
   }
 
   function volumeData(){
@@ -472,7 +595,7 @@
     if(!state.chart)buildChart();
     const candles=seriesCandleData();
     const lines=seriesLineData();
-    state.candleSeries.setData(candles);
+    state.candleSeries.setData(state.heikin?heikinCandleData():candles);
     state.lineSeries.setData(lines);
     state.areaSeries.setData(lines);
 
@@ -502,7 +625,7 @@
       return;
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
-    state.candleSeries.update(item);
+    state.candleSeries.update(state.heikin?heikinCandleData().at(-1):item);
     state.lineSeries.update({time:item.time,value:item.close});
     state.areaSeries.update({time:item.time,value:item.close});
     state.price=c.c;
@@ -599,7 +722,7 @@
 
   window.GoTradeXLiveChart={
     boot,setTimeframe,reconnect:connect,state,
-    chartVersion:"Lightweight Charts 4.2.2",
+    setChartTool:applyChartTool,\n    chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
 
