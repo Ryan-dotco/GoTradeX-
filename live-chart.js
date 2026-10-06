@@ -104,6 +104,21 @@
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     pair.insertAdjacentElement("afterend",box);
+    // Hard guarantee: the universal chart gets a real layout box before the
+    // external chart library starts. Do not generate or substitute candle data.
+    box.style.display="block";
+    box.style.width="100%";
+    box.style.height=window.innerWidth<=600?"min(440px,50dvh)":"min(560px,52dvh)";
+    box.style.minHeight=window.innerWidth<=600?"300px":"330px";
+    box.style.flex="1 1 auto";
+    box.style.flexShrink="0";
+    const host=document.getElementById("gtxLWC");
+    if(host){
+      host.style.display="block";
+      host.style.width="100%";
+      host.style.height="100%";
+      host.style.minHeight="300px";
+    }
 
     const savedTf=(()=>{try{return localStorage.getItem(CHART_KEY)}catch(_){return null}})();
     if(CFG.intervals[savedTf]){state.tf=savedTf;state.sec=CFG.intervals[savedTf]}
