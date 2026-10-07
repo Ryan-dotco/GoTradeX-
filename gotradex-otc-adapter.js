@@ -21,15 +21,31 @@
       window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}}));
   }
   function selectedPair(){
-    let p="";
-    try{p=String(localStorage.getItem("gtx_pair")||"").trim()}catch(_){}
-    if(!/ OTC$/i.test(p)){
-      try{
-        const d=String(localStorage.getItem("gotradex_asset_display")||"").trim();
-        if(d) p=d+" OTC";
-      }catch(_){}
+    // The visible bottom Assets selector is the first source of truth.
+    // This prevents any stale legacy/localStorage value from keeping the chart
+    // bound to the previously selected OTC pair.
+    let display="";
+    try{display=String(document.getElementById("bottomAssetPair")?.textContent||"").trim()}catch(_){}
+    if(display){
+      const base=display.replace(/\s+OTC$/i,"").trim();
+      const selected=base+" OTC";
+      if(PAIRS[selected])return selected;
     }
-    return PAIRS[p]?p:"EUR/USD OTC";
+    // Stored selector state is the second source of truth.
+    try{display=String(localStorage.getItem("gotradex_asset_display")||"").trim()}catch(_){}
+    if(display){
+      const base=display.replace(/\s+OTC$/i,"").trim();
+      const selected=base+" OTC";
+      if(PAIRS[selected])return selected;
+    }
+    // Legacy fallback only when the current selector has not provided a value.
+    let legacy="";
+    try{legacy=String(localStorage.getItem("gtx_pair")||"").trim()}catch(_){}
+    if(legacy){
+      const selected=legacy.replace(/\s+OTC$/i,"").trim()+" OTC";
+      if(PAIRS[selected])return selected;
+    }
+    return "EUR/USD OTC";
   }
   function timeframe(sec){
     const v=TF[Number(sec)];
@@ -37,7 +53,9 @@
     return v;
   }
   async function history(pair,sec){
-    const p=PAIRS[pair]||pair;
+    const raw=String(pair||"").trim().replace(/\s+OTC$/i,"");
+    const p=PAIRS[raw+" OTC"]||"";
+    if(!p) throw new Error("Unsupported OTC pair: "+String(pair||""));
     const tf=timeframe(sec);
     const {data,error}=await client().from("otc_candles")
       .select("candle_time,open,high,low,close,volume")
@@ -49,7 +67,9 @@
     })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
   }
   async function price(pair){
-    const p=PAIRS[pair]||pair;
+    const raw=String(pair||"").trim().replace(/\s+OTC$/i,"");
+    const p=PAIRS[raw+" OTC"]||"";
+    if(!p) throw new Error("Unsupported OTC pair: "+String(pair||""));
     const {data,error}=await client().from("otc_prices")
       .select("price,updated_at").eq("pair",p).maybeSingle();
     if(error) throw new Error("OTC price read failed: "+error.message);
@@ -57,6 +77,9 @@
     return {price:Number(data.price),time:Date.parse(data.updated_at)||Date.now()};
   }
   async function socket(pair,onTick,onStatus){
+    const raw=String(pair||"").trim().replace(/\s+OTC$/i,"");
+    const p=PAIRS[raw+" OTC"]||"";
+    if(!p) throw new Error("Unsupported OTC pair: "+String(pair||""));
     let stopped=false;
     let timer=null;
     const endpoint=SUPABASE_URL+"/functions/v1/gotradex-otc-engine";
@@ -68,7 +91,7 @@
         const res=await fetch(endpoint,{
           method:"POST",cache:"no-store",
           headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},
-          body:JSON.stringify({action:"chart",pair,timeframe:60,tf:60,limit:20})
+          body:JSON.stringify({action:"chart",pair:p,timeframe:60,tf:60,limit:20})
         });
         const data=await res.json().catch(()=>null);
         const p=Number(data?.price),t=Number(data?.serverTime||Date.now()/1000)*1000;
@@ -113,5 +136,5 @@
   feeds.otcHistory=history;
   feeds.otcPrice=price;
   feeds.otcSocket=socket;
-  window.GoTradeXOTCAdapter={history,price,socket,pairs:Object.keys(PAIRS),timeframes:Object.values(TF)};
+  window.GoTradeXOTCAdapter={history,price,socket,selectedPair,pairs:Object.keys(PAIRS),timeframes:Object.values(TF)};
 })();

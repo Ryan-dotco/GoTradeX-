@@ -56,7 +56,10 @@
       { symbol: "EUR/USD OTC", base: "EUR/USD", payout: 93 },
       { symbol: "GBP/USD OTC", base: "GBP/USD", payout: 90 },
       { symbol: "USD/JPY OTC", base: "USD/JPY", payout: 89 },
-      { symbol: "AUD/USD OTC", base: "AUD/USD", payout: 88 }
+      { symbol: "AUD/USD OTC", base: "AUD/USD", payout: 88 },
+      { symbol: "USD/CAD OTC", base: "USD/CAD", payout: 87 },
+      { symbol: "USD/CHF OTC", base: "USD/CHF", payout: 86 },
+      { symbol: "NZD/USD OTC", base: "NZD/USD", payout: 85 }
     ],
     Crypto: [
       { symbol: "BTC/USD OTC", base: "BTC/USD", payout: 88 },

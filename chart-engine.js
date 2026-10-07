@@ -219,7 +219,23 @@ async function fetchSyntheticCandles(){
  return out;
 }
 async function fetchCandles(){
- if(isOtcMode())return fetchSyntheticCandles();
+ if(isOtcMode()){
+  // OTC historical candles come from the pair-specific read-only adapter.
+  // Keep the existing synthetic fallback only when the adapter is unavailable,
+  // without changing the approved candle generation for working pairs.
+  const otc=window.GoTradeXOTCAdapter;
+  if(otc&&typeof otc.history==="function"){
+   const pair=String(pairLabel()).replace(/\\s*$/," ").trim()+" OTC";
+   const sec=Number(TF[tf]||60);
+   const rows=await otc.history(pair,sec);
+   const normalized=rows.map(x=>({
+    time:Math.floor(Number(x.t)/1000),open:Number(x.o),high:Number(x.h),low:Number(x.l),close:Number(x.c),volume:Number(x.v||0)
+   })).filter(x=>Number.isFinite(x.time)&&[x.open,x.high,x.low,x.close].every(Number.isFinite));
+   if(normalized.length)return normalized;
+   throw Error("No OTC candles received for "+pair+".");
+  }
+  return fetchSyntheticCandles();
+ }
  return usesExternalMarket()?fetchTwelveDataCandles():fetchBybitCandles();
 }
 
