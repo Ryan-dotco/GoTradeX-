@@ -598,11 +598,41 @@
     setInterval(watchSelection,700);
   }
 
+  function setAsset(label,type,mode){
+    const pair=String(label||"BTC/USD").replace(/\\s+OTC$/i,"").trim()||"BTC/USD";
+    const m=String(mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
+    const t=String(type||"crypto").toLowerCase();
+    try{
+      localStorage.setItem("gotradex_market_mode",m);
+      localStorage.setItem("gotradex_asset_type",t);
+      localStorage.setItem("gotradex_asset_display",pair);
+      localStorage.setItem("gotradex_chart_symbol",pair.replace(/[^A-Za-z0-9]/g,"").toUpperCase());
+    }catch(_){}
+    state.connectionId++;
+    closeSocket();
+    state.provider="";state.symbol="";state.assetLabel=pair;state.mode=m;state.type=t;
+    state.candles=[];state.price=null;state.prev=null;state.connected=false;
+    state.historyLoaded=false;state.initialRangeSet=false;state.lastAssetKey="";
+    if(state.candleSeries){try{state.candleSeries.setData([])}catch(_){} }
+    if(state.lineSeries){try{state.lineSeries.setData([])}catch(_){} }
+    if(state.areaSeries){try{state.areaSeries.setData([])}catch(_){} }
+    if(document.getElementById("gtxLWCAsset")) document.getElementById("gtxLWCAsset").textContent=m+" • "+pair;
+    if(document.getElementById("gtxLWCStatus")) document.getElementById("gtxLWCStatus").textContent="CONNECTING";
+    if(document.getElementById("gtxLWCNotice")){document.getElementById("gtxLWCNotice").hidden=false;document.getElementById("gtxLWCNotice").textContent="Loading "+pair+" candles…"}
+    if(state.booted) connect();
+  }
+
   window.GoTradeXLiveChart={
-    boot,setTimeframe,reconnect:connect,state,
+    boot,setTimeframe,reconnect:connect,setAsset,state,
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
+
+  window.addEventListener("gotradex:asset-changed",function(event){
+    const d=event&&event.detail?event.detail:{};
+    if(d.source!=="dashboard-assets")return;
+    try{setAsset(d.label,d.type,d.mode)}catch(_){}
+  });
 
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot,{once:true});
   else boot();
