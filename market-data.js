@@ -72,7 +72,15 @@
       /^(WTI|Brent|Natural Gas|Copper|Platinum|Palladium)/.test(l) ? "commodities" : "forex"
     ) : storedType;
     const t=inferredType;
-    if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
+    if(mode()!=="LIVE") {
+      if(mode()==="OTC") {
+        const otc=window.GoTradeXOTCAdapter;
+        const pair=otc&&typeof otc.selectedPair==="function"?otc.selectedPair():(l+" OTC");
+        const base=String(pair||l).replace(/\s+OTC$/i,"").trim();
+        return {available:true,provider:"GOTRADEX_OTC",symbol:base+" OTC",label:base,type:t,mode:"OTC"};
+      }
+      return {available:false,provider:"NONE",reason:"Selected market mode is not LIVE.",label:l,type:t,mode:mode()};
+    }
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
     // Use the selected asset native symbol through the verified Twelve Data adapter.
     // Do not substitute BTC candles for another market.
