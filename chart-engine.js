@@ -225,7 +225,7 @@ async function fetchCandles(){
   // without changing the approved candle generation for working pairs.
   const otc=window.GoTradeXOTCAdapter;
   if(otc&&typeof otc.history==="function"){
-   const pair=String(pairLabel()).replace(/\\s*$/," ").trim()+" OTC";
+   const pair=String(pairLabel()).replace(/\\s*OTC\\s*$/i,"").trim()+" OTC";
    const sec=Number(TF[tf]||60);
    const rows=await otc.history(pair,sec);
    const normalized=rows.map(x=>({
