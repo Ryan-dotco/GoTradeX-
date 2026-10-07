@@ -198,7 +198,10 @@
       notice(f.reason||"Selected asset is not available on the verified Bybit Spot feed.",true);
       return;
     }
-    state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
+    const otc=window.GoTradeXOTCAdapter;
+    const pair=otc&&typeof otc.selectedPair==="function"?otc.selectedPair():f.symbol;
+    const basePair=String(pair||f.symbol||"").replace(/\s+OTC$/i,"").trim();
+    state.provider=f.provider;state.symbol=pair;state.assetLabel=basePair;assetText();
     state.connected=false;status("LOADING • BYBIT",false);
     notice("Loading verified historical candles…",true);
 
@@ -310,18 +313,17 @@
     state.connected=false;status("OTC • LOADING",false);notice("Loading isolated OTC candles…",true);
     // Read the selected OTC pair directly from the isolated adapter. Do not rely on the
     // generic feed registry here, because OTC pair selection must never inherit another asset's history.
-    const otc=window.GoTradeXOTCAdapter;
     if(!otc||typeof otc.history!=="function"||typeof otc.socket!=="function"){
       state.connected=false;status("OTC FEED UNAVAILABLE",false);
       notice("The isolated OTC adapter is not loaded.",true);
       return;
     }
-    otc.history(f.symbol,state.sec).then(async history=>{
+    otc.history(pair,state.sec).then(async history=>{
       if(id!==state.connectionId)return;
       state.candles=Array.isArray(history)?history:[];
       if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
       if(state.candles.length)renderHistory();
-      const socket=await otc.socket(f.symbol,
+      const socket=await otc.socket(pair,
         tick=>{
           if(id!==state.connectionId)return;
           addTick(tick.time,tick.price,0);
