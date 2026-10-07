@@ -21,17 +21,24 @@
       window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}}));
   }
   function selectedPair(){
-    // The bottom Assets selector is the authoritative OTC selection.
-    // gtx_pair is a legacy value and can remain on the previously selected pair,
-    // so it must never override the current bottom-selector asset.
+    // The visible bottom Assets selector is the first source of truth.
+    // This prevents any stale legacy/localStorage value from keeping the chart
+    // bound to the previously selected OTC pair.
     let display="";
+    try{display=String(document.getElementById("bottomAssetPair")?.textContent||"").trim()}catch(_){}
+    if(display){
+      const base=display.replace(/\s+OTC$/i,"").trim();
+      const selected=base+" OTC";
+      if(PAIRS[selected])return selected;
+    }
+    // Stored selector state is the second source of truth.
     try{display=String(localStorage.getItem("gotradex_asset_display")||"").trim()}catch(_){}
     if(display){
       const base=display.replace(/\s+OTC$/i,"").trim();
       const selected=base+" OTC";
       if(PAIRS[selected])return selected;
     }
-    // Legacy fallback only when the current selector has not stored an asset yet.
+    // Legacy fallback only when the current selector has not provided a value.
     let legacy="";
     try{legacy=String(localStorage.getItem("gtx_pair")||"").trim()}catch(_){}
     if(legacy){
