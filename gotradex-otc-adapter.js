@@ -129,5 +129,5 @@
   feeds.otcHistory=history;
   feeds.otcPrice=price;
   feeds.otcSocket=socket;
-  window.GoTradeXOTCAdapter={history,price,socket,pairs:Object.keys(PAIRS),timeframes:Object.values(TF)};
+  window.GoTradeXOTCAdapter={history,price,socket,selectedPair,pairs:Object.keys(PAIRS),timeframes:Object.values(TF)};
 })();
