@@ -4,7 +4,7 @@ function by(id){return document.getElementById(id)}
 function open(id){const e=by(id);if(e)e.classList.add("open")}
 function close(id){const e=by(id);if(e)e.classList.remove("open")}
 function bind(id,fn){const e=by(id);if(!e)return;e.dataset.gtxRecovery="1";e.addEventListener("click",e2=>{if(e2.defaultPrevented)return;try{fn(e2)}catch(err){console.error("GoTradeX UI recovery",err)}},{capture:false})}
-function loadLiveChart(){if(window.GoTradeXChartEngine)return;const s=document.createElement("script");s.src="chart-engine.js?v=gtx-live-candles-scale-20261004d";s.async=true;s.onload=()=>{try{window.GoTradeXChartEngine?.boot?.()}catch(_){}};document.head.appendChild(s)}
+function loadLiveChart(){if(window.GoTradeXChartEngine)return;const s=document.createElement("script");s.src="chart-engine.js?v=gtx-kengly-otc-routing-20261007";s.async=true;s.onload=()=>{try{window.GoTradeXChartEngine?.boot?.()}catch(_){}};document.head.appendChild(s)}
 function boot(){
  loadLiveChart();
  bind("menuBtn",()=>open("menuDrawer"));
