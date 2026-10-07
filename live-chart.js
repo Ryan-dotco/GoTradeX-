@@ -403,9 +403,9 @@
       autoSize:true,
       layout:{background:{type:C.ColorType.Solid,color:"#07111d"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
-      rightPriceScale:{visible:true,borderVisible:false,minimumWidth:58,scaleMargins:{top:.08,bottom:.12}},
+      rightPriceScale:{visible:true,borderVisible:true,borderColor:"#31506d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
-      timeScale:{borderVisible:false,timeVisible:true,secondsVisible:state.sec<60,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false},
+      timeScale:{visible:true,borderVisible:true,borderColor:"#31506d",timeVisible:true,secondsVisible:false,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false},
       crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
       handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
       handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}
@@ -415,7 +415,8 @@
       upColor:"#22c55e",downColor:"#ef4444",
       borderUpColor:"#22c55e",borderDownColor:"#ef4444",
       wickUpColor:"#a7f3c2",wickDownColor:"#fca5a5",
-      priceLineVisible:false,lastValueVisible:true
+      priceLineVisible:true,lastValueVisible:true,
+      priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
     state.lineSeries=state.chart.addLineSeries({color:"#42d392",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
     state.areaSeries=state.chart.addAreaSeries({lineColor:"#42d392",topColor:"#42d39255",bottomColor:"#42d39205",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
