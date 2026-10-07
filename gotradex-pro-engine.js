@@ -329,6 +329,9 @@
 
   window.addEventListener("gotradex:asset-changed", function (event) {
     const d = event && event.detail ? event.detail : {};
+    // Dashboard asset selection is routed directly to Kengly. Do not let the
+    // Pro/AutoPilot portal write a competing asset back into that chain.
+    if (d.source === "dashboard-assets") return;
     const mode = normalizeMode(d.mode || state.selectedType);
     const label = d.label || state.selectedPair;
     const found = findAsset(label, mode);
