@@ -53,7 +53,9 @@
     return v;
   }
   async function history(pair,sec){
-    const p=PAIRS[pair]||pair;
+    const raw=String(pair||"").trim().replace(/\s+OTC$/i,"");
+    const p=PAIRS[raw+" OTC"]||"";
+    if(!p) throw new Error("Unsupported OTC pair: "+String(pair||""));
     const tf=timeframe(sec);
     const {data,error}=await client().from("otc_candles")
       .select("candle_time,open,high,low,close,volume")
@@ -65,7 +67,9 @@
     })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
   }
   async function price(pair){
-    const p=PAIRS[pair]||pair;
+    const raw=String(pair||"").trim().replace(/\s+OTC$/i,"");
+    const p=PAIRS[raw+" OTC"]||"";
+    if(!p) throw new Error("Unsupported OTC pair: "+String(pair||""));
     const {data,error}=await client().from("otc_prices")
       .select("price,updated_at").eq("pair",p).maybeSingle();
     if(error) throw new Error("OTC price read failed: "+error.message);
@@ -73,6 +77,9 @@
     return {price:Number(data.price),time:Date.parse(data.updated_at)||Date.now()};
   }
   async function socket(pair,onTick,onStatus){
+    const raw=String(pair||"").trim().replace(/\s+OTC$/i,"");
+    const p=PAIRS[raw+" OTC"]||"";
+    if(!p) throw new Error("Unsupported OTC pair: "+String(pair||""));
     let stopped=false;
     let timer=null;
     const endpoint=SUPABASE_URL+"/functions/v1/gotradex-otc-engine";
@@ -84,7 +91,7 @@
         const res=await fetch(endpoint,{
           method:"POST",cache:"no-store",
           headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},
-          body:JSON.stringify({action:"chart",pair,timeframe:60,tf:60,limit:20})
+          body:JSON.stringify({action:"chart",pair:p,timeframe:60,tf:60,limit:20})
         });
         const data=await res.json().catch(()=>null);
         const p=Number(data?.price),t=Number(data?.serverTime||Date.now()/1000)*1000;
