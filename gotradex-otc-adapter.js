@@ -21,15 +21,24 @@
       window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}}));
   }
   function selectedPair(){
-    let p="";
-    try{p=String(localStorage.getItem("gtx_pair")||"").trim()}catch(_){}
-    if(!/ OTC$/i.test(p)){
-      try{
-        const d=String(localStorage.getItem("gotradex_asset_display")||"").trim();
-        if(d) p=d+" OTC";
-      }catch(_){}
+    // The bottom Assets selector is the authoritative OTC selection.
+    // gtx_pair is a legacy value and can remain on the previously selected pair,
+    // so it must never override the current bottom-selector asset.
+    let display="";
+    try{display=String(localStorage.getItem("gotradex_asset_display")||"").trim()}catch(_){}
+    if(display){
+      const base=display.replace(/\s+OTC$/i,"").trim();
+      const selected=base+" OTC";
+      if(PAIRS[selected])return selected;
     }
-    return PAIRS[p]?p:"EUR/USD OTC";
+    // Legacy fallback only when the current selector has not stored an asset yet.
+    let legacy="";
+    try{legacy=String(localStorage.getItem("gtx_pair")||"").trim()}catch(_){}
+    if(legacy){
+      const selected=legacy.replace(/\s+OTC$/i,"").trim()+" OTC";
+      if(PAIRS[selected])return selected;
+    }
+    return "EUR/USD OTC";
   }
   function timeframe(sec){
     const v=TF[Number(sec)];
