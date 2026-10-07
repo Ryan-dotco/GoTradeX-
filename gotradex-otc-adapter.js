@@ -59,20 +59,37 @@
   async function socket(pair,onTick,onStatus){
     let stopped=false;
     let timer=null;
+    const endpoint=SUPABASE_URL+"/functions/v1/gotradex-otc-engine";
     const poll=async()=>{
       if(stopped)return;
       try{
-        const p=await price(pair);
+        // Read the server-generated OTC price directly so the chart does not
+        // freeze when the persisted otc_prices row is momentarily stale.
+        const res=await fetch(endpoint,{
+          method:"POST",cache:"no-store",
+          headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},
+          body:JSON.stringify({action:"chart",pair,timeframe:60,tf:60,limit:20})
+        });
+        const data=await res.json().catch(()=>null);
+        const p=Number(data?.price),t=Number(data?.serverTime||Date.now()/1000)*1000;
+        if(!res.ok||!Number.isFinite(p))throw new Error(data?.error||"OTC price unavailable");
         if(stopped)return;
-        onTick(p);
+        onTick({price:p,time:t});
         onStatus("OTC • LIVE ENGINE",true);
       }catch(e){
-        if(stopped)return;
-        onStatus("OTC • WAITING",false);
+        try{
+          const p=await price(pair);
+          if(stopped)return;
+          onTick(p);
+          onStatus("OTC • DATA CATCH-UP",true);
+        }catch(_){
+          if(stopped)return;
+          onStatus("OTC • WAITING",false);
+        }
       }
     };
     await poll();
-    if(!stopped) timer=setInterval(poll,2000);
+    if(!stopped) timer=setInterval(poll,1000);
     return {close(){stopped=true;if(timer)clearInterval(timer)}};
   }
 
