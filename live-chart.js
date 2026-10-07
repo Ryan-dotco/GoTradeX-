@@ -309,29 +309,52 @@
       notice(f.reason||"The selected OTC asset is not available.",true);
       return;
     }
-    state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
-    state.connected=false;status("OTC • LOADING",false);notice("Loading isolated OTC candles…",true);
-    // Read the selected OTC pair directly from the isolated adapter. Do not rely on the
-    // generic feed registry here, because OTC pair selection must never inherit another asset's history.
+
+    // OTC is intentionally isolated from the generic feed path.
+    // Always resolve the currently visible selector through the OTC adapter.
+    const otc=window.GoTradeXOTCAdapter;
+    const pair=otc&&typeof otc.selectedPair==="function"?otc.selectedPair():f.symbol;
+    const basePair=String(pair||f.symbol||"").replace(/\s+OTC$/i,"").trim();
+
+    state.provider="GOTRADEX_OTC";
+    state.symbol=pair;
+    state.assetLabel=basePair;
+    assetText();
+    state.connected=false;
+    status("OTC • LOADING",false);
+    notice("Loading isolated OTC candles for "+basePair+"…",true);
+
     if(!otc||typeof otc.history!=="function"||typeof otc.socket!=="function"){
       state.connected=false;status("OTC FEED UNAVAILABLE",false);
       notice("The isolated OTC adapter is not loaded.",true);
       return;
     }
+
     otc.history(pair,state.sec).then(async history=>{
       if(id!==state.connectionId)return;
-      state.candles=Array.isArray(history)?history:[];
+      state.candles=(Array.isArray(history)?history:[])
+        .map(x=>({t:Number(x.t),o:Number(x.o),h:Number(x.h),l:Number(x.l),c:Number(x.c),v:Number(x.v||0)}))
+        .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite))
+        .sort((a,b)=>a.t-b.t);
+
       if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
       if(state.candles.length)renderHistory();
+      if(!state.candles.length){
+        throw new Error("No OTC candles returned for "+basePair+" ("+state.tf+").");
+      }
+
       const socket=await otc.socket(pair,
         tick=>{
           if(id!==state.connectionId)return;
           addTick(tick.time,tick.price,0);
-          if(!state.historyLoaded && state.candles.length)try{renderHistory()}catch(_){}
+          if(!state.historyLoaded&&state.candles.length){
+            try{renderHistory()}catch(_){}
+          }
         },
         (msg,ok)=>{
           if(id!==state.connectionId)return;
-          state.connected=!!ok;status(msg,!!ok);
+          state.connected=!!ok;
+          status(msg,!!ok);
           if(ok)notice("",false);
         }
       );
@@ -339,11 +362,11 @@
       state.ws=socket;
     }).catch(e=>{
       if(id!==state.connectionId)return;
-      state.connected=false;status("OTC FEED ERROR",false);
+      state.connected=false;
+      status("OTC FEED ERROR",false);
       notice(e.message||"Unable to read isolated OTC chart data.",true);
     });
   }
-
   function connect(){
     ++state.connectionId;
     const f=selection();
