@@ -2300,5 +2300,76 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 })();
 </script>
-</body>
+<style id="gtx-assets-static-rescue-style">
+#assetDrawer .gtxStaticAssetList{display:none!important;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0 12px;padding:2px}
+#assetDrawer .gtxStaticAssetList.gtxStaticOpen{display:grid!important}
+#assetDrawer .gtxStaticAsset{display:flex!important;align-items:center;justify-content:space-between;min-height:43px;width:100%;padding:8px 9px;border:1px solid #23466d;border-radius:9px;background:#0b2038;color:#fff}
+@media(max-width:390px){#assetDrawer .gtxStaticAssetList{grid-template-columns:1fr}}
+</style>
+<script id="gtx-assets-static-rescue">
+(function(){
+"use strict";
+var data={
+Forex:["EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CHF","USD/CAD","NZD/USD","EUR/GBP","EUR/JPY","GBP/JPY","EUR/CHF","AUD/JPY","AUD/CAD","AUD/NZD","USD/ZAR","EUR/AUD","GBP/AUD","NZD/JPY","CAD/JPY","CHF/JPY","EUR/CAD","EUR/NZD","GBP/CAD","GBP/CHF","GBP/NZD","AUD/CHF","USD/MXN"],
+Stocks:["AAPL","MSFT","NVDA","AMZN","TSLA","GOOGL","META","NFLX","AMD","AVGO","JPM","V","MA","BA","DIS","KO","PEP","WMT","COST","ORCL","INTC","CSCO","XOM","CVX","JNJ","PFE","MRK","MCD","NKE","CRM","ADBE","QCOM","PLTR","COIN","GME","BABA","MARA"],
+Crypto:["BTC/USD","ETH/USD","XRP/USD","SOL/USD","DOGE/USD","ADA/USD","BNB/USD","AVAX/USD","DOT/USD","LINK/USD","LTC/USD"],
+Commodities:["XAU/USD","XAG/USD","WTI Oil","Brent Oil","Natural Gas","Copper","Platinum","Palladium","Wheat","Corn","Coffee","Sugar","Cotton"],
+Indices:["US30","US500","NAS100","UK100","GER40","FRA40","JPN225","AUS200","HK50","EU50","SA40","SPX","DAX","CAC40","FTSE","NIKKEI","VIX","RUSSELL2000"]
+};
+var map={forexAssets:"Forex",stockAssets:"Stocks",cryptoAssets:"Crypto",commodityAssets:"Commodities",indexAssets:"Indices"};
+function icon(pair,type){
+var p=String(pair).toUpperCase();
+if(type==="Crypto"){var x={"BTC/USD":"₿","ETH/USD":"Ξ","XRP/USD":"✕","SOL/USD":"◎","DOGE/USD":"Ð","ADA/USD":"₳","BNB/USD":"◆","AVAX/USD":"A","DOT/USD":"●","LINK/USD":"🔗","LTC/USD":"Ł"};return x[p]||"₿";}
+if(type==="Forex")return "💱";
+if(type==="Commodities")return /XAU/.test(p)?"🥇":/XAG/.test(p)?"🥈":/OIL/.test(p)?"🛢️":/GAS/.test(p)?"🔥":"⛏️";
+if(type==="Indices")return "📊"; return "📈";
+}
+function mode(){try{return String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE"}catch(e){return "LIVE"}}
+function build(){
+var drawer=document.getElementById("assetDrawer"); if(!drawer)return;
+Object.keys(map).forEach(function(id){
+var old=document.getElementById(id), type=map[id]; if(!old)return;
+old.innerHTML=""; old.className="gtxStaticAssetList";
+old.removeAttribute("hidden");
+data[type].forEach(function(pair){
+var b=document.createElement("button"); b.type="button"; b.className="gtxStaticAsset";
+b.dataset.asset=pair; b.dataset.assetType=type.toLowerCase();
+var label=pair+(mode()==="OTC"?" OTC":"");
+b.innerHTML="<span>"+icon(pair,type)+" &nbsp;<strong>"+label+"</strong></span><span>"+(type==="Forex"||type==="Crypto"?"LIVE":"ASSET")+"</span>";
+b.addEventListener("click",function(e){
+e.preventDefault();e.stopImmediatePropagation();
+var clean=pair;
+try{localStorage.setItem("gotradex_market_mode",mode());localStorage.setItem("gotradex_asset_display",clean);localStorage.setItem("gotradex_asset_type",type.toLowerCase());localStorage.setItem("gotradex_chart_symbol",clean.replace(/[^A-Za-z0-9]/g,"").toUpperCase())}catch(_){}
+try{window.GoTradeXLiveChart&&window.GoTradeXLiveChart.setAsset&&window.GoTradeXLiveChart.setAsset(clean,type.toLowerCase(),mode())}catch(_){}
+try{window.dispatchEvent(new CustomEvent("gotradex:asset-changed",{detail:{label:clean,type:type.toLowerCase(),mode:mode(),source:"assets-static-rescue"}}))}catch(_){}
+drawer.classList.remove("open");
+});
+old.appendChild(b);
+});
+});
+}
+function closeLists(){document.querySelectorAll("#assetDrawer .gtxStaticAssetList").forEach(function(x){x.classList.remove("gtxStaticOpen")});document.querySelectorAll("#assetDrawer .gtxAssetCategory").forEach(function(x){x.setAttribute("aria-expanded","false")})}
+function install(){
+build();
+document.addEventListener("click",function(e){
+var t=e.target, drawer=document.getElementById("assetDrawer"); if(!drawer)return;
+var cat=t&&t.closest?t.closest("#assetDrawer .gtxAssetCategory"):null;
+if(cat){
+e.preventDefault();e.stopImmediatePropagation();
+var id=cat.getAttribute("data-asset-category"), list=document.getElementById(id), was=cat.getAttribute("aria-expanded")==="true";
+closeLists();
+if(!was&&list){list.classList.add("gtxStaticOpen");cat.setAttribute("aria-expanded","true");}
+return;
+}
+var sw=t&&t.closest?t.closest("#assetDrawer #gtxAssetMarketSwitch [data-mode]"):null;
+if(sw){
+e.preventDefault();e.stopImmediatePropagation();
+try{localStorage.setItem("gotradex_market_mode",String(sw.getAttribute("data-mode")).toUpperCase())}catch(_){}
+build();closeLists();return;
+}
+},true);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
+})();
+</script></body>
 </html>
