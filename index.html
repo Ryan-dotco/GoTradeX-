@@ -2528,35 +2528,65 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 .gtxTimeIcon{width:34px;height:34px;display:grid;place-items:center;flex:0 0 34px;border-radius:9px;background:#18395b;color:#ffd54a;font-size:21px;font-weight:900}
 .gtxCandleExpiryCard .gtxTimeIcon{color:#4dd0a0}
 .gtxTimeCardHead h3{font-size:12px;line-height:1.25;margin:0;color:#f4f8ff}
-#times,.gtxCandleTimeChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;align-content:start}
-#times .option,.gtxCandleTimeChoice{width:100%;min-width:0;justify-content:center;text-align:center;padding:9px 4px;margin:0;border:1px solid #23466d;border-radius:8px;background:#102945;color:#dbe9f7;font-size:10px;font-weight:800;line-height:1.2;min-height:36px}
+#times,.gtxCandleTimeChoices{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;align-content:start}
+#times .option,.gtxCandleTimeChoice{display:flex!important;visibility:visible!important;opacity:1!important;width:100%;min-width:0;justify-content:center;align-items:center;text-align:center;padding:9px 4px;margin:0;border:1px solid #23466d;border-radius:8px;background:#102945;color:#dbe9f7;font-size:10px;font-weight:800;line-height:1.2;min-height:38px;white-space:normal}
 #times .option.gtxTimeSelected{border-color:#ffd54a;background:#24415e;color:#ffd54a}
 .gtxCandleTimeChoice.active{border-color:#4dd0a0;background:#143c42;color:#7df0c0}
-@media(max-width:360px){.gtxTimePortalPanel{padding:9px!important}.gtxTimePortalGrid{gap:6px}.gtxTimeCard{padding:8px}.gtxTimeCardHead{align-items:flex-start;gap:5px}.gtxTimeIcon{width:27px;height:27px;flex-basis:27px;font-size:17px}.gtxTimeCardHead h3{font-size:10px}#times,.gtxCandleTimeChoices{grid-template-columns:1fr}#times .option,.gtxCandleTimeChoice{font-size:10px}}
+@media(max-width:360px){.gtxTimePortalPanel{padding:9px!important}.gtxTimePortalGrid{gap:6px}.gtxTimeCard{padding:8px}.gtxTimeCardHead{align-items:flex-start;gap:5px}.gtxTimeIcon{width:27px;height:27px;flex-basis:27px;font-size:17px}.gtxTimeCardHead h3{font-size:10px}#times,.gtxCandleTimeChoices{grid-template-columns:1fr!important}#times .option,.gtxCandleTimeChoice{font-size:10px}}
 </style>
 <script id="gtx-dual-expiration-portal-controller">
 (function(){
 "use strict";
 var signal=["5 Seconds","15 Seconds","30 Seconds","1 Minute","2 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day"];
 var candles={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400};
-var lastApplied="";
+var lastUserChoice="";
 function el(id){return document.getElementById(id)}
-function saved(){try{var x=localStorage.getItem("gotradex_chart_timeframe");if(candles[x])return x}catch(e){}return "5 Minutes"}
 function api(){return window.GoTradeXLiveChart||null}
-function paint(){var selected=saved(),box=el("gtxCandleTimeChoices");if(box)box.querySelectorAll("button").forEach(function(b){b.classList.toggle("active",b.dataset.tf===selected)})}
-function syncChart(){var a=api();if(!a||typeof a.setTimeframe!=="function")return;var tf=saved(),st=a.state||{};if(st.tf!==tf&&lastApplied!==tf){lastApplied=tf;try{a.setTimeframe(tf)}catch(e){lastApplied=""}}if(st.tf===tf)lastApplied=tf;paint()}
+function writeSaved(tf){try{localStorage.setItem("gotradex_chart_timeframe",tf);localStorage.setItem("gotradex_candle_expiration",tf)}catch(e){}}
+function saved(){try{var x=localStorage.getItem("gotradex_candle_expiration");if(candles[x])return x;x=localStorage.getItem("gotradex_chart_timeframe");if(candles[x])return x}catch(e){}return "5 Minutes"}
+function current(){var a=api(),st=a&&a.state;if(st&&candles[st.tf])return st.tf;return saved()}
+function paint(){
+ var tf=current(),box=el("gtxCandleTimeChoices");
+ if(box)box.querySelectorAll("button").forEach(function(b){b.classList.toggle("active",b.dataset.tf===tf);b.setAttribute("aria-pressed",b.dataset.tf===tf?"true":"false")});
+ var select=el("gtxLWCChartTF");if(select&&candles[tf]&&select.value!==tf)select.value=tf;
+ var list=el("times"),timeBtn=el("timeBtn"),trade=String(timeBtn&&timeBtn.textContent||"5 Seconds").replace(/\s*▾\s*$/,"").trim();
+ if(list)list.querySelectorAll(".option").forEach(function(b){var on=b.textContent.trim()===trade;b.classList.toggle("gtxTimeSelected",on);b.setAttribute("aria-pressed",on?"true":"false")});
+}
+function apply(tf){
+ if(!candles[tf])return;
+ lastUserChoice=tf;writeSaved(tf);
+ var a=api();
+ if(a&&typeof a.setTimeframe==="function"){try{a.setTimeframe(tf)}catch(e){}}
+ var select=el("gtxLWCChartTF");if(select)select.value=tf;
+ paint();
+}
 function build(){
  var list=el("times");
- if(list&&!list.querySelector(".option"))signal.forEach(function(t){var b=document.createElement("button");b.type="button";b.className="option";b.textContent=t;list.appendChild(b)});
- if(list){list.style.setProperty("display","grid","important");list.style.setProperty("grid-template-columns","repeat(2,minmax(0,1fr))","important");list.style.setProperty("gap","6px","important");list.querySelectorAll(".option").forEach(function(b){b.style.setProperty("display","flex","important");b.style.setProperty("visibility","visible","important");b.style.setProperty("opacity","1","important")})}
- var box=el("gtxCandleTimeChoices");if(box){box.style.setProperty("display","grid","important");box.style.setProperty("grid-template-columns","repeat(2,minmax(0,1fr))","important");box.style.setProperty("gap","6px","important");box.replaceChildren();Object.keys(candles).forEach(function(t){var b=document.createElement("button");b.type="button";b.className="gtxCandleTimeChoice";b.textContent=t;b.dataset.tf=t;b.style.setProperty("display","flex","important");b.style.setProperty("visibility","visible","important");b.style.setProperty("opacity","1","important");b.addEventListener("click",function(){try{localStorage.setItem("gotradex_chart_timeframe",t)}catch(e){}lastApplied=t;var a=api();if(a&&typeof a.setTimeframe==="function"){try{a.setTimeframe(t)}catch(e){lastApplied=""}}paint();setTimeout(syncChart,350)});box.appendChild(b)})}
+ if(list){
+  list.replaceChildren();
+  signal.forEach(function(t){var b=document.createElement("button");b.type="button";b.className="option";b.textContent=t;b.addEventListener("click",function(){var timeBtn=el("timeBtn");if(timeBtn)timeBtn.textContent=t+" ▾";paint();var drawer=el("timeDrawer");if(drawer)drawer.classList.remove("open")});list.appendChild(b)});
+  list.style.setProperty("display","grid","important");list.style.setProperty("grid-template-columns","repeat(2,minmax(0,1fr))","important");list.style.setProperty("gap","6px","important");
+ }
+ var box=el("gtxCandleTimeChoices");
+ if(box){
+  box.replaceChildren();box.style.setProperty("display","grid","important");box.style.setProperty("grid-template-columns","repeat(2,minmax(0,1fr))","important");box.style.setProperty("gap","6px","important");
+  Object.keys(candles).forEach(function(t){var b=document.createElement("button");b.type="button";b.className="gtxCandleTimeChoice";b.textContent=t;b.dataset.tf=t;b.addEventListener("click",function(){apply(t)});box.appendChild(b)});
+ }
+}
+function sync(){
+ var a=api(),st=a&&a.state;
+ if(st&&candles[st.tf]){
+   if(lastUserChoice&&st.tf!==lastUserChoice){apply(lastUserChoice);return}
+   writeSaved(st.tf);
+ }else if(!st&&lastUserChoice){var waiting=api();if(waiting&&typeof waiting.setTimeframe==="function")waiting.setTimeframe(lastUserChoice)}
  paint();
 }
 function install(){
  build();
- var list=el("times");if(list)list.addEventListener("click",function(e){var b=e.target&&e.target.closest?e.target.closest(".option"):null;if(!b||!list.contains(b))return;var t=b.textContent.trim();if(signal.indexOf(t)<0)return;var btn=el("timeBtn");if(btn)btn.textContent=t+" ▾";list.querySelectorAll(".option").forEach(function(x){x.classList.toggle("gtxTimeSelected",x===b)});var drawer=el("timeDrawer");if(drawer)drawer.classList.remove("open")});
- var btn=el("timeBtn");if(btn)new MutationObserver(function(){var t=String(btn.textContent||"").replace(/\s*▾\s*$/,"").trim();if(list)list.querySelectorAll(".option").forEach(function(x){x.classList.toggle("gtxTimeSelected",x.textContent.trim()===t)})}).observe(btn,{childList:true,characterData:true,subtree:true});
- syncChart();setInterval(syncChart,700);
+ var timeBtn=el("timeBtn");if(timeBtn)new MutationObserver(paint).observe(timeBtn,{childList:true,characterData:true,subtree:true});
+ var select=el("gtxLWCChartTF");if(select)select.addEventListener("change",function(){if(candles[select.value]){lastUserChoice="";writeSaved(select.value);paint()}});
+ var a=api();var initial=saved();if(a&&typeof a.setTimeframe==="function"&&a.state&&a.state.tf!==initial){lastUserChoice=initial;apply(initial)}
+ paint();setInterval(sync,400);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 })();
