@@ -1,0 +1,41 @@
+name: Deploy Deriv LIVE Market Test
+
+on:
+  push:
+    branches:
+      - test-deriv-market-feed-20261008
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated test branch
+        uses: actions/checkout@v6
+
+      - name: Prepare standalone test page
+        run: cp deriv-market-test.html index.html
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload test page
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+
+      - name: Deploy test page
+        id: deployment
+        uses: actions/deploy-pages@v4
