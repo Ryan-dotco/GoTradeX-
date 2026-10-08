@@ -32,7 +32,7 @@
     "USD/ZAR":"frxUSDZAR","EUR/AUD":"frxEURAUD","GBP/AUD":"frxGBPAUD","NZD/JPY":"frxNZDJPY",
     "CAD/JPY":"frxCADJPY","CHF/JPY":"frxCHFJPY",
     "EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF",
-    "GBP/NZD":"frxGBPNZD","AUD/CHF":"frxAUDCHF","USD/MXN":"frxUSDMXN"
+    "GBP/NZD":"frxGBPNZD","AUD/CHF":"frxAUDCHF","USD/MXN":"frxUSDMXN","USD/PLN":"frxUSDPLN"
   };
 
   const directTwelve = {
