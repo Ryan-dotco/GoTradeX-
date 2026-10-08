@@ -2546,7 +2546,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 "use strict";
 var intervals={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"2 Minutes":120,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400,"1 Day":86400,"1 Month":2592000,"3 Months":7776000,"6 Months":15552000,"1 Year":31536000};
 function byId(id){return document.getElementById(id)}
-function readTradeDuration(){var b=byId("timeBtn");return String(b&&b.textContent||"5 Seconds").replace(/\\s*▾\\s*$/,"").trim()}
+function readTradeDuration(){var b=byId("timeBtn");return String(b&&b.textContent||"5 Seconds").replace(/\s*▾\s*$/,"").trim()}
 function fmt(seconds){seconds=Math.max(0,Math.floor(seconds));var d=Math.floor(seconds/86400);seconds%=86400;var h=Math.floor(seconds/3600);seconds%=3600;var m=Math.floor(seconds/60);var sec=seconds%60;if(d)return d+"d "+String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");if(h)return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0")}
 function chartState(){return window.GoTradeXLiveChart&&window.GoTradeXLiveChart.state||null}
 function currentChartInterval(){var st=chartState();if(st&&st.tf&&intervals[st.tf])return st.tf;try{var saved=localStorage.getItem("gotradex_chart_timeframe");if(intervals[saved])return saved}catch(_){}return "5 Minutes"}
