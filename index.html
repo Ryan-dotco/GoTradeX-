@@ -2169,5 +2169,67 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.gtxAdminPortalHome=portalHome;
 })();
 </script>
+<script id="gtx-assets-portal-final-fix">
+(function(){
+  "use strict";
+  function closeCategories(){
+    document.querySelectorAll("#assetDrawer .assetCategoryList").forEach(function(list){
+      list.hidden=true;
+      list.style.setProperty("display","none","important");
+    });
+    document.querySelectorAll("#assetDrawer .gtxAssetCategory").forEach(function(cat){
+      cat.setAttribute("aria-expanded","false");
+    });
+  }
+  function openCategory(id){
+    closeCategories();
+    const list=document.getElementById(id);
+    const cat=document.querySelector('#assetDrawer .gtxAssetCategory[data-asset-category="'+id+'"]');
+    if(!list||!cat)return;
+    list.hidden=false;
+    list.style.setProperty("display","block","important");
+    cat.setAttribute("aria-expanded","true");
+  }
+  function toggleCategory(cat){
+    const id=cat&&cat.getAttribute("data-asset-category");
+    if(!id)return;
+    const list=document.getElementById(id);
+    const isOpen=!!(list&&list.hidden===false&&list.style.display!=="none"&&cat.getAttribute("aria-expanded")==="true");
+    if(isOpen)closeCategories();else openCategory(id);
+  }
+  function setMode(mode){
+    if(typeof gtxSetMarketMode==="function")gtxSetMarketMode(mode);
+    else{
+      const m=String(mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
+      try{localStorage.setItem("gotradex_market_mode",m)}catch(_){}
+    }
+    closeCategories();
+    const sw=document.getElementById("gtxAssetMarketSwitch");
+    const current=String(window.gtxMarketMode||mode).toUpperCase();
+    if(sw)sw.querySelectorAll("[data-mode]").forEach(function(b){
+      const active=String(b.getAttribute("data-mode")).toUpperCase()===current;
+      b.classList.toggle("active",active);
+      b.setAttribute("aria-pressed",active?"true":"false");
+    });
+  }
+  function install(){
+    const drawer=document.getElementById("assetDrawer");
+    if(!drawer)return;
+    drawer.addEventListener("click",function(e){
+      const cat=e.target.closest&&e.target.closest(".gtxAssetCategory");
+      if(cat&&drawer.contains(cat)){
+        e.preventDefault();e.stopImmediatePropagation();toggleCategory(cat);return;
+      }
+      const mode=e.target.closest&&e.target.closest("#gtxAssetMarketSwitch [data-mode]");
+      if(mode&&drawer.contains(mode)){
+        e.preventDefault();e.stopImmediatePropagation();setMode(mode.getAttribute("data-mode"));return;
+      }
+    },true);
+    closeCategories();
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
+})();
+</script>
 </body>
 </html>
