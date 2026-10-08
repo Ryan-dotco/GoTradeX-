@@ -26,7 +26,11 @@ canvas{width:100%;height:260px;background:#0d1424;border:1px solid #202b43;borde
 <canvas id="chart" width="900" height="260"></canvas>
 <div id="log"></div>
 <script>
-const WS_URL='wss://ws.binaryws.com/websockets/v3';
+const WS_URLS=[
+  'wss://api.derivws.com/trading/v1/options/ws/public',
+  'wss://ws.binaryws.com/websockets/v3'
+];
+let wsUrlIndex=0;
 const pairs=[
   ['EUR/USD','frxEURUSD'],['GBP/USD','frxGBPUSD'],
   ['USD/JPY','frxUSDJPY'],['AUD/USD','frxAUDUSD']
@@ -36,16 +40,40 @@ const $=id=>document.getElementById(id);
 function log(s){$('log').textContent += s+'\n'; $('log').scrollTop=$('log').scrollHeight}
 function status(s){$('status').textContent=s}
 function connect(){
-  if(ws && ws.readyState===WebSocket.OPEN)return;
-  ws=new WebSocket(WS_URL);
-  ws.onopen=()=>{status('Connected to Deriv WebSocket'); log('[WS] connected');};
-  ws.onclose=()=>{status('Disconnected'); log('[WS] closed')};
-  ws.onerror=()=>{status('WebSocket error'); log('[WS] error')};
-  ws.onmessage=e=>handle(JSON.parse(e.data));
+  if(ws && (ws.readyState===WebSocket.OPEN || ws.readyState===WebSocket.CONNECTING))return;
+  const url=WS_URLS[wsUrlIndex];
+  status('Connecting to Deriv...');
+  log('[WS] connecting: '+url);
+  try{ws=new WebSocket(url);}catch(e){log('[WS] constructor error: '+e.message);return;}
+  ws.onopen=()=>{
+    status('Connected to Deriv WebSocket');
+    log('[WS] connected: '+url);
+    send({time:1});
+    send({active_symbols:'brief',product_type:'basic'});
+  };
+  ws.onclose=e=>{
+    status('Disconnected');
+    log('[WS] closed code='+e.code+' reason='+(e.reason||'(none)'));
+    if(wsUrlIndex<WS_URLS.length-1){
+      wsUrlIndex++;
+      log('[WS] trying fallback endpoint...');
+      setTimeout(connect,700);
+    }
+  };
+  ws.onerror=e=>{status('WebSocket error'); log('[WS] error event (browser does not expose more detail)')};
+  ws.onmessage=e=>{
+    try{handle(JSON.parse(e.data));}
+    catch(err){log('[WS] invalid JSON: '+err.message)}
+  };
 }
 function send(o){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({...o,req_id:++req}))}
 function handle(d){
-  if(d.error){log('[ERROR] '+(d.error.message||JSON.stringify(d.error)));return}
+  if(d.error){log('[ERROR] '+(d.error.code||'')+' '+(d.error.message||JSON.stringify(d.error)));return}
+  if(d.msg_type==='time'){log('[SERVER TIME] '+new Date(Number(d.time)*1000).toISOString());}
+  if(d.msg_type==='active_symbols'){
+    const found=pairs.map(([name,symbol])=>name+':'+(d.active_symbols.some(x=>x.symbol===symbol)?'AVAILABLE':'NOT FOUND')).join(' | ');
+    log('[SYMBOL CHECK] '+found);
+  }
   if(d.msg_type==='history'){
     const arr=d.candles||[];
     if(activePair && d.echo_req && d.echo_req.ticks_history===activePair.symbol){
