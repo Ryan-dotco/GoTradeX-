@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoTradeX — Twelve Data Forex Verification</title>
+<style>
+body{margin:0;background:#061426;color:#fff;font:15px system-ui;padding:18px}main{max-width:760px;margin:auto}
+h1{font-size:22px}.note{color:#9fb4cc;font-size:13px;margin-bottom:16px}
+.card{background:#0b2039;border:1px solid #23466d;border-radius:12px;padding:14px;margin:10px 0}
+input,button{font:inherit;border-radius:8px;padding:10px;border:1px solid #34577e}input{background:#07182c;color:#fff;width:100%;box-sizing:border-box;margin:5px 0}
+button{background:#176fca;color:#fff;font-weight:800;cursor:pointer;margin-top:8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+table{width:100%;border-collapse:collapse;margin-top:14px}td,th{padding:9px;border-bottom:1px solid #23466d;text-align:left;font-size:13px}
+.ok{color:#56df8a}.bad{color:#ff7777}.wait{color:#ffd166}.small{font-size:12px;color:#9fb4cc}
+</style></head>
+<body><main>
+<h1>GoTradeX — Twelve Data Forex Verification</h1>
+<div class="note">Diagnostic only. This page does not change LIVE inventory, main, wallet, trades, AutoBot, admin, or chart code. It uses the existing GoTradeX server-side Twelve Data adapter so the Twelve Data API key never enters the browser.</div>
+<div class="card" id="login">
+<strong>Sign in with your existing GoTradeX account</strong>
+<input id="email" type="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button id="signin">SIGN IN & RUN TEST</button>
+<div id="loginmsg" class="small"></div>
+</div>
+<div class="card" id="results" style="display:none">
+<strong>7-pair Twelve Data test</strong>
+<div class="small">PASS requires valid 1-minute OHLC candles (≥12) and a live price from the same exact pair.</div>
+<table><thead><tr><th>Pair</th><th>Result</th><th>Details</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://glffecggusetzklmyukv.supabase.co";
+const SUPABASE_KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
+const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const pairs=["CAD/CHF","USD/SGD","USD/HKD","EUR/ZAR","GBP/ZAR","USD/TRY","USD/NOK"];
+const rows=document.getElementById("rows");
+function add(pair,result,details,cls){const tr=document.createElement("tr");tr.innerHTML="<td><b>"+pair+"</b></td><td class='"+cls+"'>"+result+"</td><td>"+details+"</td>";rows.appendChild(tr)}
+async function testPair(pair){
+ add(pair,"TESTING","Requesting 1-minute history + live price…","wait");
+ const index=rows.lastElementChild;
+ try{
+  const {data:{session}}=await client.auth.getSession();
+  if(!session) throw new Error("No authenticated session.");
+  const call=async action=>{
+   const r=await fetch(SUPABASE_URL+"/functions/v1/gotradex-market-data",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,"apikey":SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({action,assetType:"forex",symbol:pair,timeframe:"1 Minute"})});
+   const d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.ok) throw new Error(d.error||("HTTP "+r.status));
+   return d;
+  };
+  const [chart,price]=await Promise.all([call("chart"),call("price")]);
+  const candles=Array.isArray(chart.candles)?chart.candles:[];
+  if(candles.length<12) throw new Error("Only "+candles.length+" valid candles returned.");
+  const sameSymbol=String(chart.symbol||"").toUpperCase()===pair;
+  if(!sameSymbol) throw new Error("Provider symbol mismatch: "+(chart.symbol||"unknown"));
+  if(!Number.isFinite(Number(price.price))||Number(price.price)<=0) throw new Error("No valid live price.");
+  index.children[1].textContent="PASS";index.children[1].className="ok";
+  index.children[2].textContent=candles.length+" candles • "+chart.symbol+" • price "+Number(price.price);
+ }catch(e){
+  index.children[1].textContent="FAIL";index.children[1].className="bad";
+  index.children[2].textContent=e.message||String(e);
+ }
+}
+document.getElementById("signin").onclick=async()=>{
+ const msg=document.getElementById("loginmsg");msg.textContent="Signing in…";
+ const {error}=await client.auth.signInWithPassword({email:document.getElementById("email").value.trim(),password:document.getElementById("password").value});
+ if(error){msg.textContent=error.message;return}
+ msg.textContent="Authenticated. Running diagnostic…";
+ document.getElementById("results").style.display="";
+ document.getElementById("signin").disabled=true;
+ for(const p of pairs) await testPair(p);
+ msg.textContent="Diagnostic complete. No inventory changes were made.";
+};
+</script></main></body></html>
