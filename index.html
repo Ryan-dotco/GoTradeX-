@@ -2456,5 +2456,29 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});
   else install();
 })();
-</script></body>
+</script><script id="gtx-assets-pointerdown-label-guard">
+(function(){
+  "use strict";
+  document.addEventListener("pointerdown",function(e){
+    var asset=e.target&&e.target.closest?e.target.closest("#assetDrawer .gtxStaticAsset,#assetDrawer .assetOption"):null;
+    if(!asset)return;
+    var name=asset.querySelector(".gtxStaticAssetName strong,.gtxAssetName");
+    var label=String(name?name.textContent:(asset.dataset.asset||"")).replace(/\bVERIFY\b/gi,"").replace(/\s+OTC$/i,"").trim();
+    if(!label)return;
+    var type=String(asset.getAttribute("data-asset-type")||asset.dataset.assetType||"crypto").toLowerCase();
+    var pairEl=document.getElementById("bottomAssetPair");
+    var modeEl=document.getElementById("bottomAssetMode");
+    var mode="LIVE";
+    try{mode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE"}catch(_){}
+    if(pairEl)pairEl.textContent=label;
+    if(modeEl)modeEl.textContent=mode;
+    try{
+      localStorage.setItem("gotradex_asset_display",label);
+      localStorage.setItem("gotradex_asset_type",type);
+      localStorage.setItem("gotradex_chart_symbol",label.replace(/[^A-Za-z0-9]/g,"").toUpperCase());
+    }catch(_){}
+  },true);
+})();
+</script>
+</body>
 </html>
