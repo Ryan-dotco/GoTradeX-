@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoTradeX — Deriv Market Feed Test v3 — CACHE-BUSTED</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0b1020;color:#fff;margin:0;padding:16px}
+h1{font-size:20px;margin:0 0 6px}.note{color:#aeb8cc;font-size:13px;margin-bottom:14px}
+button{background:#17213a;color:#fff;border:1px solid #3a4a70;border-radius:8px;padding:9px 12px;margin:3px;cursor:pointer}
+button.active{border-color:#62a0ff}.status{padding:10px;border-radius:8px;background:#121a2d;margin:10px 0;font-size:13px}
+#log{white-space:pre-wrap;background:#070b14;border:1px solid #202b43;border-radius:8px;padding:10px;min-height:130px;font-size:12px}
+canvas{width:100%;height:260px;background:#0d1424;border:1px solid #202b43;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}@media(max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<h1>GoTradeX — Deriv LIVE feed diagnostic <small style="font-size:11px;color:#62a0ff">v3</small></h1>
+<div class="note">Isolated test branch only. This does not change GoTradeX main.</div>
+<div id="buttons" class="grid"></div>
+<div>
+<button id="testAll">TEST ALL 4</button>
+<button id="clear">CLEAR</button>
+</div>
+<div id="status" class="status">Not connected</div>
+<canvas id="chart" width="900" height="260"></canvas>
+<div id="log"></div>
+<script>
+const WS_URLS=[
+  'wss://api.derivws.com/trading/v1/options/ws/public',
+  'wss://ws.binaryws.com/websockets/v3'
+];
+let wsUrlIndex=0;
+const pairs=[
+  ['EUR/USD','frxEURUSD'],['GBP/USD','frxGBPUSD'],
+  ['USD/JPY','frxUSDJPY'],['AUD/USD','frxAUDUSD']
+];
+let ws=null, req=0, activePair=null, candles=[], tickCount=0;
+const $=id=>document.getElementById(id);
+function log(s){$('log').textContent += s+'\n'; $('log').scrollTop=$('log').scrollHeight}
+function status(s){$('status').textContent=s}
+function connect(){
+  if(ws && (ws.readyState===WebSocket.OPEN || ws.readyState===WebSocket.CONNECTING))return;
+  const url=WS_URLS[wsUrlIndex];
+  status('Connecting to Deriv...');
+  log('[WS] connecting: '+url);
+  try{ws=new WebSocket(url);}catch(e){log('[WS] constructor error: '+e.message);return;}
+  ws.onopen=()=>{
+    status('Connected to Deriv WebSocket');
+    log('[WS] connected: '+url);
+    send({time:1});
+    send({active_symbols:'brief'});
+  };
+  ws.onclose=e=>{
+    status('Disconnected');
+    log('[WS] closed code='+e.code+' reason='+(e.reason||'(none)'));
+    if(wsUrlIndex<WS_URLS.length-1){
+      wsUrlIndex++;
+      log('[WS] trying fallback endpoint...');
+      setTimeout(connect,700);
+    }
+  };
+  ws.onerror=e=>{status('WebSocket error'); log('[WS] error event (browser does not expose more detail)')};
+  ws.onmessage=e=>{
+    try{handle(JSON.parse(e.data));}
+    catch(err){log('[WS] invalid JSON: '+err.message)}
+  };
+}
+function send(o){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({...o,req_id:++req}))}
+function handle(d){
+  if(d.error){log('[ERROR] '+(d.error.code||'')+' '+(d.error.message||JSON.stringify(d.error)));return}
+  if(d.msg_type==='time'){log('[SERVER TIME] '+new Date(Number(d.time)*1000).toISOString());}
+  if(d.msg_type==='active_symbols'){
+    const list=d.active_symbols||[];
+    const found=pairs.map(([name,symbol])=>{
+      const hit=list.find(x=>(x.underlying_symbol||x.symbol)===symbol);
+      return name+':'+(hit?'AVAILABLE':'NOT FOUND');
+    }).join(' | ');
+    log('[SYMBOL CHECK] '+found);
+  }
+  if((d.msg_type==='candles'||d.msg_type==='history') && activePair){
+    const arr=d.candles||[];
+    const echoed=d.echo_req&&d.echo_req.ticks_history;
+    if(!echoed || echoed===activePair.symbol){
+      candles=arr.map(x=>({t:+x.epoch,o:+x.open,h:+x.high,l:+x.low,c:+x.close}));
+      status(activePair.name+' — historical candles: '+candles.length);
+      draw(); log('[HISTORY] '+activePair.name+' '+candles.length+' x 1m candles');
+    }
+  }
+  if(d.msg_type==='tick' && activePair && d.tick && d.tick.symbol===activePair.symbol){
+    tickCount++;
+    const t=+d.tick.epoch, p=+d.tick.quote;
+    const bucket=Math.floor(t/60)*60;
+    let c=candles[candles.length-1];
+    if(!c || c.t!==bucket){c={t:bucket,o:p,h:p,l:p,c:p};candles.push(c);if(candles.length>80)candles.shift()}
+    else{c.h=Math.max(c.h,p);c.l=Math.min(c.l,p);c.c=p}
+    status(activePair.name+' — LIVE tick '+p+' | ticks '+tickCount);
+    draw();
+  }
+}
+function select(name,symbol){
+  connect();
+  activePair={name,symbol}; candles=[];tickCount=0; draw();
+  $('buttons').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.symbol===symbol));
+  status(name+' — requesting 20 x 1m historical candles...');
+  send({ticks_history:symbol,end:'latest',count:20,granularity:60,style:'candles'});
+  send({ticks:symbol,subscribe:1});
+}
+function draw(){
+  const c=$('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;
+  ctx.clearRect(0,0,w,h); if(!candles.length)return;
+  const min=Math.min(...candles.map(x=>x.l)),max=Math.max(...candles.map(x=>x.h));
+  const pad=(max-min)*.08||.0001, lo=min-pad, hi=max+pad;
+  const y=p=>h-20-(p-lo)/(hi-lo)*(h-40), step=Math.max(4,w/candles.length);
+  candles.forEach((x,i)=>{
+    const xx=8+i*step, yo=y(x.o), yc=y(x.c), yh=y(x.h), yl=y(x.l);
+    ctx.beginPath();ctx.moveTo(xx,yh);ctx.lineTo(xx,yl);ctx.stroke();
+    const top=Math.min(yo,yc), bh=Math.max(1,Math.abs(yc-yo));ctx.fillRect(xx-2,top,4,bh);
+  });
+}
+pairs.forEach(([name,symbol])=>{const b=document.createElement('button');b.textContent=name;b.dataset.symbol=symbol;b.onclick=()=>select(name,symbol);$('buttons').appendChild(b)});
+$('testAll').onclick=async()=>{for(const [name,symbol] of pairs){select(name,symbol);await new Promise(r=>setTimeout(r,6000));log('[TEST] '+name+' complete window');}};
+$('clear').onclick=()=>{$('log').textContent='';candles=[];draw()};
+connect();
+</script>
+</body>
+</html>
