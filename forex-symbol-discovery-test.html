@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GoTradeX — Deriv Forex Symbol Discovery</title>
+<title>GoTradeX — Deriv Forex Symbol Discovery v3</title>
 <style>
 body{margin:0;background:#061426;color:#fff;font-family:system-ui,sans-serif;padding:18px}
 h1{font-size:20px}.note{color:#9bb1c9;line-height:1.5}.run{background:#176fca;color:#fff;border:0;border-radius:9px;padding:12px 16px;font-weight:800}
@@ -32,6 +32,8 @@ function discover(){
  });
 }
 function normalize(v){return String(v||"").replace(/\\u002F/g,"/").trim().toUpperCase()}
+function symbolOf(x){return String(x.underlying_symbol||x.symbol||"")}
+function nameOf(x){return String(x.underlying_symbol_name||x.display_name||"")}
 document.getElementById("run").onclick=async()=>{
  const btn=document.getElementById("run");btn.disabled=true;document.getElementById("grid").innerHTML="";
  wanted.forEach(card);
@@ -39,13 +41,13 @@ document.getElementById("run").onclick=async()=>{
   const list=await discover(); let found=0;
   wanted.forEach((pair,i)=>{
    const status=document.getElementById("grid").children[i].querySelector(".status");
-   const exact=list.find(x=>normalize(x.display_name)===pair.toUpperCase());
-   if(exact){found++;status.className="status pass";status.innerHTML='FOUND • <span class="sym">'+String(exact.symbol||"")+'</span> • '+String(exact.display_name||"")+" • "+String(exact.market||"")+" / "+String(exact.submarket||"");}
+   const exact=list.find(x=>normalize(nameOf(x))===pair.toUpperCase());
+   if(exact){found++;status.className="status pass";status.innerHTML='FOUND • <span class="sym">'+symbolOf(exact)+'</span> • '+nameOf(exact)+" • "+String(exact.market||"")+" / "+String(exact.submarket||exact.subgroup||"");}
    else{
     const compact=pair.replace("/","");
-    const candidates=list.filter(x=>{const n=normalize(x.display_name),s=String(x.symbol||"").toUpperCase();return n.includes(compact)||s.includes(compact)||(n.includes(pair.split("/")[0])&&n.includes(pair.split("/")[1]));}).slice(0,8);
+    const candidates=list.filter(x=>{const n=normalize(nameOf(x)),s=symbolOf(x).toUpperCase();return n.includes(compact)||s.includes(compact)||(n.includes(pair.split("/")[0])&&n.includes(pair.split("/")[1]));}).slice(0,8);
     status.className="status fail";
-    status.textContent=candidates.length?"No exact match. Candidates: "+candidates.map(x=>String(x.symbol||"")+" ("+String(x.display_name||"")+")").join(", "):"NO EXACT MATCH in Deriv active_symbols.";
+    status.textContent=candidates.length?"No exact match. Candidates: "+candidates.map(x=>symbolOf(x)+" ("+nameOf(x)+")").join(", "):"NO EXACT MATCH in Deriv active_symbols.";
    }
   });
   document.getElementById("summary").textContent=found+" / "+wanted.length+" exact display-name matches found from "+list.length+" Deriv active symbols. No assets were promoted.";
