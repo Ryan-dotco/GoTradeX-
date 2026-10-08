@@ -2248,10 +2248,10 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 <script id="gtx-assets-portal-click-controller-v2">
 (function(){
   "use strict";
-  function lists(){return Array.from(document.querySelectorAll("#assetDrawer .assetCategoryList"))}
+  function lists(){return Array.from(document.querySelectorAll("#assetDrawer .assetCategoryList,#assetDrawer .gtxStaticAssetList"))}
   function cats(){return Array.from(document.querySelectorAll("#assetDrawer .gtxAssetCategory"))}
   function closeAll(){
-    lists().forEach(function(x){x.hidden=true;x.style.setProperty("display","none","important")});
+    lists().forEach(function(x){x.hidden=true;x.classList.remove("gtxStaticOpen");x.style.setProperty("display","none","important")});
     cats().forEach(function(x){x.setAttribute("aria-expanded","false")});
   }
   function openOne(id){
