@@ -2391,5 +2391,58 @@ build();closeLists();return;
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 })();
+</script><script id="gtx-assets-bottom-label-and-blank-close">
+(function(){
+  "use strict";
+  function closeCategories(){
+    document.querySelectorAll("#assetDrawer .gtxStaticAssetList").forEach(function(list){
+      list.hidden=true; list.classList.remove("gtxStaticOpen");
+    });
+    document.querySelectorAll("#assetDrawer .assetCategoryList").forEach(function(list){
+      list.hidden=true; list.style.setProperty("display","none","important");
+    });
+    document.querySelectorAll("#assetDrawer .gtxAssetCategory").forEach(function(cat){
+      cat.setAttribute("aria-expanded","false");
+    });
+  }
+  function selectedAsset(label,type){
+    var pair=String(label||"").replace(/\s+OTC$/i,"").trim();
+    if(!pair)return;
+    try{
+      if(typeof window.gtxSetBottomAsset==="function"){
+        window.gtxSetBottomAsset(pair,String(type||"crypto").toLowerCase());
+      }else{
+        var pairEl=document.getElementById("bottomAssetPair");
+        var modeEl=document.getElementById("bottomAssetMode");
+        if(pairEl)pairEl.textContent=pair;
+        if(modeEl)modeEl.textContent=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase();
+        localStorage.setItem("gotradex_asset_display",pair);
+        localStorage.setItem("gotradex_asset_type",String(type||"crypto").toLowerCase());
+        localStorage.setItem("gotradex_chart_symbol",pair.replace(/[^A-Za-z0-9]/g,"").toUpperCase());
+      }
+    }catch(_){}
+  }
+  function install(){
+    var drawer=document.getElementById("assetDrawer");
+    if(!drawer)return;
+    drawer.addEventListener("click",function(e){
+      var asset=e.target&&e.target.closest?e.target.closest(".gtxStaticAsset,.assetOption"):null;
+      if(asset&&drawer.contains(asset)){
+        var label=asset.getAttribute("data-asset")||asset.dataset.asset||"";
+        var type=asset.getAttribute("data-asset-type")||asset.dataset.assetType||"crypto";
+        selectedAsset(label,type);
+        return;
+      }
+      var insideCategory=e.target&&e.target.closest?e.target.closest(".gtxAssetCategory"):null;
+      var insideList=e.target&&e.target.closest?e.target.closest(".gtxStaticAssetList,.assetCategoryList"):null;
+      var insideSearch=e.target&&e.target.closest?e.target.closest("#assetSearch,#gtxAssetMarketSwitch"):null;
+      if(!insideCategory&&!insideList&&!insideSearch&&drawer.contains(e.target)){
+        closeCategories();
+      }
+    },false);
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
+})();
 </script></body>
 </html>
