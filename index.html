@@ -2231,5 +2231,75 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   else install();
 })();
 </script>
+<style id="gtx-assets-portal-final-style">
+#assetDrawer .gtxAssetCategory{display:flex!important;width:100%;align-items:center;justify-content:space-between;min-height:46px;margin:6px 0;padding:11px 13px;border:1px solid #23466d;border-radius:10px;background:#102945;color:#fff;cursor:pointer;touch-action:manipulation}
+#assetDrawer .gtxAssetCategory[aria-expanded="true"]{border-color:#176fca;background:#12385d}
+#assetDrawer .gtxCategoryChevron{font-size:18px;line-height:1;transition:transform .15s ease}
+#assetDrawer .gtxAssetCategory[aria-expanded="true"] .gtxCategoryChevron{transform:rotate(90deg)}
+#assetDrawer .assetCategoryList{display:grid!important;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0 12px;padding:2px}
+#assetDrawer .assetCategoryList[hidden]{display:none!important}
+#assetDrawer .assetCategoryList .assetOption{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:43px;margin:0;padding:8px 9px;border:1px solid #23466d;border-radius:9px;background:#0b2038;color:#fff;touch-action:manipulation}
+#assetDrawer .assetCategoryList .assetOption:active{transform:scale(.98)}
+#assetDrawer .gtxAssetIdentity{display:flex;align-items:center;gap:7px;min-width:0;text-align:left}
+#assetDrawer .gtxAssetIcon{width:24px;text-align:center;flex:0 0 24px}
+#assetDrawer .gtxAssetName{font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#assetDrawer .gtxAssetPercent{font-size:9px;color:#8fa8c4;margin-left:5px}
+@media(max-width:390px){#assetDrawer .assetCategoryList{grid-template-columns:1fr}.gtxAssetName{font-size:11px!important}}
+</style>
+<script id="gtx-assets-portal-click-controller-v2">
+(function(){
+  "use strict";
+  function lists(){return Array.from(document.querySelectorAll("#assetDrawer .assetCategoryList"))}
+  function cats(){return Array.from(document.querySelectorAll("#assetDrawer .gtxAssetCategory"))}
+  function closeAll(){
+    lists().forEach(function(x){x.hidden=true;x.style.setProperty("display","none","important")});
+    cats().forEach(function(x){x.setAttribute("aria-expanded","false")});
+  }
+  function openOne(id){
+    const list=document.getElementById(id);
+    const cat=document.querySelector('#assetDrawer .gtxAssetCategory[data-asset-category="'+id+'"]');
+    if(!list||!cat)return;
+    closeAll();
+    list.hidden=false;
+    list.style.setProperty("display","grid","important");
+    cat.setAttribute("aria-expanded","true");
+  }
+  function mode(mode){
+    if(typeof gtxSetMarketMode==="function")gtxSetMarketMode(mode);
+    else{
+      const m=String(mode).toUpperCase()==="OTC"?"OTC":"LIVE";
+      try{localStorage.setItem("gotradex_market_mode",m)}catch(_){}
+      if(typeof renderGtxAssets==="function")renderGtxAssets();
+    }
+    closeAll();
+  }
+  function install(){
+    const drawer=document.getElementById("assetDrawer");
+    if(!drawer)return;
+    /* Capture at document level so older navigation listeners cannot swallow these controls. */
+    document.addEventListener("click",function(e){
+      const target=e.target;
+      const cat=target&&target.closest?target.closest("#assetDrawer .gtxAssetCategory"):null;
+      if(cat){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const id=cat.getAttribute("data-asset-category");
+        const open=cat.getAttribute("aria-expanded")==="true";
+        if(open)closeAll();else openOne(id);
+        return;
+      }
+      const sw=target&&target.closest?target.closest("#assetDrawer #gtxAssetMarketSwitch [data-mode]"):null;
+      if(sw){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        mode(sw.getAttribute("data-mode"));
+        return;
+      }
+    },true);
+    closeAll();
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
+})();
+</script>
 </body>
 </html>
