@@ -2480,5 +2480,37 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   },true);
 })();
 </script>
+<script id="gtx-assets-category-toggle-final">
+(function(){
+"use strict";
+function install(){
+  var drawer=document.getElementById("assetDrawer");
+  if(!drawer)return;
+  document.addEventListener("click",function(e){
+    var cat=e.target&&e.target.closest?e.target.closest("#assetDrawer .gtxAssetCategory"):null;
+    if(!cat)return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var id=cat.getAttribute("data-asset-category");
+    var list=id&&document.getElementById(id);
+    if(!list)return;
+    var isOpen=cat.getAttribute("aria-expanded")==="true" && !list.hidden;
+    document.querySelectorAll("#assetDrawer .assetCategoryList,#assetDrawer .gtxStaticAssetList").forEach(function(x){
+      x.hidden=true;
+      x.classList.remove("gtxStaticOpen");
+      x.style.setProperty("display","none","important");
+    });
+    document.querySelectorAll("#assetDrawer .gtxAssetCategory").forEach(function(x){x.setAttribute("aria-expanded","false")});
+    if(!isOpen){
+      list.hidden=false;
+      list.classList.remove("gtxStaticOpen");
+      list.style.setProperty("display","grid","important");
+      cat.setAttribute("aria-expanded","true");
+    }
+  },true);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
+})();
+</script>
 </body>
 </html>
