@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoTradeX Crypto Verification — Batch 2</title>
+<style>
+body{margin:0;background:#07111d;color:#eaf4ff;font-family:system-ui,sans-serif;padding:16px}
+h1{font-size:20px;margin:0 0 6px}.sub{color:#8ba7c2;font-size:12px;margin-bottom:14px}
+.card{background:#0c1b2a;border:1px solid #24425e;border-radius:10px;padding:12px;margin-bottom:12px}
+button{background:#12314d;color:#fff;border:1px solid #32658d;border-radius:7px;padding:9px 12px;font-weight:800}
+button:disabled{opacity:.45}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.asset{padding:10px;border:1px solid #24425e;border-radius:8px;background:#0a1724}
+.name{font-weight:900}.result{font-size:11px;margin-top:5px;color:#8ba7c2}.ok{color:#63e6a0}.bad{color:#ff8c8c}.wait{color:#ffd166}
+#detail{white-space:pre-wrap;font:11px ui-monospace,monospace;color:#a9c2d8;margin-top:10px}
+</style></head><body>
+<h1>GoTradeX — Crypto LIVE Verification</h1>
+<div class="sub">Batch 2 • ADA/USD, LTC/USD, BNB/USD, AVAX/USD, DOT/USD, LINK/USD</div>
+<div class="card">
+<strong>Verification rule</strong>
+<div class="sub">PASS requires verified historical candles (≥12), correct symbol data, and a live price stream. No synthetic candles and no BTC substitution.</div>
+<button id="run">Run batch diagnostic</button>
+<div id="summary" class="result"></div><div id="detail"></div>
+</div>
+<div class="card"><strong>Assets</strong><div id="grid" class="grid"></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://raw.githack.com/Ryan-dotco/GoTradeX-/test-gotradex-crypto-batch2-20261008/market-data.js?v=batch2"></script>
+<script>
+const assets=["ADA/USD","LTC/USD","BNB/USD","AVAX/USD","DOT/USD","LINK/USD"];
+const grid=document.getElementById("grid"), summary=document.getElementById("summary"), detail=document.getElementById("detail");
+assets.forEach((a,i)=>{const d=document.createElement("div");d.className="asset";d.id="a"+i;d.innerHTML='<div class="name">'+a+'</div><div class="result" id="r'+i+'">NOT TESTED</div>';grid.appendChild(d)});
+function set(i,t,c){const e=document.getElementById("r"+i);e.textContent=t;e.className="result "+c}
+async function testOne(i,a){
+ set(i,"TESTING…","wait");
+ localStorage.setItem("gotradex_market_mode","LIVE");localStorage.setItem("gotradex_asset_type","crypto");localStorage.setItem("gotradex_asset_display",a);
+ const f=window.GoTradeXMarketFeeds.resolve();
+ if(!f.available||f.provider!=="BYBIT") throw Error("Resolver did not return verified BYBIT for "+a);
+ const h=await window.GoTradeXMarketFeeds.bybitHistory(f.symbol,300);
+ if(!Array.isArray(h)||h.length<12) throw Error("Only "+(h?.length||0)+" verified historical candles returned.");
+ const wrong=h.some(x=>![x.o,x.h,x.l,x.c].every(Number.isFinite)||x.h<x.l);
+ if(wrong) throw Error("Invalid candle data returned.");
+ let ticks=0,last=0,ws;
+ await new Promise((resolve,reject)=>{
+   let done=false,timer=setTimeout(()=>finish(Error("Live Bybit stream timeout after 12s.")),12000);
+   function finish(err){if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch(_){};err?reject(err):resolve()}
+   ws=new WebSocket(window.GoTradeXMarketFeeds.config.bybitWs);
+   ws.onopen=()=>ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+f.symbol]}));
+   ws.onerror=()=>finish(Error("Bybit websocket error."));
+   ws.onclose=()=>{if(!done)finish(Error("Bybit websocket closed before a live tick."))};
+   ws.onmessage=e=>{try{const j=JSON.parse(e.data);if(Array.isArray(j.data)){for(const x of j.data){const p=Number(x.p);if(Number.isFinite(p)){ticks++;last=p;if(ticks>=1)finish()}}}}catch(_){}}
+ });
+ return {symbol:f.symbol,candles:h.length,liveTicks:ticks,last};
+}
+document.getElementById("run").onclick=async()=>{
+ document.getElementById("run").disabled=true; summary.textContent="Running 6 assets one by one…"; detail.textContent="";
+ let pass=0;
+ for(let i=0;i<assets.length;i++){
+  try{const x=await testOne(i,assets[i]);pass++;set(i,"PASS • "+x.candles+" candles • live tick "+x.last,"ok");detail.textContent+=(detail.textContent?"\n":"")+assets[i]+" → "+x.symbol+" → "+x.candles+" candles → live tick received";}
+  catch(e){set(i,"FAIL • "+(e.message||e),"bad");detail.textContent+=(detail.textContent?"\n":"")+assets[i]+" → "+(e.message||e)}
+ }
+ summary.textContent=pass+" / "+assets.length+" passed. Only PASS assets should be promoted to customer-facing LIVE.";
+ document.getElementById("run").disabled=false;
+};
+</script></body></html>
