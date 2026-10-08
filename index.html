@@ -2359,9 +2359,21 @@ b.innerHTML="<span class=\"gtxStaticAssetMain\"><span class=\"gtxStaticAssetFlag
 b.addEventListener("click",function(e){
 e.preventDefault();e.stopImmediatePropagation();
 var clean=pair;
-try{localStorage.setItem("gotradex_market_mode",mode());localStorage.setItem("gotradex_asset_display",clean);localStorage.setItem("gotradex_asset_type",type.toLowerCase());localStorage.setItem("gotradex_chart_symbol",clean.replace(/[^A-Za-z0-9]/g,"").toUpperCase())}catch(_){}
-try{window.GoTradeXLiveChart&&window.GoTradeXLiveChart.setAsset&&window.GoTradeXLiveChart.setAsset(clean,type.toLowerCase(),mode())}catch(_){}
-try{window.dispatchEvent(new CustomEvent("gotradex:asset-changed",{detail:{label:clean,type:type.toLowerCase(),mode:mode(),source:"assets-static-rescue"}}))}catch(_){}
+try{
+  if(typeof window.gtxSetBottomAsset==="function"){
+    window.gtxSetBottomAsset(clean,type.toLowerCase());
+  }else{
+    var pairEl=document.getElementById("bottomAssetPair"), modeEl=document.getElementById("bottomAssetMode");
+    if(pairEl)pairEl.textContent=clean;
+    if(modeEl)modeEl.textContent=mode();
+    localStorage.setItem("gotradex_market_mode",mode());
+    localStorage.setItem("gotradex_asset_display",clean);
+    localStorage.setItem("gotradex_asset_type",type.toLowerCase());
+    localStorage.setItem("gotradex_chart_symbol",clean.replace(/[^A-Za-z0-9]/g,"").toUpperCase());
+    try{window.GoTradeXLiveChart&&window.GoTradeXLiveChart.setAsset&&window.GoTradeXLiveChart.setAsset(clean,type.toLowerCase(),mode())}catch(_){}
+    window.dispatchEvent(new CustomEvent("gotradex:asset-changed",{detail:{label:clean,type:type.toLowerCase(),mode:mode(),source:"assets-static-rescue"}}));
+  }
+}catch(_){}
 drawer.classList.remove("open");
 });
 old.appendChild(b);
