@@ -2303,7 +2303,12 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 <style id="gtx-assets-static-rescue-style">
 #assetDrawer .gtxStaticAssetList{display:none!important;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0 12px;padding:2px}
 #assetDrawer .gtxStaticAssetList.gtxStaticOpen{display:grid!important}
-#assetDrawer .gtxStaticAsset{display:flex!important;align-items:center;justify-content:space-between;min-height:43px;width:100%;padding:8px 9px;border:1px solid #23466d;border-radius:9px;background:#0b2038;color:#fff}
+#assetDrawer .gtxStaticAsset{display:flex!important;align-items:center;justify-content:space-between;min-height:43px;width:100%;padding:8px 9px;border:1px solid #23466d;border-radius:9px;background:#0b2038;color:#fff;text-align:left}
+#assetDrawer .gtxStaticAssetMain{display:flex;align-items:center;gap:6px;min-width:0}
+#assetDrawer .gtxStaticAssetFlags{font-size:17px;white-space:nowrap;letter-spacing:-2px}
+#assetDrawer .gtxStaticAssetName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#assetDrawer .gtxStaticAssetScore{font-weight:800;font-size:12px;color:#ffd54a;white-space:nowrap;margin-left:7px}
+#assetDrawer .gtxStaticAssetStatus{font-size:10px;font-weight:700;opacity:.9;white-space:nowrap;margin-left:5px}
 @media(max-width:390px){#assetDrawer .gtxStaticAssetList{grid-template-columns:1fr}}
 </style>
 <script id="gtx-assets-static-rescue">
@@ -2324,18 +2329,33 @@ if(type==="Forex")return "💱";
 if(type==="Commodities")return /XAU/.test(p)?"🥇":/XAG/.test(p)?"🥈":/OIL/.test(p)?"🛢️":/GAS/.test(p)?"🔥":"⛏️";
 if(type==="Indices")return "📊"; return "📈";
 }
+function flags(pair,type){
+var p=String(pair).toUpperCase();
+if(type==="Forex"){
+var f={EUR:"🇪🇺",GBP:"🇬🇧",USD:"🇺🇸",JPY:"🇯🇵",AUD:"🇦🇺",CHF:"🇨🇭",CAD:"🇨🇦",NZD:"🇳🇿",ZAR:"🇿🇦",MXN:"🇲🇽"};
+var a=p.split("/"); return (f[a[0]]||"🌐")+(f[a[1]]||"🌐");
+}
+if(type==="Stocks")return "🇺🇸";
+if(type==="Indices"){
+var m={US30:"🇺🇸",US500:"🇺🇸",NAS100:"🇺🇸",SPX:"🇺🇸",RUSSELL2000:"🇺🇸",UK100:"🇬🇧",FTSE:"🇬🇧",GER40:"🇩🇪",DAX:"🇩🇪",FRA40:"🇫🇷",CAC40:"🇫🇷",JPN225:"🇯🇵",NIKKEI:"🇯🇵",AUS200:"🇦🇺",HK50:"🇭🇰",EU50:"🇪🇺",SA40:"🇿🇦",VIX:"🇺🇸"}; return m[p]||"🌐";
+}
+return "🌐";
+}
+var scoreMap={"EUR/USD":98,"GBP/USD":82,"USD/JPY":90,"AUD/USD":92,"USD/CHF":88,"USD/CAD":87,"NZD/USD":85,"EUR/GBP":94,"EUR/JPY":91,"GBP/JPY":89,"EUR/CHF":90,"AUD/JPY":88,"AUD/CAD":86,"AUD/NZD":84,"USD/ZAR":93,"EUR/AUD":87,"GBP/AUD":84,"NZD/JPY":83,"CAD/JPY":85,"CHF/JPY":86,"EUR/CAD":84,"EUR/NZD":82,"GBP/CAD":81,"GBP/CHF":83,"GBP/NZD":80,"AUD/CHF":82,"USD/MXN":91,"BTC/USD":98,"ETH/USD":96,"XRP/USD":94,"SOL/USD":93,"DOGE/USD":91,"ADA/USD":90,"BNB/USD":92,"AVAX/USD":89,"DOT/USD":88,"LINK/USD":90,"LTC/USD":78};
+function score(pair,type){return scoreMap[pair]||({Stocks:94,Commodities:90,Indices:92}[type]||90);}
+
 function mode(){try{return String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE"}catch(e){return "LIVE"}}
 function build(){
 var drawer=document.getElementById("assetDrawer"); if(!drawer)return;
 Object.keys(map).forEach(function(id){
 var old=document.getElementById(id), type=map[id]; if(!old)return;
 old.innerHTML=""; old.className="gtxStaticAssetList";
-old.removeAttribute("hidden");
+old.hidden=true;
 data[type].forEach(function(pair){
 var b=document.createElement("button"); b.type="button"; b.className="gtxStaticAsset";
 b.dataset.asset=pair; b.dataset.assetType=type.toLowerCase();
 var label=pair+(mode()==="OTC"?" OTC":"");
-b.innerHTML="<span>"+icon(pair,type)+" &nbsp;<strong>"+label+"</strong></span><span>"+(type==="Forex"||type==="Crypto"?"LIVE":"ASSET")+"</span>";
+b.innerHTML="<span class=\"gtxStaticAssetMain\"><span class=\"gtxStaticAssetFlags\">"+flags(pair,type)+"</span><span class=\"gtxStaticAssetName\">"+icon(pair,type)+" &nbsp;<strong>"+label+"</strong></span></span><span><span class=\"gtxStaticAssetScore\">"+score(pair,type)+"%</span> <span class=\"gtxStaticAssetStatus\">"+(type==="Forex"||type==="Crypto"?"LIVE":"ASSET")+"</span></span>";
 b.addEventListener("click",function(e){
 e.preventDefault();e.stopImmediatePropagation();
 var clean=pair;
@@ -2348,7 +2368,7 @@ old.appendChild(b);
 });
 });
 }
-function closeLists(){document.querySelectorAll("#assetDrawer .gtxStaticAssetList").forEach(function(x){x.classList.remove("gtxStaticOpen")});document.querySelectorAll("#assetDrawer .gtxAssetCategory").forEach(function(x){x.setAttribute("aria-expanded","false")})}
+function closeLists(){document.querySelectorAll("#assetDrawer .gtxStaticAssetList").forEach(function(x){x.classList.remove("gtxStaticOpen");x.hidden=true});document.querySelectorAll("#assetDrawer .gtxAssetCategory").forEach(function(x){x.setAttribute("aria-expanded","false")})}
 function install(){
 build();
 document.addEventListener("click",function(e){
@@ -2358,7 +2378,7 @@ if(cat){
 e.preventDefault();e.stopImmediatePropagation();
 var id=cat.getAttribute("data-asset-category"), list=document.getElementById(id), was=cat.getAttribute("aria-expanded")==="true";
 closeLists();
-if(!was&&list){list.classList.add("gtxStaticOpen");cat.setAttribute("aria-expanded","true");}
+if(!was&&list){list.hidden=false;list.classList.add("gtxStaticOpen");cat.setAttribute("aria-expanded","true");}
 return;
 }
 var sw=t&&t.closest?t.closest("#assetDrawer #gtxAssetMarketSwitch [data-mode]"):null;
