@@ -2537,15 +2537,27 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 <script id="gtx-dual-expiration-portal-controller">
 (function(){
 "use strict";
-var intervals={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400};
-function byId(id){return document.getElementById(id)}
-function readTradeDuration(){var b=byId("timeBtn");return String(b&&b.textContent||"5 Seconds").replace(/\s*▾\s*$/,"").trim()}
-function chartState(){return window.GoTradeXLiveChart&&window.GoTradeXLiveChart.state||null}
-function currentChartInterval(){var st=chartState();if(st&&st.tf&&intervals[st.tf])return st.tf;try{var saved=localStorage.getItem("gotradex_chart_timeframe");if(intervals[saved])return saved}catch(_){}return "5 Minutes"}
-function syncInterval(){var tf=currentChartInterval(),choices=byId("gtxCandleTimeChoices");if(choices){choices.querySelectorAll("button").forEach(function(b){b.classList.toggle("active",b.dataset.tf===tf)})}}
-function syncSignalOptions(){var list=byId("times");if(!list)return;list.querySelectorAll(".option").forEach(function(b){var on=b.textContent.trim()===readTradeDuration();b.classList.toggle("gtxTimeSelected",on);b.setAttribute("aria-pressed",on?"true":"false")})}
-function chooseInterval(){var choices=byId("gtxCandleTimeChoices");if(!choices)return;choices.replaceChildren();Object.keys(intervals).forEach(function(tf){var b=document.createElement("button");b.type="button";b.className="gtxCandleTimeChoice";b.textContent=tf;b.dataset.tf=tf;b.addEventListener("click",function(){try{localStorage.setItem("gotradex_chart_timeframe",tf)}catch(_){}var api=window.GoTradeXLiveChart;if(api&&typeof api.setTimeframe==="function"){api.setTimeframe(tf)}syncInterval()});choices.appendChild(b)})}
-function install(){var times=byId("times");if(times){times.addEventListener("click",function(e){if(e.target&&e.target.closest&&e.target.closest(".option"))setTimeout(syncSignalOptions,0)});var mo=new MutationObserver(syncSignalOptions);mo.observe(times,{childList:true,subtree:true})}var timeBtn=byId("timeBtn");if(timeBtn)new MutationObserver(syncSignalOptions).observe(timeBtn,{childList:true,characterData:true,subtree:true});chooseInterval();syncSignalOptions();syncInterval();setInterval(syncInterval,500)}
+var signal=["5 Seconds","15 Seconds","30 Seconds","1 Minute","2 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day"];
+var candles={"5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400};
+var lastApplied="";
+function el(id){return document.getElementById(id)}
+function saved(){try{var x=localStorage.getItem("gotradex_chart_timeframe");if(candles[x])return x}catch(e){}return "5 Minutes"}
+function api(){return window.GoTradeXLiveChart||null}
+function paint(){var selected=saved(),box=el("gtxCandleTimeChoices");if(box)box.querySelectorAll("button").forEach(function(b){b.classList.toggle("active",b.dataset.tf===selected)})}
+function syncChart(){var a=api();if(!a||typeof a.setTimeframe!=="function")return;var tf=saved(),st=a.state||{};if(st.tf!==tf&&lastApplied!==tf){lastApplied=tf;try{a.setTimeframe(tf)}catch(e){lastApplied=""}}if(st.tf===tf)lastApplied=tf;paint()}
+function build(){
+ var list=el("times");
+ if(list&&!list.querySelector(".option"))signal.forEach(function(t){var b=document.createElement("button");b.type="button";b.className="option";b.textContent=t;list.appendChild(b)});
+ if(list)list.querySelectorAll(".option").forEach(function(b){b.style.setProperty("display","flex","important");b.style.setProperty("visibility","visible","important")});
+ var box=el("gtxCandleTimeChoices");if(box){box.replaceChildren();Object.keys(candles).forEach(function(t){var b=document.createElement("button");b.type="button";b.className="gtxCandleTimeChoice";b.textContent=t;b.dataset.tf=t;b.addEventListener("click",function(){try{localStorage.setItem("gotradex_chart_timeframe",t)}catch(e){}lastApplied=t;var a=api();if(a&&typeof a.setTimeframe==="function"){try{a.setTimeframe(t)}catch(e){lastApplied=""}}paint();setTimeout(syncChart,350)});box.appendChild(b)})}
+ paint();
+}
+function install(){
+ build();
+ var list=el("times");if(list)list.addEventListener("click",function(e){var b=e.target&&e.target.closest?e.target.closest(".option"):null;if(!b||!list.contains(b))return;var t=b.textContent.trim();if(signal.indexOf(t)<0)return;var btn=el("timeBtn");if(btn)btn.textContent=t+" ▾";list.querySelectorAll(".option").forEach(function(x){x.classList.toggle("gtxTimeSelected",x===b)});var drawer=el("timeDrawer");if(drawer)drawer.classList.remove("open")});
+ var btn=el("timeBtn");if(btn)new MutationObserver(function(){var t=String(btn.textContent||"").replace(/\s*▾\s*$/,"").trim();if(list)list.querySelectorAll(".option").forEach(function(x){x.classList.toggle("gtxTimeSelected",x.textContent.trim()===t)})}).observe(btn,{childList:true,characterData:true,subtree:true});
+ syncChart();setInterval(syncChart,700);
+}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 })();
 </script>
