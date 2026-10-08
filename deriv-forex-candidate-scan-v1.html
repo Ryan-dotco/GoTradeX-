@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoTradeX — Deriv Forex Candidate Scan</title>
+<style>body{margin:0;background:#061426;color:#fff;font-family:system-ui,sans-serif;padding:18px}h1{font-size:20px}.note{color:#9bb1c9;line-height:1.5}.run{background:#176fca;color:#fff;border:0;border-radius:9px;padding:12px 16px;font-weight:800}.card{background:#102945;border:1px solid #23466d;border-radius:10px;padding:12px;margin-top:10px}.pass{color:#35d07f}.fail{color:#ff7676}.wait{color:#ffd45a}.sym{font-weight:800}.small{font-size:12px;color:#9bb1c9}</style></head>
+<body><h1>GoTradeX — Deriv Forex Candidate Scan</h1>
+<p class="note"><b>Diagnostic only.</b> No LIVE inventory, main, wallet, trades, AutoBot, admin, or chart code is changed.</p>
+<p class="note">The scanner first asks Deriv for its current active Forex symbols, removes the existing 27 verified GoTradeX pairs, then tests each remaining candidate for at least 12 real 1-minute OHLC candles and a live tick price.</p>
+<button class="run" id="run">SCAN DERIV FOREX CANDIDATES</button><div id="summary" class="note"></div><div id="grid"></div>
+<script>
+const WS="wss://api.derivws.com/trading/v1/options/ws/public";
+const verified=new Set(["EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CHF","USD/CAD","NZD/USD","EUR/GBP","EUR/JPY","GBP/JPY","EUR/CHF","AUD/JPY","AUD/CAD","AUD/NZD","USD/ZAR","EUR/AUD","GBP/AUD","NZD/JPY","CAD/JPY","CHF/JPY","EUR/CAD","EUR/NZD","GBP/CAD","GBP/CHF","GBP/NZD","AUD/CHF","USD/MXN"]);
+function req(payload,match,timeout=12000){return new Promise((resolve,reject)=>{let ws,done=false,timer;const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{ws&&ws.close()}catch(e){}fn(v)};try{ws=new WebSocket(WS)}catch(e){return reject(e)}timer=setTimeout(()=>finish(reject,new Error("timeout")),timeout);ws.onopen=()=>ws.send(JSON.stringify(payload));ws.onerror=()=>finish(reject,new Error("connection failed"));ws.onclose=()=>{if(!done)finish(reject,new Error("connection closed"))};ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.error)return finish(reject,new Error(d.error.message||"Deriv error"));if(match(d))finish(resolve,d)}catch(e){}}})}
+function add(text,cls=""){const d=document.createElement("div");d.className="card "+cls;d.innerHTML=text;document.getElementById("grid").appendChild(d);return d}
+async function test(x){
+ const symbol=String(x.underlying_symbol||"");const name=String(x.underlying_symbol_name||"");
+ try{
+  const h=await req({ticks_history:symbol,end:"latest",count:100,granularity:60,style:"candles",req_id:2},d=>d.msg_type==="candles");
+  const c=(h.candles||[]).filter(v=>[v.open,v.high,v.low,v.close].every(n=>Number.isFinite(Number(n))));
+  if(c.length<12)return {ok:false,reason:"only "+c.length+" valid 1-minute candles"};
+  const t=await req({ticks:symbol,subscribe:1,req_id:3},d=>d.msg_type==="tick"&&d.tick&&d.tick.quote!=null);
+  const p=Number(t.tick.quote);if(!(p>0))return {ok:false,reason:"invalid live price"};
+  return {ok:true,reason:c.length+" candles + live price "+p};
+ }catch(e){return {ok:false,reason:e.message||String(e)}}
+}
+document.getElementById("run").onclick=async()=>{
+ const btn=document.getElementById("run");btn.disabled=true;document.getElementById("grid").innerHTML="";document.getElementById("summary").textContent="Loading current Deriv active symbols…";
+ try{
+  const a=await req({active_symbols:"brief",req_id:1},d=>d.msg_type==="active_symbols");
+  const candidates=(a.active_symbols||[]).filter(x=>String(x.underlying_symbol_type||"").toLowerCase()==="forex"&&!verified.has(String(x.underlying_symbol_name||"").trim().toUpperCase()));
+  document.getElementById("summary").textContent="Found "+candidates.length+" active Deriv Forex candidates outside the 27 verified pairs. Testing sequentially…";
+  let passed=0;
+  for(const x of candidates){
+   const el=add("<b>"+String(x.underlying_symbol_name||"")+"</b> <span class='small'>"+String(x.underlying_symbol||"")+"</span><div class='wait'>Testing candles and live price…</div>");
+   const r=await test(x);el.innerHTML="<b>"+String(x.underlying_symbol_name||"")+"</b> <span class='small'>"+String(x.underlying_symbol||"")+"</span><div class='"+(r.ok?"pass":"fail")+"'>"+(r.ok?"PASS":"FAIL")+" • "+r.reason+"</div>";if(r.ok)passed++;
+  }
+  document.getElementById("summary").textContent="Scan complete: "+passed+" candidate(s) passed the full standard. No inventory was changed.";
+ }catch(e){document.getElementById("summary").innerHTML="<span class='fail'>SCAN ERROR • "+(e.message||e)+"</span>"}btn.disabled=false;
+};
+</script></body></html>
