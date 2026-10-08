@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GoTradeX — Deriv Market Feed Test</title>
+<title>GoTradeX — Deriv Market Feed Test v3</title>
 <style>
 body{font-family:Arial,sans-serif;background:#0b1020;color:#fff;margin:0;padding:16px}
 h1{font-size:20px;margin:0 0 6px}.note{color:#aeb8cc;font-size:13px;margin-bottom:14px}
@@ -15,7 +15,7 @@ canvas{width:100%;height:260px;background:#0d1424;border:1px solid #202b43;borde
 </style>
 </head>
 <body>
-<h1>GoTradeX — Deriv LIVE feed diagnostic</h1>
+<h1>GoTradeX — Deriv LIVE feed diagnostic <small style="font-size:11px;color:#62a0ff">v3</small></h1>
 <div class="note">Isolated test branch only. This does not change GoTradeX main.</div>
 <div id="buttons" class="grid"></div>
 <div>
@@ -103,7 +103,7 @@ function select(name,symbol){
   activePair={name,symbol}; candles=[];tickCount=0; draw();
   $('buttons').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.symbol===symbol));
   status(name+' — requesting 20 x 1m historical candles...');
-  send({ticks_history:symbol,end:'latest',count:20,granularity:60,style:'candles',subscribe:0});
+  send({ticks_history:symbol,end:'latest',count:20,granularity:60,style:'candles'});
   send({ticks:symbol,subscribe:1});
 }
 function draw(){
