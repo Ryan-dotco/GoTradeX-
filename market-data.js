@@ -23,7 +23,7 @@
     "ALGO/USD":"ALGOUSDT"
   };
 
-  const derivMap = {"EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD"};
+  const derivMap = {"EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD","USD/ZAR":"frxUSDZAR","EUR/AUD":"frxEURAUD","GBP/AUD":"frxGBPAUD","NZD/JPY":"frxNZDJPY","CAD/JPY":"frxCADJPY","CHF/JPY":"frxCHFJPY"};
 
   const directTwelve = {
     "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
