@@ -49,7 +49,7 @@ function connect(){
     status('Connected to Deriv WebSocket');
     log('[WS] connected: '+url);
     send({time:1});
-    send({active_symbols:'brief',product_type:'basic'});
+    send({active_symbols:'brief'});
   };
   ws.onclose=e=>{
     status('Disconnected');
@@ -71,12 +71,17 @@ function handle(d){
   if(d.error){log('[ERROR] '+(d.error.code||'')+' '+(d.error.message||JSON.stringify(d.error)));return}
   if(d.msg_type==='time'){log('[SERVER TIME] '+new Date(Number(d.time)*1000).toISOString());}
   if(d.msg_type==='active_symbols'){
-    const found=pairs.map(([name,symbol])=>name+':'+(d.active_symbols.some(x=>x.symbol===symbol)?'AVAILABLE':'NOT FOUND')).join(' | ');
+    const list=d.active_symbols||[];
+    const found=pairs.map(([name,symbol])=>{
+      const hit=list.find(x=>(x.underlying_symbol||x.symbol)===symbol);
+      return name+':'+(hit?'AVAILABLE':'NOT FOUND');
+    }).join(' | ');
     log('[SYMBOL CHECK] '+found);
   }
-  if(d.msg_type==='history'){
+  if((d.msg_type==='candles'||d.msg_type==='history') && activePair){
     const arr=d.candles||[];
-    if(activePair && d.echo_req && d.echo_req.ticks_history===activePair.symbol){
+    const echoed=d.echo_req&&d.echo_req.ticks_history;
+    if(!echoed || echoed===activePair.symbol){
       candles=arr.map(x=>({t:+x.epoch,o:+x.open,h:+x.high,l:+x.low,c:+x.close}));
       status(activePair.name+' — historical candles: '+candles.length);
       draw(); log('[HISTORY] '+activePair.name+' '+candles.length+' x 1m candles');
