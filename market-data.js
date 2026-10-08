@@ -23,6 +23,8 @@
     "ALGO/USD":"ALGOUSDT"
   };
 
+  const derivMap = {"EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD"};
+
   const directTwelve = {
     "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
     "AUD/USD":"AUD/USD","USD/CAD":"USD/CAD","NZD/USD":"NZD/USD","EUR/GBP":"EUR/GBP",
@@ -74,6 +76,7 @@
     const t=inferredType;
     if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
+    if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
     // Use the selected asset native symbol through the verified Twelve Data adapter.
     // Do not substitute BTC candles for another market.
     if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
@@ -184,7 +187,79 @@
     }};
   }
 
+
+  const DERIV_WS="wss://api.derivws.com/trading/v1/options/ws/public";
+
+  function derivCandleHistory(symbol,sec){
+    return new Promise((resolve,reject)=>{
+      if(!Number.isFinite(sec)||sec<60) return resolve([]);
+      let ws=null,done=false,timer=null;
+      const finish=(fn,value)=>{
+        if(done)return;done=true;if(timer)clearTimeout(timer);
+        try{ws?.close()}catch(_){}
+        fn(value);
+      };
+      try{ws=new WebSocket(DERIV_WS)}catch(e){return reject(e)}
+      timer=setTimeout(()=>finish(reject,new Error("Deriv history request timed out.")),10000);
+      ws.onopen=()=>{
+        ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}));
+      };
+      ws.onerror=()=>finish(reject,new Error("Deriv historical candle connection failed."));
+      ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv historical candle connection closed."))};
+      ws.onmessage=e=>{
+        try{
+          const d=JSON.parse(e.data);
+          if(d.error)return finish(reject,new Error(d.error.message||"Deriv historical candle request failed."));
+          if((d.msg_type==="candles"||d.msg_type==="history")&&Array.isArray(d.candles)){
+            const candles=d.candles.map(x=>({t:Number(x.epoch)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:0}))
+              .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+            return finish(resolve,candles);
+          }
+        }catch(_){}
+      };
+    });
+  }
+
+  function derivSocket(symbol,onTick,onStatus){
+    let stopped=false,ws=null,subId=null,reconnectTimer=null;
+    const connect=()=>{
+      if(stopped)return;
+      try{ws=new WebSocket(DERIV_WS)}catch(e){onStatus("DERIV CONNECTION ERROR",false);return}
+      onStatus("CONNECTING • DERIV",false);
+      ws.onopen=()=>{
+        if(stopped){try{ws.close()}catch(_){};return}
+        onStatus("LIVE • DERIV",true);
+        ws.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:2}));
+      };
+      ws.onmessage=e=>{
+        if(stopped)return;
+        try{
+          const d=JSON.parse(e.data);
+          if(d.error){onStatus("DERIV FEED ERROR",false);return}
+          if(d.msg_type==="tick"&&d.tick&&d.tick.symbol===symbol){
+            if(d.tick.subscription?.id)subId=d.tick.subscription.id;
+            const price=Number(d.tick.quote),time=Number(d.tick.epoch)*1000;
+            if(Number.isFinite(price)&&Number.isFinite(time))onTick({price,time});
+          }
+        }catch(_){}
+      };
+      ws.onerror=()=>{if(!stopped)onStatus("DERIV FEED ERROR",false)};
+      ws.onclose=()=>{
+        if(stopped)return;
+        onStatus("RECONNECTING • DERIV",false);
+        clearTimeout(reconnectTimer);
+        reconnectTimer=setTimeout(connect,2500);
+      };
+    };
+    connect();
+    return {close(){
+      stopped=true;clearTimeout(reconnectTimer);
+      try{if(subId&&ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({forget:subId,req_id:99}))}catch(_){}
+      try{ws?.close()}catch(_){}
+    }};
+  }
+
   window.GoTradeXMarketFeeds={
-    config:CFG,key,resolve,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,intervals
+    config:CFG,key,resolve,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
   };
 })();

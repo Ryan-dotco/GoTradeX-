@@ -244,6 +244,50 @@
     });
   }
 
+
+  function connectDeriv(){
+    const id=++state.connectionId;
+    closeSocket();
+    const f=selection();
+    if(!f.available||f.provider!=="DERIV"){
+      state.connected=false;status("NO VERIFIED DERIV FEED",false);
+      notice(f.reason||"Selected FX pair is not available through the verified Deriv feed.",true);
+      return;
+    }
+    state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
+    state.connected=false;status("LOADING • DERIV",false);
+    notice("Loading verified Deriv historical candles…",true);
+    feed().derivCandleHistory(f.symbol,state.sec).then(async history=>{
+      if(id!==state.connectionId)return;
+      state.candles=Array.isArray(history)?history:[];
+      if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
+      if(!historyReady()){
+        state.connected=false;status("WAITING FOR HISTORY",false);
+        notice("Deriv returned fewer than 12 historical candles for this timeframe.",true);
+        return;
+      }
+      renderHistory();
+      const socket=feed().derivSocket(f.symbol,
+        tick=>{
+          if(id!==state.connectionId)return;
+          addTick(tick.time,tick.price,0);
+        },
+        (msg,ok)=>{
+          if(id!==state.connectionId)return;
+          state.connected=!!ok;
+          status(msg,!!ok);
+          if(ok)notice("",false);
+        }
+      );
+      if(id!==state.connectionId){try{socket.close()}catch(_){}return}
+      state.ws=socket;
+    }).catch(e=>{
+      if(id!==state.connectionId)return;
+      state.connected=false;status("DERIV FEED ERROR",false);
+      notice(e.message||"Unable to read verified Deriv market data.",true);
+    });
+  }
+
   function connectTwelve(){
     const id=++state.connectionId;
     closeSocket();
@@ -348,6 +392,7 @@
       return;
     }
     if(f.provider==="BYBIT")connectBybit();
+    else if(f.provider==="DERIV")connectDeriv();
     else if(String(f.provider).startsWith("TWELVE_DATA"))connectTwelve();
     else{closeSocket();state.connected=false;status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified live feed is connected for this asset.",true)}
   }
