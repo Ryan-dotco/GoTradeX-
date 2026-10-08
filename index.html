@@ -2283,8 +2283,14 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         e.preventDefault();
         e.stopImmediatePropagation();
         const id=cat.getAttribute("data-asset-category");
-        const open=cat.getAttribute("aria-expanded")==="true";
-        if(open)closeAll();else openOne(id);
+        const list=id&&document.getElementById(id);
+        /* Use the rendered list state too: older handlers can leave aria-expanded out of sync. */
+        const open=!!(list && !list.hidden && (
+          list.classList.contains("gtxStaticOpen") ||
+          (list.style.display && list.style.display!=="none") ||
+          cat.getAttribute("aria-expanded")==="true"));
+        closeAll();
+        if(!open)openOne(id);
         return;
       }
       const sw=target&&target.closest?target.closest("#assetDrawer #gtxAssetMarketSwitch [data-mode]"):null;
