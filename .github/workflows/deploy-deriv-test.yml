@@ -1,4 +1,4 @@
-name: Deploy Deriv LIVE Market Test
+name: Verify Deriv LIVE Market Test
 
 on:
   push:
@@ -8,34 +8,26 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout isolated test branch
         uses: actions/checkout@v6
 
-      - name: Prepare standalone test page
-        run: cp deriv-market-test.html index.html
+      - name: Verify standalone Deriv test page
+        run: |
+          test -s deriv-market-test.html
+          grep -q "Deriv LIVE feed diagnostic" deriv-market-test.html
+          grep -q "wss://ws.binaryws.com/websockets/v3" deriv-market-test.html
 
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload test page
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-
-      - name: Deploy test page
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish standalone test link
+        run: |
+          {
+            echo "## Standalone Deriv LIVE Market Test"
+            echo
+            echo "The production GitHub Pages site was not changed."
+            echo
+            echo "[Open the isolated Deriv test](https://cdn.jsdelivr.net/gh/Ryan-dotco/GoTradeX-@test-deriv-market-feed-20261008/deriv-market-test.html)"
+          } >> "$GITHUB_STEP_SUMMARY"
