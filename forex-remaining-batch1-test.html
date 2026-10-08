@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoTradeX — Remaining Forex LIVE Verification</title>
+<style>
+body{margin:0;background:#061426;color:#fff;font-family:system-ui,sans-serif;padding:18px}
+h1{font-size:20px}.note{color:#9bb1c9;line-height:1.5}.run{background:#176fca;color:#fff;border:0;border-radius:9px;padding:12px 16px;font-weight:800}
+.grid{display:grid;gap:10px;margin-top:16px}.card{background:#102945;border:1px solid #23466d;border-radius:10px;padding:12px}.name{font-weight:900}.status{margin-top:6px;color:#9bb1c9;font-size:12px}.pass{color:#35d07f}.fail{color:#ff7676}
+</style></head><body>
+<h1>GoTradeX — Remaining Forex LIVE Verification</h1>
+<p class="note">Batch 1 • CAD/CHF, USD/SGD, USD/HKD, EUR/ZAR, GBP/ZAR, USD/TRY, USD/NOK</p>
+<p class="note"><b>PASS requires:</b> ≥12 real historical candles, correct Deriv symbol data, and a live tick. No synthetic candles and no BTC/other-pair substitution.</p>
+<button class="run" id="run">Run batch diagnostic</button>
+<div id="summary" class="note"></div><div id="grid" class="grid"></div>
+<script>
+const assets=[
+ ["CAD/CHF","frxCADCHF"],["USD/SGD","frxUSDSGD"],["USD/HKD","frxUSDHKD"],
+ ["EUR/ZAR","frxEURZAR"],["GBP/ZAR","frxGBPZAR"],["USD/TRY","frxUSDTRY"],["USD/NOK","frxUSDNOK"]
+];
+const WS="wss://api.derivws.com/trading/v1/options/ws/public";
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function card(label){const d=document.createElement("div");d.className="card";d.innerHTML='<div class="name">'+label+'</div><div class="status">Waiting…</div>';document.getElementById("grid").appendChild(d);return d.querySelector(".status")}
+function requestHistory(symbol){
+ return new Promise((resolve,reject)=>{
+  let ws,done=false,timer;
+  const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{ws&&ws.close()}catch(e){}fn(v)};
+  try{ws=new WebSocket(WS)}catch(e){return reject(e)}
+  timer=setTimeout(()=>finish(reject,new Error("Historical candle request timed out.")),12000);
+  ws.onopen=()=>ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:100,granularity:60,style:"candles",req_id:1}));
+  ws.onerror=()=>finish(reject,new Error("Deriv historical connection failed."));
+  ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv historical connection closed."))};
+  ws.onmessage=e=>{try{
+   const d=JSON.parse(e.data);
+   if(d.error)return finish(reject,new Error(d.error.message||"Historical request failed."));
+   if(d.msg_type==="candles"&&Array.isArray(d.candles)){
+    const c=d.candles.map(x=>[x.epoch,x.open,x.high,x.low,x.close]).filter(x=>x.every(v=>Number.isFinite(Number(v))));
+    if(c.length>=12)finish(resolve,c); else finish(reject,new Error("Only "+c.length+" verified candles returned."));
+   }
+  }catch(e){}};
+ });
+}
+function requestTick(symbol){
+ return new Promise((resolve,reject)=>{
+  let ws,done=false,timer;
+  const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{ws&&ws.close()}catch(e){}fn(v)};
+  try{ws=new WebSocket(WS)}catch(e){return reject(e)}
+  timer=setTimeout(()=>finish(reject,new Error("Live Deriv tick timeout after 12s.")),12000);
+  ws.onopen=()=>ws.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:2}));
+  ws.onerror=()=>finish(reject,new Error("Deriv live tick connection failed."));
+  ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv live tick connection closed."))};
+  ws.onmessage=e=>{try{
+   const d=JSON.parse(e.data);
+   if(d.error)return finish(reject,new Error(d.error.message||"Live tick request failed."));
+   if(d.msg_type==="tick"&&Number.isFinite(Number(d.tick&&d.tick.quote)))finish(resolve,Number(d.tick.quote));
+  }catch(e){}};
+ });
+}
+async function testOne(i){
+ const [label,symbol]=assets[i],s=card(label);
+ s.textContent="Checking verified historical candles…";
+ try{
+  const candles=await requestHistory(symbol);
+  s.textContent=candles.length+" candles verified. Checking live tick…";
+  const price=await requestTick(symbol);
+  s.className="status pass";
+  s.textContent="PASS • "+candles.length+" candles • live tick "+price;
+  return true;
+ }catch(e){
+  s.className="status fail";s.textContent="FAIL • "+(e.message||e);
+  return false;
+ }
+}
+document.getElementById("run").onclick=async()=>{
+ document.getElementById("run").disabled=true;document.getElementById("grid").innerHTML="";
+ let pass=0;
+ for(let i=0;i<assets.length;i++){if(await testOne(i))pass++;await sleep(200)}
+ document.getElementById("summary").textContent=pass+" / "+assets.length+" passed. Only PASS assets should be promoted to customer-facing LIVE.";
+ document.getElementById("run").disabled=false;
+};
+</script></body></html>
