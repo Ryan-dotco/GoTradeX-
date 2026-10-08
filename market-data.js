@@ -23,7 +23,17 @@
     "ALGO/USD":"ALGOUSDT"
   };
 
-  const derivMap = {"EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD"};
+  // Only pairs verified by the standalone Deriv test AND GoTradeX isolated app test.
+  const derivMap = {
+    "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
+    "USD/CHF":"frxUSDCHF","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
+    "EUR/JPY":"frxEURJPY","GBP/JPY":"frxGBPJPY","EUR/CHF":"frxEURCHF","AUD/JPY":"frxAUDJPY",
+    "AUD/CAD":"frxAUDCAD","AUD/NZD":"frxAUDNZD",
+    "USD/ZAR":"frxUSDZAR","EUR/AUD":"frxEURAUD","GBP/AUD":"frxGBPAUD","NZD/JPY":"frxNZDJPY",
+    "CAD/JPY":"frxCADJPY","CHF/JPY":"frxCHFJPY",
+    "EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF",
+    "GBP/NZD":"frxGBPNZD","AUD/CHF":"frxAUDCHF","USD/MXN":"frxUSDMXN"
+  };
 
   const directTwelve = {
     "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
@@ -51,9 +61,6 @@
 
   function label(){
     try{
-      // The stored asset is the authoritative selection. Never infer a new asset
-      // from the legacy pairName button, because that element is also used by
-      // the chart UI and may still contain its initial BTC/USD text during boot.
       const stored=String(localStorage.getItem("gotradex_asset_display")||"").trim();
       if(stored)return stored.replace(/\s+OTC$/i,"");
       const visible=String(document.getElementById("bottomAssetPair")?.textContent||"").trim().replace(/\s+OTC$/i,"");
@@ -77,13 +84,9 @@
     if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
     if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
-    // Use the selected asset native symbol through the verified Twelve Data adapter.
-    // Do not substitute BTC candles for another market.
     if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
     if(t==="forex" && /^[A-Z]{3}\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
     if(t==="stocks" && /^[A-Z]{1,6}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    // All listed non-crypto assets are candidates for verified Twelve Data discovery.
-    // The chart layer will confirm the exact provider symbol before rendering.
     if(t==="commodities" || t==="metals" || t==="indices") return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
     return {available:false,provider:"NONE",reason:"No verified native feed is configured for "+l+".",label:l,type:t};
   }
@@ -142,8 +145,6 @@
     };
     const startFallback=async()=>{
       if(stopped||timer)return;
-      // Free Basic has only 8 API credits/minute. Keep HTTP polling conservative;
-      // the WebSocket is preferred because it is server-pushed and much faster.
       await poll();
       if(stopped)return;
       timer=setInterval(poll,15000);
@@ -187,7 +188,6 @@
     }};
   }
 
-
   const DERIV_WS="wss://api.derivws.com/trading/v1/options/ws/public";
 
   function derivCandleHistory(symbol,sec){
@@ -201,9 +201,7 @@
       };
       try{ws=new WebSocket(DERIV_WS)}catch(e){return reject(e)}
       timer=setTimeout(()=>finish(reject,new Error("Deriv history request timed out.")),10000);
-      ws.onopen=()=>{
-        ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}));
-      };
+      ws.onopen=()=>{ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}))};
       ws.onerror=()=>finish(reject,new Error("Deriv historical candle connection failed."));
       ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv historical candle connection closed."))};
       ws.onmessage=e=>{
@@ -259,7 +257,5 @@
     }};
   }
 
-  window.GoTradeXMarketFeeds={
-    config:CFG,key,resolve,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
-  };
+  window.GoTradeXMarketFeeds={config:CFG,key,resolve,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals};
 })();
