@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoTradeX — USD/PLN Deriv Verification</title>
+<style>
+body{margin:0;background:#061426;color:#fff;font-family:system-ui,sans-serif;padding:18px}
+h1{font-size:20px}.note{color:#9bb1c9;line-height:1.5}.run{background:#176fca;color:#fff;border:0;border-radius:9px;padding:12px 16px;font-weight:800}.card{background:#102945;border:1px solid #23466d;border-radius:10px;padding:14px;margin-top:12px}.label{font-weight:900}.value{margin-top:7px}.pass{color:#35d07f}.fail{color:#ff7676}.sym{color:#ffd45a;font-weight:800}pre{white-space:pre-wrap;font-size:12px;color:#b9c9dc}
+</style></head><body>
+<h1>GoTradeX — USD/PLN Deriv Verification</h1>
+<p class="note"><b>Diagnostic only.</b> This test does not change LIVE inventory, main, wallet, trades, AutoBot, admin, or chart code.</p>
+<p class="note">Standard: exact Deriv symbol + at least 12 real 1-minute OHLC candles + live tick price.</p>
+<button class="run" id="run">RUN USD/PLN TEST</button>
+<div id="result"></div>
+<script>
+const WS="wss://api.derivws.com/trading/v1/options/ws/public";
+const pair="USD/PLN",symbol="frxUSDPLN";
+function runReq(payload,match,timeout=15000){
+ return new Promise((resolve,reject)=>{
+  let ws,done=false,timer;
+  const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);try{ws&&ws.close()}catch(e){}fn(v)};
+  try{ws=new WebSocket(WS)}catch(e){return reject(e)}
+  timer=setTimeout(()=>finish(reject,new Error("Deriv request timed out.")),timeout);
+  ws.onopen=()=>ws.send(JSON.stringify(payload));
+  ws.onerror=()=>finish(reject,new Error("Deriv connection failed."));
+  ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv connection closed."))};
+  ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.error)return finish(reject,new Error(d.error.message||"Deriv API error."));if(match(d))finish(resolve,d)}catch(e){}};
+ });
+}
+async function verify(){
+ const r=document.getElementById("result");r.innerHTML='<div class="card">Checking exact active symbol…</div>';
+ try{
+  const a=await runReq({active_symbols:"brief",req_id:1},d=>d.msg_type==="active_symbols");
+  const hit=(a.active_symbols||[]).find(x=>String(x.underlying_symbol||x.symbol||"").toUpperCase()===symbol && String(x.underlying_symbol_name||x.display_name||"").toUpperCase()===pair);
+  if(!hit)throw new Error("USD/PLN was not returned as exact active symbol frxUSDPLN.");
+  r.innerHTML='<div class="card"><div class="label">Exact symbol</div><div class="value pass">PASS • <span class="sym">'+symbol+' → '+pair+'</span></div></div>';
+  const h=await runReq({ticks_history:symbol,end:"latest",count:100,granularity:60,style:"candles",req_id:2},d=>d.msg_type==="candles");
+  const candles=Array.isArray(h.candles)?h.candles:[];
+  if(candles.length<12)throw new Error("Only "+candles.length+" candles returned; minimum is 12.");
+  const usable=candles.filter(c=>Number.isFinite(Number(c.open))&&Number.isFinite(Number(c.high))&&Number.isFinite(Number(c.low))&&Number.isFinite(Number(c.close)));
+  if(usable.length<12)throw new Error("Fewer than 12 candles contain valid OHLC values.");
+  r.innerHTML+='<div class="card"><div class="label">1-minute candles</div><div class="value pass">PASS • '+usable.length+' valid OHLC candles returned.</div></div>';
+  const t=await runReq({ticks:symbol,subscribe:1,req_id:3},d=>d.msg_type==="tick"&&d.tick&&d.tick.quote!=null);
+  const price=Number(t.tick.quote);
+  if(!(price>0))throw new Error("Invalid live price returned.");
+  r.innerHTML+='<div class="card"><div class="label">Live price</div><div class="value pass">PASS • '+price+'</div></div><div class="card"><div class="label">FINAL RESULT</div><div class="value pass"><b>USD/PLN MEETS THE VERIFICATION STANDARD.</b></div><pre>No inventory was changed. This is still a diagnostic only.</pre></div>';
+ }catch(e){
+  r.innerHTML+='<div class="card"><div class="label">FINAL RESULT</div><div class="value fail"><b>FAIL • '+(e.message||e)+'</b></div><pre>USD/PLN remains unverified. No inventory was changed.</pre></div>';
+ }
+}
+document.getElementById("run").onclick=verify;
+</script></body></html>
