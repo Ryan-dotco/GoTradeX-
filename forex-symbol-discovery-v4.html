@@ -11,6 +11,8 @@ h1{font-size:20px}.note{color:#9bb1c9;line-height:1.5}.run{background:#176fca;co
 <p class="note"><b>Purpose:</b> discover Deriv's actual active symbol before testing candles/ticks. No GoTradeX customer-facing LIVE assets are changed.</p>
 <button class="run" id="run">Discover Deriv symbols</button>
 <div id="summary" class="note"></div><div id="grid" class="grid"></div>
+<div id="all" class="note" style="margin-top:18px"></div>
+
 <script>
 const wanted=["CAD/CHF","USD/SGD","USD/HKD","EUR/ZAR","GBP/ZAR","USD/TRY","USD/NOK"];
 const WS="wss://api.derivws.com/trading/v1/options/ws/public";
@@ -51,6 +53,8 @@ document.getElementById("run").onclick=async()=>{
    }
   });
   document.getElementById("summary").textContent=found+" / "+wanted.length+" exact display-name matches found from "+list.length+" Deriv active symbols. No assets were promoted.";
+   const forex=list.filter(x=>String(x.underlying_symbol_type||x.symbol_type||"").toLowerCase()==="forex");
+   document.getElementById("all").innerHTML="<b>All active Forex symbols returned by Deriv ("+forex.length+"):</b><br><span style='line-height:1.8'>"+forex.map(x=>symbolOf(x)+" ("+nameOf(x)+")").join(" • ")+"</span>";
  }catch(e){document.getElementById("summary").className="note fail";document.getElementById("summary").textContent="DISCOVERY ERROR • "+(e.message||e)}
  btn.disabled=false;
 };
