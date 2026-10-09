@@ -20,15 +20,15 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 <h1>GoTradeX · Forex Batch Feed Test</h1>
 <p>Standalone Deriv-only test page — does not replace or edit the main trading dashboard.</p>
 <div class="actions">
-<button id="testAll">Test all 30 pairs (paced)</button>
+<button id="testAll">Test all 47 pairs (paced)</button>
 <button id="stop" disabled>Stop batch</button>
 <select id="tf" aria-label="History timeframe"><option value="60">1-minute candles</option><option value="300">5-minute candles</option><option value="900">15-minute candles</option></select>
 </div>
 <div id="overall">Ready. Test one pair or run the paced batch.</div>
-<div class="summary"><span class="pill" id="passed">History OK: 0</span><span class="pill" id="failed">Failed: 0</span><span class="pill" id="untested">Untested: 30</span></div>
+<div class="summary"><span class="pill" id="passed">History OK: 0</span><span class="pill" id="failed">Failed: 0</span><span class="pill" id="untested">Untested: 47</span></div>
 </div></header>
 <main class="wrap">
-<div class="note"><b>Deriv-only test:</b> All 30 forex pairs are requested from Deriv using candidate Deriv symbols. Deriv may not offer every pair; unsupported symbols will show Deriv’s actual error. “History OK” confirms historical candles only—not a continuous live tick stream or trade execution. No Twelve Data requests, fallback provider, or synthetic candles are used.</div>
+<div class="note"><b>Deriv-only test:</b> All 47 listed forex pairs are requested from Deriv using candidate Deriv symbols. Deriv may not offer every pair; unsupported symbols will show Deriv’s actual error. “History OK” confirms historical candles only—not a continuous live tick stream or trade execution. No Twelve Data requests, fallback provider, or synthetic candles are used.</div>
 <table><thead><tr><th>Pair</th><th>Provider</th><th>Candles / last close</th><th>Result</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table>
 <div class="foot">No trades are placed. No synthetic candles are generated. This page tests the current market-data adapter and reports the provider's actual response.</div>
 </main>
@@ -38,9 +38,11 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 (function(){
 'use strict';
 const pairs=[
-'EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CHF','USD/CAD','NZD/USD','EUR/GBP','EUR/JPY','GBP/JPY',
-'EUR/CHF','AUD/JPY','AUD/CAD','AUD/CHF','AUD/NZD','CAD/JPY','CHF/JPY','EUR/AUD','EUR/CAD','EUR/NZD',
-'GBP/AUD','GBP/CAD','GBP/CHF','GBP/NZD','NZD/JPY','NZD/CAD','CAD/CHF','USD/SGD','USD/HKD','USD/MXN'
+'EUR/USD','GBP/USD','USD/JPY','USD/CHF','AUD/USD','NZD/USD','USD/CAD','EUR/GBP','EUR/JPY','GBP/JPY',
+'AUD/JPY','EUR/CHF','EUR/AUD','EUR/CAD','EUR/NZD','GBP/AUD','GBP/CAD','GBP/CHF','GBP/NZD','NZD/JPY',
+'CAD/JPY','CAD/CHF','CHF/JPY','AUD/CAD','AUD/CHF','AUD/NZD','USD/SGD','USD/HKD','USD/HUF','USD/ZAR',
+'EUR/ZAR','GBP/ZAR','USD/MXN','USD/TRY','USD/NOK','USD/SEK','USD/DKK','EUR/NOK','EUR/SEK','EUR/PLN',
+'EUR/TRY','GBP/SGD','NZD/CAD','USD/INR','USD/BRL','USD/CNH','USD/IDR'
 ];
 const deriv=Object.fromEntries(pairs.map(pair=>[pair,'frx'+pair.replace('/','')]));
 const rows=document.getElementById('rows'),overall=document.getElementById('overall');
