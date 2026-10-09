@@ -95,8 +95,8 @@
   const TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"];
 
   const state = {
-    selectedPair: localStorage.getItem("gtx_pair") || localStorage.getItem("gotradex_asset_display") || "BTC/USD",
-    selectedType: localStorage.getItem("gtx_type") || localStorage.getItem("gotradex_market_mode") || "LIVE",
+    selectedPair: localStorage.getItem("gotradex_asset_display") || localStorage.getItem("gtx_pair") || "BTC/USD",
+    selectedType: localStorage.getItem("gotradex_market_mode") || localStorage.getItem("gtx_type") || "LIVE",
     timeframe: localStorage.getItem("gtx_pro_timeframe") || "M1",
     chartType: localStorage.getItem("gtx_pro_chart_type") || "candle",
     activeTrade: null
@@ -329,9 +329,14 @@
 
   window.addEventListener("gotradex:asset-changed", function (event) {
     const d = event && event.detail ? event.detail : {};
-    // Dashboard asset selection is routed directly to Kengly. Do not let the
-    // Pro/AutoPilot portal write a competing asset back into that chain.
-    if (d.source === "dashboard-assets") return;
+    // Keep the Pro/AutoPilot state mirror synchronized with the authoritative
+    // dashboard selection. Do not dispatch another chart change from this listener.
+    if (d.source === "dashboard-assets") {
+      state.selectedPair = baseSymbol(d.label || state.selectedPair);
+      state.selectedType = normalizeMode(d.mode || state.selectedType);
+      persist();
+      return;
+    }
     const mode = normalizeMode(d.mode || state.selectedType);
     const label = d.label || state.selectedPair;
     const found = findAsset(label, mode);
