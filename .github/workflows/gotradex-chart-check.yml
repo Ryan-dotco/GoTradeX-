@@ -26,12 +26,13 @@ jobs:
           const feed = fs.readFileSync('market-data.js', 'utf8');
           const pro = fs.readFileSync('gotradex-pro-engine.js', 'utf8');
           const checks = [
-            [index.includes('live-chart.js?v=20261009asset-sync3'), 'active chart script cache version'],
+            [index.includes('live-chart.js?v=20261009asset-sync4'), 'active chart script cache version'],
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
             [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
             [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
             [chart.includes('d.source!=="dashboard-assets"') && chart.includes('setAsset(d.label,d.type,d.mode)'), 'single dashboard-to-chart handoff'],
             [chart.includes('function connectDeriv()') && chart.includes('derivCandleHistory(f.symbol,state.sec)'), 'Deriv historical candle request'],
+            [chart.includes('return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks'), 'OTC live-tick candle bootstrap when history is sparse'],
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
             [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection']
           ];
