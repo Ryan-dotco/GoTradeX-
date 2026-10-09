@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GoTradeX — Forex Batch Feed Test</title>
+<style>
+:root{color-scheme:dark;--bg:#07111d;--panel:#0e1d2d;--line:#25415b;--text:#eaf4ff;--muted:#9bb1c8;--green:#42df98;--red:#ff7474;--gold:#ffc857}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:18px 16px 14px;background:#0b1a2a;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+h1{font-size:19px;margin:0 0 5px}p{margin:4px 0;color:var(--muted)}.wrap{max-width:900px;margin:auto}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button,select{border:1px solid #365775;border-radius:9px;background:#142b41;color:#fff;padding:10px 12px;font-weight:750}button:disabled{opacity:.5}
+#overall{font-size:12px;margin-top:9px;color:var(--gold)}main{padding:12px;max-width:900px;margin:auto}.note{background:#102235;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px;color:var(--muted);font-size:12px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid #20374c;font-size:12px}th{color:var(--muted);font-weight:700;background:#11263a}td:first-child{font-weight:800;white-space:nowrap}.status{font-weight:850}.ok{color:var(--green)}.bad{color:var(--red)}.wait{color:var(--gold)}.small{font-size:11px;color:var(--muted)}.testBtn{padding:6px 8px;font-size:11px}.summary{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.pill{border:1px solid var(--line);background:#102235;border-radius:8px;padding:8px 10px;font-size:12px}.foot{padding:14px;color:var(--muted);font-size:11px}
+@media(max-width:520px){th:nth-child(3),td:nth-child(3){display:none}th,td{padding:8px 5px;font-size:11px}.testBtn{padding:6px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>GoTradeX · Forex Batch Feed Test</h1>
+<p>Standalone test page — does not replace or edit the main trading dashboard.</p>
+<div class="actions">
+<button id="testAll">Test all 30 pairs (paced)</button>
+<button id="stop" disabled>Stop batch</button>
+<select id="tf" aria-label="History timeframe"><option value="60">1-minute candles</option><option value="300">5-minute candles</option><option value="900">15-minute candles</option></select>
+</div>
+<div id="overall">Ready. Test one pair or run the paced batch.</div>
+<div class="summary"><span class="pill" id="passed">History OK: 0</span><span class="pill" id="failed">Failed: 0</span><span class="pill" id="untested">Untested: 30</span></div>
+</div></header>
+<main class="wrap">
+<div class="note"><b>Honest results:</b> “History OK” means the configured provider returned real historical candles for that symbol. It does not claim that a continuous live tick stream or trade execution is verified. The first four pairs use the existing Deriv history adapter; other pairs use the existing secure Twelve Data adapter. The batch is paced to reduce rate-limit errors.</div>
+<table><thead><tr><th>Pair</th><th>Provider</th><th>Candles / last close</th><th>Result</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table>
+<div class="foot">No trades are placed. No synthetic candles are generated. This page tests the current market-data adapter and reports the provider's actual response.</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./market-data.js"></script>
+<script>
+(function(){
+'use strict';
+const pairs=[
+'EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CHF','USD/CAD','NZD/USD','EUR/GBP','EUR/JPY','GBP/JPY',
+'EUR/CHF','AUD/JPY','AUD/CAD','AUD/CHF','AUD/NZD','CAD/JPY','CHF/JPY','EUR/AUD','EUR/CAD','EUR/NZD',
+'GBP/AUD','GBP/CAD','GBP/CHF','GBP/NZD','NZD/JPY','NZD/CAD','CAD/CHF','USD/SGD','USD/HKD','USD/MXN'
+];
+const deriv={ 'EUR/USD':'frxEURUSD','GBP/USD':'frxGBPUSD','USD/JPY':'frxUSDJPY','AUD/USD':'frxAUDUSD' };
+const rows=document.getElementById('rows'),overall=document.getElementById('overall');
+let running=false,stopRequested=false,passed=0,failed=0,finished=0;
+const state={};
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function render(){
+ rows.innerHTML=pairs.map(p=>'<tr><td>'+p+'</td><td>'+(deriv[p]?'Deriv':'Twelve Data')+'</td><td class="small" id="data-'+p.replace('/','-')+'">—</td><td class="status wait" id="status-'+p.replace('/','-')+'">NOT TESTED</td><td><button class="testBtn" data-pair="'+p+'">Test</button></td></tr>').join('');
+ rows.querySelectorAll('[data-pair]').forEach(b=>b.addEventListener('click',()=>testPair(b.dataset.pair)));
+}
+function rowId(p){return p.replace('/','-')}
+function updateSummary(){
+ document.getElementById('passed').textContent='History OK: '+passed;
+ document.getElementById('failed').textContent='Failed: '+failed;
+ document.getElementById('untested').textContent='Untested: '+(pairs.length-finished);
+}
+async function testPair(pair){
+ const id=rowId(pair),status=document.getElementById('status-'+id),dataEl=document.getElementById('data-'+id);
+ if(state[pair]==='running')return;
+ status.className='status wait';status.textContent='TESTING…';dataEl.textContent='Requesting provider history…';
+ try{
+  let candles=[];
+  const sec=Number(document.getElementById('tf').value);
+  if(deriv[pair]){
+   candles=await window.GoTradeXMarketFeeds.derivCandleHistory(deriv[pair],sec);
+  }else{
+   candles=await window.GoTradeXMarketFeeds.twelveHistory(pair,sec,'forex');
+  }
+  if(!Array.isArray(candles)||candles.length<1)throw new Error('Provider returned no candles');
+  const last=candles[candles.length-1];
+  dataEl.textContent=candles.length+' candles · close '+Number(last.c).toPrecision(7);
+  status.className='status ok';status.textContent='HISTORY OK';
+  if(state[pair]!=='done'){passed++;finished++}
+  state[pair]='done';
+  return {ok:true,pair,count:candles.length};
+ }catch(e){
+  dataEl.textContent=String(e&&e.message||e).slice(0,130);
+  status.className='status bad';status.textContent='FAILED';
+  if(state[pair]!=='done'&&state[pair]!=='failed'){failed++;finished++}
+  else if(state[pair]==='done'){passed--;failed++}
+  state[pair]='failed';
+  updateSummary();
+  return {ok:false,pair,error:String(e&&e.message||e)};
+ }finally{updateSummary()}
+}
+document.getElementById('testAll').addEventListener('click',async()=>{
+ if(running)return;running=true;stopRequested=false;
+ document.getElementById('testAll').disabled=true;document.getElementById('stop').disabled=false;
+ const sec=Number(document.getElementById('tf').value);
+ overall.textContent='Batch running: '+pairs.length+' pairs · '+sec+'-second candle interval. Please keep this page open.';
+ for(let i=0;i<pairs.length;i++){
+  if(stopRequested)break;
+  const p=pairs[i];
+  if(state[p]==='done')continue;
+  await testPair(p);
+  if(stopRequested)break;
+  // Twelve Data has a limited free-tier request budget. Space requests out.
+  if(!deriv[p]&&i<pairs.length-1)await new Promise(r=>setTimeout(r,8500));
+ }
+ running=false;document.getElementById('testAll').disabled=false;document.getElementById('stop').disabled=true;
+ overall.textContent=stopRequested?'Batch stopped. You can resume by running it again.':'Batch finished. Review each pair result; failures are not marked live.';
+});
+document.getElementById('stop').addEventListener('click',()=>{stopRequested=true;overall.textContent='Stopping after the current request…'});
+render();updateSummary();
+if(!window.GoTradeXMarketFeeds)overall.textContent='ERROR: market-data.js did not load. Check connection and reload.';
+})();
+</script>
+</body>
+</html>
