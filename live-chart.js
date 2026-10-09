@@ -258,7 +258,18 @@
     state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
     state.connected=false;status(state.mode==="OTC"?"OTC • LOADING • DERIV":"LOADING • DERIV",false);
     notice(state.mode==="OTC"?"Loading verified Deriv OTC historical candles…":"Loading verified Deriv historical candles…",true);
-    feed().derivCandleHistory(f.symbol,state.sec).then(async history=>{
+    feed().derivCandleHistory(f.symbol,state.sec).catch(e=>{
+      // OTC tick subscriptions must not depend on historical-candle availability.
+      // If Deriv history errors or times out, continue with an empty history and
+      // build the first candle from verified live ticks. LIVE mode remains strict.
+      if(state.mode!=="OTC")throw e;
+      if(id===state.connectionId){
+        state.candles=[];state.price=null;
+        status("OTC • COLLECTING CANDLES",false);
+        notice("Deriv OTC history unavailable; continuing to wait for verified live ticks…",true);
+      }
+      return [];
+    }).then(async history=>{
       if(id!==state.connectionId)return;
       state.candles=Array.isArray(history)?history:[];
       if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
