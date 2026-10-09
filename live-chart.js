@@ -679,7 +679,7 @@
 
   window.addEventListener("gotradex:asset-changed",function(event){
     const d=event&&event.detail?event.detail:{};
-    if(d.source!=="dashboard-assets")return;
+    if(d.source!=="dashboard-assets"||d.chartApplied)return;
     try{setAsset(d.label,d.type,d.mode)}catch(_){}
   });
 
