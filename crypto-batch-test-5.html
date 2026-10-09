@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>GoTradeX — Crypto Batch 5 Feed Test</title>
+<title>GoTradeX — Crypto Batch 6 Feed Test</title>
 <style>
 :root{color-scheme:dark;--bg:#07111d;--panel:#0e1d2d;--line:#25415b;--text:#eaf4ff;--muted:#9bb1c8;--green:#42df98;--red:#ff7474;--gold:#ffc857}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
@@ -10,8 +10,8 @@ header{padding:18px 14px;background:#0b1a2a;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
-<header><div class="wrap"><h1>GoTradeX · Crypto Batch Feed Test — Batch 5</h1><p>Standalone, read-only Bybit Spot test. It does not place trades or change the main dashboard.</p>
-<div class="actions"><button id="testAll">Test all 24 candidate pairs</button><button id="stop" disabled>Stop batch</button><button id="reset">Reset results</button></div><div id="overall">Batch 5 ready. Verify these candidates before adding any to the main asset selector.</div>
+<header><div class="wrap"><h1>GoTradeX · Crypto Batch Feed Test — Batch 6</h1><p>Standalone, read-only Bybit Spot test. It does not place trades or change the main dashboard.</p>
+<div class="actions"><button id="testAll">Test all 40 candidate pairs</button><button id="stop" disabled>Stop batch</button><button id="reset">Reset results</button></div><div id="overall">Batch 6 ready. Verify these candidates before adding any to the main asset selector.</div>
 <div class="summary"><span class="pill" id="histOk">History OK: 0</span><span class="pill" id="tickOk">Live tick OK: 0</span><span class="pill" id="failed">Any check failed: 0</span></div></div></header>
 <main class="wrap">
 <div class="note"><b>What this verifies:</b> Bybit Spot REST history plus a live WebSocket ticker for each exact USDT market. A pair is considered verified only if both checks pass. This is market-data testing only; it does not verify broker execution or guarantee a continuous feed.</div>
@@ -21,7 +21,7 @@ header{padding:18px 14px;background:#0b1a2a;border-bottom:1px solid var(--line)}
 <script>
 (function(){
 'use strict';
-const pairs=[['HBAR/USD','HBARUSDT'],['VET/USD','VETUSDT'],['XTZ/USD','XTZUSDT'],['IOTA/USD','IOTAUSDT'],['THETA/USD','THETAUSDT'],['ZIL/USD','ZILUSDT'],['EGLD/USD','EGLDUSDT'],['KAVA/USD','KAVAUSDT'],['ROSE/USD','ROSEUSDT'],['MINA/USD','MINAUSDT'],['QNT/USD','QNTUSDT'],['ENS/USD','ENSUSDT'],['COMP/USD','COMPUSDT'],['SNX/USD','SNXUSDT'],['DYDX/USD','DYDXUSDT'],['PENDLE/USD','PENDLEUSDT'],['ENA/USD','ENAUSDT'],['WLD/USD','WLDUSDT'],['JTO/USD','JTOUSDT'],['PYTH/USD','PYTHUSDT'],['RAY/USD','RAYUSDT'],['JASMY/USD','JASMYUSDT'],['AXS/USD','AXSUSDT'],['CHZ/USD','CHZUSDT']];
+const pairs=[["BOME/USD","BOMEUSDT"],["NOT/USD","NOTUSDT"],["STRK/USD","STRKUSDT"],["ZK/USD","ZKUSDT"],["BLUR/USD","BLURUSDT"],["MASK/USD","MASKUSDT"],["GMT/USD","GMTUSDT"],["APE/USD","APEUSDT"],["FLOW/USD","FLOWUSDT"],["EOS/USD","EOSUSDT"],["ZEC/USD","ZECUSDT"],["DASH/USD","DASHUSDT"],["DYM/USD","DYMUSDT"],["ALT/USD","ALTUSDT"],["AEVO/USD","AEVOUSDT"],["ORDI/USD","ORDIUSDT"],["SATS/USD","1000SATSUSDT"],["TURBO/USD","TURBOUSDT"],["CORE/USD","COREUSDT"],["BEAM/USD","BEAMUSDT"],["GRT/USD","GRTUSDT"],["ASTR/USD","ASTRUSDT"],["ONE/USD","ONEUSDT"],["CKB/USD","CKBUSDT"],["QTUM/USD","QTUMUSDT"],["IOST/USD","IOSTUSDT"],["LRC/USD","LRCUSDT"],["ENJ/USD","ENJUSDT"],["BAT/USD","BATUSDT"],["ZRX/USD","ZRXUSDT"],["1INCH/USD","1INCHUSDT"],["YFI/USD","YFIUSDT"],["TWT/USD","TWTUSDT"],["API3/USD","API3USDT"],["OGN/USD","OGNUSDT"],["ARKM/USD","ARKMUSDT"],["MANTA/USD","MANTAUSDT"],["BLAST/USD","BLASTUSDT"],["ZETA/USD","ZETAUSDT"],["XAI/USD","XAIUSDT"]];
 const $=id=>document.getElementById(id),state={};let running=false,stopRequested=false;
 function render(){$('rows').innerHTML=pairs.map(([p,s])=>'<tr><td>'+p+'</td><td>'+s+'</td><td id="h-'+s+'" class="wait">NOT TESTED</td><td id="t-'+s+'" class="wait">NOT TESTED</td><td><button data-s="'+s+'">Test</button></td></tr>').join('');$('rows').querySelectorAll('[data-s]').forEach(b=>b.addEventListener('click',()=>{if(!running)testOne(pairs.find(x=>x[1]===b.dataset.s))}))}
 function setResult(id,text,kind){const el=$(id);if(el){el.textContent=text;el.className=kind}}
