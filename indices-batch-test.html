@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GoTradeX — Indices Batch Tester</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#141c30;--line:#293650;--text:#e8eefb;--muted:#9aa9c4;--blue:#4da3ff;--green:#36d399;--red:#fb7185;--amber:#fbbf24}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:22px 16px 16px;background:#10182b;border-bottom:1px solid var(--line)}main{max-width:1100px;margin:auto;padding:16px}
+h1{font-size:22px;margin:0 0 6px}p{margin:6px 0;color:var(--muted)}.notice{border:1px solid #6b531b;background:#2a2210;color:#ffdfa0;padding:12px;border-radius:10px;margin:12px 0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.btn{background:#1c2b47;color:var(--text);border:1px solid #385072;border-radius:8px;padding:10px 13px;font-weight:650;cursor:pointer}.btn.primary{background:#1767bd;border-color:#3989de}.btn:disabled{opacity:.45;cursor:not-allowed}
+#connection{padding:10px 12px;border-radius:8px;background:#141c30;border:1px solid var(--line);margin:10px 0;color:var(--muted)}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.metric{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px}.metric b{display:block;font-size:20px}.metric span{font-size:12px;color:var(--muted)}
+.rows{display:grid;gap:10px}.item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}.itemtop{display:flex;align-items:center;justify-content:space-between;gap:10px}.name{font-weight:750;font-size:16px}.status{font-size:12px;border-radius:99px;padding:4px 8px;background:#273149;color:var(--muted);white-space:nowrap}.status.ok{color:#9ff2d1;background:#103b32}.status.bad{color:#ffc0c9;background:#4b202a}.status.warn{color:#ffe3a1;background:#4b3917}
+.controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;margin-top:10px}.controls select{min-width:0;width:100%;padding:10px;background:#0b1222;color:var(--text);border:1px solid #354563;border-radius:8px}.small{font-size:12px;color:var(--muted);margin-top:8px;overflow-wrap:anywhere}.result{font-size:13px;margin-top:8px;overflow-wrap:anywhere}.result strong{color:var(--text)}.liveprice{color:var(--green);font-weight:700}.foot{font-size:12px;color:var(--muted);padding:18px 0 30px}
+@media(max-width:620px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}.controls{grid-template-columns:1fr 1fr}.controls select{grid-column:1/-1}.itemtop{align-items:flex-start}}
+</style>
+</head>
+<body>
+<header><main style="padding:0 16px"><h1>GoTradeX — Indices Batch Tester</h1><p>Independent market-data check. This page does not change the main GoTradeX app or place trades.</p></main></header>
+<main>
+<div class="notice"><strong>Important:</strong> We will only mark an index as supported when Deriv returns real data. Historical candles and live ticks are separate checks. No synthetic candles, Twelve Data requests, or automatic substitution between similar indices.</div>
+<div id="connection">Connecting to Deriv public market data…</div>
+<div class="toolbar">
+<button class="btn primary" id="reload">Load / refresh Deriv symbols</button>
+<button class="btn" id="batch" disabled>Test history for matched rows</button>
+<button class="btn" id="stop" disabled>Stop batch</button>
+</div>
+<div class="summary">
+<div class="metric"><b id="total">18</b><span>Requested labels</span></div>
+<div class="metric"><b id="matched">0</b><span>Candidate selected</span></div>
+<div class="metric"><b id="historyok">0</b><span>History OK</span></div>
+<div class="metric"><b id="liveok">0</b><span>Live tick received</span></div>
+</div>
+<div id="rows" class="rows"></div>
+<div class="foot">Data source: Deriv public WebSocket. If an index is absent from Deriv's active-symbol list, this test will not pretend it is available. A live test listens for up to 12 seconds; if the market is closed or no tick arrives, the result is inconclusive rather than a confirmed failure.</div>
+</main>
+<script>
+(function(){
+'use strict';
+const ENDPOINT='wss://api.derivws.com/trading/v1/options/ws/public';
+const labels=['US 30','US 500','NAS 100','UK 100','GER 40','FRA 40','KPN 225','AUS 200','HK 550','EU 50','SA 40','SPX','DAX','CAC 40','FTSE','NIKKEI','VIX','RUSSELL 2000'];
+const aliases={
+'US 30':['US 30','WALL STREET 30','DOW JONES','DOW 30'],
+'US 500':['US 500','S&P 500','S P 500','SPX'],
+'NAS 100':['NAS 100','NASDAQ 100','US TECH 100','NASDAQ'],
+'UK 100':['UK 100','FTSE 100','FTSE'],
+'GER 40':['GER 40','GERMANY 40','DAX'],
+'FRA 40':['FRA 40','FRANCE 40','CAC 40'],
+'KPN 225':['KPN 225'],
+'AUS 200':['AUS 200','AUSTRALIA 200','ASX 200'],
+'HK 550':['HK 550'],
+'EU 50':['EU 50','EURO STOXX 50','EURO 50'],
+'SA 40':['SA 40','SOUTH AFRICA 40'],
+'SPX':['SPX','S&P 500','S P 500'],
+'DAX':['DAX','GERMANY 40','GER 40'],
+'CAC 40':['CAC 40','FRANCE 40','FRA 40'],
+'FTSE':['FTSE','UK 100','FTSE 100'],
+'NIKKEI':['NIKKEI','JAPAN 225','NIKKEI 225'],
+'VIX':['VIX','VOLATILITY INDEX'],
+'RUSSELL 2000':['RUSSELL 2000','US SMALL CAP 2000']
+};
+let ws=null, symbols=[], nextId=10, pending=new Map(), historyOK=new Set(), liveOK=new Set(), batchStop=false;
+const $=id=>document.getElementById(id);
+function setConnection(s,kind){$('connection').textContent=s;$('connection').style.color=kind==='ok'?'#9ff2d1':kind==='bad'?'#ffc0c9':'#ffdfa0';}
+function send(obj){if(!ws||ws.readyState!==WebSocket.OPEN)throw Error('Deriv WebSocket is not connected');ws.send(JSON.stringify(obj));}
+function clean(v){return String(v||'').trim();}
+function fields(s){return {symbol:clean(s.underlying_symbol||s.symbol||s.display_symbol||s.name),name:clean(s.underlying_symbol_name||s.display_name||s.name||s.symbol),type:clean(s.underlying_symbol_type||s.market||s.market_display_name||s.submarket)};}
+function normal(s){return clean(s).toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();}
+function isIndex(s){const t=normal(s.type+' '+s.name+' '+s.symbol);return /INDEX|INDICES|STOCK INDEX|SYNTHETIC INDEX|WALL STREET|NASDAQ|DOW JONES|FTSE|DAX|CAC|NIKKEI|JAPAN 225|S&P|SP 500|RUSSELL|VIX|AUSTRALIA 200|EURO STOXX|SOUTH AFRICA 40|GERMANY 40|FRANCE 40|US TECH 100|US 30|US 500/.test(t);}
+function candidates(label){const terms=(aliases[label]||[label]).map(normal);let found=symbols.filter(s=>{const hay=normal(s.name+' '+s.symbol+' '+s.type);return terms.some(t=>hay.includes(t));});return [...new Map(found.map(s=>[s.symbol,s])).values()].sort((a,b)=>a.name.localeCompare(b.name));}
+function allIndexCandidates(){return symbols.filter(isIndex).sort((a,b)=>a.name.localeCompare(b.name));}
+function optionLabel(s){return s.name+' ['+s.symbol+']'+(s.type?' — '+s.type:'');}
+function render(){
+ const root=$('rows');root.innerHTML='';
+ labels.forEach((label,i)=>{
+  const item=document.createElement('section');item.className='item';item.id='row-'+i;
+  const top=document.createElement('div');top.className='itemtop';
+  const name=document.createElement('div');name.className='name';name.textContent=(i+1)+'. '+label;
+  const status=document.createElement('span');status.className='status';status.id='status-'+i;status.textContent='Waiting for symbols';
+  top.append(name,status);
+  const controls=document.createElement('div');controls.className='controls';
+  const select=document.createElement('select');select.id='select-'+i;select.setAttribute('aria-label','Deriv symbol candidate for '+label);
+  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose exact Deriv symbol (do not guess)';select.append(placeholder);
+  const cs=candidates(label);const all=allIndexCandidates();const merged=[...new Map([...cs,...all].map(s=>[s.symbol,s])).values()];
+  merged.forEach(s=>{const o=document.createElement('option');o.value=s.symbol;o.textContent=optionLabel(s);select.append(o);});
+  const history=document.createElement('button');history.className='btn';history.textContent='Test history';history.disabled=true;history.id='history-'+i;history.onclick=()=>testHistory(i);
+  const live=document.createElement('button');live.className='btn';live.textContent='Test live';live.disabled=true;live.id='live-'+i;live.onclick=()=>testLive(i);
+  select.onchange=()=>{const chosen=select.value;history.disabled=!chosen;live.disabled=!chosen;setStatus(i,chosen?'Candidate selected — not verified':'No candidate selected','warn');updateCounts();};
+  controls.append(select,history,live);
+  const info=document.createElement('div');info.className='small';info.id='info-'+i;
+  info.textContent=cs.length?'Suggested match(es) are listed first. Confirm the exact provider name before testing.': 'No direct name match found. You can inspect the other index candidates; do not select a different market just because it looks similar.';
+  const result=document.createElement('div');result.className='result';result.id='result-'+i;
+  item.append(top,controls,info,result);root.append(item);
+ });
+ $('matched').textContent='0';updateCounts();
+}
+function setStatus(i,text,kind){const el=$('status-'+i);if(!el)return;el.className='status'+(kind?' '+kind:'');el.textContent=text;}
+function setResult(i,text){$('result-'+i).textContent=text;}
+function updateCounts(){
+ $('matched').textContent=labels.filter((_,i)=>$('select-'+i)&&$('select-'+i).value).length;
+ $('historyok').textContent=historyOK.size;$('liveok').textContent=liveOK.size;
+}
+function closeSocket(){if(ws){try{ws.close();}catch(e){}ws=null;}pending.forEach(p=>{clearTimeout(p.timer);p.reject(Error('Connection refreshed'));});pending.clear();}
+function connect(){
+ closeSocket();historyOK.clear();liveOK.clear();render();setConnection('Connecting to Deriv public market data…');
+ try{ws=new WebSocket(ENDPOINT);}catch(e){setConnection('Could not create WebSocket: '+e.message,'bad');return;}
+ const timeout=setTimeout(()=>{if(ws&&ws.readyState!==WebSocket.OPEN)setConnection('Connection timed out. Check internet and refresh.','bad');},12000);
+ ws.onopen=()=>{clearTimeout(timeout);setConnection('Connected to Deriv. Loading active symbols…','ok');try{send({active_symbols:'full',req_id:1});}catch(e){setConnection(e.message,'bad');}};
+ ws.onerror=()=>setConnection('WebSocket connection error. Please refresh and try again.','bad');
+ ws.onclose=()=>{if(!batchStop)setConnection('WebSocket disconnected. Refresh to reconnect.','bad');};
+ ws.onmessage=event=>{
+  let d;try{d=JSON.parse(event.data);}catch(e){return;}
+  if(d.error){const id=d.req_id;if(pending.has(id)){const p=pending.get(id);clearTimeout(p.timer);pending.delete(id);p.reject(Error(d.error.message||d.error.code||'Deriv returned an error'));}return;}
+  if(d.msg_type==='active_symbols'||d.active_symbols){
+   symbols=(d.active_symbols||[]).map(fields).filter(s=>s.symbol);
+   setConnection('Connected. Loaded '+symbols.length+' active Deriv symbols. Review each exact candidate before testing.','ok');render();$('batch').disabled=false;return;
+  }
+  if(d.req_id&&pending.has(d.req_id)){
+   const p=pending.get(d.req_id);
+   if(p.kind==='live'&&d.msg_type==='tick'){p.resolve(d);return;}
+   if(p.kind==='history'&&(d.msg_type==='candles'||d.msg_type==='history'||d.candles||d.history)){p.resolve(d);return;}
+   if(d.msg_type==='tick'){p.resolve(d);return;}
+  }
+ };
+}
+function request(obj,kind,timeoutMs){
+ return new Promise((resolve,reject)=>{
+  const id=++nextId;const timer=setTimeout(()=>{pending.delete(id);reject(Error(kind==='live'?'No live tick received before timeout':'Deriv did not return history before timeout'));},timeoutMs);
+  pending.set(id,{resolve:v=>{clearTimeout(timer);pending.delete(id);resolve(v);},reject:e=>{clearTimeout(timer);pending.delete(id);reject(e);},timer,kind});
+  try{send({...obj,req_id:id});}catch(e){clearTimeout(timer);pending.delete(id);reject(e);}
+ });
+}
+async function testHistory(i){
+ const sym=$('select-'+i).value;if(!sym)return;
+ $('history-'+i).disabled=true;setStatus(i,'Testing history…','warn');setResult(i,'Requesting 100 one-minute candles from Deriv…');
+ try{
+  const d=await request({ticks_history:sym,end:'latest',count:100,granularity:60,style:'candles'},'history',15000);
+  const arr=d.candles||(d.history&&d.history.prices)||[];
+  if(!Array.isArray(arr)||arr.length===0)throw Error('Deriv responded but no candles were returned');
+  historyOK.add(i);setStatus(i,'HISTORY OK','ok');setResult(i,'HISTORY OK — '+arr.length+' candles returned for '+sym+'. This confirms history only, not a live stream.');updateCounts();
+ }catch(e){historyOK.delete(i);setStatus(i,'HISTORY FAILED','bad');setResult(i,'FAILED — '+e.message);updateCounts();}
+ finally{$('history-'+i).disabled=!$('select-'+i).value;}
+}
+async function testLive(i){
+ const sym=$('select-'+i).value;if(!sym)return;
+ $('live-'+i).disabled=true;setStatus(i,'Waiting for live tick…','warn');setResult(i,'Listening for a real Deriv tick for up to 12 seconds…');
+ try{
+  const d=await request({ticks:sym,subscribe:1},'live',12000);
+  const tick=d.tick||{};const price=tick.quote;
+  liveOK.add(i);setStatus(i,'LIVE TICK RECEIVED','ok');
+  setResult(i,'LIVE TICK RECEIVED — '+sym+' price: '+(price===undefined?'received (price field unavailable)':price)+'; timestamp: '+(tick.epoch?new Date(tick.epoch*1000).toLocaleString():'not supplied')+'.');
+  const sub=d.subscription&&d.subscription.id;
+  if(sub){try{send({forget:sub,req_id:++nextId});}catch(e){}}
+  updateCounts();
+ }catch(e){liveOK.delete(i);setStatus(i,'LIVE NOT CONFIRMED','warn');setResult(i,'NOT CONFIRMED — '+e.message+'. This may mean the market is closed or no tick arrived during the test; it is not proof the symbol is unsupported.');updateCounts();}
+ finally{$('live-'+i).disabled=!$('select-'+i).value;}
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+$('reload').onclick=()=>{batchStop=false;$('batch').disabled=true;connect();};
+$('batch').onclick=async()=>{
+ if(!ws||ws.readyState!==WebSocket.OPEN){setConnection('Connect to Deriv first, then run the batch.','bad');return;}
+ batchStop=false;$('batch').disabled=true;$('stop').disabled=false;
+ for(let i=0;i<labels.length;i++){
+  if(batchStop)break;
+  if(!$('select-'+i).value)continue;
+  await testHistory(i);await sleep(900);
+ }
+ $('stop').disabled=true;$('batch').disabled=false;
+ setConnection(batchStop?'Batch stopped by user.':'History batch finished. Run Test live individually for each matched index.','ok');
+};
+$('stop').onclick=()=>{batchStop=true;$('stop').disabled=true;setConnection('Stopping batch after the current request…');};
+render();connect();
+})();
+</script>
+</body>
+</html>
