@@ -44,7 +44,7 @@ const pairs=[
 ];
 const deriv={ 'EUR/USD':'frxEURUSD','GBP/USD':'frxGBPUSD','USD/JPY':'frxUSDJPY','AUD/USD':'frxAUDUSD' };
 const rows=document.getElementById('rows'),overall=document.getElementById('overall');
-let running=false,stopRequested=false,passed=0,failed=0,finished=0;
+let running=false,stopRequested=false;
 const state={};
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render(){
@@ -53,9 +53,12 @@ function render(){
 }
 function rowId(p){return p.replace('/','-')}
 function updateSummary(){
+ const passed=pairs.filter(p=>state[p]==='done').length;
+ const failed=pairs.filter(p=>state[p]==='failed').length;
+ const untested=pairs.filter(p=>!state[p]||state[p]==='running').length;
  document.getElementById('passed').textContent='History OK: '+passed;
  document.getElementById('failed').textContent='Failed: '+failed;
- document.getElementById('untested').textContent='Untested: '+(pairs.length-finished);
+ document.getElementById('untested').textContent='Untested: '+untested;
 }
 async function testPair(pair){
  const id=rowId(pair),status=document.getElementById('status-'+id),dataEl=document.getElementById('data-'+id);
@@ -73,14 +76,11 @@ async function testPair(pair){
   const last=candles[candles.length-1];
   dataEl.textContent=candles.length+' candles · close '+Number(last.c).toPrecision(7);
   status.className='status ok';status.textContent='HISTORY OK';
-  if(state[pair]!=='done'){passed++;finished++}
   state[pair]='done';
   return {ok:true,pair,count:candles.length};
  }catch(e){
   dataEl.textContent=String(e&&e.message||e).slice(0,130);
   status.className='status bad';status.textContent='FAILED';
-  if(state[pair]!=='done'&&state[pair]!=='failed'){failed++;finished++}
-  else if(state[pair]==='done'){passed--;failed++}
   state[pair]='failed';
   updateSummary();
   return {ok:false,pair,error:String(e&&e.message||e)};
