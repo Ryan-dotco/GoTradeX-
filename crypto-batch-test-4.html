@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GoTradeX — Crypto Batch 4 Feed Test</title>
+<style>
+:root{color-scheme:dark;--bg:#07111d;--panel:#0e1d2d;--line:#25415b;--text:#eaf4ff;--muted:#9bb1c8;--green:#42df98;--red:#ff7474;--gold:#ffc857}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:18px 14px;background:#0b1a2a;border-bottom:1px solid var(--line)}h1{font-size:20px;margin:0 0 5px}.wrap{max-width:900px;margin:auto}p{color:var(--muted);margin:5px 0}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}button{border:1px solid #365775;border-radius:9px;background:#142b41;color:#fff;padding:10px 12px;font-weight:750}button:disabled{opacity:.5}main{padding:12px;max-width:900px;margin:auto}.note{background:#102235;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px;color:var(--muted);font-size:12px}#overall{color:var(--gold);font-size:12px}.summary{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.pill{border:1px solid var(--line);background:#102235;border-radius:8px;padding:8px 10px;font-size:12px}table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line)}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid #20374c;font-size:12px}th{color:var(--muted);background:#11263a}td:first-child{font-weight:800;white-space:nowrap}.ok{color:var(--green);font-weight:850}.bad{color:var(--red);font-weight:850}.wait{color:var(--gold);font-weight:850}.small{font-size:11px;color:var(--muted)}.foot{padding:14px;color:var(--muted);font-size:11px}@media(max-width:520px){th,td{padding:8px 4px;font-size:11px}th:nth-child(3),td:nth-child(3){display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>GoTradeX · Crypto Batch Feed Test — Batch 4</h1><p>Standalone, read-only Bybit Spot test. It does not place trades or change the main dashboard.</p>
+<div class="actions"><button id="testAll">Test all 8 candidate pairs</button><button id="stop" disabled>Stop batch</button><button id="reset">Reset results</button></div><div id="overall">Batch 4 ready. Verify these candidates before adding any to the main asset selector.</div>
+<div class="summary"><span class="pill" id="histOk">History OK: 0</span><span class="pill" id="tickOk">Live tick OK: 0</span><span class="pill" id="failed">Any check failed: 0</span></div></div></header>
+<main class="wrap">
+<div class="note"><b>What this verifies:</b> Bybit Spot REST history plus a live WebSocket ticker for each exact USDT market. A pair is considered verified only if both checks pass. This is market-data testing only; it does not verify broker execution or guarantee a continuous feed.</div>
+<table><thead><tr><th>Pair</th><th>Bybit symbol</th><th>History</th><th>Live tick</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table>
+<div class="foot">Failed or timed-out markets are not verified. No synthetic candles, Twelve Data fallback, or orders are used. This page is separate from the main dashboard and is read-only.</div>
+</main>
+<script>
+(function(){
+'use strict';
+const pairs=[['OP/USD','OPUSDT'],['ARB/USD','ARBUSDT'],['APT/USD','APTUSDT'],['SUI/USD','SUIUSDT'],['NEAR/USD','NEARUSDT'],['FIL/USD','FILUSDT'],['ATOM/USD','ATOMUSDT'],['DOT/USD','DOTUSDT']];
+const $=id=>document.getElementById(id),state={};let running=false,stopRequested=false;
+function render(){$('rows').innerHTML=pairs.map(([p,s])=>'<tr><td>'+p+'</td><td>'+s+'</td><td id="h-'+s+'" class="wait">NOT TESTED</td><td id="t-'+s+'" class="wait">NOT TESTED</td><td><button data-s="'+s+'">Test</button></td></tr>').join('');$('rows').querySelectorAll('[data-s]').forEach(b=>b.addEventListener('click',()=>{if(!running)testOne(pairs.find(x=>x[1]===b.dataset.s))}))}
+function setResult(id,text,kind){const el=$(id);if(el){el.textContent=text;el.className=kind}}
+function update(){let h=0,t=0,f=0;pairs.forEach(([p,s])=>{if(state[s]?.history)h++;if(state[s]?.tick)t++;if(state[s]&&(state[s].history===false||state[s].tick===false))f++});$('histOk').textContent='History OK: '+h;$('tickOk').textContent='Live tick OK: '+t;$('failed').textContent='Any check failed: '+f}
+async function history(symbol){const url='https://api.bybit.com/v5/market/kline?category=spot&symbol='+encodeURIComponent(symbol)+'&interval=1&limit=10';const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const d=await res.json();if(d.retCode!==0)throw Error(d.retMsg||('Bybit retCode '+d.retCode));const rows=d.result?.list||[];if(!rows.length)throw Error('No historical candles returned');return{count:rows.length,close:rows[0][4]}}
+function liveTick(symbol,timeoutMs=6000){return new Promise((resolve,reject)=>{let ws,done=false,timer;const finish=(err,val)=>{if(done)return;done=true;clearTimeout(timer);try{ws&&ws.close()}catch(_){}err?reject(err):resolve(val)};timer=setTimeout(()=>finish(Error('No live ticker within '+(timeoutMs/1000)+' seconds')),timeoutMs);try{ws=new WebSocket('wss://stream.bybit.com/v5/public/spot')}catch(e){finish(e);return}ws.onopen=()=>{try{ws.send(JSON.stringify({op:'subscribe',args:['tickers.'+symbol]}))}catch(e){finish(e)}};ws.onerror=()=>finish(Error('Bybit WebSocket connection error'));ws.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}if(d.op==='subscribe'&&d.success===false){finish(Error(d.ret_msg||'Subscription rejected'));return}if(d.topic==='tickers.'+symbol&&d.data){const price=Number(d.data.lastPrice);if(Number.isFinite(price)&&price>0)finish(null,{price,time:d.ts||Date.now()})}}})}
+async function testOne(pair){const [label,symbol]=pair;state[symbol]={};setResult('h-'+symbol,'TESTING…','wait');setResult('t-'+symbol,'TESTING…','wait');update();const outcomes=await Promise.allSettled([history(symbol),liveTick(symbol)]);if(outcomes[0].status==='fulfilled'){state[symbol].history=true;setResult('h-'+symbol,'OK · '+outcomes[0].value.count+' candles','ok')}else{state[symbol].history=false;setResult('h-'+symbol,'FAILED · '+String(outcomes[0].reason?.message||outcomes[0].reason).slice(0,100),'bad')}if(outcomes[1].status==='fulfilled'){state[symbol].tick=true;setResult('t-'+symbol,'OK · '+outcomes[1].value.price,'ok')}else{state[symbol].tick=false;setResult('t-'+symbol,'FAILED · '+String(outcomes[1].reason?.message||outcomes[1].reason).slice(0,100),'bad')}update();return state[symbol].history&&state[symbol].tick}
+$('testAll').onclick=async()=>{if(running)return;running=true;stopRequested=false;$('testAll').disabled=true;$('stop').disabled=false;for(const pair of pairs){if(stopRequested)break;await testOne(pair);if(stopRequested)break;await new Promise(r=>setTimeout(r,500))}running=false;$('testAll').disabled=false;$('stop').disabled=true;$('overall').textContent=stopRequested?'Batch stopped. You can test individual pairs or run the batch again.':'Batch complete. Only pairs showing both History OK and Live tick OK passed this short test.'};
+$('stop').onclick=()=>{stopRequested=true;$('overall').textContent='Stopping after current pair finishes…'};
+$('reset').onclick=()=>{if(running)return;Object.keys(state).forEach(k=>delete state[k]);render();update();$('overall').textContent='Results reset. Ready to test.'};
+render();update();
+})();
+</script>
+</body></html>
