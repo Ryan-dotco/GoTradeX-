@@ -173,9 +173,10 @@
   }
 
   function historyReady(){
-    // Never paint a tiny one/two-candle chart and then progressively zoom it out.
-    // The first render requires a real historical window.
-    return state.candles.length >= 12;
+    // LIVE feeds require a useful historical window before first render.
+    // OTC Deriv feeds may return little or no history, so let verified live ticks
+    // start the chart as soon as one real candle exists instead of blocking forever.
+    return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12;
   }
 
   async function resolveTwelveSymbol(f){
@@ -261,12 +262,21 @@
       if(id!==state.connectionId)return;
       state.candles=Array.isArray(history)?history:[];
       if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
-      if(!historyReady()){
-        state.connected=false;status("WAITING FOR HISTORY",false);
-        notice("Deriv returned fewer than 12 historical candles for this timeframe.",true);
-        return;
+      if(state.mode==="OTC"){
+        if(historyReady()){
+          renderHistory();
+        }else{
+          state.connected=false;status("OTC • COLLECTING CANDLES",false);
+          notice("No usable OTC history returned. Waiting for verified Deriv ticks to build the chart…",true);
+        }
+      }else{
+        if(!historyReady()){
+          state.connected=false;status("WAITING FOR HISTORY",false);
+          notice("Deriv returned fewer than 12 historical candles for this timeframe.",true);
+          return;
+        }
+        renderHistory();
       }
-      renderHistory();
       const socket=feed().derivSocket(f.symbol,
         tick=>{
           if(id!==state.connectionId)return;
@@ -277,7 +287,11 @@
           state.connected=!!ok;
           const displayMsg=state.mode==="OTC"?String(msg).replace(/^LIVE • DERIV$/,"OTC • DERIV").replace(/^CONNECTING • DERIV$/,"CONNECTING • DERIV OTC").replace(/^RECONNECTING • DERIV$/,"RECONNECTING • DERIV OTC"):msg;
           status(displayMsg,!!ok);
-          if(ok)notice("",false);
+          if(ok){
+            if(state.historyLoaded)notice("",false);
+            else if(state.mode==="OTC")notice("Connected to Deriv; waiting for the first verified tick to build candles…",true);
+            else notice("",false);
+          }
         }
       );
       if(id!==state.connectionId){try{socket.close()}catch(_){}return}
