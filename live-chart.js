@@ -255,8 +255,8 @@
       return;
     }
     state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
-    state.connected=false;status("LOADING • DERIV",false);
-    notice("Loading verified Deriv historical candles…",true);
+    state.connected=false;status(state.mode==="OTC"?"OTC • LOADING • DERIV":"LOADING • DERIV",false);
+    notice(state.mode==="OTC"?"Loading verified Deriv OTC historical candles…":"Loading verified Deriv historical candles…",true);
     feed().derivCandleHistory(f.symbol,state.sec).then(async history=>{
       if(id!==state.connectionId)return;
       state.candles=Array.isArray(history)?history:[];
@@ -275,7 +275,8 @@
         (msg,ok)=>{
           if(id!==state.connectionId)return;
           state.connected=!!ok;
-          status(msg,!!ok);
+          const displayMsg=state.mode==="OTC"?String(msg).replace(/^LIVE • DERIV$/,"OTC • DERIV").replace(/^CONNECTING • DERIV$/,"CONNECTING • DERIV OTC").replace(/^RECONNECTING • DERIV$/,"RECONNECTING • DERIV OTC"):msg;
+          status(displayMsg,!!ok);
           if(ok)notice("",false);
         }
       );
@@ -381,13 +382,15 @@
   function connect(){
     ++state.connectionId;
     const f=selection();
-    state.mode=String(f.mode||"LIVE").toUpperCase();
+    let savedMode="LIVE";try{savedMode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(_){}
+    state.mode=String(f.mode||savedMode).toUpperCase()==="OTC"?"OTC":"LIVE";
     state.type=f.type||"";
     state.assetLabel=f.label||"";
     state.candles=[];state.price=null;state.prev=null;state.tradeStart=null;state.tradeEnd=null;
     state.historyLoaded=false;state.initialRangeSet=false;assetText();
     if(state.mode==="OTC"){
-      if(f.provider==="GOTRADEX_OTC")connectOTC();
+      if(f.provider==="DERIV")connectDeriv();
+      else if(f.provider==="GOTRADEX_OTC")connectOTC();
       else{closeSocket();state.connected=false;status("OTC FEED UNAVAILABLE",false);notice(f.reason||"The selected OTC asset is not available.",true)}
       return;
     }
@@ -627,7 +630,8 @@
 
   function watchSelection(){
     const f=selection();
-    const k=[f.provider,f.symbol,f.label,f.type,String(f.mode||"LIVE").toUpperCase()].join("|");
+    let savedMode="LIVE";try{savedMode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(_){}
+    const k=[f.provider,f.symbol,f.label,f.type,String(f.mode||savedMode).toUpperCase()].join("|");
     if(k!==state.lastAssetKey){
       state.lastAssetKey=k;
       connect();
