@@ -648,7 +648,7 @@
   }
 
   function setAsset(label,type,mode){
-    const pair=String(label||"BTC/USD").replace(/\\s+OTC$/i,"").trim()||"BTC/USD";
+    const pair=String(label||"BTC/USD").replace(/\s+OTC$/i,"").trim()||"BTC/USD";
     const m=String(mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
     const t=String(type||"crypto").toLowerCase();
     try{
