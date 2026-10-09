@@ -1,138 +1,104 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GoTradeX — Simple Indices Test</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GoTradeX — Deriv Index Symbol Inspector</title>
 <style>
 :root{color-scheme:dark;--bg:#0b1020;--panel:#141c30;--line:#293650;--text:#e8eefb;--muted:#9aa9c4;--green:#36d399;--red:#fb7185;--amber:#fbbf24;--blue:#4da3ff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}header{padding:20px 16px;background:#10182b;border-bottom:1px solid var(--line)}main{max-width:900px;margin:auto;padding:16px}h1{font-size:22px;margin:0 0 5px}p{color:var(--muted);margin:6px 0}.notice{border:1px solid #6b531b;background:#2a2210;color:#ffdfa0;padding:12px;border-radius:10px;margin:14px 0}.btn{background:#1c2b47;color:var(--text);border:1px solid #385072;border-radius:9px;padding:12px 14px;font-weight:700;cursor:pointer}.btn.primary{background:#1767bd;border-color:#3989de}.btn:disabled{opacity:.5;cursor:wait}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.statusline{padding:11px;border:1px solid var(--line);border-radius:9px;background:var(--panel);margin:10px 0}.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.metric{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:11px}.metric b{font-size:21px;display:block}.metric span{font-size:12px;color:var(--muted)}.rows{display:grid;gap:9px}.item{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px}.top{display:flex;justify-content:space-between;align-items:center;gap:8px}.name{font-weight:750}.badge{font-size:12px;padding:4px 8px;border-radius:99px;background:#273149;color:var(--muted)}.badge.ok{background:#103b32;color:#9ff2d1}.badge.bad{background:#4b202a;color:#ffc0c9}.badge.warn{background:#4b3917;color:#ffe3a1}.detail{font-size:13px;color:var(--muted);margin-top:7px;overflow-wrap:anywhere}.foot{font-size:12px;color:var(--muted);margin:18px 0 28px}@media(max-width:480px){.summary{grid-template-columns:repeat(3,minmax(0,1fr))}.metric{padding:8px}.metric b{font-size:18px}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}header{padding:20px 16px;background:#10182b;border-bottom:1px solid var(--line)}main{max-width:980px;margin:auto;padding:16px}h1{font-size:22px;margin:0 0 5px}h2{font-size:17px;margin:20px 0 8px}p{color:var(--muted);margin:6px 0}.notice{border:1px solid #6b531b;background:#2a2210;color:#ffdfa0;padding:12px;border-radius:10px;margin:14px 0}.btn{background:#1c2b47;color:var(--text);border:1px solid #385072;border-radius:9px;padding:12px 14px;font-weight:700;cursor:pointer}.btn.primary{background:#1767bd;border-color:#3989de}.btn:disabled{opacity:.5;cursor:wait}.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.statusline{padding:11px;border:1px solid var(--line);border-radius:9px;background:var(--panel);margin:10px 0}.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.metric{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:11px}.metric b{font-size:21px;display:block}.metric span{font-size:12px;color:var(--muted)}input{width:100%;padding:12px;border:1px solid #385072;border-radius:9px;background:#0c1425;color:var(--text);font-size:16px;margin:8px 0}.rows{display:grid;gap:8px}.item{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px}.top{display:flex;justify-content:space-between;align-items:center;gap:8px}.name{font-weight:750;overflow-wrap:anywhere}.badge{font-size:12px;padding:4px 8px;border-radius:99px;background:#273149;color:var(--muted);white-space:nowrap}.badge.ok{background:#103b32;color:#9ff2d1}.badge.bad{background:#4b202a;color:#ffc0c9}.badge.warn{background:#4b3917;color:#ffe3a1}.detail{font-size:13px;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}.empty{padding:12px;color:var(--muted)}.foot{font-size:12px;color:var(--muted);margin:18px 0 28px}@media(max-width:480px){.summary{grid-template-columns:repeat(3,minmax(0,1fr))}.metric{padding:8px}.metric b{font-size:18px}.badge{font-size:11px}}
 </style></head><body>
-<header><main style="padding:0"><h1>GoTradeX — Simple Indices Test</h1><p>Automatic matching and testing. No symbol boxes to fill in.</p></main></header>
+<header><main style="padding:0"><h1>GoTradeX — Deriv Index Symbol Inspector</h1><p>Read-only diagnostic page. It does not change the main GoTradeX app.</p></main></header>
 <main>
-<div class="notice"><b>What this does:</b> It checks Deriv's real active-symbol list, automatically selects only clear name matches, and tests historical candles. It will not invent data or replace an index with a different market. Historical candles do not prove a live tick feed or trade execution.</div>
+<div class="notice"><b>Purpose:</b> Display the actual symbols returned by Deriv, highlight names that may relate to indices, and check historical candles for those candidates. Candidate labels are only search hints—not confirmation that they are the same as your requested market. No Twelve Data, synthetic fallback, or trades.</div>
 <div id="connection" class="statusline">Connecting to Deriv…</div>
-<div class="toolbar"><button id="run" class="btn primary" disabled>Automatically test all 18 indices</button><button id="refresh" class="btn">Reconnect / refresh</button></div>
-<div class="summary"><div class="metric"><b id="matched">0</b><span>Auto-matched</span></div><div class="metric"><b id="ok">0</b><span>History OK</span></div><div class="metric"><b id="failed">0</b><span>Failed / not matched</span></div></div>
-<div id="rows" class="rows"></div>
-<div class="foot">Source: Deriv public market-data WebSocket only. No Twelve Data requests, no synthetic candles, and no trades. Some conventional indices may not be offered by Deriv. “Not matched” means the tester could not safely identify the requested index in Deriv's active-symbol list.</div>
+<div class="toolbar"><button id="refresh" class="btn primary">Reconnect / reload symbols</button><button id="test" class="btn" disabled>Test historical candles for index candidates</button></div>
+<div class="summary"><div class="metric"><b id="total">0</b><span>Symbols returned by Deriv</span></div><div class="metric"><b id="candidateCount">0</b><span>Index-like candidates</span></div><div class="metric"><b id="testedCount">0</b><span>Candle tests completed</span></div></div>
+<label for="filter">Search the actual Deriv symbol list (optional)</label><input id="filter" type="search" placeholder="Search name, symbol, market, or category">
+<h2>Possible index-related symbols</h2><p>These are automatically filtered from Deriv's returned list. Review the exact display name and symbol before treating one as a match.</p><div id="candidates" class="rows"><div class="empty">Waiting for Deriv's symbol list…</div></div>
+<h2>Complete active-symbol list</h2><p>This list shows the actual names and symbol codes received from Deriv. Use the search field above to narrow it down.</p><div id="all" class="rows"><div class="empty">Waiting for Deriv's symbol list…</div></div>
+<div class="foot">Source: Deriv public market-data WebSocket. A candidate is not a verified match. “History OK” confirms historical candles only—not a continuous live tick stream or trade execution. No trades are placed and no main-app files are changed.</div>
 </main>
 <script>
 (function(){
 const URL='wss://api.derivws.com/trading/v1/options/ws/public';
-const labels=['US 30','US 500','NAS 100','UK 100','GER 40','FRA 40','KPN 225','AUS 200','HK 550','EU 50','SA 40','SPX','DAX','CAC 40','FTSE','NIKKEI','VIX','RUSSELL 2000'];
-const aliases={
-'US 30':['WALL STREET 30','US 30','DOW JONES 30','DOW JONES'],
-'US 500':['US 500','S&P 500','S P 500'],
-'NAS 100':['NASDAQ 100','US TECH 100','NAS 100'],
-'UK 100':['UK 100','FTSE 100'],
-'GER 40':['GERMANY 40','GER 40'],
-'FRA 40':['FRANCE 40','FRA 40'],
-'KPN 225':['KPN 225'],
-'AUS 200':['AUSTRALIA 200','AUS 200','ASX 200'],
-'HK 550':['HK 550'],
-'EU 50':['EURO STOXX 50','EU 50','EURO 50'],
-'SA 40':['SOUTH AFRICA 40','SA 40'],
-'SPX':['SPX'],
-'DAX':['DAX'],
-'CAC 40':['CAC 40'],
-'FTSE':['FTSE 100','FTSE'],
-'NIKKEI':['NIKKEI 225','NIKKEI','JAPAN 225'],
-'VIX':['VIX'],
-'RUSSELL 2000':['RUSSELL 2000']
-};
-let ws=null, symbols=[], req=100, pending=new Map(), running=false, stopped=false, results={};
 const $=id=>document.getElementById(id);
-function norm(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();}
-function setConn(s,kind){$('connection').textContent=s;$('connection').style.color=kind==='ok'?'#9ff2d1':kind==='bad'?'#ffc0c9':'#ffdfa1';}
-function send(o){if(!ws||ws.readyState!==1)throw Error('Not connected to Deriv');ws.send(JSON.stringify(o));}
-function parseSymbol(s){return {symbol:String(s.underlying_symbol||s.symbol||s.display_symbol||''),name:String(s.underlying_symbol_name||s.display_name||s.name||s.symbol||''),type:String(s.underlying_symbol_type||s.market_display_name||s.market||s.submarket||'')};}
-function score(label,s){
- const hay=norm(s.name+' '+s.symbol+' '+s.type);
- const terms=aliases[label]||[label];
- let best=0;
- for(const term0 of terms){const term=norm(term0);if(!term)continue;
-  if(hay===term)best=Math.max(best,100);
-  else if(norm(s.name)===term)best=Math.max(best,98);
-  else if(hay.includes(term))best=Math.max(best,term.length>=9?88:term.length>=6?78:0);
- }
- // Do not infer conventional indices from unrelated synthetic/derived symbols.
- if(/VOLATILITY|BOOM|CRASH|JUMP|STEP INDEX|RANGE BREAK|DRIFT SWITCH|DEX/.test(hay) && !/VIX/.test(label))return 0;
- return best;
+let ws=null, symbols=[], pending=new Map(), req=100, testing=false, results={};
+const candidateWords=/index|indices|wall street|dow jones|s.?p.? 500|nasdaq|nas 100|us 30|us 500|uk 100|ftse|germany 40|ger 40|france 40|fra 40|dax|cac 40|australia 200|aus 200|japan 225|nikkei|hong kong|hk 50|hk 550|south africa 40|sa 40|euro stoxx|eu 50|russell|volatility|boom|crash|step|range break|drift switch|jump index|basket index|dex/i;
+function norm(s){return String(s||'').replace(/\s+/g,' ').trim()}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function setConn(s,k){$('connection').textContent=s;$('connection').style.color=k==='ok'?'#9ff2d1':k==='bad'?'#ffc0c9':'#ffdfa1'}
+function send(o){if(!ws||ws.readyState!==1)throw Error('Not connected to Deriv');ws.send(JSON.stringify(o))}
+function parseSymbol(s){
+ const symbol=norm(s.underlying_symbol||s.symbol||s.display_symbol||s.market_symbol||'');
+ const name=norm(s.underlying_symbol_name||s.display_name||s.name||s.symbol_name||s.symbol||symbol);
+ const market=norm(s.market_display_name||s.market_name||s.market||s.market_display||'');
+ const submarket=norm(s.submarket_display_name||s.submarket_name||s.submarket||'');
+ const type=norm(s.underlying_symbol_type||s.symbol_type||s.contract_type||'');
+ const raw=Object.entries(s).filter(([k,v])=>v!==null&&v!==undefined&&['symbol','underlying_symbol','display_name','underlying_symbol_name','market','market_display_name','submarket','submarket_display_name','symbol_type','underlying_symbol_type','market_name','submarket_name'].includes(k)).map(([k,v])=>k+': '+v).join(' · ');
+ return {symbol,name,market,submarket,type,raw,source:s};
 }
-function bestMatch(label){
- const ranked=symbols.map(s=>({s,score:score(label,s)})).filter(x=>x.score>=78).sort((a,b)=>b.score-a.score);
- if(!ranked.length)return null;
- if(ranked.length>1&&ranked[0].score===ranked[1].score)return null;
- return ranked[0].s;
+function isCandidate(s){return candidateWords.test([s.name,s.symbol,s.market,s.submarket,s.type].join(' '))}
+function showCard(s,i,container){
+ const key=s.symbol||('row-'+i), result=results[key];
+ const status=result===true?'<span class="badge ok">HISTORY OK</span>':result===false?'<span class="badge bad">HISTORY FAILED</span>':isCandidate(s)?'<span class="badge warn">CANDIDATE</span>':'<span class="badge">ACTIVE SYMBOL</span>';
+ const el=document.createElement('div');el.className='item';
+ el.innerHTML='<div class="top"><div class="name">'+esc(s.name)+'</div>'+status+'</div><div class="detail"><b>Symbol:</b> '+esc(s.symbol||'(symbol code not supplied)')+'</div><div class="detail"><b>Market:</b> '+esc(s.market||'not supplied')+' · <b>Submarket:</b> '+esc(s.submarket||'not supplied')+'</div>'+(s.type?'<div class="detail"><b>Type:</b> '+esc(s.type)+'</div>':'')+(result===true?'<div class="detail">Historical candles were returned by Deriv.</div>':result===false?'<div class="detail">Deriv did not return usable historical candles for this symbol.</div>':'');
+ container.appendChild(el)
 }
 function render(){
- const root=$('rows');root.innerHTML='';
- labels.forEach((label,i)=>{
-  const box=document.createElement('div');box.className='item';
-  const top=document.createElement('div');top.className='top';
-  const n=document.createElement('div');n.className='name';n.textContent=(i+1)+'. '+label;
-  const b=document.createElement('span');b.className='badge';b.id='badge-'+i;b.textContent='Waiting to test';
-  top.append(n,b);
-  const d=document.createElement('div');d.className='detail';d.id='detail-'+i;d.textContent='The automatic test will identify a clear provider match if one exists.';
-  box.append(top,d);root.append(box);
- });
+ const q=$('filter').value.trim().toLowerCase();
+ const filtered=symbols.filter(s=>[s.name,s.symbol,s.market,s.submarket,s.type,s.raw].join(' ').toLowerCase().includes(q));
+ const candidates=filtered.filter(isCandidate);
+ $('total').textContent=symbols.length;$('candidateCount').textContent=symbols.filter(isCandidate).length;
+ $('candidates').innerHTML='';$('all').innerHTML='';
+ if(!candidates.length)$('candidates').innerHTML='<div class="empty">No index-like names matched this filter. Clear the search to see the full list.</div>';
+ candidates.forEach((s,i)=>showCard(s,i,$('candidates')));
+ if(!filtered.length)$('all').innerHTML='<div class="empty">No symbols match this search.</div>';
+ filtered.forEach((s,i)=>showCard(s,i,$('all')));
 }
-function counts(){
- const m=labels.filter((_,i)=>results[i]&&results[i].symbol).length;
- const o=labels.filter((_,i)=>results[i]&&results[i].ok).length;
- const f=labels.filter((_,i)=>results[i]&&(results[i].ok===false||results[i].symbol===null)).length;
- $('matched').textContent=m;$('ok').textContent=o;$('failed').textContent=f;
-}
-function setRow(i,text,kind,detail){const b=$('badge-'+i);b.className='badge'+(kind?' '+kind:'');b.textContent=text;$('detail-'+i).textContent=detail;}
 function connect(){
  if(ws){try{ws.close()}catch(e){}ws=null}
- pending.forEach(p=>{clearTimeout(p.timer);p.reject(Error('Connection refreshed'))});pending.clear();symbols=[];results={};render();counts();
- $('run').disabled=true;setConn('Connecting to Deriv and loading its active symbols…');
+ pending.forEach(p=>{clearTimeout(p.timer);p.reject(Error('Connection refreshed'))});pending.clear();
+ symbols=[];results={};testing=false;$('test').disabled=true;$('refresh').disabled=false;
+ $('candidates').innerHTML='<div class="empty">Loading symbols…</div>';$('all').innerHTML='<div class="empty">Loading symbols…</div>';
+ setConn('Connecting to Deriv and requesting its active-symbol list…');
  try{ws=new WebSocket(URL)}catch(e){setConn('Could not connect: '+e.message,'bad');return}
- const t=setTimeout(()=>{if(ws&&ws.readyState!==1)setConn('Connection timed out. Check internet and tap reconnect.','bad')},12000);
- ws.onopen=()=>{clearTimeout(t);try{send({active_symbols:'full',req_id:1})}catch(e){setConn(e.message,'bad')}};
- ws.onerror=()=>setConn('WebSocket connection error. Tap reconnect and try again.','bad');
- ws.onclose=()=>{if(!running)setConn('Disconnected. Tap reconnect to try again.','bad')};
+ const timeout=setTimeout(()=>{if(ws&&ws.readyState!==1)setConn('Connection timed out. Check internet and reconnect.','bad')},12000);
+ ws.onopen=()=>{clearTimeout(timeout);try{send({active_symbols:'full',req_id:1})}catch(e){setConn(e.message,'bad')}};
+ ws.onerror=()=>setConn('WebSocket connection error. Check internet and reconnect.','bad');
+ ws.onclose=()=>{if(!testing)setConn('Disconnected. Tap reconnect to try again.','bad')};
  ws.onmessage=e=>{
   let d;try{d=JSON.parse(e.data)}catch(_){return}
   if(d.error){const p=pending.get(d.req_id);if(p){clearTimeout(p.timer);pending.delete(d.req_id);p.reject(Error(d.error.message||d.error.code||'Deriv error'))}else if(d.req_id===1)setConn('Deriv error: '+(d.error.message||d.error.code),'bad');return}
   if(d.msg_type==='active_symbols'||d.active_symbols){
-   symbols=(d.active_symbols||[]).map(parseSymbol).filter(s=>s.symbol);
-   setConn('Connected — '+symbols.length+' active symbols loaded. Tap the blue button; the page will do the matching and testing.','ok');
-   $('run').disabled=false;render();return;
+   let list=d.active_symbols||d.data?.active_symbols||[];
+   if(!Array.isArray(list)&&list&&typeof list==='object')list=Object.values(list);
+   symbols=list.map(parseSymbol).filter(s=>s.symbol||s.name).sort((a,b)=>(a.market+' '+a.submarket+' '+a.name).localeCompare(b.market+' '+b.submarket+' '+b.name));
+   setConn('Connected — Deriv returned '+symbols.length+' active symbols. Candidate names are shown below; the complete list is also available.','ok');
+   $('test').disabled=!symbols.some(isCandidate);render();return;
   }
   const p=pending.get(d.req_id);
-  if(p&&((p.kind==='history'&&(d.msg_type==='candles'||d.candles||d.msg_type==='history')))){clearTimeout(p.timer);pending.delete(d.req_id);p.resolve(d)}
+  if(p&&(d.msg_type==='candles'||d.candles||d.msg_type==='history')){clearTimeout(p.timer);pending.delete(d.req_id);p.resolve(d)}
  };
 }
-function requestHistory(symbol){
- return new Promise((resolve,reject)=>{
-  const id=++req,timer=setTimeout(()=>{pending.delete(id);reject(Error('History request timed out'))},14000);
-  pending.set(id,{kind:'history',resolve:d=>{clearTimeout(timer);pending.delete(id);resolve(d)},reject:e=>{clearTimeout(timer);pending.delete(id);reject(e)},timer});
-  try{send({ticks_history:symbol,end:'latest',count:100,granularity:60,style:'candles',req_id:id})}catch(e){clearTimeout(timer);pending.delete(id);reject(e)}
- });
-}
+function requestHistory(symbol){return new Promise((resolve,reject)=>{
+ const id=++req,timer=setTimeout(()=>{pending.delete(id);reject(Error('Request timed out'))},14000);
+ pending.set(id,{resolve:d=>{clearTimeout(timer);pending.delete(id);resolve(d)},reject:e=>{clearTimeout(timer);pending.delete(id);reject(e)},timer});
+ try{send({ticks_history:symbol,end:'latest',count:100,granularity:60,style:'candles',req_id:id})}catch(e){clearTimeout(timer);pending.delete(id);reject(e)}
+})}
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-async function run(){
- if(running||!symbols.length)return;
- running=true;stopped=false;$('run').disabled=true;$('refresh').disabled=true;
- results={};labels.forEach((label,i)=>{
-  const match=bestMatch(label);
-  if(!match){results[i]={symbol:null,ok:false};setRow(i,'NOT MATCHED','warn','No safe exact match found in Deriv active symbols. Nothing was guessed or substituted.')}
-  else {results[i]={symbol:match.symbol,ok:null};setRow(i,'MATCHED — testing…','warn','Deriv symbol: '+match.name+' ['+match.symbol+']. Requesting real historical candles…')}
- });counts();
- for(let i=0;i<labels.length;i++){
-  if(stopped)break;
-  const r=results[i];if(!r||!r.symbol)continue;
-  try{
-   const d=await requestHistory(r.symbol);
-   const candles=d.candles||(d.history&&d.history.prices)||[];
-   if(!Array.isArray(candles)||!candles.length)throw Error('No candles returned');
-   r.ok=true;setRow(i,'HISTORY OK','ok','Matched Deriv symbol: '+r.symbol+' — '+candles.length+' real historical candles received. Live ticks have not been tested yet.');
-  }catch(e){r.ok=false;setRow(i,'HISTORY FAILED','bad','Matched Deriv symbol: '+r.symbol+' — '+e.message)}
-  counts();await wait(900);
+async function testCandidates(){
+ if(testing||!symbols.length)return;
+ testing=true;$('test').disabled=true;$('refresh').disabled=true;
+ const list=symbols.filter(isCandidate);
+ setConn('Testing historical candles for '+list.length+' candidate symbols. Please keep this page open…');
+ let done=0;
+ for(const s of list){
+  if(!ws||ws.readyState!==1)break;
+  try{const d=await requestHistory(s.symbol);const c=d.candles||(d.history&&d.history.prices)||[];results[s.symbol]=Array.isArray(c)&&c.length>0}
+  catch(e){results[s.symbol]=false}
+  done++;$('testedCount').textContent=done;render();await wait(900)
  }
- running=false;$('run').disabled=false;$('refresh').disabled=false;
- setConn(stopped?'Test stopped. You can run it again.':'Automatic history test finished. Review the results below.','ok');
+ testing=false;$('test').disabled=!symbols.some(isCandidate);$('refresh').disabled=false;
+ setConn('Candidate history test finished. '+done+' of '+list.length+' candidates checked. Review exact names and results above.','ok')
 }
-$('run').onclick=run;$('refresh').onclick=connect;
-render();connect();
+$('refresh').onclick=connect;$('test').onclick=testCandidates;$('filter').addEventListener('input',render);connect();
 })();
 </script></body></html>
