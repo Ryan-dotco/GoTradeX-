@@ -18,7 +18,7 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 <body>
 <header><div class="wrap">
 <h1>GoTradeX · Forex Batch Feed Test</h1>
-<p>Standalone test page — does not replace or edit the main trading dashboard.</p>
+<p>Standalone Deriv-only test page — does not replace or edit the main trading dashboard.</p>
 <div class="actions">
 <button id="testAll">Test all 30 pairs (paced)</button>
 <button id="stop" disabled>Stop batch</button>
@@ -28,7 +28,7 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 <div class="summary"><span class="pill" id="passed">History OK: 0</span><span class="pill" id="failed">Failed: 0</span><span class="pill" id="untested">Untested: 30</span></div>
 </div></header>
 <main class="wrap">
-<div class="note"><b>Honest results:</b> “History OK” means the configured provider returned real historical candles for that symbol. It does not claim that a continuous live tick stream or trade execution is verified. The first four pairs use the existing Deriv history adapter; other pairs use the existing secure Twelve Data adapter. The batch is paced to reduce rate-limit errors.</div>
+<div class="note"><b>Deriv-only test:</b> All 30 forex pairs are requested from Deriv using candidate Deriv symbols. Deriv may not offer every pair; unsupported symbols will show Deriv’s actual error. “History OK” confirms historical candles only—not a continuous live tick stream or trade execution. No Twelve Data requests, fallback provider, or synthetic candles are used.</div>
 <table><thead><tr><th>Pair</th><th>Provider</th><th>Candles / last close</th><th>Result</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table>
 <div class="foot">No trades are placed. No synthetic candles are generated. This page tests the current market-data adapter and reports the provider's actual response.</div>
 </main>
@@ -42,13 +42,13 @@ const pairs=[
 'EUR/CHF','AUD/JPY','AUD/CAD','AUD/CHF','AUD/NZD','CAD/JPY','CHF/JPY','EUR/AUD','EUR/CAD','EUR/NZD',
 'GBP/AUD','GBP/CAD','GBP/CHF','GBP/NZD','NZD/JPY','NZD/CAD','CAD/CHF','USD/SGD','USD/HKD','USD/MXN'
 ];
-const deriv={ 'EUR/USD':'frxEURUSD','GBP/USD':'frxGBPUSD','USD/JPY':'frxUSDJPY','AUD/USD':'frxAUDUSD' };
+const deriv=Object.fromEntries(pairs.map(pair=>[pair,'frx'+pair.replace('/','')]));
 const rows=document.getElementById('rows'),overall=document.getElementById('overall');
 let running=false,stopRequested=false;
 const state={};
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render(){
- rows.innerHTML=pairs.map(p=>'<tr><td>'+p+'</td><td>'+(deriv[p]?'Deriv':'Twelve Data')+'</td><td class="small" id="data-'+p.replace('/','-')+'">—</td><td class="status wait" id="status-'+p.replace('/','-')+'">NOT TESTED</td><td><button class="testBtn" data-pair="'+p+'">Test</button></td></tr>').join('');
+ rows.innerHTML=pairs.map(p=>'<tr><td>'+p+'</td><td>'+'Deriv · '+deriv[p]+'</td><td class="small" id="data-'+p.replace('/','-')+'">—</td><td class="status wait" id="status-'+p.replace('/','-')+'">NOT TESTED</td><td><button class="testBtn" data-pair="'+p+'">Test</button></td></tr>').join('');
  rows.querySelectorAll('[data-pair]').forEach(b=>b.addEventListener('click',()=>testPair(b.dataset.pair)));
 }
 function rowId(p){return p.replace('/','-')}
@@ -67,11 +67,7 @@ async function testPair(pair){
  try{
   let candles=[];
   const sec=Number(document.getElementById('tf').value);
-  if(deriv[pair]){
-   candles=await window.GoTradeXMarketFeeds.derivCandleHistory(deriv[pair],sec);
-  }else{
-   candles=await window.GoTradeXMarketFeeds.twelveHistory(pair,sec,'forex');
-  }
+  candles=await window.GoTradeXMarketFeeds.derivCandleHistory(deriv[pair],sec);
   if(!Array.isArray(candles)||candles.length<1)throw new Error('Provider returned no candles');
   const last=candles[candles.length-1];
   dataEl.textContent=candles.length+' candles · close '+Number(last.c).toPrecision(7);
@@ -99,8 +95,8 @@ document.getElementById('testAll').addEventListener('click',async()=>{
   if(state[p]==='done')continue;
   await testPair(p);
   if(stopRequested)break;
-  // Twelve Data has a limited free-tier request budget. Space requests out.
-  if(!deriv[p]&&i<pairs.length-1)await new Promise(r=>setTimeout(r,8500));
+  // Pace separate Deriv WebSocket history requests to avoid opening them all at once.
+  if(i<pairs.length-1)await new Promise(r=>setTimeout(r,900));
  }
  running=false;document.getElementById('testAll').disabled=false;document.getElementById('stop').disabled=true;
  overall.textContent=stopRequested?'Batch stopped. You can resume by running it again.':'Batch finished. Review each pair result and the provider error details for failures; failures are not marked live.';
