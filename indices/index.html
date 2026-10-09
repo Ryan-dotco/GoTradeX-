@@ -11,7 +11,7 @@
 <div class="toolbar"><button id="refresh" class="btn primary">Reconnect / reload symbols</button><button id="test" class="btn" disabled>Test historical candles for index candidates</button></div>
 <div class="summary"><div class="metric"><b id="total">0</b><span>Symbols returned by Deriv</span></div><div class="metric"><b id="candidateCount">0</b><span>Index-like candidates</span></div><div class="metric"><b id="testedCount">0</b><span>Candle tests completed</span></div></div>
 <label for="filter">Search the actual Deriv symbol list (optional)</label><input id="filter" type="search" placeholder="Search name, symbol, market, or category">
-<h2>Possible index-related symbols</h2><p>These are automatically filtered from Deriv's returned list. Review the exact display name and symbol before treating one as a match.</p><div id="candidates" class="rows"><div class="empty">Waiting for Deriv's symbol list…</div></div>
+<h2>Conventional market-index symbols</h2><p>This section is restricted to Deriv symbols classified in the <b>indices</b> market. OTC symbols are labelled clearly. Synthetic indices and baskets remain in the full list below and are not mixed into this section.</p><div id="candidates" class="rows"><div class="empty">Waiting for Deriv's symbol list…</div></div>
 <h2>Complete active-symbol list</h2><p>This list shows the actual names and symbol codes received from Deriv. Use the search field above to narrow it down.</p><div id="all" class="rows"><div class="empty">Waiting for Deriv's symbol list…</div></div>
 <div class="foot">Source: Deriv public market-data WebSocket. A candidate is not a verified match. “History OK” confirms historical candles only—not a continuous live tick stream or trade execution. No trades are placed and no main-app files are changed.</div>
 </main>
@@ -31,31 +31,32 @@ function parseSymbol(s){
  const market=norm(s.market_display_name||s.market_name||s.market||s.market_display||'');
  const submarket=norm(s.submarket_display_name||s.submarket_name||s.submarket||'');
  const type=norm(s.underlying_symbol_type||s.symbol_type||s.contract_type||'');
- return {symbol,name,market,submarket,type,source:s};
+ const raw=Object.entries(s).filter(([k,v])=>v!==null&&v!==undefined&&['symbol','underlying_symbol','display_name','underlying_symbol_name','market','market_display_name','submarket','submarket_display_name','symbol_type','underlying_symbol_type','market_name','submarket_name'].includes(k)).map(([k,v])=>k+': '+v).join(' · ');
+ return {symbol,name,market,submarket,type,raw,source:s};
 }
-function isCandidate(s){return candidateWords.test([s.name,s.symbol,s.market,s.submarket,s.type].join(' '))}
-function showCard(s,container){
- const result=results[s.symbol];
- const status=result===true?'<span class="badge ok">HISTORY OK</span>':result===false?'<span class="badge bad">HISTORY FAILED</span>':isCandidate(s)?'<span class="badge warn">CANDIDATE</span>':'<span class="badge">ACTIVE SYMBOL</span>';
+function isCandidate(s){const market=String(s.market||'').toLowerCase();const sub=String(s.submarket||'').toLowerCase();return market==='indices'||(market.includes('indices')&&!market.includes('synthetic'))||((s.type||'').toLowerCase()==='stockindex'&&!market.includes('synthetic')&&!sub.includes('random_index')&&!sub.includes('jump_index')&&!sub.includes('step_index')&&!sub.includes('crash_index')&&!sub.includes('range_index')&&!sub.includes('random_daily'))}
+function showCard(s,i,container){
+ const key=s.symbol||('row-'+i), result=results[key];
+ const otc=String(s.symbol||'').toUpperCase().startsWith('OTC_')||String(s.submarket||'').toLowerCase().includes('_otc'); const status=(otc?'<span class="badge warn">OTC</span>':'<span class="badge ok">NON-OTC</span>')+' '+(result===true?'<span class="badge ok">HISTORY OK</span>':result===false?'<span class="badge bad">HISTORY FAILED</span>':isCandidate(s)?'<span class="badge warn">INDEX CANDIDATE</span>':'<span class="badge">ACTIVE SYMBOL</span>');
  const el=document.createElement('div');el.className='item';
  el.innerHTML='<div class="top"><div class="name">'+esc(s.name)+'</div>'+status+'</div><div class="detail"><b>Symbol:</b> '+esc(s.symbol||'(symbol code not supplied)')+'</div><div class="detail"><b>Market:</b> '+esc(s.market||'not supplied')+' · <b>Submarket:</b> '+esc(s.submarket||'not supplied')+'</div>'+(s.type?'<div class="detail"><b>Type:</b> '+esc(s.type)+'</div>':'')+(result===true?'<div class="detail">Historical candles were returned by Deriv.</div>':result===false?'<div class="detail">Deriv did not return usable historical candles for this symbol.</div>':'');
  container.appendChild(el)
 }
 function render(){
  const q=$('filter').value.trim().toLowerCase();
- const filtered=symbols.filter(s=>[s.name,s.symbol,s.market,s.submarket,s.type,JSON.stringify(s.source)].join(' ').toLowerCase().includes(q));
+ const filtered=symbols.filter(s=>[s.name,s.symbol,s.market,s.submarket,s.type,s.raw].join(' ').toLowerCase().includes(q));
  const candidates=filtered.filter(isCandidate);
  $('total').textContent=symbols.length;$('candidateCount').textContent=symbols.filter(isCandidate).length;
  $('candidates').innerHTML='';$('all').innerHTML='';
  if(!candidates.length)$('candidates').innerHTML='<div class="empty">No index-like names matched this filter. Clear the search to see the full list.</div>';
- candidates.forEach(s=>showCard(s,$('candidates')));
+ candidates.forEach((s,i)=>showCard(s,i,$('candidates')));
  if(!filtered.length)$('all').innerHTML='<div class="empty">No symbols match this search.</div>';
- filtered.forEach(s=>showCard(s,$('all')));
+ filtered.forEach((s,i)=>showCard(s,i,$('all')));
 }
 function connect(){
  if(ws){try{ws.close()}catch(e){}ws=null}
  pending.forEach(p=>{clearTimeout(p.timer);p.reject(Error('Connection refreshed'))});pending.clear();
- symbols=[];results={};testing=false;$('test').disabled=true;$('refresh').disabled=false;$('testedCount').textContent='0';
+ symbols=[];results={};testing=false;$('test').disabled=true;$('refresh').disabled=false;
  $('candidates').innerHTML='<div class="empty">Loading symbols…</div>';$('all').innerHTML='<div class="empty">Loading symbols…</div>';
  setConn('Connecting to Deriv and requesting its active-symbol list…');
  try{ws=new WebSocket(URL)}catch(e){setConn('Could not connect: '+e.message,'bad');return}
@@ -70,7 +71,7 @@ function connect(){
    let list=d.active_symbols||d.data?.active_symbols||[];
    if(!Array.isArray(list)&&list&&typeof list==='object')list=Object.values(list);
    symbols=list.map(parseSymbol).filter(s=>s.symbol||s.name).sort((a,b)=>(a.market+' '+a.submarket+' '+a.name).localeCompare(b.market+' '+b.submarket+' '+b.name));
-   setConn('Connected — Deriv returned '+symbols.length+' active symbols. Candidate names are shown below; the complete list is also available.','ok');
+   setConn('Connected — Deriv returned '+symbols.length+' active symbols. Conventional market indices are separated from synthetic indices and baskets.','ok');
    $('test').disabled=!symbols.some(isCandidate);render();return;
   }
   const p=pending.get(d.req_id);
