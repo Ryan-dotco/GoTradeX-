@@ -41,6 +41,15 @@
     "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
   };
 
+  // Deriv OTC indices whose historical candles and short-test live ticks both responded.
+  // Australia 200 and Japan 225 are intentionally omitted until their tick streams are verified.
+  const derivOtcIndexMap = {
+    "US 500":"OTC_SPC", "US Tech 100":"OTC_NDX", "Wall Street 30":"OTC_DJI",
+    "Hong Kong 50":"OTC_HSI", "Euro 50":"OTC_SX5E", "France 40":"OTC_FCHI",
+    "Germany 40":"OTC_GDAXI", "Netherlands 25":"OTC_AEX", "Swiss 20":"OTC_SSMI",
+    "UK 100":"OTC_FTSE"
+  };
+
   const directTwelve = {
     "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
     "AUD/USD":"AUD/USD","USD/CAD":"USD/CAD","NZD/USD":"NZD/USD","EUR/GBP":"EUR/GBP",
@@ -90,7 +99,10 @@
       /^(WTI|Brent|Natural Gas|Copper|Platinum|Palladium)/.test(l) ? "commodities" : "forex"
     ) : storedType;
     const t=inferredType;
-    if(mode()!=="LIVE") return {available:false,provider:"NONE",reason:"OTC 24/7 has no verified feed connected.",label:l,type:t};
+    if(mode()==="OTC"){
+      if(t==="indices" && derivOtcIndexMap[l]) return {available:true,provider:"DERIV",symbol:derivOtcIndexMap[l],label:l,type:t,otc:true};
+      return {available:false,provider:"NONE",reason:"No verified Deriv OTC feed is configured for "+l+".",label:l,type:t};
+    }
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
     if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
     // Use the selected asset native symbol through the verified Twelve Data adapter.
