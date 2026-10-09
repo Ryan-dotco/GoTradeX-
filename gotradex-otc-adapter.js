@@ -104,10 +104,22 @@
     let mode="LIVE";
     try{mode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(_){}
     if(mode==="OTC"){
-      const pair=selectedPair();
-      const base=pair.replace(/\s+OTC$/i,"");
-      return {available:true,provider:"GOTRADEX_OTC",symbol:pair,label:base,type:"forex",mode:"OTC",short:false};
+      // Only route pairs explicitly supported by the isolated OTC table adapter.
+      // Read the visible dashboard selection first; a stale legacy gtx_pair must
+      // never turn an OTC index such as US 500 into EUR/USD.
+      let display="";
+      try{display=String(localStorage.getItem("gotradex_asset_display")||"").trim()}catch(_){}
+      if(!display){
+        try{display=String(document.getElementById("bottomAssetPair")?.textContent||"").trim()}catch(_){}
+      }
+      const requested=display.replace(/\s+OTC$/i,"").trim()+" OTC";
+      if(PAIRS[requested]){
+        const base=requested.replace(/\s+OTC$/i,"");
+        return {available:true,provider:"GOTRADEX_OTC",symbol:requested,label:base,type:"forex",mode:"OTC",short:false};
+      }
     }
+    // Let the main verified resolver handle Deriv OTC indices and any other
+    // provider-specific OTC asset; unsupported pairs remain unavailable.
     return originalResolve();
   };
   feeds.otcHistory=history;
