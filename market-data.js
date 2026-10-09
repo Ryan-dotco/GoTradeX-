@@ -100,8 +100,8 @@
     ) : storedType;
     const t=inferredType;
     if(mode()==="OTC"){
-      if(t==="indices" && derivOtcIndexMap[l]) return {available:true,provider:"DERIV",symbol:derivOtcIndexMap[l],label:l,type:t,otc:true};
-      return {available:false,provider:"NONE",reason:"No verified Deriv OTC feed is configured for "+l+".",label:l,type:t};
+      if(t==="indices" && derivOtcIndexMap[l]) return {available:true,provider:"DERIV",symbol:derivOtcIndexMap[l],label:l,type:t,otc:true,mode:"OTC"};
+      return {available:false,provider:"NONE",reason:"No verified Deriv OTC feed is configured for "+l+".",label:l,type:t,mode:"OTC"};
     }
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
     if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
