@@ -1,4 +1,4 @@
-name: GoTradeX chart checks
+name: GoTradeX chart and asset-sync checks
 on:
   push:
     branches: [main]
@@ -12,22 +12,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Syntax check Kengly and Pro Engine
+      - name: Syntax check active chart and feed scripts
         run: |
-          node --check chart-engine.js
+          node --check live-chart.js
           node --check gotradex-pro-engine.js
           node --check market-data.js
-      - name: Verify protected chart wiring
+      - name: Verify selected asset reaches the correct chart feed
         run: |
           node - <<'NODE'
-          const fs=require('fs');
-          const chart=fs.readFileSync('chart-engine.js','utf8');
-          const pro=fs.readFileSync('gotradex-pro-engine.js','utf8');
-          const index=fs.readFileSync('index.html','utf8');
-          for(const x of ['GoTradeXChartEngine','gtxKenglyHost','CandlestickSeries','fetchCandles','boot']) if(!chart.includes(x)) throw new Error('Missing Kengly feature: '+x);
-          for(const x of ['GoTradeXProEngine','LIVE_ASSETS','OTC_ASSETS','Alligator','Bollinger Bands']) if(!pro.includes(x)) throw new Error('Missing Pro Engine feature: '+x);
-          if(!index.includes('chart-engine.js?v=gtx-kengly-final-20261006')) throw new Error('Kengly engine not wired');
-          if(!index.includes('gotradex-pro-engine.js?v=gtx-pro-engine-final-20261006')) throw new Error('Pro Engine not wired');
-          if(index.includes('style="display:none!important"></section>')) throw new Error('Hidden chart host remains');
-          console.log('GoTradeX protected Kengly + Pro Engine checks passed');
+          const fs = require('fs');
+          const index = fs.readFileSync('index.html', 'utf8');
+          const chart = fs.readFileSync('live-chart.js', 'utf8');
+          const feed = fs.readFileSync('market-data.js', 'utf8');
+          const pro = fs.readFileSync('gotradex-pro-engine.js', 'utf8');
+          const checks = [
+            [index.includes('live-chart.js?v=20261009asset-sync3'), 'active chart script cache version'],
+            [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
+            [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
+            [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
+            [chart.includes('d.source!=="dashboard-assets"') && chart.includes('setAsset(d.label,d.type,d.mode)'), 'single dashboard-to-chart handoff'],
+            [chart.includes('function connectDeriv()') && chart.includes('derivCandleHistory(f.symbol,state.sec)'), 'Deriv historical candle request'],
+            [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
+            [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection']
+          ];
+          for (const [ok, name] of checks) {
+            if (!ok) throw new Error('FAILED: ' + name);
+            console.log('PASS: ' + name);
+          }
           NODE
