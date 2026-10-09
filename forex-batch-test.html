@@ -79,8 +79,9 @@ async function testPair(pair){
   state[pair]='done';
   return {ok:true,pair,count:candles.length};
  }catch(e){
-  dataEl.textContent=String(e&&e.message||e).slice(0,130);
-  status.className='status bad';status.textContent='FAILED';
+  const errorText=String(e&&e.message||e||'Unknown provider error').slice(0,180);
+  dataEl.textContent='Provider error: '+errorText;
+  status.className='status bad';status.textContent='FAILED — '+errorText;
   state[pair]='failed';
   updateSummary();
   return {ok:false,pair,error:String(e&&e.message||e)};
@@ -90,7 +91,8 @@ document.getElementById('testAll').addEventListener('click',async()=>{
  if(running)return;running=true;stopRequested=false;
  document.getElementById('testAll').disabled=true;document.getElementById('stop').disabled=false;
  const sec=Number(document.getElementById('tf').value);
- overall.textContent='Batch running: '+pairs.length+' pairs · '+sec+'-second candle interval. Please keep this page open.';
+ const tfLabel=({60:'1-minute',300:'5-minute',900:'15-minute'})[sec]||'selected';
+ overall.textContent='Batch running: '+pairs.length+' pairs · '+tfLabel+' candles. Please keep this page open.';
  for(let i=0;i<pairs.length;i++){
   if(stopRequested)break;
   const p=pairs[i];
@@ -101,7 +103,7 @@ document.getElementById('testAll').addEventListener('click',async()=>{
   if(!deriv[p]&&i<pairs.length-1)await new Promise(r=>setTimeout(r,8500));
  }
  running=false;document.getElementById('testAll').disabled=false;document.getElementById('stop').disabled=true;
- overall.textContent=stopRequested?'Batch stopped. You can resume by running it again.':'Batch finished. Review each pair result; failures are not marked live.';
+ overall.textContent=stopRequested?'Batch stopped. You can resume by running it again.':'Batch finished. Review each pair result and the provider error details for failures; failures are not marked live.';
 });
 document.getElementById('stop').addEventListener('click',()=>{stopRequested=true;overall.textContent='Stopping after the current request…'});
 render();updateSummary();
