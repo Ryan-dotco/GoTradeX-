@@ -32,7 +32,7 @@ jobs:
             [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
             [chart.includes('d.source!=="dashboard-assets"') && chart.includes('setAsset(d.label,d.type,d.mode)'), 'single dashboard-to-chart handoff'],
             [chart.includes('function connectDeriv()') && chart.includes('derivCandleHistory(f.symbol,state.sec)'), 'Deriv historical candle request'],
-            [chart.includes('return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks'), 'OTC live-tick candle bootstrap when history is sparse'],
+            [chart.includes('return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks') && chart.includes('if(state.mode!=="OTC")throw e;') && chart.includes('Deriv OTC history unavailable; continuing to wait for verified live ticks'), 'OTC tick bootstrap when history is sparse or fails'],
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
             [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection']
           ];
