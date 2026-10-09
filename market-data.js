@@ -23,8 +23,9 @@
     "ALGO/USD":"ALGOUSDT"
   };
 
-  // Candidate symbols verified by the standalone Deriv 5-minute history test (30/30).
-  // Keep this map as the single routing source for LIVE forex history and tick streams.
+  // 46 forex pairs returned usable Deriv historical candles in the standalone batch test.
+  // This map routes those tested LIVE pairs to Deriv for history and live tick streams.
+  // USD/HUF is intentionally excluded: Deriv returned "Invalid symbol" in the batch test.
   const derivMap = {
     "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
     "USD/CHF":"frxUSDCHF","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
@@ -33,7 +34,11 @@
     "CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD",
     "GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/NZD":"frxGBPNZD",
     "NZD/JPY":"frxNZDJPY","NZD/CAD":"frxNZDCAD","CAD/CHF":"frxCADCHF","USD/SGD":"frxUSDSGD",
-    "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN"
+    "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN","USD/ZAR":"frxUSDZAR","EUR/ZAR":"frxEURZAR",
+    "GBP/ZAR":"frxGBPZAR","USD/TRY":"frxUSDTRY","USD/NOK":"frxUSDNOK","USD/SEK":"frxUSDSEK",
+    "USD/DKK":"frxUSDDKK","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN",
+    "EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","USD/INR":"frxUSDINR","USD/BRL":"frxUSDBRL",
+    "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
   };
 
   const directTwelve = {
