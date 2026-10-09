@@ -75,7 +75,8 @@ function connect(){
    $('test').disabled=!symbols.some(isCandidate);$('testTicks').disabled=!symbols.some(isCandidate);render();return;
   }
   const p=pending.get(d.req_id);
-  if(p&&d.msg_type==='tick'){p.resolve(d);return}\n  if(p&&(d.msg_type==='candles'||d.candles||d.msg_type==='history')){clearTimeout(p.timer);pending.delete(d.req_id);p.resolve(d)}
+  if(p&&d.msg_type==='tick'){p.resolve(d);return}
+  if(p&&(d.msg_type==='candles'||d.candles||d.msg_type==='history')){clearTimeout(p.timer);pending.delete(d.req_id);p.resolve(d)}
  };
 }
 function requestHistory(symbol){return new Promise((resolve,reject)=>{
@@ -83,7 +84,12 @@ function requestHistory(symbol){return new Promise((resolve,reject)=>{
  pending.set(id,{resolve:d=>{clearTimeout(timer);pending.delete(id);resolve(d)},reject:e=>{clearTimeout(timer);pending.delete(id);reject(e)},timer});
  try{send({ticks_history:symbol,end:'latest',count:100,granularity:60,style:'candles',req_id:id})}catch(e){clearTimeout(timer);pending.delete(id);reject(e)}
 })}
-function requestTick(symbol){return new Promise((resolve,reject)=>{\n const id=++req;let timer=setTimeout(()=>{pending.delete(id);reject(Error('No tick received within 5 seconds'))},5000);\n pending.set(id,{resolve:d=>{clearTimeout(timer);pending.delete(id);try{if(d.subscription&&d.subscription.id)send({forget:d.subscription.id})}catch(_){}resolve(d)},reject:e=>{clearTimeout(timer);pending.delete(id);reject(e)},timer});\n try{send({ticks:symbol,subscribe:1,req_id:id})}catch(e){clearTimeout(timer);pending.delete(id);reject(e)}\n })}\nconst wait=ms=>new Promise(r=>setTimeout(r,ms));
+function requestTick(symbol){return new Promise((resolve,reject)=>{
+ const id=++req;let timer=setTimeout(()=>{pending.delete(id);reject(Error('No tick received within 5 seconds'))},5000);
+ pending.set(id,{resolve:d=>{clearTimeout(timer);pending.delete(id);try{if(d.subscription&&d.subscription.id)send({forget:d.subscription.id})}catch(_){}resolve(d)},reject:e=>{clearTimeout(timer);pending.delete(id);reject(e)},timer});
+ try{send({ticks:symbol,subscribe:1,req_id:id})}catch(e){clearTimeout(timer);pending.delete(id);reject(e)}
+ })}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function testCandidates(){
  if(testing||!symbols.length)return;
  testing=true;$('test').disabled=true;$('testTicks').disabled=true;$('refresh').disabled=true;
