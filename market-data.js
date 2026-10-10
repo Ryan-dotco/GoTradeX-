@@ -260,8 +260,10 @@
     };
     const startFallback=async()=>{
       if(stopped||timer)return;
-      // Free Basic has only 8 API credits/minute. Keep HTTP polling conservative;
-      // the WebSocket is preferred because it is server-pushed and much faster.
+      // The HTTP fallback polls every 15 seconds, so a 5-second candle would
+      // be under-sampled. Tell the chart controller to move only the timeframe
+      // to the smallest interval this fallback can reasonably support.
+      onStatus("FALLBACK • TWELVE DATA",false);
       await poll();
       if(stopped)return;
       timer=setInterval(poll,15000);
