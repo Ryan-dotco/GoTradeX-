@@ -25,7 +25,7 @@ Deno.serve(async (req: Request) => {
     if (typeof image !== "string" || !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(image)) {
       return json({ error: "Provide a supported image as a base64 data URL (PNG, JPEG, WEBP, or GIF)." }, 400);
     }
-    if (image.length > 16_000_000) return json({ error: "Image payload is too large; use an image under 12 MB." }, 413);
+    if (image.length > 5_700_000) return json({ error: "Image payload is too large; use an image under 4 MB." }, 413);
     if (mime && !/^image\/(png|jpeg|webp|gif)$/i.test(mime)) return json({ error: "Unsupported image type." }, 400);
 
     const prompt = question || "Analyze this image and clearly state what can and cannot be determined.";
