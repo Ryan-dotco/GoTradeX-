@@ -188,7 +188,7 @@
     if(sec===86400)return "1day"; if(sec===2592000)return "1month"; return null;
   }
   function timeframeName(sec){
-    const m={5:"5 Seconds",10:"10 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",120:"2 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day"};
+    const m={5:"5 Seconds",10:"10 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",180:"3 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day"};
     return m[sec]||null;
   }
 
