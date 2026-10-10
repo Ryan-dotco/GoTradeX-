@@ -19,7 +19,7 @@ function cleanSymbol(v: unknown) {
 
 function intervalFor(tf: string) {
   const map: Record<string, string> = {
-    "5 Seconds": "1min", "15 Seconds": "1min", "30 Seconds": "1min",
+    "5 Seconds": "1min", "10 Seconds": "1min", "15 Seconds": "1min", "30 Seconds": "1min",
     "1 Minute": "1min", "2 Minutes": "1min", "5 Minutes": "5min",
     "15 Minutes": "15min", "30 Minutes": "30min", "1 Hour": "1h",
     "4 Hours": "4h", "1 Day": "1day", "1 Month": "1month",
@@ -106,7 +106,7 @@ Deno.serve(async req => {
       if (assetType === "crypto") {
         const bybitSymbol = cleanSymbol(symbol).replace("/", "");
         if (!/^[A-Z0-9]+$/.test(bybitSymbol)) throw new Error("Invalid Bybit crypto symbol.");
-        if (["5 Seconds", "15 Seconds", "30 Seconds"].includes(tf)) {
+        if (["5 Seconds", "10 Seconds", "15 Seconds", "30 Seconds"].includes(tf)) {
           const u = "https://api.bybit.com/v5/market/recent-trade?category=spot&symbol=" +
             encodeURIComponent(bybitSymbol) + "&limit=1000";
           const r = await fetch(u, { cache: "no-store" });
@@ -115,7 +115,7 @@ Deno.serve(async req => {
             throw new Error(String(d?.retMsg || "Bybit recent trades unavailable."));
           }
           const trades = Array.isArray(d?.result?.list) ? d.result.list.slice().reverse() : [];
-          const sec = tf === "5 Seconds" ? 5 : tf === "15 Seconds" ? 15 : 30;
+          const sec = tf === "5 Seconds" ? 5 : tf === "10 Seconds" ? 10 : tf === "15 Seconds" ? 15 : 30;
           const buckets = new Map<string, any>();
           for (const x of trades) {
             const ts = Number(x.time), p = Number(x.price), v = Number(x.size || 0);
@@ -133,7 +133,7 @@ Deno.serve(async req => {
         }
         const bybitIntervals: Record<string, string> = {
           "1 Minute":"1","2 Minutes":"2","5 Minutes":"5","15 Minutes":"15","30 Minutes":"30",
-          "1 Hour":"60","4 Hours":"240","1 Day":"D","1 Month":"M"
+          "1 Hour":"60","4 Hours":"240","1 Day":"D"
         };
         const interval = bybitIntervals[tf];
         if (!interval) throw new Error("Bybit does not provide a native candle interval for " + tf + ".");
