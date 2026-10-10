@@ -173,9 +173,10 @@
   }
 
   function historyReady(){
-    // LIVE feeds require a useful historical window before first render.
-    // OTC Deriv feeds may return little or no history, so let verified live ticks
-    // start the chart as soon as one real candle exists instead of blocking forever.
+    // Sub-minute candles can start from a single verified historical bucket or
+    // the first verified live tick. Never block a short-interval WebSocket while
+    // waiting for a full historical window.
+    if(state.sec<60)return state.candles.length>=1;
     return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12;
   }
 
@@ -205,14 +206,19 @@
 
     loadBybitHistory().then(()=>{
       if(id!==state.connectionId)return;
-      if(!historyReady()){
+      if(!historyReady() && state.sec>=60){
         state.connected=false;
         status("WAITING FOR HISTORY",false);
         notice("Waiting for enough verified historical candles before displaying the chart…",true);
         setTimeout(()=>{if(id===state.connectionId)connect()},2500);
         return;
       }
-      renderHistory();
+      if(state.candles.length)renderHistory();
+      else{
+        state.historyLoaded=false;
+        status("COLLECTING VERIFIED TICKS",false);
+        notice("Waiting for verified live trades to build the first candle…",true);
+      }
       const ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
       state.ws=ws;
       ws.onopen=()=>{
@@ -281,12 +287,17 @@
           notice("No usable OTC history returned. Waiting for verified Deriv ticks to build the chart…",true);
         }
       }else{
-        if(!historyReady()){
+        if(!historyReady() && state.sec>=60){
           state.connected=false;status("WAITING FOR HISTORY",false);
           notice("Deriv returned fewer than 12 historical candles for this timeframe.",true);
           return;
         }
-        renderHistory();
+        if(state.candles.length)renderHistory();
+        else{
+          state.historyLoaded=false;
+          status("COLLECTING VERIFIED TICKS",false);
+          notice("Waiting for verified Deriv ticks to build the first candle…",true);
+        }
       }
       const socket=feed().derivSocket(f.symbol,
         tick=>{
