@@ -94,9 +94,9 @@ function setSelectedImage(file){
  selectedImageFile=null;selectedImageData='';$('analyzeImage').disabled=true;$('imageResult').hidden=true;$('imageResult').textContent='';
  if(!file){$('imagePreviewWrap').hidden=true;$('imageStatus').textContent='No image selected.';return}
  if(!file.type.startsWith('image/')){$('imageStatus').textContent='Please select a supported image file.';return}
- if(file.size>12*1024*1024){$('imageStatus').textContent='Image is larger than 12 MB. Please choose a smaller screenshot.';return}
+ if(file.size>4*1024*1024){$('imageStatus').textContent='Image is larger than 4 MB. Please choose a smaller image so it can be sent reliably.';return}
  selectedImageFile=file;const reader=new FileReader();
- reader.onload=()=>{selectedImageData=String(reader.result||'');$('imagePreview').src=selectedImageData;$('imageInfo').textContent=file.name+' · '+(file.size/1024).toFixed(0)+' KB · '+file.type;$('imagePreviewWrap').hidden=false;$('analyzeImage').disabled=false;$('imageStatus').textContent='Image ready. Add the secure backend URL, then tap “Send image to Chat AI”.'};
+ reader.onload=()=>{selectedImageData=String(reader.result||'');$('imagePreview').src=selectedImageData;$('imageInfo').textContent=file.name+' · '+(file.size/1024).toFixed(0)+' KB · '+file.type;$('imagePreviewWrap').hidden=false;$('analyzeImage').disabled=!sessionAccessToken;$('imageStatus').textContent='Image ready. Add the secure backend URL, then tap “Send image to Chat AI”.'};
  reader.onerror=()=>{$('imageStatus').textContent='Could not read this image. Please choose it again.'};
  reader.readAsDataURL(file);
 }
