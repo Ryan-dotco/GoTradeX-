@@ -439,8 +439,15 @@
   function setTimeframe(tf){
     if(!CFG.intervals[tf])return;
     state.tf=tf;state.sec=CFG.intervals[tf];
-    try{localStorage.setItem(CHART_KEY,tf)}catch(_){}
+    try{localStorage.setItem(CHART_KEY,tf);localStorage.setItem("gotradex_trade_expiration",tf)}catch(_){}
     const s=document.getElementById("gtxLWCChartTF");if(s)s.value=tf;
+    // Keep the trade-duration button and chart interval under the same controller.
+    if(window.GoTradeXTimeframeController&&typeof window.GoTradeXTimeframeController.set==="function"){
+      window.GoTradeXTimeframeController.set(tf,"chart");
+    }else{
+      const expiryButton=document.getElementById("timeBtn");
+      if(expiryButton)expiryButton.textContent=tf+" ▾";
+    }
     connect();
   }
 
