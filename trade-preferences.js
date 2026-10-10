@@ -4,7 +4,8 @@
  */
 (function(){
   "use strict";
-  const TIME_KEY="gotradex_trade_timeframe";
+  const TIME_KEY="gotradex_trade_expiration";
+  const LEGACY_TIME_KEY="gotradex_trade_timeframe";
   const AMOUNT_KEY="gotradex_trade_amount";
   const TIMES=["5 Seconds","15 Seconds","30 Seconds","1 Minute","2 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day","1 Month","3 Months","6 Months","1 Year"];
 
@@ -19,16 +20,24 @@
   }
   function applyTime(){
     const btn=document.getElementById("timeBtn");
-    const saved=cleanTime(localStorage.getItem(TIME_KEY));
+    const saved=cleanTime(localStorage.getItem(TIME_KEY)||localStorage.getItem(LEGACY_TIME_KEY));
     if(!btn||!saved)return;
-    btn.textContent=saved+" ▾";
-    // Trade expiry is intentionally independent from the chart analysis timeframe.
-    // The chart defaults to M5 and has its own timeframe selector.
+    if(window.GoTradeXTimeframeController&&typeof window.GoTradeXTimeframeController.set==="function"){
+      window.GoTradeXTimeframeController.set(saved,"expiry");
+    }else{
+      btn.textContent=saved+" ▾";
+      localStorage.setItem(TIME_KEY,saved);
+      localStorage.setItem("gotradex_chart_timeframe",saved);
+    }
   }
   function saveTimeFromButton(){
     const btn=document.getElementById("timeBtn");
     const t=cleanTime(btn?.textContent);
-    if(t)localStorage.setItem(TIME_KEY,t);
+    if(t){
+      localStorage.setItem(TIME_KEY,t);
+      localStorage.setItem(LEGACY_TIME_KEY,t);
+      localStorage.setItem("gotradex_chart_timeframe",t);
+    }
   }
   function applyAmount(){
     const saved=localStorage.getItem(AMOUNT_KEY);
@@ -49,15 +58,13 @@
 
     const times=document.getElementById("times");
     if(times){
+      // The shared timeframe controller handles UI and chart synchronization.
+      // This listener only keeps legacy preference storage backward-compatible.
       times.addEventListener("click",e=>{
         const b=e.target.closest(".option");
         if(!b)return;
         const t=cleanTime(b.textContent);
-        if(!t)return;
-        localStorage.setItem(TIME_KEY,t);
-        const btn=document.getElementById("timeBtn");
-        if(btn)btn.textContent=t+" ▾";
-        setTimeout(applyTime,0);
+        if(t){localStorage.setItem(TIME_KEY,t);localStorage.setItem(LEGACY_TIME_KEY,t);}
       },true);
     }
 
