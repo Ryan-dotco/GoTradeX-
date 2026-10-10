@@ -372,6 +372,17 @@
         },
         (msg,ok)=>{
           if(id!==state.connectionId)return;
+
+          // The Twelve Data HTTP fallback is polled every 15 seconds. If that
+          // fallback is the active source, 5-second candles cannot be sampled
+          // reliably. Change only the timeframe (and its linked expiry) to
+          // 15 seconds; do not change the selected asset or any other feature.
+          if(msg==="FALLBACK • TWELVE DATA" && state.sec<15){
+            notice("This feed is using 15-second polling. Switching timeframe and trade duration to 15 Seconds.",true);
+            setTimeframe("15 Seconds");
+            return;
+          }
+
           state.connected=!!ok;
           status(ok?"LIVE • TWELVE DATA":msg,!!ok);
           if(ok)notice("",false);
