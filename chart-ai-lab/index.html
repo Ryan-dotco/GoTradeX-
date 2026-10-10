@@ -23,6 +23,18 @@
 <section class="card"><h2>Entry plan & indicators</h2><table><tbody><tr><td>Latest close / reference price</td><td id="close">—</td></tr><tr><td>Entry condition</td><td id="entryCondition">—</td></tr><tr><td>Invalidation level (reference)</td><td id="invalidation">—</td></tr><tr><td>Potential target (reference)</td><td id="target">—</td></tr><tr><td>EMA 9 / EMA 21</td><td id="ema">—</td></tr><tr><td>MACD 12/26/9</td><td id="macd">—</td></tr><tr><td>Alligator alignment*</td><td id="alligator">—</td></tr><tr><td>Last confirmed fractal</td><td id="fractal">—</td></tr><tr><td>Data timestamp (UTC)</td><td id="stamp">—</td></tr></tbody></table><p class="muted small">Levels are technical reference estimates, not personalized risk advice. Alligator is a screening approximation, not a full chart-platform implementation.</p></section>
 </div>
 
+<section class="card" id="backendAuth">
+<h2>Secure backend connection</h2>
+<p class="muted">Sign in to your own Supabase project to call the protected AI and messaging functions. This lab keeps the access token in memory only and does not save your password.</p>
+<div class="controls">
+<div><label for="sbUrl">Supabase project URL</label><input id="sbUrl" type="url" placeholder="https://YOUR-PROJECT.supabase.co" autocomplete="url"></div>
+<div><label for="sbAnon">Supabase anon / publishable key</label><input id="sbAnon" type="password" placeholder="Project publishable/anon key" autocomplete="off"></div>
+<div><label for="sbEmail">Supabase account email</label><input id="sbEmail" type="email" placeholder="Email address" autocomplete="username"></div>
+<div><label for="sbPassword">Supabase account password</label><input id="sbPassword" type="password" placeholder="Password (not saved)" autocomplete="current-password"></div>
+</div>
+<div class="actions"><button id="sbSignIn">Sign in to backend</button><button class="secondary" id="sbSignOut">Sign out / clear session</button></div>
+<div class="status" id="sbStatus" role="status">Not signed in. AI analysis and message delivery are unavailable until the protected functions are deployed and you sign in.</div>
+</section>
 <section class="card" id="imagePortal">
 <h2>Camera & screenshot analysis</h2>
 <p class="muted">Take a photo with your phone camera or select a saved chart screenshot. The image is previewed here and sent only when you tap Analyze image.</p>
@@ -38,6 +50,17 @@
 <div id="imageResult" class="stat" style="margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere" hidden></div>
 </section>
 
+<section class="card" id="deliveryPortal">
+<h2>Telegram & WhatsApp test delivery</h2>
+<p class="muted">Credentials stay in Supabase Edge Function secrets. Choose a channel and send a simple test message to the fixed recipient configured on the server.</p>
+<div class="controls">
+<div><label for="deliveryChannel">Delivery channel</label><select id="deliveryChannel"><option value="telegram">Telegram</option><option value="whatsapp">WhatsApp</option></select></div>
+<div><label for="deliveryMessage">Test message</label><input id="deliveryMessage" value="GoTradeX Chart AI lab connection test. No trade was placed." maxlength="1000"></div>
+<div><label for="deliveryEndpoint">Secure delivery function URL</label><input id="deliveryEndpoint" type="url" placeholder="https://YOUR-PROJECT.supabase.co/functions/v1/chart-ai-delivery"></div>
+</div>
+<div class="actions"><button id="sendTestMessage" disabled>Send test message</button></div>
+<div class="status" id="deliveryStatus" role="status">Not connected. No messages have been sent.</div>
+</section>
 <section class="card"><h2>Signal delivery status</h2><p class="muted">Messaging is deliberately not enabled in this prototype. Next stage: add a Supabase Edge Function with secrets stored server-side, then verify Telegram and WhatsApp delivery using a clearly labelled test message before enabling signal notifications.</p><div class="stats"><div class="stat"><span>Telegram</span><strong class="warn">Not connected</strong></div><div class="stat"><span>WhatsApp</span><strong class="warn">Not connected</strong></div><div class="stat"><span>Live orders</span><strong>Disabled</strong></div></div></section>
 <div class="foot">Lab only. Signals are technical-rule outputs, not predictions or guarantees. A score is not a probability of profit. Public exchange data may be delayed or unavailable. No synthetic candles are generated.</div>
 </div>
@@ -78,7 +101,8 @@ $('analyzeImage').addEventListener('click',async()=>{
  let url;try{url=new URL(endpoint);if(url.protocol!=='https:')throw new Error('HTTPS required')}catch(e){$('imageStatus').textContent='Enter a valid HTTPS backend URL. No image has been sent.';return}
  $('analyzeImage').disabled=true;$('imageStatus').textContent='Sending image securely to the configured backend…';
  try{
-  const res=await fetch(url.href,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image_data_url:selectedImageData,mime_type:selectedImageFile.type,file_name:selectedImageFile.name,question:$('imageQuestion').value.trim()||'Analyze this image.'})});
+  if(!sessionAccessToken||!supabaseAnonKey){$('imageStatus').textContent='Sign in to the protected Supabase backend first. No image has been sent.';$('analyzeImage').disabled=false;return}
+  const res=await fetch(url.href,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+sessionAccessToken,'apikey':supabaseAnonKey},body:JSON.stringify({image_data_url:selectedImageData,mime_type:selectedImageFile.type,file_name:selectedImageFile.name,question:$('imageQuestion').value.trim()||'Analyze this image.'})});
   const body=await res.json().catch(()=>({}));
   if(!res.ok)throw new Error(body.error||body.message||('Backend returned HTTP '+res.status));
   const result=body.analysis||body.output_text||body.result||body.message;
@@ -86,6 +110,23 @@ $('analyzeImage').addEventListener('click',async()=>{
   $('imageResult').textContent=result;$('imageResult').hidden=false;$('imageStatus').textContent='Image analysis received from the configured backend.';
  }catch(e){$('imageStatus').textContent='Image analysis failed: '+e.message+'. Check the backend deployment, secrets, and CORS settings.'}
  finally{$('analyzeImage').disabled=!selectedImageData}
+});
+
+
+let sessionAccessToken='',supabaseAnonKey='',supabaseBaseUrl='';
+function updateBackendControls(){const signed=!!sessionAccessToken;$('analyzeImage').disabled=!selectedImageData||!signed;$('sendTestMessage').disabled=!signed;$('sbStatus').textContent=signed?'Signed in. Protected function requests can use this session until it expires or you sign out.':'Not signed in. No AI image or messaging requests can be sent.'}
+$('sbSignIn').addEventListener('click',async()=>{
+ const base=$('sbUrl').value.trim().replace(/\/+$/,''),key=$('sbAnon').value.trim(),email=$('sbEmail').value.trim(),password=$('sbPassword').value;
+ if(!/^https:\/\//i.test(base)||!key||!email||!password){$('sbStatus').textContent='Enter the HTTPS Supabase URL, publishable/anon key, email, and password.';return}
+ $('sbSignIn').disabled=true;$('sbStatus').textContent='Signing in to Supabase Auth…';
+ try{const res=await fetch(base+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({email,password})});const data=await res.json().catch(()=>({}));if(!res.ok||!data.access_token)throw new Error(data.msg||data.message||data.error_description||data.error||('Sign-in failed (HTTP '+res.status+')'));sessionAccessToken=data.access_token;supabaseAnonKey=key;supabaseBaseUrl=base;$('sbPassword').value='';$('sbStatus').textContent='Signed in as '+(data.user?.email||email)+'. Access token held in memory only.';updateBackendControls()}catch(e){sessionAccessToken='';supabaseAnonKey='';supabaseBaseUrl='';$('sbStatus').textContent='Sign-in failed: '+e.message}finally{$('sbSignIn').disabled=false}
+});
+$('sbSignOut').addEventListener('click',()=>{sessionAccessToken='';supabaseAnonKey='';supabaseBaseUrl='';$('sbPassword').value='';updateBackendControls();$('sbStatus').textContent='Signed out. The in-memory access token has been cleared.';$('deliveryStatus').textContent='Signed out. No messages have been sent.'});
+$('sendTestMessage').addEventListener('click',async()=>{
+ if(!sessionAccessToken||!supabaseAnonKey){$('deliveryStatus').textContent='Sign in first.';return}
+ const endpoint=$('deliveryEndpoint').value.trim();let url;try{url=new URL(endpoint);if(url.protocol!=='https:')throw new Error('HTTPS required')}catch{$('deliveryStatus').textContent='Enter the secure chart-ai-delivery function URL.';return}
+ $('sendTestMessage').disabled=true;$('deliveryStatus').textContent='Sending test message…';
+ try{const res=await fetch(url.href,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+sessionAccessToken,'apikey':supabaseAnonKey},body:JSON.stringify({channel:$('deliveryChannel').value,message:$('deliveryMessage').value.trim()})});const data=await res.json().catch(()=>({}));if(!res.ok||data.ok!==true)throw new Error(data.error||data.message||('Function returned HTTP '+res.status));$('deliveryStatus').textContent='Backend confirmed delivery to the configured '+data.channel+' recipient.'}catch(e){$('deliveryStatus').textContent='Delivery failed: '+e.message+'. Check function deployment and server-side credentials.'}finally{$('sendTestMessage').disabled=!sessionAccessToken}
 });
 
 $('analyzeAsset').addEventListener('click',()=>load(true));$('load').addEventListener('click',()=>load(false));$('analyze').addEventListener('click',()=>{const spec=marketSpec();if(!spec||loadedKey!==spec.asset+'|'+$('tf').value+'|'+$('limit').value){$('status').textContent='Asset, timeframe, or candle count changed. Reload candles before analyzing.';return}analyze()});['asset','tf','limit'].forEach(id=>$(id).addEventListener('change',()=>{$('analyze').disabled=true;loadedKey='';candles=[];reset();$('status').textContent='Selection changed. Load fresh candles before analysis.'}));
