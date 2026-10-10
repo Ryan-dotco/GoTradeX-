@@ -7,7 +7,7 @@
   const TIME_KEY="gotradex_trade_expiration";
   const LEGACY_TIME_KEY="gotradex_trade_timeframe";
   const AMOUNT_KEY="gotradex_trade_amount";
-  const TIMES=["5 Seconds","10 Seconds","15 Seconds","30 Seconds","1 Minute","2 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours"];
+  const TIMES=["5 Seconds","10 Seconds","15 Seconds","30 Seconds","1 Minute","2 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day"];
 
   function cleanTime(v){
     const s=String(v||"").replace(/\s*▾\s*$/,"").trim();
