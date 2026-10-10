@@ -27,7 +27,7 @@
     }else{
       btn.textContent=saved+" ▾";
       localStorage.setItem(TIME_KEY,saved);
-      localStorage.setItem("gotradex_chart_timeframe",saved);
+      localStorage.setItem(LEGACY_TIME_KEY,saved);
     }
   }
   function saveTimeFromButton(){
@@ -36,7 +36,6 @@
     if(t){
       localStorage.setItem(TIME_KEY,t);
       localStorage.setItem(LEGACY_TIME_KEY,t);
-      localStorage.setItem("gotradex_chart_timeframe",t);
     }
   }
   function applyAmount(){
@@ -58,8 +57,7 @@
 
     const times=document.getElementById("times");
     if(times){
-      // The shared timeframe controller handles UI and chart synchronization.
-      // This listener only keeps legacy preference storage backward-compatible.
+      // This listener stores trade expiration only; chart timeframe is separate.
       times.addEventListener("click",e=>{
         const b=e.target.closest(".option");
         if(!b)return;
