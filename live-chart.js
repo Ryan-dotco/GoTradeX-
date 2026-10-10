@@ -10,7 +10,7 @@
   const CFG={
     intervals:{
       "5 Seconds":5,"10 Seconds":10,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
-      "2 Minutes":120,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,
+      "3 Minutes":180,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,
       "1 Hour":3600,"4 Hours":14400,"1 Day":86400
     }
   };
