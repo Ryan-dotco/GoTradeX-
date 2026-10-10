@@ -9,10 +9,9 @@
   const LWC_URLS=["https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js","https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"];
   const CFG={
     intervals:{
-      "5 Seconds":5,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
+      "5 Seconds":5,"10 Seconds":10,"15 Seconds":15,"30 Seconds":30,"1 Minute":60,
       "2 Minutes":120,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,
-      "1 Hour":3600,"4 Hours":14400,"1 Day":86400,"1 Month":2592000,
-      "3 Months":7776000,"6 Months":15552000,"1 Year":31536000
+      "1 Hour":3600,"4 Hours":14400
     }
   };
 
@@ -348,10 +347,10 @@
     resolveTwelveSymbol(f).then(async symbol=>{
       if(id!==state.connectionId)return;
       state.symbol=symbol;state.provider="TWELVE_DATA";
-      // Twelve Data provides verified live prices for this adapter. For sub-minute
-      // chart timeframes we build 5/15/30-second candles only from those real
-      // provider ticks; we never fabricate startup history.
-      if(state.sec>=60)await loadTwelveHistory(symbol);
+      // Request provider-verified history for every supported chart interval, including
+      // sub-minute intervals. If the provider has no history for an interval, keep
+      // that fact explicit and build only future candles from verified live ticks.
+      try{await loadTwelveHistory(symbol)}catch(historyError){state.candles=[];state.price=null;state.historyLoaded=false;notice("Verified historical candles are unavailable for this asset/timeframe. Waiting for live provider ticks; no candles will be fabricated.",true)}
       if(id!==state.connectionId)return;
       if(state.sec>=60 && !historyReady()){
         state.connected=false;
@@ -359,7 +358,7 @@
         notice("Waiting for enough verified historical candles before displaying the chart…",true);
         return;
       }
-      if(state.sec>=60)renderHistory();
+      if(state.candles.length)renderHistory();
       const socket=await feed().twelveSocket(symbol,
         tick=>{
           if(id!==state.connectionId)return;
