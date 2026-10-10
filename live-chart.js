@@ -375,7 +375,9 @@
 
           state.connected=!!ok;
           status(ok?"LIVE • TWELVE DATA":msg,!!ok);
-          if(ok)notice("",false);
+          if(msg==="FALLBACK • TWELVE DATA" && state.sec<15){
+            notice("Your selected candle timeframe and trade expiration stay independent. This feed polls every 15 seconds, so 5-second candles may be under-sampled until a faster verified feed is available.",true);
+          }else if(ok)notice("",false);
         }
       );
       if(id!==state.connectionId){try{socket.close()}catch(_){}return}
