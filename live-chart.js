@@ -204,7 +204,15 @@
     state.connected=false;status("LOADING • BYBIT",false);
     notice("Loading verified historical candles…",true);
 
-    loadBybitHistory().then(()=>{
+    loadBybitHistory().catch(e=>{
+      // Short intervals can still form valid candles from the real-time stream
+      // even when the provider's recent-trade history is temporarily unavailable.
+      if(state.sec>=60)throw e;
+      state.candles=[];state.price=null;state.historyLoaded=false;
+      status("COLLECTING VERIFIED TICKS",false);
+      notice("Short-interval history is unavailable; checking the verified live trade stream…",true);
+      return [];
+    }).then(()=>{
       if(id!==state.connectionId)return;
       if(!historyReady() && state.sec>=60){
         state.connected=false;
