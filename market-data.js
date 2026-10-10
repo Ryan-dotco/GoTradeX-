@@ -355,18 +355,24 @@
       onStatus("CONNECTING • DERIV",false);
       ws.onopen=()=>{
         if(stopped){try{ws.close()}catch(_){};return}
-        onStatus("LIVE • DERIV",true);
+        onStatus("CONNECTED • WAITING FOR DERIV TICK",false);
         ws.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:2}));
       };
       ws.onmessage=e=>{
         if(stopped)return;
         try{
           const d=JSON.parse(e.data);
-          if(d.error){onStatus("DERIV FEED ERROR",false);return}
+          if(d.error){
+            const detail=String(d.error.message||d.error.code||"Provider rejected the subscription").slice(0,120);
+            onStatus("DERIV FEED ERROR: "+detail,false);return;
+          }
           if(d.msg_type==="tick"&&d.tick&&d.tick.symbol===symbol){
             if(d.tick.subscription?.id)subId=d.tick.subscription.id;
             const price=Number(d.tick.quote),time=Number(d.tick.epoch)*1000;
-            if(Number.isFinite(price)&&Number.isFinite(time))onTick({price,time});
+            if(Number.isFinite(price)&&Number.isFinite(time)){
+              onTick({price,time});
+              onStatus("LIVE • DERIV",true);
+            }
           }
         }catch(_){}
       };
