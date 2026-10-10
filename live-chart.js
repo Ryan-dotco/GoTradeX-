@@ -438,6 +438,7 @@
 
   function setTimeframe(tf){
     if(!CFG.intervals[tf])return;
+    const changed=state.tf!==tf||state.sec!==CFG.intervals[tf];
     state.tf=tf;state.sec=CFG.intervals[tf];
     try{localStorage.setItem(CHART_KEY,tf);localStorage.setItem("gotradex_trade_expiration",tf)}catch(_){}
     const s=document.getElementById("gtxLWCChartTF");if(s)s.value=tf;
@@ -448,7 +449,9 @@
       const expiryButton=document.getElementById("timeBtn");
       if(expiryButton)expiryButton.textContent=tf+" ▾";
     }
-    connect();
+    // Preferences can initialize before the chart is mounted. Boot will use the
+    // saved interval; only reconnect an already-running chart when it truly changes.
+    if(changed&&state.booted)connect();
   }
 
   function precisionForPrice(p){
