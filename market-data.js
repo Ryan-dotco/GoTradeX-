@@ -188,7 +188,7 @@
     if(sec===86400)return "1day"; if(sec===2592000)return "1month"; return null;
   }
   function timeframeName(sec){
-    const m={5:"5 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",120:"2 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day",2592000:"1 Month"};
+    const m={5:"5 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",120:"2 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day",2592000:"1 Month",7776000:"3 Months",15552000:"6 Months",31536000:"1 Year"};
     return m[sec]||null;
   }
 
@@ -197,30 +197,49 @@
       .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
   }
 
+  function aggregateMonths(candles,monthCount){
+    const merged=new Map();
+    for(const c of candles){
+      const d=new Date(c.t),monthIndex=d.getUTCFullYear()*12+d.getUTCMonth();
+      const groupIndex=Math.floor(monthIndex/monthCount)*monthCount;
+      const year=Math.floor(groupIndex/12),month=groupIndex%12;
+      const t=Date.UTC(year,month,1),a=merged.get(t);
+      if(!a)merged.set(t,{t,o:c.o,h:c.h,l:c.l,c:c.c,v:c.v});
+      else{a.h=Math.max(a.h,c.h);a.l=Math.min(a.l,c.l);a.c=c.c;a.v+=c.v}
+    }
+    return Array.from(merged.values()).sort((a,b)=>a.t-b.t);
+  }
+
+  function aggregateSeconds(candles,seconds){
+    const width=seconds*1000,merged=new Map();
+    for(const c of candles){
+      const t=Math.floor(c.t/width)*width,a=merged.get(t);
+      if(!a)merged.set(t,{t,o:c.o,h:c.h,l:c.l,c:c.c,v:c.v});
+      else{a.h=Math.max(a.h,c.h);a.l=Math.min(a.l,c.l);a.c=c.c;a.v+=c.v}
+    }
+    return Array.from(merged.values()).sort((a,b)=>a.t-b.t);
+  }
+
   async function bybitHistory(symbol,sec){
     const tf=timeframeName(sec);
     if(!tf) return [];
-    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:tf});
-    return normalizeCandles(Array.isArray(d.candles)?d.candles:[]);
+    const requestTf=sec>2592000?"1 Month":tf;
+    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:requestTf});
+    const candles=normalizeCandles(Array.isArray(d.candles)?d.candles:[]);
+    if(sec>2592000)return aggregateMonths(candles,sec===7776000?3:sec===15552000?6:12);
+    return candles;
   }
   async function twelveHistory(symbol,sec,assetType){
     const tf=timeframeName(sec);
     if(!tf) return [];
-    // Twelve Data's verified historical API has minute candles, not second candles.
-    // For 2-minute charts request minute history and merge adjacent candles locally.
-    const requestTf=sec===120?"1 Minute":tf;
+    // Historical seconds are built from verified ticks; 2-minute bars are merged
+    // from real 1-minute candles; multi-month bars are aggregated from real months.
+    const requestTf=sec===120?"1 Minute":sec>2592000?"1 Month":tf;
     const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:String(assetType||type()).toLowerCase(),symbol,timeframe:requestTf});
     const candles=normalizeCandles(Array.isArray(d.candles)?d.candles:[]);
-    if(sec!==120)return candles;
-    const merged=new Map();
-    for(const c of candles){
-      const t=Math.floor(c.t/120000)*120000;
-      let a=merged.get(t);
-      if(!a)a={t,o:c.o,h:c.h,l:c.l,c:c.c,v:c.v};
-      else{a.h=Math.max(a.h,c.h);a.l=Math.min(a.l,c.l);a.c=c.c;a.v+=c.v}
-      merged.set(t,a);
-    }
-    return Array.from(merged.values()).sort((a,b)=>a.t-b.t);
+    if(sec===120)return aggregateSeconds(candles,120);
+    if(sec>2592000)return aggregateMonths(candles,sec===7776000?3:sec===15552000?6:12);
+    return candles;
   }
 
   async function twelvePrice(symbol){
