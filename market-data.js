@@ -188,7 +188,7 @@
     if(sec===86400)return "1day"; if(sec===2592000)return "1month"; return null;
   }
   function timeframeName(sec){
-    const m={5:"5 Seconds",10:"10 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",120:"2 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours"};
+    const m={5:"5 Seconds",10:"10 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",120:"2 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day"};
     return m[sec]||null;
   }
 
@@ -312,7 +312,7 @@
 
   function derivCandleHistory(symbol,sec){
     return new Promise((resolve,reject)=>{
-      if(!Number.isFinite(sec)||sec<60) return resolve([]);
+      if(!Number.isFinite(sec)||![5,10,15,30,60,120,300,900,1800,3600,14400,86400].includes(sec)) return resolve([]);
       let ws=null,done=false,timer=null;
       const finish=(fn,value)=>{
         if(done)return;done=true;if(timer)clearTimeout(timer);
@@ -322,7 +322,7 @@
       try{ws=new WebSocket(DERIV_WS)}catch(e){return reject(e)}
       timer=setTimeout(()=>finish(reject,new Error("Deriv history request timed out.")),10000);
       ws.onopen=()=>{
-        ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}));
+        ws.send(JSON.stringify(sec<60?{ticks_history:symbol,end:"latest",count:1000,style:"ticks",req_id:1}:{ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}));
       };
       ws.onerror=()=>finish(reject,new Error("Deriv historical candle connection failed."));
       ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv historical candle connection closed."))};
@@ -330,6 +330,13 @@
         try{
           const d=JSON.parse(e.data);
           if(d.error)return finish(reject,new Error(d.error.message||"Deriv historical candle request failed."));
+          if(sec<60&&d.msg_type==="history"&&Array.isArray(d.history?.times)&&Array.isArray(d.history?.prices)){
+            const ticks=d.history.times.map((time,i)=>({t:Number(time)*1000,p:Number(d.history.prices[i])}))
+              .filter(x=>Number.isFinite(x.t)&&Number.isFinite(x.p)).sort((a,b)=>a.t-b.t);
+            const width=sec*1000,buckets=new Map();
+            for(const tick of ticks){const t=Math.floor(tick.t/width)*width;let c=buckets.get(t);if(!c)c={t,o:tick.p,h:tick.p,l:tick.p,c:tick.p,v:0};else{c.h=Math.max(c.h,tick.p);c.l=Math.min(c.l,tick.p);c.c=tick.p}buckets.set(t,c)}
+            return finish(resolve,Array.from(buckets.values()).sort((a,b)=>a.t-b.t));
+          }
           if((d.msg_type==="candles"||d.msg_type==="history")&&Array.isArray(d.candles)){
             const candles=d.candles.map(x=>({t:Number(x.epoch)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:0}))
               .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
