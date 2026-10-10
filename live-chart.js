@@ -373,16 +373,6 @@
         (msg,ok)=>{
           if(id!==state.connectionId)return;
 
-          // The Twelve Data HTTP fallback is polled every 15 seconds. If that
-          // fallback is the active source, 5-second candles cannot be sampled
-          // reliably. Change only the timeframe (and its linked expiry) to
-          // 15 seconds; do not change the selected asset or any other feature.
-          if(msg==="FALLBACK • TWELVE DATA" && state.sec<15){
-            notice("This feed is using 15-second polling. Switching timeframe and trade duration to 15 Seconds.",true);
-            setTimeframe("15 Seconds");
-            return;
-          }
-
           state.connected=!!ok;
           status(ok?"LIVE • TWELVE DATA":msg,!!ok);
           if(ok)notice("",false);
@@ -459,15 +449,9 @@
     if(!CFG.intervals[tf])return;
     const changed=state.tf!==tf||state.sec!==CFG.intervals[tf];
     state.tf=tf;state.sec=CFG.intervals[tf];
-    try{localStorage.setItem(CHART_KEY,tf);localStorage.setItem("gotradex_trade_expiration",tf)}catch(_){}
+    // Chart timeframe is independent: never overwrite trade expiration.
+    try{localStorage.setItem(CHART_KEY,tf)}catch(_){}
     const s=document.getElementById("gtxLWCChartTF");if(s)s.value=tf;
-    // Keep the trade-duration button and chart interval under the same controller.
-    if(window.GoTradeXTimeframeController&&typeof window.GoTradeXTimeframeController.set==="function"){
-      window.GoTradeXTimeframeController.set(tf,"chart");
-    }else{
-      const expiryButton=document.getElementById("timeBtn");
-      if(expiryButton)expiryButton.textContent=tf+" ▾";
-    }
     // Preferences can initialize before the chart is mounted. Boot will use the
     // saved interval; only reconnect an already-running chart when it truly changes.
     if(changed&&state.booted)connect();
