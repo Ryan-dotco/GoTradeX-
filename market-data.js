@@ -188,25 +188,39 @@
     if(sec===86400)return "1day"; if(sec===2592000)return "1month"; return null;
   }
   function timeframeName(sec){
-    const m={60:"1 Minute",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day",2592000:"1 Month"};
+    const m={5:"5 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",120:"2 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day",2592000:"1 Month"};
     return m[sec]||null;
+  }
+
+  function normalizeCandles(rows){
+    return rows.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
+      .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
   }
 
   async function bybitHistory(symbol,sec){
     const tf=timeframeName(sec);
     if(!tf) return [];
     const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:tf});
-    const candles=Array.isArray(d.candles)?d.candles:[];
-    return candles.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
-      .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+    return normalizeCandles(Array.isArray(d.candles)?d.candles:[]);
   }
   async function twelveHistory(symbol,sec,assetType){
     const tf=timeframeName(sec);
     if(!tf) return [];
-    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:String(assetType||type()).toLowerCase(),symbol,timeframe:tf});
-    const candles=Array.isArray(d.candles)?d.candles:[];
-    return candles.map(x=>({t:Number(x.time)*1000,o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)}))
-      .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+    // Twelve Data's verified historical API has minute candles, not second candles.
+    // For 2-minute charts request minute history and merge adjacent candles locally.
+    const requestTf=sec===120?"1 Minute":tf;
+    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:String(assetType||type()).toLowerCase(),symbol,timeframe:requestTf});
+    const candles=normalizeCandles(Array.isArray(d.candles)?d.candles:[]);
+    if(sec!==120)return candles;
+    const merged=new Map();
+    for(const c of candles){
+      const t=Math.floor(c.t/120000)*120000;
+      let a=merged.get(t);
+      if(!a)a={t,o:c.o,h:c.h,l:c.l,c:c.c,v:c.v};
+      else{a.h=Math.max(a.h,c.h);a.l=Math.min(a.l,c.l);a.c=c.c;a.v+=c.v}
+      merged.set(t,a);
+    }
+    return Array.from(merged.values()).sort((a,b)=>a.t-b.t);
   }
 
   async function twelvePrice(symbol){
