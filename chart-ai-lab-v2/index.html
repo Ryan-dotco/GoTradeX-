@@ -104,8 +104,19 @@ $('signalBtn').addEventListener('click',async()=>{
  $('signalNote').textContent='This scan analyzes the uploaded image itself. A separate live quote is shown only as market context and is not substituted for the screenshot.';
  const hardStop=new AbortController();const timeout=setTimeout(()=>hardStop.abort(),30000);
  try{
+  // Never let optional market-feed retrieval block screenshot vision analysis.
+  // Give Bybit up to 1.5 seconds; proceed with the image alone if the feed is slow.
   let liveCandleContext=null;
-  if(bybitSymbols.includes(market())){try{const live=await fetchLiveCandles(market());liveCandleContext={source:live.source,candles:live.candles.slice(-60)};}catch(_){liveCandleContext=null;}}
+  if(bybitSymbols.includes(market())){
+   try{
+    const live=await Promise.race([
+     fetchLiveCandles(market()),
+     new Promise((_,reject)=>setTimeout(()=>reject(new Error('Optional Bybit context timed out')),1500))
+    ]);
+    if(live&&Array.isArray(live.candles))liveCandleContext={source:live.source,candles:live.candles.slice(-60)};
+   }catch(_){liveCandleContext=null;}
+  }
+  $('toast').textContent=liveCandleContext?'Sending screenshot plus matching Bybit context to AI vision…':'Sending screenshot directly to AI vision…';
   const response=await fetch('https://glffecggusetzklmyukv.supabase.co/functions/v1/gotradex-chart-vision',{
    method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},signal:hardStop.signal,
    body:JSON.stringify({image:imageDataUrl,symbol:marketLabel(),source:selectedPriceSource,livePrice:selectedPrice,durationMinutes:Number($('durationSelect').value||5),liveCandles:liveCandleContext})
@@ -139,7 +150,7 @@ $('signalBtn').addEventListener('click',async()=>{
    $('toast').textContent='Image-based '+side+' estimate. Proposed entry '+fmtClock(plan.entry)+' SAST; expiry '+fmtClock(plan.expiry)+' SAST.';
   }
  }catch(e){
-  const msg=e&&e.name==='AbortError'?'Chart image analysis timed out after 24 seconds. Check the vision service and server-side OPENAI_API_KEY.':String(e&&e.message||e);
+  const msg=e&&e.name==='AbortError'?'Chart image analysis timed out after 30 seconds. Check the vision service and server-side OPENAI_API_KEY.':String(e&&e.message||e);
   $('signalBar').className='signalbar no-signal';$('signalBar').querySelector('.signal-icon').textContent='!';
   $('signalBarText').textContent='IMAGE ANALYSIS FAILED';$('direction').textContent='NO VERIFIED DIRECTION';$('direction').className='direction neutral';
   $('signalStatus').textContent='VISION SERVICE ERROR';$('confidence').textContent='Not available';$('momentum').textContent='Image analysis did not complete';
