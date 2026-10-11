@@ -124,6 +124,9 @@ $('signalBtn').addEventListener('click',async()=>{
   const result=await response.json().catch(()=>({}));
   if(!response.ok||!result.ok)throw new Error(result.error||('Visual analyzer request failed (HTTP '+response.status+').'));
   const side=String(result.direction||'NO_SIGNAL').toUpperCase();
+  const chartInterval=String(result.timeframe||'Unknown');
+  const horizonFit=String(result.horizonFit||'UNKNOWN').toUpperCase();
+  const horizonLabel={SUITABLE:'suitable based on visible chart interval',WEAK:'weak support from visible chart interval',UNSUITABLE:'not supported by visible chart interval',UNKNOWN:'not verified'}[horizonFit]||'not verified';
   
   if(side!=='BUY'&&side!=='SELL'){
    $('signalBar').className='signalbar no-signal';$('signalBar').querySelector('.signal-icon').textContent='!';
@@ -134,7 +137,7 @@ $('signalBtn').addEventListener('click',async()=>{
    $('momentum').textContent=result.momentum||'Not established';
    $('analysisPrice').textContent=selectedPrice!=null?fmtPrice(selectedPrice)+' ('+selectedPriceSource+' separate live quote)':'No separate live quote';
    $('entryTime').textContent='—';$('expiryTime').textContent='—';$('tradeDuration').textContent=Number($('durationSelect').value||5)+' seconds';
-   $('signalExplanation').textContent=(result.explanation||'The visible chart did not provide enough readable evidence for a directional estimate.')+(Array.isArray(result.evidence)?' Visible evidence: '+result.evidence.join(' · '):'');
+   $('signalExplanation').textContent=(result.explanation||'The visible chart did not provide enough readable evidence for a directional estimate.')+(Array.isArray(result.evidence)?' Visible evidence: '+result.evidence.join(' · '):'')+' Chart interval: '+chartInterval+' · '+Number($('durationSelect').value||5)+'-second expiry fit: '+horizonLabel+'.';
    $('signalNote').textContent='No entry time is recommended because the analyzer could not establish a direction from the screenshot. Try a clearer screenshot showing recent candles and timeframe.';
    $('toast').textContent='Image received, but the visual analyzer could not confidently read the chart. No signal was invented.';
   }else{
@@ -145,8 +148,8 @@ $('signalBtn').addEventListener('click',async()=>{
    $('assetLabel').textContent='Image asset: '+(result.asset||marketLabel())+' · source: uploaded chart screenshot';
    $('momentum').textContent=result.momentum||'Estimated from visible candles';
    $('analysisPrice').textContent=selectedPrice!=null?fmtPrice(selectedPrice)+' ('+selectedPriceSource+' separate live quote)':'No separate live quote';
-   $('signalExplanation').textContent=(result.explanation||'Directional estimate based on visible chart structure.')+(Array.isArray(result.evidence)&&result.evidence.length?' Evidence: '+result.evidence.join(' · '):'');
-   $('signalNote').textContent='PROPOSED ENTRY '+fmtClock(plan.entry)+' SAST · EXPIRY '+fmtClock(plan.expiry)+' SAST · '+plan.seconds+' second expiry. This BUY/SELL estimate is based on the uploaded image, not a verified forecast of future price. A 5- or 10-second expiry needs a seconds/tick chart; one-minute candles cannot validate such a short horizon. Check the current market before acting; no order was placed.';
+   $('signalExplanation').textContent=(result.explanation||'Directional estimate based on visible chart structure.')+(Array.isArray(result.evidence)&&result.evidence.length?' Evidence: '+result.evidence.join(' · '):'')+' Chart interval: '+chartInterval+' · expiry fit: '+horizonLabel+'.';
+   $('signalNote').textContent='PROPOSED ENTRY '+fmtClock(plan.entry)+' SAST · EXPIRY '+fmtClock(plan.expiry)+' SAST · '+plan.seconds+' second expiry. Chart interval: '+chartInterval+'. Expiry fit: '+horizonLabel+'. This BUY/SELL estimate is based on the uploaded image, not a verified forecast of future price. One-minute candles cannot validate a 5- or 10-second entry. Check the current market before acting; no order was placed.';
    $('toast').textContent='Image-based '+side+' estimate. Proposed entry '+fmtClock(plan.entry)+' SAST; expiry '+fmtClock(plan.expiry)+' SAST ('+plan.seconds+' seconds).';
   }
  }catch(e){
