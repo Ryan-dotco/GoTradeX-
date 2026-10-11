@@ -177,7 +177,20 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .gtxPortalPreview{display:block;width:100%;max-height:285px;object-fit:contain;border-radius:10px;background:#050713}
 .gtxPortalFileName{font-size:11px;color:#c6d2f5;word-break:break-word;margin:9px 0 0}
 .gtxPortalNotice{padding:12px 13px;margin-top:13px;border:1px solid #282d52;border-radius:13px;background:#0b1022;color:#979fbe;font-size:11px;line-height:1.5}
-.gtxPortalBuyPreview{display:flex;width:100%;min-height:64px;align-items:center;justify-content:center;margin-top:13px;padding:12px;border:4px solid #27f58a;border-radius:14px;background:linear-gradient(180deg,#0b984c,#087c3d);color:#fff;font-size:24px;font-weight:950;letter-spacing:1.5px;box-shadow:0 0 18px #27f58a33,inset 0 1px 0 #ffffff35;text-shadow:0 1px 2px #003c1b}
+.gtxPortalBuyPreview{display:flex;width:100%;min-height:68px;align-items:center;justify-content:center;margin-top:13px;padding:12px;border:4px solid #27f58a;border-radius:14px;background:linear-gradient(180deg,#0b984c,#087c3d);color:#fff;font-size:22px;font-weight:950;letter-spacing:1.5px;box-shadow:0 0 18px #27f58a33,inset 0 1px 0 #ffffff35;text-shadow:0 1px 2px #003c1b;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s}
+.gtxPortalBuyPreview.gtx-signal-sell{border-color:#ff4357;background:linear-gradient(180deg,#e92742,#a90927);box-shadow:0 0 22px #ff334455,inset 0 1px 0 #ffffff35}
+.gtxPortalBuyPreview.gtx-signal-neutral{border-color:#9ba6bd;background:linear-gradient(180deg,#45516a,#273147);box-shadow:0 0 14px #8fa4c233}
+.gtxPortalBuyPreview:disabled{opacity:.9;cursor:wait}
+.gtxSignalResultStatus{min-height:18px;margin:8px 3px 0;text-align:center;color:#9299b8;font-size:11px;line-height:1.45}
+.gtxSignalScanOverlay{position:fixed;inset:0;z-index:9998;display:none;overflow:hidden;pointer-events:none;background:rgba(2,7,18,.74);backdrop-filter:blur(2px)}
+.gtxSignalScanOverlay.active{display:block}
+.gtxSignalScanGrid{position:absolute;inset:0;background-image:linear-gradient(rgba(49,240,174,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(49,240,174,.08) 1px,transparent 1px);background-size:34px 34px;opacity:.8}
+.gtxSignalLaser{position:absolute;left:0;right:0;top:0;height:3px;background:#47ffb5;box-shadow:0 0 10px 3px #47ffb5,0 0 35px 8px #12dba0;animation:gtxSignalLaserSweep 1.25s ease-in-out infinite alternate}
+.gtxSignalLaser:after{content:"";position:absolute;left:0;right:0;top:0;height:90px;background:linear-gradient(180deg,rgba(71,255,181,.2),transparent)}
+.gtxSignalScanLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:16px 20px;border:1px solid #47ffb577;border-radius:14px;background:rgba(3,12,25,.94);color:#dffff3;text-align:center;font-weight:900;letter-spacing:2px;box-shadow:0 0 28px #12dba033;white-space:nowrap}
+.gtxSignalScanLabel small{display:block;margin-top:8px;color:#8becc9;font-size:10px;letter-spacing:1px;font-weight:700}
+@keyframes gtxSignalLaserSweep{from{top:2%}to{top:96%}}
+@media(prefers-reduced-motion:reduce){.gtxSignalLaser{animation-duration:3s}}
 .gtxPortalStats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 23px}
 .gtxPortalStat{min-height:88px;border-radius:18px;background:#0d0d2a;border:1px solid #242447;padding:14px}
 .gtxPortalStat strong{display:block;color:#6ea2ff;font-size:18px;font-weight:850}
@@ -2286,7 +2299,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
           <button class="gtxPortalAction secondary" id="gtxRemoveChartImage" type="button" style="grid-column:1 / -1">Remove image</button>
         </div>
       </div>
-      <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="BUY signal preview; no trade order is placed">BUY</button>
+      <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="Get a market signal">GET THE SIGNAL</button>
+      <div class="gtxSignalResultStatus" id="gtxSignalResultStatus" aria-live="polite">Ready to scan verified market candles.</div>
       <div class="gtxPortalStats">
         <div class="gtxPortalStat"><strong>Verified</strong><span>MARKET DATA FIRST</span></div>
         <div class="gtxPortalStat"><strong>Preview</strong><span>CAMERA + UPLOAD</span></div>
@@ -2342,6 +2356,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     </section>
   </main>
 </div>
+
+<div class="gtxSignalScanOverlay" id="gtxSignalScanOverlay" aria-hidden="true"><div class="gtxSignalScanGrid"></div><div class="gtxSignalLaser"></div><div class="gtxSignalScanLabel">SCANNING MARKET<small id="gtxSignalScanSub">CHECKING VERIFIED CANDLES</small></div></div>
 
 <nav id="gtxBottomNav" class="gtxBottomNav" aria-label="Main navigation">
   <button class="gtxBottomTab" type="button" data-gtx-tab="Analyze" aria-current="page" aria-label="Analyze">
@@ -2472,6 +2488,100 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   });
   document.getElementById("gtxCameraInput")?.addEventListener("change",function(e){acceptImage(e.target.files&&e.target.files[0])});
   document.getElementById("gtxUploadInput")?.addEventListener("change",function(e){acceptImage(e.target.files&&e.target.files[0])});
+  var signalBusy=false;
+  function gtxSignalEma(values,period){
+    var k=2/(period+1),ema=values[0];
+    for(var i=1;i<values.length;i++)ema=values[i]*k+ema*(1-k);
+    return ema;
+  }
+  function gtxSignalRsi(values,period){
+    var gains=0,losses=0;
+    for(var i=1;i<=period;i++){var d=values[i]-values[i-1];if(d>=0)gains+=d;else losses-=d;}
+    var avgGain=gains/period,avgLoss=losses/period;
+    for(var j=period+1;j<values.length;j++){var delta=values[j]-values[j-1];avgGain=(avgGain*(period-1)+(delta>0?delta:0))/period;avgLoss=(avgLoss*(period-1)+(delta<0?-delta:0))/period;}
+    return avgLoss===0?100:100-(100/(1+avgGain/avgLoss));
+  }
+  function gtxSignalSymbol(raw){
+    var symbol=(raw||"BTC/USD").trim().toUpperCase().replace(/[\\s_]/g,"");
+    if(symbol.indexOf("/")!==-1)symbol=symbol.replace("/","");
+    if(symbol.endsWith("USD")&&!symbol.endsWith("USDT"))symbol+="T";
+    return symbol;
+  }
+  async function runGtxSignal(){
+    var button=document.getElementById("gtxPortalBuyPreview");
+    var status=document.getElementById("gtxSignalResultStatus");
+    var overlay=document.getElementById("gtxSignalScanOverlay");
+    var scanSub=document.getElementById("gtxSignalScanSub");
+    if(signalBusy)return;
+    signalBusy=true;
+    button.disabled=true;
+    button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
+    button.textContent="SCANNING...";
+    button.setAttribute("aria-label","Scanning verified market data");
+    status.textContent="Checking verified market candles. No trade will be placed.";
+    overlay.classList.add("active");
+    overlay.setAttribute("aria-hidden","false");
+    scanSub.textContent="CHECKING VERIFIED CANDLES";
+    try{
+      var raw=document.getElementById("gtxScannerAsset")?.value||"BTC/USD";
+      var timeframe=document.getElementById("gtxScannerTimeframe")?.value||"1";
+      var symbol=gtxSignalSymbol(raw);
+      if(!/^[A-Z0-9]{5,20}$/.test(symbol))throw new Error("Enter a valid market symbol in the Scanner tab.");
+      scanSub.textContent="FETCHING "+symbol;
+      var url="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(symbol)+"&interval="+encodeURIComponent(timeframe)+"&limit=200";
+      var response=await fetch(url,{cache:"no-store"});
+      if(!response.ok)throw new Error("Market feed request failed ("+response.status+").");
+      var payload=await response.json();
+      if(payload.retCode!==0||!payload.result||!Array.isArray(payload.result.list))throw new Error("No verified candles returned for "+raw+".");
+      var candles=payload.result.list.slice().reverse().map(function(row){return {open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4])};}).filter(function(c){return Number.isFinite(c.close)&&c.close>0;});
+      if(candles.length<35)throw new Error("Not enough verified candles to calculate a signal for "+raw+".");
+      scanSub.textContent="CALCULATING TREND & MOMENTUM";
+      var closes=candles.map(function(c){return c.close;});
+      var last=closes[closes.length-1],ema9=gtxSignalEma(closes,9),ema21=gtxSignalEma(closes,21),rsi=gtxSignalRsi(closes,14);
+      var macd=gtxSignalEma(closes,12)-gtxSignalEma(closes,26);
+      var momentum=(last-closes[closes.length-6])/closes[closes.length-6]*100;
+      var score=0;
+      score+=ema9>ema21?2:-2;
+      if(rsi>55&&rsi<70)score++;else if(rsi<45&&rsi>30)score--;
+      score+=macd>0?1:-1;
+      score+=momentum>0?1:-1;
+      var direction=score>=3?"BUY":score<=-3?"SELL":"NO SIGNAL";
+      await new Promise(function(resolve){window.setTimeout(resolve,2600);});
+      overlay.classList.remove("active");
+      overlay.setAttribute("aria-hidden","true");
+      button.disabled=false;
+      if(direction==="BUY"){
+        button.textContent="BUY";
+        button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
+        button.setAttribute("aria-label","Market analysis result: BUY");
+        status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · technical trend and momentum aligned. No trade placed.";
+      }else if(direction==="SELL"){
+        button.textContent="SELL";
+        button.classList.remove("gtx-signal-neutral");
+        button.classList.add("gtx-signal-sell");
+        button.setAttribute("aria-label","Market analysis result: SELL");
+        status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · technical trend and momentum aligned. No trade placed.";
+      }else{
+        button.textContent="NO SIGNAL";
+        button.classList.remove("gtx-signal-sell");
+        button.classList.add("gtx-signal-neutral");
+        button.setAttribute("aria-label","Market analysis result: no clear signal");
+        status.textContent=raw+" · "+candles.length+" verified candles checked, but indicators conflict. Try again later; no direction was invented.";
+      }
+    }catch(error){
+      await new Promise(function(resolve){window.setTimeout(resolve,1000);});
+      overlay.classList.remove("active");
+      overlay.setAttribute("aria-hidden","true");
+      button.disabled=false;
+      button.textContent="GET THE SIGNAL";
+      button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
+      button.setAttribute("aria-label","Get a market signal");
+      status.textContent=(error&&error.message?error.message:"Signal unavailable")+" Select a supported crypto market in Scanner and try again.";
+    }finally{
+      signalBusy=false;
+    }
+  }
+  document.getElementById("gtxPortalBuyPreview")?.addEventListener("click",runGtxSignal);
   document.getElementById("gtxRemoveChartImage")?.addEventListener("click",clearSelectedImage);
   document.getElementById("gtxContinueChartAI")?.addEventListener("click",function(){
     openChartAI("Analyze",selectedImage);
