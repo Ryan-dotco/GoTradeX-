@@ -2880,7 +2880,7 @@ function install(){
  function isScanRequest(){
   if(!input)return false;
   const q=input.value.trim();
-  return /\\b(scan|analyse|analyze|technical analysis|market signal|give me a signal|check (?:the )?(?:chart|market))\\b/i.test(q);
+  return /\b(scan|analyse|analyze|technical analysis|market signal|give me a signal|check (?:the )?(?:chart|market))\b/i.test(q);
  }
  // Explicit scan requests use this free local indicator engine, not the
  // general chat response handler. Normal chat messages are untouched.
