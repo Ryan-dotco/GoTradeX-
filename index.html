@@ -147,7 +147,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 @media(max-width:380px){.chartAiDirectionBtn{min-height:58px;font-size:17px;border-width:4px}}
 </style><style id="gtx-bottom-ai-navigation">
 :root{--gtx-nav-height:calc(70px + env(safe-area-inset-bottom,0px))}
-.gtxPortalStage{position:fixed;inset:0 0 var(--gtx-nav-height) 0;z-index:40;overflow-y:auto;overscroll-behavior:contain;background:#050713;color:#f7f8ff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#chartAiPage{display:none!important}.gtxPortalStage{position:fixed;inset:0 0 var(--gtx-nav-height) 0;z-index:40;overflow-y:auto;overscroll-behavior:contain;background:#050713;color:#f7f8ff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .gtxPortalStage.is-hidden{display:none!important}
 .gtxPortalHeader{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:rgba(5,7,19,.95);backdrop-filter:blur(16px);border-bottom:1px solid rgba(68,103,178,.18)}
 .gtxPortalMenu{flex:0 0 40px;width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:#171830;border:1px solid #28294b;color:#d7dbff;font-size:20px}
@@ -2305,8 +2305,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         <img class="gtxPortalPreview" id="gtxPortalPreview" alt="Selected chart screenshot preview">
         <div class="gtxPortalFileName" id="gtxPortalFileName"></div>
         <div class="gtxPortalActions">
-          <button class="gtxPortalAction primary" id="gtxContinueChartAI" type="button">Continue to Chart AI</button>
-          <button class="gtxPortalAction secondary" id="gtxRemoveChartImage" type="button">Remove image</button>
+          
+          <button class="gtxPortalAction secondary" id="gtxRemoveChartImage" type="button" style="grid-column:1 / -1">Remove image</button>
         </div>
       </div>
       <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="BUY signal preview; no trade order is placed">BUY</button>
@@ -2441,34 +2441,13 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   }
 
   function openChartAI(fromTab, image, asset, timeframe, runAfterOpen){
-    returnTab=fromTab||activeTab;
-    var page=document.getElementById("chartAiPage");
-    var assetEl=document.getElementById("chartAiAsset");
-    var timeframeEl=document.getElementById("chartAiTimeframe");
-    if(asset&&assetEl)assetEl.value=asset;
-    if(timeframe&&timeframeEl)timeframeEl.value=timeframe;
-    if(image){
-      var dest=document.getElementById("chartAiImage");
-      if(dest){
-        try{
-          var transfer=new DataTransfer();
-          transfer.items.add(image);
-          dest.files=transfer.files;
-          dest.dispatchEvent(new Event("change",{bubbles:true}));
-        }catch(e){
-          var st=document.getElementById("chartAiDataStatus");
-          if(st)st.textContent="The image preview remains available on Analyze. This browser cannot transfer the selected file to the Chart AI page.";
-        }
-      }
+    var target=fromTab||activeTab;
+    setTab(target);
+    if(target==="Scanner"){
+      var card=stage.querySelector('[data-gtx-panel="Scanner"] .gtxPortalCard');
+      var notice=card&&card.querySelector(".gtxPortalNotice");
+      if(notice)notice.textContent="Scanner is being rebuilt inside the new portal.";
     }
-    if(page)page.classList.add("open");
-    if(runAfterOpen){
-      window.setTimeout(function(){
-        var load=document.getElementById("chartAiLoad");
-        if(load)load.click();
-      },180);
-    }
-    updateNavVisibility();
   }
 
   function clearSelectedImage(){
