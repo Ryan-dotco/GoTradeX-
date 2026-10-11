@@ -19,6 +19,7 @@
 #amountPortal label{display:none}
 #amountBtn{width:100%;height:100%;margin:0;padding:8px 10px;background:transparent;color:#fff;border:0;font-weight:800;font-size:16px;line-height:1.2;display:flex;align-items:center;justify-content:center}
 .gtxMenuPanel{width:min(760px,96vw)!important;padding:10px!important}.gtxMenuColumns{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:stretch;background:#091f3a;border:1px solid #23466d;border-radius:14px;overflow:hidden}.gtxProfileColumn,.gtxNavColumn{background:transparent;border:0;border-radius:0;padding:12px}.gtxProfileColumn{border-right:1px solid #23466d}.gtxProfileHead{display:flex;align-items:center;gap:10px;padding:4px 3px 12px;border-bottom:1px solid #143453;margin-bottom:8px}.gtxProfileAvatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:#176fca;color:#fff;font-size:19px;font-weight:900;flex:0 0 auto}.gtxProfileHead strong{display:block;font-size:13px}.gtxProfileHead span{display:block;color:#8fa8c4;font-size:9px;margin-top:4px}.gtxProfileItem{width:100%;min-height:43px;display:flex;align-items:center;justify-content:space-between;background:#102945;color:#fff;border:1px solid #23466d;border-radius:9px;padding:9px 11px;margin:6px 0;text-align:left;font-size:11px}.gtxProfileItem strong{margin-left:auto;margin-right:7px;color:#dbe9f7}.gtxNavTitle{color:#8fa8c4;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:4px 4px 7px;border-bottom:1px solid #143453;margin-bottom:2px}.gtxNavColumn .option{margin:6px 0}.gtxProfileItem:active,.gtxNavColumn .option:active{transform:scale(.99)}@media(max-width:600px){.gtxMenuPanel{width:96vw!important}.gtxMenuColumns{grid-template-columns:1fr 1fr;gap:0}.gtxProfileColumn,.gtxNavColumn{padding:8px}.gtxProfileColumn{border-right:1px solid #23466d}.gtxProfileHead{gap:7px}.gtxProfileAvatar{width:40px;height:40px;font-size:16px}.gtxProfileHead strong{font-size:11px}.gtxProfileHead span{font-size:8px}.gtxProfileItem,.gtxNavColumn .option{font-size:9px;min-height:40px;padding:8px}.gtxNavTitle{font-size:9px}}
+.gtxSignalScanOverlay.gtxScannerFocused{background:transparent;backdrop-filter:none}.gtxSignalScanOverlay.gtxScannerFocused .gtxSignalScanGrid{opacity:.1}.gtxSignalScanOverlay.gtxScannerFocused .gtxSignalScanLabel{font-size:10px;padding:7px 10px;letter-spacing:1px;white-space:normal;max-width:90%;text-align:center}
 /* GoTradeX selected-asset candle scanner */
 .gtxScannerCard{display:grid;gap:10px}.gtxScannerChartHead{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#e7f1ff;font-size:12px}.gtxScannerChartHead span{color:#7fdcaf;font-size:10px;text-align:right}.gtxScannerChartWrap{height:230px;width:100%;overflow:hidden;border:0;border-radius:0;background:#07111d;position:relative}.gtxScannerChartWrap canvas{display:block;width:100%;height:100%}#gtxRunScanner{font-weight:900;letter-spacing:.04em;min-height:46px}
 </style><style id="gtx-visible-chart-fix">#gtxChart{display:flex!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:20!important;flex:1 1 auto!important;min-height:360px!important;height:clamp(360px,56vh,620px)!important;width:100%!important;overflow:hidden!important;padding:0!important;margin:0!important;background:#07111d!important;border:0!important;border-radius:0!important}#gtxLiveChart{display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:20!important;flex:1 1 auto!important;min-height:360px!important;height:100%!important;width:100%!important}#gtxLiveChart #gtxLWC{display:block!important;visibility:visible!important;opacity:1!important;position:absolute!important;inset:0!important;z-index:1!important}</style>
@@ -2568,6 +2569,19 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     if(symbol.endsWith("USD")&&!symbol.endsWith("USDT"))symbol+="T";
     return symbol;
   }
+  function positionGtxScanOverlayForScanner(overlay,enabled){
+    if(!overlay)return;
+    if(enabled){
+      var target=document.querySelector(".gtxScannerChartWrap");
+      if(!target)return;
+      var r=target.getBoundingClientRect();
+      overlay.classList.add("gtxScannerFocused");
+      overlay.style.position="fixed";overlay.style.inset="auto";overlay.style.left=r.left+"px";overlay.style.top=r.top+"px";overlay.style.width=r.width+"px";overlay.style.height=r.height+"px";overlay.style.borderRadius="0";
+    }else{
+      overlay.classList.remove("gtxScannerFocused");
+      ["position","inset","left","top","width","height","borderRadius"].forEach(function(k){overlay.style[k]="";});
+    }
+  }
   async function runGtxSignal(navigateOnSuccess){
     var button=document.getElementById(navigateOnSuccess?"gtxRunScanner":"gtxPortalBuyPreview");
     var status=document.getElementById("gtxSignalResultStatus");
@@ -2584,6 +2598,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     status.textContent="Checking verified market candles. No trade will be placed.";
     overlay.classList.add("active");
     overlay.setAttribute("aria-hidden","false");
+    positionGtxScanOverlayForScanner(overlay,!!navigateOnSuccess);
     scanSub.textContent="CHECKING VERIFIED CANDLES";
     try{
       var raw=document.getElementById("gtxScannerAsset")?.value||"BTCUSD";
@@ -2633,6 +2648,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       await new Promise(function(resolve){window.setTimeout(resolve,2600);});
       overlay.classList.remove("active");
       overlay.setAttribute("aria-hidden","true");
+      positionGtxScanOverlayForScanner(overlay,false);
       button.disabled=false;
       if(direction==="BUY"){
         button.textContent="BUY";
@@ -2664,6 +2680,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       await new Promise(function(resolve){window.setTimeout(resolve,1000);});
       overlay.classList.remove("active");
       overlay.setAttribute("aria-hidden","true");
+      positionGtxScanOverlayForScanner(overlay,false);
       button.disabled=false;
       button.textContent=navigateOnSuccess?"ANALYZE ASSET":"GET THE SIGNAL";
       button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
