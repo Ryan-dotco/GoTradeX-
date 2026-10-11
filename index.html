@@ -2312,7 +2312,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         <input id="gtxCameraInput" type="file" accept="image/*" capture="environment" hidden>
         <input id="gtxUploadInput" type="file" accept="image/*" hidden>
       </div>
-      <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="Get a market signal">GET THE SIGNAL</button>
+      <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="Get a market signal">GET A SIGNAL</button>
       <div class="gtxSignalResultStatus" id="gtxSignalResultStatus" aria-live="polite">Ready to scan verified market candles.</div>
       <div class="gtxPortalPreviewWrap" id="gtxPortalPreviewWrap">
         <img class="gtxPortalPreview" id="gtxPortalPreview" alt="Selected chart screenshot preview">
@@ -2545,7 +2545,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     var status=document.getElementById("gtxSignalResultStatus");
     if(!button||signalBusy)return;
     button.disabled=false;
-    button.textContent="GET THE SIGNAL";
+    button.textContent="GET A SIGNAL";
     button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
     button.setAttribute("aria-label","Get a market signal");
     clearGtxSignalDetails();
@@ -2585,38 +2585,50 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   async function runGtxSignal(navigateOnSuccess){
     var button=document.getElementById(navigateOnSuccess?"gtxRunScanner":"gtxPortalBuyPreview");
     var status=document.getElementById("gtxSignalResultStatus");
-    var overlay=document.getElementById("gtxSignalScanOverlay");
+    var fullOverlay=document.getElementById("gtxSignalScanOverlay");
+    var imageOverlay=document.getElementById("gtxImageScanOverlay");
+    var overlay=navigateOnSuccess?fullOverlay:imageOverlay;
     var scanSub=document.getElementById("gtxSignalScanSub");
     if(signalBusy)return;
+    if(!navigateOnSuccess&&!selectedImage){
+      if(status)status.textContent="Take a photo or upload a chart image first. Your image will appear here before scanning.";
+      document.getElementById("gtxPortalPreviewWrap")?.scrollIntoView({behavior:"smooth",block:"center"});
+      return;
+    }
     if(signalResetTimer){window.clearTimeout(signalResetTimer);signalResetTimer=null;}
     signalBusy=true;
     clearGtxSignalDetails();
-    button.disabled=true;
-    button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
-    button.textContent="SCANNING...";
-    button.setAttribute("aria-label","Scanning verified market data");
-    status.textContent="Checking verified market candles. No trade will be placed.";
-    overlay.classList.add("active");
-    overlay.setAttribute("aria-hidden","false");
-    positionGtxScanOverlayForScanner(overlay,!!navigateOnSuccess);
-    scanSub.textContent="CHECKING VERIFIED CANDLES";
+    if(button){button.disabled=true;button.classList.remove("gtx-signal-sell","gtx-signal-neutral");button.textContent="SCANNING...";button.setAttribute("aria-label","Scanning verified market data");}
+    if(status)status.textContent=navigateOnSuccess?"Checking the selected asset's verified market candles. No trade will be placed.":"Scanning your selected image while checking the Trading chart's verified market candles. No trade will be placed.";
+    if(overlay){overlay.classList.add("active");overlay.setAttribute("aria-hidden","false");}
+    if(navigateOnSuccess)positionGtxScanOverlayForScanner(overlay,true);
+    if(scanSub)scanSub.textContent="CHECKING VERIFIED CANDLES";
     try{
-      var raw=document.getElementById("gtxScannerAsset")?.value||"BTCUSD";
-      var pair=gtxScannerPair(raw);
-      var timeframe=document.getElementById("gtxScannerTimeframe")?.value||"5 Minutes";
-      loadGtxScannerCandles();
-      scanSub.textContent="SCANNING "+pair;
+      var mainState=gtxScannerChartState();
+      var raw, pair, timeframe;
+      if(navigateOnSuccess){
+        raw=document.getElementById("gtxScannerAsset")?.value||"BTCUSD";
+        pair=gtxScannerPair(raw);
+        timeframe=document.getElementById("gtxScannerTimeframe")?.value||"5 Minutes";
+        loadGtxScannerCandles();
+      }else{
+        raw=(mainState&&mainState.assetLabel)||"";
+        pair=gtxScannerPair(raw);
+        timeframe=(mainState&&mainState.tf)||"current chart timeframe";
+        if(!pair)throw new Error("The Trading chart does not have a selected asset. Open the Trading page, select an asset with verified candles, and try again.");
+      }
+      if(scanSub)scanSub.textContent="SCANNING "+pair;
       var candles=[];
       var deadline=Date.now()+15000;
       while(Date.now()<deadline){
-        var mainState=gtxScannerChartState();
+        mainState=gtxScannerChartState();
         candles=(mainState&&mainState.candles||[]).map(function(c){return {time:Number(c.t),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};}).filter(function(c){return Number.isFinite(c.time)&&Number.isFinite(c.close)&&c.close>0&&Number.isFinite(c.open)&&Number.isFinite(c.high)&&Number.isFinite(c.low);});
         if(mainState&&mainState.historyLoaded&&candles.length>=35)break;
-        scanSub.textContent="WAITING FOR VERIFIED "+pair+" CANDLES";
+        if(scanSub)scanSub.textContent="WAITING FOR VERIFIED "+pair+" CANDLES";
         await new Promise(function(resolve){window.setTimeout(resolve,300);});
       }
-      if(candles.length<35)throw new Error("The Trading chart feed did not provide enough verified candles for "+pair+". Check that asset on the main Trading page first.");
-      scanSub.textContent="CALCULATING TREND & MOMENTUM";
+      if(candles.length<35)throw new Error("The Trading chart feed did not provide enough verified candles for "+pair+". Please select an asset with a working verified feed and try again.");
+      if(scanSub)scanSub.textContent="CALCULATING TREND & MOMENTUM";
       var closes=candles.map(function(c){return c.close;});
       var last=closes[closes.length-1],ema9=gtxSignalEma(closes,9),ema21=gtxSignalEma(closes,21),rsi=gtxSignalRsi(closes,14);
       var macd=gtxSignalEma(closes,12)-gtxSignalEma(closes,26);
@@ -2628,7 +2640,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       score+=momentum>0?1:-1;
       var direction=score>=0?"BUY":"SELL";
       var entryTime=new Date().toLocaleString(undefined,{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-      var displayAsset=pair.replace(/\\//g,"");
+      var displayAsset=pair.split("/").join("");
       var signalAsset=document.getElementById("gtxSignalAssetValue");
       var signalEntry=document.getElementById("gtxSignalEntryValue");
       var signalDirection=document.getElementById("gtxSignalDirectionValue");
@@ -2639,54 +2651,38 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       var signalMacd=document.getElementById("gtxSignalMacdValue");
       if(signalAsset)signalAsset.textContent=displayAsset;
       if(signalEntry)signalEntry.textContent=entryTime+" (local)";
-      if(signalDirection){signalDirection.textContent=direction;signalDirection.classList.remove("gtx-signal-buy","gtx-signal-sell","gtx-signal-neutral");signalDirection.classList.add(direction==="BUY"?"gtx-signal-buy":direction==="SELL"?"gtx-signal-sell":"gtx-signal-neutral");}
+      if(signalDirection){signalDirection.textContent=direction;signalDirection.classList.remove("gtx-signal-buy","gtx-signal-sell","gtx-signal-neutral");signalDirection.classList.add(direction==="BUY"?"gtx-signal-buy":"gtx-signal-sell");}
       if(signalRsi)signalRsi.textContent=rsi.toFixed(1);
       if(signalMomentum)signalMomentum.textContent=(momentum>0?"+":"")+momentum.toFixed(3)+"%";
       if(signalEma9)signalEma9.textContent=ema9.toFixed(4);
       if(signalEma21)signalEma21.textContent=ema21.toFixed(4);
       if(signalMacd)signalMacd.textContent=(macd>0?"+":"")+macd.toFixed(4);
       await new Promise(function(resolve){window.setTimeout(resolve,2600);});
-      overlay.classList.remove("active");
-      overlay.setAttribute("aria-hidden","true");
-      positionGtxScanOverlayForScanner(overlay,false);
-      button.disabled=false;
-      if(direction==="BUY"){
-        button.textContent="BUY";
-        button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
-        button.setAttribute("aria-label","Market analysis result: BUY");
-        status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · directional bias selected from trend and momentum. No trade placed.";
-      }else if(direction==="SELL"){
-        button.textContent="SELL";
+      if(overlay){overlay.classList.remove("active");overlay.setAttribute("aria-hidden","true");}
+      if(navigateOnSuccess)positionGtxScanOverlayForScanner(overlay,false);
+      if(button){
+        button.disabled=false;
+        button.textContent=direction;
+        button.classList.toggle("gtx-signal-sell",direction==="SELL");
         button.classList.remove("gtx-signal-neutral");
-        button.classList.add("gtx-signal-sell");
-        button.setAttribute("aria-label","Market analysis result: SELL");
-        status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · technical trend and momentum aligned. No trade placed.";
-      }else{
-        button.textContent="SELL";
-        button.classList.remove("gtx-signal-neutral");
-        button.classList.add("gtx-signal-sell");
-        button.setAttribute("aria-label","Market analysis result: SELL");
-        status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · directional bias selected from trend and momentum. No trade placed.";
+        button.setAttribute("aria-label","Market analysis result: "+direction);
       }
-      if(navigateOnSuccess)setTab("Signals");
+      if(status)status.textContent=displayAsset+" · "+candles.length+" verified candles · "+timeframe+" · "+direction+" directional bias from trend and momentum. The image remains visible as your reference; this version does not yet have an image-vision AI backend. No trade placed.";
       if(navigateOnSuccess){
+        setTab("Signals");
         signalResetTimer=window.setTimeout(function(){button.disabled=false;button.textContent="ANALYZE ASSET";button.classList.remove("gtx-signal-sell","gtx-signal-neutral");},15000);
-      }else{
-        signalResetTimer=window.setTimeout(function(){
-          resetSignalButton("Ready for the next scan. Upload or take a new chart image whenever you are ready.");
-        },15000);
       }
     }catch(error){
-      await new Promise(function(resolve){window.setTimeout(resolve,1000);});
-      overlay.classList.remove("active");
-      overlay.setAttribute("aria-hidden","true");
-      positionGtxScanOverlayForScanner(overlay,false);
-      button.disabled=false;
-      button.textContent=navigateOnSuccess?"ANALYZE ASSET":"GET THE SIGNAL";
-      button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
-      button.setAttribute("aria-label",navigateOnSuccess?"Analyze selected asset":"Get a market signal");
-      var errorMessage=(error&&error.message?error.message:"Signal unavailable")+" Select a supported crypto market in Scanner and try again.";
-      status.textContent=errorMessage;
+      if(overlay){overlay.classList.remove("active");overlay.setAttribute("aria-hidden","true");}
+      if(navigateOnSuccess)positionGtxScanOverlayForScanner(overlay,false);
+      if(button){
+        button.disabled=false;
+        button.textContent=navigateOnSuccess?"ANALYZE ASSET":"GET A SIGNAL";
+        button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
+        button.setAttribute("aria-label",navigateOnSuccess?"Analyze selected asset":"Get a market signal");
+      }
+      var errorMessage=(error&&error.message?error.message:"Signal unavailable");
+      if(status)status.textContent=errorMessage;
       var scannerNotice=document.getElementById("gtxScannerNotice");if(navigateOnSuccess&&scannerNotice)scannerNotice.textContent=errorMessage;
     }finally{
       signalBusy=false;
