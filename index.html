@@ -2460,6 +2460,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 
   function acceptImage(file){
     if(!file)return;
+    resetSignalButton("New chart image selected. Press GET THE SIGNAL to scan.");
     if(!file.type||!file.type.startsWith("image/")){
       window.alert("Please choose an image file.");
       return;
@@ -2489,6 +2490,18 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   document.getElementById("gtxCameraInput")?.addEventListener("change",function(e){acceptImage(e.target.files&&e.target.files[0])});
   document.getElementById("gtxUploadInput")?.addEventListener("change",function(e){acceptImage(e.target.files&&e.target.files[0])});
   var signalBusy=false;
+  var signalResetTimer=null;
+  function resetSignalButton(message){
+    if(signalResetTimer){window.clearTimeout(signalResetTimer);signalResetTimer=null;}
+    var button=document.getElementById("gtxPortalBuyPreview");
+    var status=document.getElementById("gtxSignalResultStatus");
+    if(!button||signalBusy)return;
+    button.disabled=false;
+    button.textContent="GET THE SIGNAL";
+    button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
+    button.setAttribute("aria-label","Get a market signal");
+    if(status)status.textContent=message||"Ready to scan verified market candles.";
+  }
   function gtxSignalEma(values,period){
     var k=2/(period+1),ema=values[0];
     for(var i=1;i<values.length;i++)ema=values[i]*k+ema*(1-k);
@@ -2513,6 +2526,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     var overlay=document.getElementById("gtxSignalScanOverlay");
     var scanSub=document.getElementById("gtxSignalScanSub");
     if(signalBusy)return;
+    if(signalResetTimer){window.clearTimeout(signalResetTimer);signalResetTimer=null;}
     signalBusy=true;
     button.disabled=true;
     button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
@@ -2568,6 +2582,9 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         button.setAttribute("aria-label","Market analysis result: no clear signal");
         status.textContent=raw+" · "+candles.length+" verified candles checked, but indicators conflict. Try again later; no direction was invented.";
       }
+      signalResetTimer=window.setTimeout(function(){
+        resetSignalButton("Ready for the next scan. Upload or take a new chart image whenever you are ready.");
+      },15000);
     }catch(error){
       await new Promise(function(resolve){window.setTimeout(resolve,1000);});
       overlay.classList.remove("active");
