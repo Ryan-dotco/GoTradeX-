@@ -202,9 +202,9 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .gtxPortalBuyPreview.gtx-signal-neutral{border-color:#9ba6bd;background:linear-gradient(180deg,#45516a,#273147);box-shadow:0 0 14px #8fa4c233}
 .gtxPortalBuyPreview:disabled{opacity:.9;cursor:wait}
 .gtxSignalResultStatus{min-height:18px;margin:8px 3px 0;text-align:center;color:#9299b8;font-size:11px;line-height:1.45}
-.gtxSignalScanOverlay{position:fixed;inset:0;z-index:9998;display:none;overflow:hidden;pointer-events:none;background:rgba(2,7,18,.74);backdrop-filter:blur(2px)}
+.gtxSignalScanOverlay{position:fixed;inset:0;z-index:9998;display:none;overflow:hidden;pointer-events:none;background:rgba(2,7,18,.12)}
 .gtxSignalScanOverlay.active{display:block}
-.gtxSignalScanGrid{position:absolute;inset:0;background-image:linear-gradient(rgba(49,240,174,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(49,240,174,.08) 1px,transparent 1px);background-size:34px 34px;opacity:.8}
+.gtxSignalScanGrid{position:absolute;inset:0;background-image:linear-gradient(rgba(49,240,174,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(49,240,174,.08) 1px,transparent 1px);background-size:34px 34px;opacity:.24}
 .gtxSignalLaser{position:absolute;left:0;right:0;top:0;height:3px;background:#47ffb5;box-shadow:0 0 10px 3px #47ffb5,0 0 35px 8px #12dba0;animation:gtxSignalLaserSweep 1.25s ease-in-out infinite alternate}
 .gtxSignalLaser:after{content:"";position:absolute;left:0;right:0;top:0;height:90px;background:linear-gradient(180deg,rgba(71,255,181,.2),transparent)}
 .gtxSignalScanLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:16px 20px;border:1px solid #47ffb577;border-radius:14px;background:rgba(3,12,25,.94);color:#dffff3;text-align:center;font-weight:900;letter-spacing:2px;box-shadow:0 0 28px #12dba033;white-space:nowrap}
@@ -2334,7 +2334,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       <article class="gtxPortalCard gtxSignalSummaryCard" aria-live="polite">
         <span class="gtxPortalPill">VERIFIED MARKET SIGNAL</span>
         <div class="gtxSignalSummaryRows">
-          <div class="gtxSignalSummaryRow"><span>AP:</span><strong id="gtxSignalAssetValue">BTCUSD</strong></div>
+          <div class="gtxSignalSummaryRow"><span>AP (Asset Pair):</span><strong id="gtxSignalAssetValue">BTCUSD</strong></div>
           <div class="gtxSignalSummaryRow"><span>Entry:</span><strong id="gtxSignalEntryValue">—</strong></div>
           <div class="gtxSignalSummaryRow"><span>Signal:</span><strong id="gtxSignalDirectionValue">—</strong></div>
           <div class="gtxSignalSummaryRow"><span>RSI:</span><strong id="gtxSignalRsiValue">—</strong></div>
@@ -2563,7 +2563,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     return avgLoss===0?100:100-(100/(1+avgGain/avgLoss));
   }
   function gtxSignalSymbol(raw){
-    var symbol=(raw||"BTC/USD").trim().toUpperCase().replace(/[\\s_]/g,"");
+    var symbol=(raw||"BTC/USD").trim().toUpperCase().replace(/\s|_/g,"");
     if(symbol.indexOf("/")!==-1)symbol=symbol.replace("/","");
     if(symbol.endsWith("USD")&&!symbol.endsWith("USDT"))symbol+="T";
     return symbol;
@@ -2610,7 +2610,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       score+=momentum>0?1:-1;
       var direction=score>=0?"BUY":"SELL";
       var entryTime=new Date(candles[candles.length-1].time).toLocaleString(undefined,{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-      var displayAsset=raw.toUpperCase().replace(/[\\s/_-]/g,"");
+      var displayAsset=raw.toUpperCase().replace(/[\s/_-]/g,"");
       var signalAsset=document.getElementById("gtxSignalAssetValue");
       var signalEntry=document.getElementById("gtxSignalEntryValue");
       var signalDirection=document.getElementById("gtxSignalDirectionValue");
