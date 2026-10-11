@@ -177,6 +177,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .gtxPortalPreview{display:block;width:100%;max-height:285px;object-fit:contain;border-radius:10px;background:#050713}
 .gtxPortalFileName{font-size:11px;color:#c6d2f5;word-break:break-word;margin:9px 0 0}
 .gtxPortalNotice{padding:12px 13px;margin-top:13px;border:1px solid #282d52;border-radius:13px;background:#0b1022;color:#979fbe;font-size:11px;line-height:1.5}
+.gtxPortalBuyPreview{display:flex;width:100%;min-height:64px;align-items:center;justify-content:center;margin-top:13px;padding:12px;border:4px solid #27f58a;border-radius:14px;background:linear-gradient(180deg,#0b984c,#087c3d);color:#fff;font-size:24px;font-weight:950;letter-spacing:1.5px;box-shadow:0 0 18px #27f58a33,inset 0 1px 0 #ffffff35;text-shadow:0 1px 2px #003c1b}
 .gtxPortalStats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 23px}
 .gtxPortalStat{min-height:88px;border-radius:18px;background:#0d0d2a;border:1px solid #242447;padding:14px}
 .gtxPortalStat strong{display:block;color:#6ea2ff;font-size:18px;font-weight:850}
@@ -2308,7 +2309,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
           <button class="gtxPortalAction secondary" id="gtxRemoveChartImage" type="button">Remove image</button>
         </div>
       </div>
-      <div class="gtxPortalNotice">Image capture and upload are ready for preview. The existing Chart AI can analyze verified market candles; image-based interpretation of screenshot pixels still requires a connected vision model.</div>
+      <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="BUY signal preview; no trade order is placed">BUY</button>
       <div class="gtxPortalStats">
         <div class="gtxPortalStat"><strong>Verified</strong><span>MARKET DATA FIRST</span></div>
         <div class="gtxPortalStat"><strong>Preview</strong><span>CAMERA + UPLOAD</span></div>
