@@ -2291,6 +2291,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         <input id="gtxCameraInput" type="file" accept="image/*" capture="environment" hidden>
         <input id="gtxUploadInput" type="file" accept="image/*" hidden>
       </div>
+      <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="Get a market signal">GET THE SIGNAL</button>
+      <div class="gtxSignalResultStatus" id="gtxSignalResultStatus" aria-live="polite">Ready to scan verified market candles.</div>
       <div class="gtxPortalPreviewWrap" id="gtxPortalPreviewWrap">
         <img class="gtxPortalPreview" id="gtxPortalPreview" alt="Selected chart screenshot preview">
         <div class="gtxPortalFileName" id="gtxPortalFileName"></div>
@@ -2299,8 +2301,6 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
           <button class="gtxPortalAction secondary" id="gtxRemoveChartImage" type="button" style="grid-column:1 / -1">Remove image</button>
         </div>
       </div>
-      <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="Get a market signal">GET THE SIGNAL</button>
-      <div class="gtxSignalResultStatus" id="gtxSignalResultStatus" aria-live="polite">Ready to scan verified market candles.</div>
       <div class="gtxPortalStats">
         <div class="gtxPortalStat"><strong>Verified</strong><span>MARKET DATA FIRST</span></div>
         <div class="gtxPortalStat"><strong>Preview</strong><span>CAMERA + UPLOAD</span></div>
