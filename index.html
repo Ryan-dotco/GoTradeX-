@@ -178,7 +178,15 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .gtxPortalFinePrint{font-size:10px;color:#777e9e;text-align:center;line-height:1.5;margin:12px 4px 0}
 .gtxPortalPreviewWrap{display:none;margin-top:12px;padding:11px;border-radius:14px;border:1px solid #24325b;background:#0b1024}
 .gtxPortalPreviewWrap.visible{display:block}
+.gtxPortalImageFrame{position:relative;width:100%;min-height:80px;overflow:hidden;border-radius:10px;background:#050713}
 .gtxPortalPreview{display:block;width:100%;max-height:285px;object-fit:contain;border-radius:10px;background:#050713}
+.gtxImageScanOverlay{position:absolute;inset:0;display:none;overflow:hidden;pointer-events:none;background:rgba(2,7,18,.12)}
+.gtxImageScanOverlay.active{display:block}
+.gtxImageScanGrid{position:absolute;inset:0;background-image:linear-gradient(rgba(49,240,174,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(49,240,174,.08) 1px,transparent 1px);background-size:34px 34px;opacity:.24}
+.gtxImageScanLaser{position:absolute;left:0;right:0;top:0;height:3px;background:#47ffb5;box-shadow:0 0 10px 3px #47ffb5,0 0 35px 8px #12dba0;animation:gtxSignalLaserSweep 1.25s ease-in-out infinite alternate}
+.gtxImageScanLaser:after{content:"";position:absolute;left:0;right:0;top:0;height:90px;background:linear-gradient(180deg,rgba(71,255,181,.2),transparent)}
+.gtxImageScanLabel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:92%;padding:10px 13px;border:1px solid #47ffb577;border-radius:12px;background:rgba(3,12,25,.94);color:#dffff3;text-align:center;font-size:11px;font-weight:900;letter-spacing:1px;box-shadow:0 0 28px #12dba033;white-space:normal}
+.gtxImageScanLabel small{display:block;margin-top:6px;color:#8becc9;font-size:9px;letter-spacing:.5px;font-weight:700}
 .gtxPortalFileName{font-size:11px;color:#c6d2f5;word-break:break-word;margin:9px 0 0}
 .gtxPortalNotice{padding:12px 13px;margin-top:13px;border:1px solid #282d52;border-radius:13px;background:#0b1022;color:#979fbe;font-size:11px;line-height:1.5}
 .gtxSignalSummaryCard{margin-top:12px}
@@ -2313,9 +2321,12 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         <input id="gtxUploadInput" type="file" accept="image/*" hidden>
       </div>
       <button class="gtxPortalBuyPreview" id="gtxPortalBuyPreview" type="button" aria-label="Get a market signal">GET A SIGNAL</button>
-      <div class="gtxSignalResultStatus" id="gtxSignalResultStatus" aria-live="polite">Ready to scan verified market candles.</div>
+      <div class="gtxSignalResultStatus" id="gtxSignalResultStatus" aria-live="polite">Choose a chart image first. Signal direction uses the Trading chart’s verified market candles; image-recognition AI is not connected yet.</div>
       <div class="gtxPortalPreviewWrap" id="gtxPortalPreviewWrap">
-        <img class="gtxPortalPreview" id="gtxPortalPreview" alt="Selected chart screenshot preview">
+        <div class="gtxPortalImageFrame" id="gtxPortalImageFrame">
+          <img class="gtxPortalPreview" id="gtxPortalPreview" alt="Selected chart screenshot preview">
+          <div class="gtxImageScanOverlay" id="gtxImageScanOverlay" aria-hidden="true"><div class="gtxImageScanGrid"></div><div class="gtxImageScanLaser"></div><div class="gtxImageScanLabel">SCANNING IMAGE<small>CHECKING CHART & VERIFIED MARKET DATA</small></div></div>
+        </div>
         <div class="gtxPortalFileName" id="gtxPortalFileName"></div>
         <div class="gtxPortalActions">
           
@@ -2496,11 +2507,14 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     var wrap=document.getElementById("gtxPortalPreviewWrap");
     var preview=document.getElementById("gtxPortalPreview");
     var name=document.getElementById("gtxPortalFileName");
+    var imageScan=document.getElementById("gtxImageScanOverlay");
+    if(imageScan){imageScan.classList.remove("active");imageScan.setAttribute("aria-hidden","true");}
     if(wrap)wrap.classList.remove("visible");
     if(preview)preview.removeAttribute("src");
     if(name)name.textContent="";
   }
 
+  function statusForImage(){return document.getElementById("gtxSignalResultStatus");}
   function acceptImage(file){
     if(!file)return;
     resetSignalButton("New chart image selected. Press GET THE SIGNAL to scan.");
@@ -2518,7 +2532,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     var preview=document.getElementById("gtxPortalPreview");
     var wrap=document.getElementById("gtxPortalPreviewWrap");
     var name=document.getElementById("gtxPortalFileName");
-    if(preview)preview.src=previewUrl;
+    if(preview){preview.onload=function(){if(wrap)wrap.classList.add("visible");var st=statusForImage();if(st)st.textContent="Image ready. Press GET A SIGNAL to check verified market data.";};preview.onerror=function(){if(wrap)wrap.classList.add("visible");var st=statusForImage();if(st)st.textContent="The selected file could not be previewed by this browser. Please choose a JPG or PNG image.";};preview.src=previewUrl;}
     if(name)name.textContent=file.name+" · "+Math.max(1,Math.round(file.size/1024))+" KB";
     if(wrap)wrap.classList.add("visible");
   }
