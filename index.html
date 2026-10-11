@@ -2877,7 +2877,21 @@ function install(){
  b.addEventListener("click",analyse);
  const input=document.getElementById("chatInput");
  const send=document.getElementById("chatSend");
- function maybeScan(){if(!input)return;const q=input.value.trim();if(/(scan|analyse|analyze).*(market|chart|signal)|(market|chart|signal).*(scan|analyse|analyze)/i.test(q)){input.value="";analyse();return true;}return false;}
+ function isScanRequest(){
+  if(!input)return false;
+  const q=input.value.trim();
+  return /\\b(scan|analyse|analyze|technical analysis|market signal|give me a signal|check (?:the )?(?:chart|market))\\b/i.test(q);
+ }
+ // Explicit scan requests use this free local indicator engine, not the
+ // general chat response handler. Normal chat messages are untouched.
+ document.addEventListener("click",function(e){
+  if(!e.target.closest||!e.target.closest("#chatSend")||!isScanRequest())return;
+  e.preventDefault();e.stopImmediatePropagation();input.value="";analyse();
+ },true);
+ document.addEventListener("keydown",function(e){
+  if(e.target!==input||e.key!=="Enter"||!isScanRequest())return;
+  e.preventDefault();e.stopImmediatePropagation();input.value="";analyse();
+ },true);
  b.setAttribute("aria-label","Run free technical analysis on verified chart candles");
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install);else install();
