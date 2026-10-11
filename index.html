@@ -2401,7 +2401,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 <div class="gtxSignalScanOverlay" id="gtxSignalScanOverlay" aria-hidden="true"><div class="gtxSignalScanGrid"></div><div class="gtxSignalLaser"></div><div class="gtxSignalScanLabel">SCANNING MARKET<small id="gtxSignalScanSub">CHECKING VERIFIED CANDLES</small></div></div>
 
 <nav id="gtxBottomNav" class="gtxBottomNav" aria-label="Main navigation">
-  <button class="gtxBottomTab" type="button" data-gtx-tab="Trade" aria-label="Trading page">
+  <button class="gtxBottomTab" type="button" data-gtx-tab="Home" aria-label="Trading page">
     <svg viewBox="0 0 24 24"><path d="M4 20V12h4v8M10 20V5h4v15M16 20V9h4v11"/></svg><span>Trading</span>
   </button>
   <button class="gtxBottomTab" type="button" data-gtx-tab="Scanner" aria-label="Scanner">
@@ -2427,8 +2427,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var nav=document.getElementById("gtxBottomNav");
   if(!stage||!nav||stage.dataset.initialized==="true")return;
   stage.dataset.initialized="true";
-  var activeTab="Trade";
-  var returnTab="Trade";
+  var activeTab="Home";
+  var returnTab="Home";
   var selectedImage=null;
   var previewUrl=null;
   var title=document.getElementById("gtxPortalTitle");
@@ -2436,7 +2436,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var tabs=Array.prototype.slice.call(nav.querySelectorAll("[data-gtx-tab]"));
 
   function setTab(name){
-    if(!["Analyze","Signals","Scanner","School","Trade","AI Chat"].includes(name))name="Analyze";
+    if(!["Analyze","Signals","Scanner","School","Trade","AI Chat","Home"].includes(name))name="Home";
     returnTab=name;
     activeTab=name;
     panels.forEach(function(p){p.classList.toggle("active",p.getAttribute("data-gtx-panel")===name)});
@@ -2444,7 +2444,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       if(b.getAttribute("data-gtx-tab")===name)b.setAttribute("aria-current","page");
       else b.removeAttribute("aria-current");
     });
-    stage.classList.toggle("is-hidden",name==="Trade");
+    stage.classList.toggle("is-hidden",name==="Trade"||name==="Home");
     document.body.classList.toggle("gtx-nav-trade-active",name==="Trade");
     document.body.classList.toggle("gtx-nav-chat-open",name==="AI Chat");
     if(title)title.textContent=name;
@@ -2466,7 +2466,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     );
     nav.style.display=blocking?"none":"grid";
     document.body.classList.toggle("gtx-nav-visible",!blocking);
-    document.body.classList.toggle("gtx-nav-trade-active",activeTab==="Trade"&&!blocking);
+    document.body.classList.toggle("gtx-nav-trade-active",(activeTab==="Trade"||activeTab==="Home")&&!blocking);
   }
 
   function openMenu(){
@@ -2786,7 +2786,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   },true);
   var observer=new MutationObserver(updateNavVisibility);
   observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"]});
-  setTab("Trade");
+  setTab("Home");
 })();
 </script>
 </body>
