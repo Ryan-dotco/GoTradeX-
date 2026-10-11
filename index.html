@@ -2527,6 +2527,11 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   document.getElementById("gtxUploadInput")?.addEventListener("change",function(e){acceptImage(e.target.files&&e.target.files[0])});
   var signalBusy=false;
   var signalResetTimer=null;
+  function clearGtxSignalDetails(){
+    ["gtxSignalAssetValue","gtxSignalEntryValue","gtxSignalDirectionValue","gtxSignalRsiValue","gtxSignalMomentumValue","gtxSignalEma9Value","gtxSignalEma21Value","gtxSignalMacdValue"].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=id==="gtxSignalAssetValue"?"BTCUSD":"—";});
+    var direction=document.getElementById("gtxSignalDirectionValue");
+    if(direction)direction.classList.remove("gtx-signal-buy","gtx-signal-sell","gtx-signal-neutral");
+  }
   function resetSignalButton(message){
     if(signalResetTimer){window.clearTimeout(signalResetTimer);signalResetTimer=null;}
     var button=document.getElementById("gtxPortalBuyPreview");
@@ -2536,10 +2541,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     button.textContent="GET THE SIGNAL";
     button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
     button.setAttribute("aria-label","Get a market signal");
+    clearGtxSignalDetails();
     if(status)status.textContent=message||"Ready to scan verified market candles.";
-    ["gtxSignalAssetValue","gtxSignalEntryValue","gtxSignalDirectionValue","gtxSignalRsiValue","gtxSignalMomentumValue","gtxSignalEma9Value","gtxSignalEma21Value","gtxSignalMacdValue"].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=id==="gtxSignalAssetValue"?"BTCUSD":"—";});
-    var direction=document.getElementById("gtxSignalDirectionValue");
-    if(direction)direction.classList.remove("gtx-signal-buy","gtx-signal-sell","gtx-signal-neutral");
   }
   function gtxSignalEma(values,period){
     var k=2/(period+1),ema=values[0];
@@ -2567,12 +2570,9 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     if(signalBusy)return;
     if(signalResetTimer){window.clearTimeout(signalResetTimer);signalResetTimer=null;}
     signalBusy=true;
+    clearGtxSignalDetails();
     button.disabled=true;
     button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
-    button.textContent="SCANNING...";
-    button.setAttribute("aria-label","Scanning verified market data");
-    resetSignalButton("Checking verified market candles. No trade will be placed.");
-    button.disabled=true;
     button.textContent="SCANNING...";
     button.setAttribute("aria-label","Scanning verified market data");
     status.textContent="Checking verified market candles. No trade will be placed.";
