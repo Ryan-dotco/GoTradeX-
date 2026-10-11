@@ -145,7 +145,85 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .chartAiDirectionResult.sell{color:#ff667a;border-color:#ff5268;background:#300914}
 .chartAiManualHint{font-size:11px;line-height:1.45;color:#9bb1c7;margin-top:9px}
 @media(max-width:380px){.chartAiDirectionBtn{min-height:58px;font-size:17px;border-width:4px}}
-</style></head>
+</style><style id="gtx-bottom-ai-navigation">
+:root{--gtx-nav-height:calc(70px + env(safe-area-inset-bottom,0px))}
+.gtxPortalStage{position:fixed;inset:0 0 var(--gtx-nav-height) 0;z-index:40;overflow-y:auto;overscroll-behavior:contain;background:#050713;color:#f7f8ff;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.gtxPortalStage.is-hidden{display:none!important}
+.gtxPortalHeader{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:rgba(5,7,19,.95);backdrop-filter:blur(16px);border-bottom:1px solid rgba(68,103,178,.18)}
+.gtxPortalMenu{flex:0 0 40px;width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:#171830;border:1px solid #28294b;color:#d7dbff;font-size:20px}
+.gtxPortalBrand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.gtxPortalBrandMark{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(145deg,#4e83ff,#6247f5);box-shadow:0 7px 20px #2349a344}
+.gtxPortalBrandMark svg{width:25px;height:25px}
+.gtxPortalTitle{font-size:20px;font-weight:850;letter-spacing:-.35px;margin:0;line-height:1.15}
+.gtxPortalSubtitle{display:block;font-size:10px;color:#8f96b5;margin-top:3px}
+.gtxPortalReady{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:#0b1128;border:1px solid #1d2e60;color:#8db2ff;font-size:11px;font-weight:750;white-space:nowrap}
+.gtxPortalReady:before{content:"";width:7px;height:7px;border-radius:50%;background:#4386ff;box-shadow:0 0 10px #4386ff88}
+.gtxPortalMain{width:100%;max-width:760px;margin:0 auto;padding:16px 14px 22px}
+.gtxPortalPanel{display:none}
+.gtxPortalPanel.active{display:block}
+.gtxPortalHero{min-height:245px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 18px;border:1px solid #1d3264;border-radius:26px;background:radial-gradient(circle at 50% 28%,#101c43 0,#080d20 46%,#080a18 100%);box-shadow:inset 0 1px 0 #ffffff08}
+.gtxPortalCameraDisc{width:88px;height:88px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,#1f4d9a 0,#13295b 70%);border:1px solid #245bb2;box-shadow:0 0 30px #1d60e12b;margin-bottom:19px}
+.gtxPortalCameraDisc svg{width:39px;height:39px;color:#69a1ff}
+.gtxPortalHero h2{font-size:23px;letter-spacing:-.4px;margin:0 0 9px;font-weight:850}
+.gtxPortalHero p{font-size:13px;line-height:1.5;color:#9299b8;max-width:290px;margin:0}
+.gtxPortalActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px;width:100%;max-width:390px}
+.gtxPortalAction{min-height:43px;border-radius:11px;padding:10px 12px;background:#183567;color:#f4f7ff;font-size:12px;font-weight:800;border:1px solid #2b4f91}
+.gtxPortalAction.primary{background:linear-gradient(135deg,#3179ee,#4b57ed);border-color:#5a7fff}
+.gtxPortalAction.secondary{background:#10152b;border-color:#292e50}
+.gtxPortalAction:disabled{opacity:.42;cursor:not-allowed}
+.gtxPortalFinePrint{font-size:10px;color:#777e9e;text-align:center;line-height:1.5;margin:12px 4px 0}
+.gtxPortalPreviewWrap{display:none;margin-top:12px;padding:11px;border-radius:14px;border:1px solid #24325b;background:#0b1024}
+.gtxPortalPreviewWrap.visible{display:block}
+.gtxPortalPreview{display:block;width:100%;max-height:285px;object-fit:contain;border-radius:10px;background:#050713}
+.gtxPortalFileName{font-size:11px;color:#c6d2f5;word-break:break-word;margin:9px 0 0}
+.gtxPortalNotice{padding:12px 13px;margin-top:13px;border:1px solid #282d52;border-radius:13px;background:#0b1022;color:#979fbe;font-size:11px;line-height:1.5}
+.gtxPortalStats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 23px}
+.gtxPortalStat{min-height:88px;border-radius:18px;background:#0d0d2a;border:1px solid #242447;padding:14px}
+.gtxPortalStat strong{display:block;color:#6ea2ff;font-size:18px;font-weight:850}
+.gtxPortalStat:nth-child(2) strong{color:#ffbd67}
+.gtxPortalStat span{display:block;color:#777e9e;font-size:9px;font-weight:800;letter-spacing:1px;margin-top:6px}
+.gtxPortalSectionHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:20px 0 11px}
+.gtxPortalSectionHead h3{margin:0;font-size:17px;letter-spacing:-.2px}
+.gtxPortalSectionHead button{background:transparent;color:#71a2ff;font-size:11px;font-weight:800;padding:6px 0}
+.gtxPortalEmpty{border:1px solid #222343;border-radius:15px;background:#0b0c21;padding:17px;color:#858cac;font-size:12px;line-height:1.5}
+.gtxPortalItemGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gtxPortalCard{min-width:0;border:1px solid #262747;background:#0d0d27;border-radius:16px;padding:14px}
+.gtxPortalCard h4{font-size:14px;margin:0 0 7px}
+.gtxPortalCard p{font-size:11px;line-height:1.5;color:#9198b5;margin:0}
+.gtxPortalPill{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:850;padding:5px 8px;border-radius:999px;color:#83b1ff;background:#101b3e;border:1px solid #253a77;margin-bottom:9px}
+.gtxPortalField{display:block;width:100%;height:44px;background:#0e142b;color:#f4f6ff;border:1px solid #29345e;border-radius:10px;padding:0 12px;margin:7px 0 10px;outline:none}
+.gtxPortalField:focus{border-color:#5386ff;box-shadow:0 0 0 2px #5386ff22}
+.gtxPortalLabel{display:block;color:#aeb8d9;font-size:11px;font-weight:750;margin-top:14px}
+.gtxPortalFull{width:100%;margin-top:7px}
+.gtxPortalLesson{display:flex;align-items:flex-start;gap:11px}
+.gtxPortalLessonIcon{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border-radius:11px;background:#162b58;color:#88b1ff;font-weight:850}
+.gtxPortalLesson h4{margin-top:1px}
+.gtxPortalRisk{font-size:10px;line-height:1.5;color:#777f9e;margin:14px 2px 0}
+.gtxBottomNav{position:fixed;z-index:100;left:0;right:0;bottom:0;height:var(--gtx-nav-height);display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;padding:6px 4px env(safe-area-inset-bottom,0px);background:#17172e;border-top:1px solid #282844;box-shadow:0 -8px 24px #0003}
+.gtxBottomTab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;padding:5px 0 3px;background:transparent;color:#8388a8;border-radius:10px;font-size:9px;font-weight:700;letter-spacing:.05px}
+.gtxBottomTab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.gtxBottomTab[aria-current="page"]{color:#478aff}
+.gtxBottomTab[aria-current="page"]:before{content:"";position:absolute;top:-6px;left:24%;right:24%;height:3px;border-radius:0 0 5px 5px;background:#478aff;box-shadow:0 0 8px #478aff66}
+.gtxBottomTab[aria-current="page"] svg{filter:drop-shadow(0 0 5px #478aff24)}
+body.gtx-nav-trade-active .app{height:calc(100dvh - var(--gtx-nav-height));min-height:0}
+body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)}
+body.gtx-nav-visible .chartAiBody{padding-bottom:calc(var(--gtx-nav-height) + 20px)}
+@media(max-width:390px){
+ .gtxPortalHeader{padding-left:9px;padding-right:9px;gap:7px}
+ .gtxPortalMenu{width:36px;height:36px;flex-basis:36px;border-radius:11px}
+ .gtxPortalBrand{gap:7px}.gtxPortalBrandMark{width:37px;height:37px;flex-basis:37px;border-radius:11px}
+ .gtxPortalTitle{font-size:18px}.gtxPortalSubtitle{font-size:9px}
+ .gtxPortalReady{padding:7px 8px;font-size:10px}
+ .gtxPortalMain{padding:12px 10px 18px}
+ .gtxPortalHero{min-height:235px;padding:20px 12px;border-radius:22px}
+ .gtxPortalHero h2{font-size:21px}.gtxPortalActions{gap:7px}.gtxPortalAction{padding:9px 7px;font-size:11px}
+ .gtxBottomNav{padding-left:2px;padding-right:2px}
+ .gtxBottomTab{font-size:8px;gap:3px}
+ .gtxBottomTab svg{width:20px;height:20px}
+ .gtxPortalCard{padding:11px}
+}
+</style>
+</head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
 <div class="pageHead"><div><strong>Facial Verification</strong><span>Identity &amp; liveness verification</span></div><button class="backBtn" id="identityVerificationClose" type="button">Close</button></div>
@@ -2194,6 +2272,280 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
   window.gtxAdminPortalHome=portalHome;
+})();
+</script>
+<div id="gtxPortalStage" class="gtxPortalStage" role="region" aria-label="GoTradeX AI portals">
+  <header class="gtxPortalHeader">
+    <button class="gtxPortalMenu" id="gtxPortalMenu" type="button" aria-label="Open GoTradeX menu">☰</button>
+    <div class="gtxPortalBrand">
+      <span class="gtxPortalBrandMark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="4" height="9" rx="1" fill="#fff"/><rect x="10" y="4" width="4" height="16" rx="1" fill="#fff"/><rect x="17" y="8" width="4" height="12" rx="1" fill="#f8d76b"/></svg>
+      </span>
+      <div><h1 class="gtxPortalTitle" id="gtxPortalTitle">Analyze</h1><span class="gtxPortalSubtitle">GoTradeX AI-assisted market tools</span></div>
+    </div>
+    <span class="gtxPortalReady">AI Ready</span>
+  </header>
+  <main class="gtxPortalMain">
+    <section class="gtxPortalPanel active" data-gtx-panel="Analyze">
+      <div class="gtxPortalHero">
+        <div class="gtxPortalCameraDisc" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none"><path d="M8 14h7l3-4h12l3 4h7a4 4 0 0 1 4 4v18a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V18a4 4 0 0 1 4-4Z" fill="currentColor"/><circle cx="24" cy="26" r="9" fill="#112550"/><circle cx="24" cy="26" r="6" fill="currentColor"/></svg>
+        </div>
+        <h2>Analyze a Chart</h2>
+        <p>Capture a chart with your camera or upload a screenshot from your phone.</p>
+        <div class="gtxPortalActions">
+          <button class="gtxPortalAction primary" id="gtxCameraLaunch" type="button">Take a photo</button>
+          <button class="gtxPortalAction secondary" id="gtxUploadLaunch" type="button">Upload image</button>
+        </div>
+        <input id="gtxCameraInput" type="file" accept="image/*" capture="environment" hidden>
+        <input id="gtxUploadInput" type="file" accept="image/*" hidden>
+      </div>
+      <div class="gtxPortalPreviewWrap" id="gtxPortalPreviewWrap">
+        <img class="gtxPortalPreview" id="gtxPortalPreview" alt="Selected chart screenshot preview">
+        <div class="gtxPortalFileName" id="gtxPortalFileName"></div>
+        <div class="gtxPortalActions">
+          <button class="gtxPortalAction primary" id="gtxContinueChartAI" type="button">Continue to Chart AI</button>
+          <button class="gtxPortalAction secondary" id="gtxRemoveChartImage" type="button">Remove image</button>
+        </div>
+      </div>
+      <div class="gtxPortalNotice">Image capture and upload are ready for preview. The existing Chart AI can analyze verified market candles; image-based interpretation of screenshot pixels still requires a connected vision model.</div>
+      <div class="gtxPortalStats">
+        <div class="gtxPortalStat"><strong>Verified</strong><span>MARKET DATA FIRST</span></div>
+        <div class="gtxPortalStat"><strong>Preview</strong><span>CAMERA + UPLOAD</span></div>
+      </div>
+      <div class="gtxPortalSectionHead"><h3>Recent Analyses</h3><button type="button" data-gtx-go="Signals">View signals</button></div>
+      <div class="gtxPortalEmpty">No saved analyses yet. When you run a supported market analysis, use the Chart AI results screen to review its direction and indicators.</div>
+    </section>
+
+    <section class="gtxPortalPanel" data-gtx-panel="Signals">
+      <div class="gtxPortalSectionHead"><h3>Latest Signals</h3><button type="button" data-gtx-go="Scanner">Open scanner</button></div>
+      <div class="gtxPortalNotice">Signals should be generated from verified market data, not sample or invented prices. Run Chart AI on a supported asset to calculate a technical-rule signal.</div>
+      <div class="gtxPortalItemGrid" style="margin-top:12px">
+        <article class="gtxPortalCard"><span class="gtxPortalPill">TECHNICAL ANALYSIS</span><h4>Trend &amp; Momentum</h4><p>Review EMA, RSI, MACD, momentum, Alligator and fractal readings from loaded candles.</p><button class="gtxPortalAction primary gtxPortalFull" type="button" data-gtx-open-chart-ai="Signals">Open Chart AI</button></article>
+        <article class="gtxPortalCard"><span class="gtxPortalPill">NO MOCK SIGNALS</span><h4>Signal history</h4><p>Saved signal cards will appear here when analysis history is connected. No demo confidence percentages are shown.</p></article>
+      </div>
+    </section>
+
+    <section class="gtxPortalPanel" data-gtx-panel="Scanner">
+      <div class="gtxPortalSectionHead"><h3>Market Scanner</h3></div>
+      <div class="gtxPortalCard">
+        <p>Check supported crypto markets using the existing verified public-candle feed. A scan reports an unavailable feed instead of creating substitute candles.</p>
+        <label class="gtxPortalLabel" for="gtxScannerAsset">Market symbol</label>
+        <input class="gtxPortalField" id="gtxScannerAsset" type="text" value="BTC/USD" autocomplete="off" spellcheck="false" placeholder="For example, BTC/USD">
+        <label class="gtxPortalLabel" for="gtxScannerTimeframe">Candle timeframe</label>
+        <select class="gtxPortalField" id="gtxScannerTimeframe">
+          <option value="1">1 minute</option><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option><option value="D">1 day</option>
+        </select>
+        <button class="gtxPortalAction primary gtxPortalFull" id="gtxRunScanner" type="button">Scan verified candles</button>
+        <div class="gtxPortalNotice">The current feed supports symbols available through the existing public crypto-candle endpoint. Forex, OTC, indices and metals will only return results after their verified feeds are connected.</div>
+      </div>
+    </section>
+
+    <section class="gtxPortalPanel" data-gtx-panel="School">
+      <div class="gtxPortalSectionHead"><h3>Trading School</h3></div>
+      <div class="gtxPortalItemGrid">
+        <article class="gtxPortalCard gtxPortalLesson"><div class="gtxPortalLessonIcon">01</div><div><h4>Read candlesticks</h4><p>Learn candle bodies, wicks, open, high, low and close. A single candle never guarantees the next move.</p></div></article>
+        <article class="gtxPortalCard gtxPortalLesson"><div class="gtxPortalLessonIcon">02</div><div><h4>Understand indicators</h4><p>EMA, RSI and MACD describe different aspects of trend and momentum. Signals can conflict, especially in choppy markets.</p></div></article>
+        <article class="gtxPortalCard gtxPortalLesson"><div class="gtxPortalLessonIcon">03</div><div><h4>Practice before live trading</h4><p>Use paper trading to learn order controls and track results before considering real-money activity.</p></div></article>
+        <article class="gtxPortalCard gtxPortalLesson"><div class="gtxPortalLessonIcon">04</div><div><h4>Manage risk</h4><p>Set a loss limit, avoid risking money you cannot afford to lose, and do not treat a confidence score as a guarantee.</p></div></article>
+      </div>
+      <p class="gtxPortalRisk">Educational content only. Markets are unpredictable, and past patterns do not guarantee future outcomes.</p>
+    </section>
+
+    <section class="gtxPortalPanel" data-gtx-panel="AI Chat">
+      <div class="gtxPortalSectionHead"><h3>AI Chat</h3></div>
+      <div class="gtxPortalCard">
+        <span class="gtxPortalPill">GOTRADEX ASSISTANT</span>
+        <h4>Ask about your trading tools</h4>
+        <p>Open the existing Chat AI to ask about assets, paper trading, indicators, AutoBot, and account controls.</p>
+        <button class="gtxPortalAction primary gtxPortalFull" id="gtxOpenChatAI" type="button">Open Chat AI</button>
+        <div class="gtxPortalNotice">Image attachments are not interpreted by the current text-based Chat AI yet. A vision-model connection is required before it can reliably explain a chart screenshot.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav id="gtxBottomNav" class="gtxBottomNav" aria-label="Main navigation">
+  <button class="gtxBottomTab" type="button" data-gtx-tab="Analyze" aria-current="page" aria-label="Analyze">
+    <svg viewBox="0 0 24 24"><path d="M4 20V12h4v8M10 20V5h4v15M16 20V9h4v11"/></svg><span>Analyze</span>
+  </button>
+  <button class="gtxBottomTab" type="button" data-gtx-tab="Signals" aria-label="Signals">
+    <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>Signals</span>
+  </button>
+  <button class="gtxBottomTab" type="button" data-gtx-tab="Scanner" aria-label="Scanner">
+    <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7.5"/><circle cx="10.5" cy="10.5" r="3"/><path d="m16 16 5 5M10.5 6v9M6 10.5h9"/></svg><span>Scanner</span>
+  </button>
+  <button class="gtxBottomTab" type="button" data-gtx-tab="School" aria-label="School">
+    <svg viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5L2 9Z"/><path d="M6 11v5c4 3 8 3 12 0v-5M22 9v6"/></svg><span>School</span>
+  </button>
+  <button class="gtxBottomTab" type="button" data-gtx-tab="Trade" aria-label="Trade">
+    <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/></svg><span>Trade</span>
+  </button>
+  <button class="gtxBottomTab" type="button" data-gtx-tab="AI Chat" aria-label="AI Chat">
+    <svg viewBox="0 0 24 24"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg><span>AI Chat</span>
+  </button>
+</nav>
+<script id="gtx-bottom-ai-navigation-logic">
+(function(){
+  "use strict";
+  var stage=document.getElementById("gtxPortalStage");
+  var nav=document.getElementById("gtxBottomNav");
+  if(!stage||!nav||stage.dataset.initialized==="true")return;
+  stage.dataset.initialized="true";
+  var activeTab="Analyze";
+  var returnTab="Analyze";
+  var selectedImage=null;
+  var previewUrl=null;
+  var title=document.getElementById("gtxPortalTitle");
+  var panels=Array.prototype.slice.call(stage.querySelectorAll("[data-gtx-panel]"));
+  var tabs=Array.prototype.slice.call(nav.querySelectorAll("[data-gtx-tab]"));
+
+  function setTab(name){
+    if(!["Analyze","Signals","Scanner","School","Trade","AI Chat"].includes(name))name="Analyze";
+    returnTab=name;
+    activeTab=name;
+    panels.forEach(function(p){p.classList.toggle("active",p.getAttribute("data-gtx-panel")===name)});
+    tabs.forEach(function(b){
+      if(b.getAttribute("data-gtx-tab")===name)b.setAttribute("aria-current","page");
+      else b.removeAttribute("aria-current");
+    });
+    stage.classList.toggle("is-hidden",name==="Trade");
+    document.body.classList.toggle("gtx-nav-trade-active",name==="Trade");
+    document.body.classList.toggle("gtx-nav-chat-open",name==="AI Chat");
+    if(title)title.textContent=name;
+    if(name!=="AI Chat")document.getElementById("chatPage")?.classList.remove("open");
+    if(name!=="Analyze"&&name!=="Scanner")document.getElementById("chartAiPage")?.classList.remove("open");
+    updateNavVisibility();
+    if(name==="AI Chat"){
+      if(typeof window.loadChat==="function")window.loadChat();
+      document.getElementById("chatPage")?.classList.add("open");
+    }
+  }
+
+  function updateNavVisibility(){
+    var blocking=!!document.querySelector(
+      ".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,"+
+      ".myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,"+
+      ".agentWidget.open,.keypad.open"
+    );
+    nav.style.display=blocking?"none":"grid";
+    document.body.classList.toggle("gtx-nav-visible",!blocking);
+    document.body.classList.toggle("gtx-nav-trade-active",activeTab==="Trade"&&!blocking);
+  }
+
+  function openMenu(){
+    var d=document.getElementById("menuDrawer");
+    if(d)d.classList.add("open");
+    updateNavVisibility();
+  }
+
+  function openChartAI(fromTab, image, asset, timeframe, runAfterOpen){
+    returnTab=fromTab||activeTab;
+    var page=document.getElementById("chartAiPage");
+    var assetEl=document.getElementById("chartAiAsset");
+    var timeframeEl=document.getElementById("chartAiTimeframe");
+    if(asset&&assetEl)assetEl.value=asset;
+    if(timeframe&&timeframeEl)timeframeEl.value=timeframe;
+    if(image){
+      var dest=document.getElementById("chartAiImage");
+      if(dest){
+        try{
+          var transfer=new DataTransfer();
+          transfer.items.add(image);
+          dest.files=transfer.files;
+          dest.dispatchEvent(new Event("change",{bubbles:true}));
+        }catch(e){
+          var st=document.getElementById("chartAiDataStatus");
+          if(st)st.textContent="The image preview remains available on Analyze. This browser cannot transfer the selected file to the Chart AI page.";
+        }
+      }
+    }
+    if(page)page.classList.add("open");
+    if(runAfterOpen){
+      window.setTimeout(function(){
+        var load=document.getElementById("chartAiLoad");
+        if(load)load.click();
+      },180);
+    }
+    updateNavVisibility();
+  }
+
+  function clearSelectedImage(){
+    selectedImage=null;
+    if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}
+    var inputA=document.getElementById("gtxCameraInput");
+    var inputB=document.getElementById("gtxUploadInput");
+    if(inputA)inputA.value="";
+    if(inputB)inputB.value="";
+    var wrap=document.getElementById("gtxPortalPreviewWrap");
+    var preview=document.getElementById("gtxPortalPreview");
+    var name=document.getElementById("gtxPortalFileName");
+    if(wrap)wrap.classList.remove("visible");
+    if(preview)preview.removeAttribute("src");
+    if(name)name.textContent="";
+  }
+
+  function acceptImage(file){
+    if(!file)return;
+    if(!file.type||!file.type.startsWith("image/")){
+      window.alert("Please choose an image file.");
+      return;
+    }
+    if(file.size>15*1024*1024){
+      window.alert("Please choose an image smaller than 15 MB.");
+      return;
+    }
+    selectedImage=file;
+    if(previewUrl)URL.revokeObjectURL(previewUrl);
+    previewUrl=URL.createObjectURL(file);
+    var preview=document.getElementById("gtxPortalPreview");
+    var wrap=document.getElementById("gtxPortalPreviewWrap");
+    var name=document.getElementById("gtxPortalFileName");
+    if(preview)preview.src=previewUrl;
+    if(name)name.textContent=file.name+" · "+Math.max(1,Math.round(file.size/1024))+" KB";
+    if(wrap)wrap.classList.add("visible");
+  }
+
+  document.getElementById("gtxPortalMenu")?.addEventListener("click",openMenu);
+  document.getElementById("gtxCameraLaunch")?.addEventListener("click",function(){
+    document.getElementById("gtxCameraInput")?.click();
+  });
+  document.getElementById("gtxUploadLaunch")?.addEventListener("click",function(){
+    document.getElementById("gtxUploadInput")?.click();
+  });
+  document.getElementById("gtxCameraInput")?.addEventListener("change",function(e){acceptImage(e.target.files&&e.target.files[0])});
+  document.getElementById("gtxUploadInput")?.addEventListener("change",function(e){acceptImage(e.target.files&&e.target.files[0])});
+  document.getElementById("gtxRemoveChartImage")?.addEventListener("click",clearSelectedImage);
+  document.getElementById("gtxContinueChartAI")?.addEventListener("click",function(){
+    openChartAI("Analyze",selectedImage);
+  });
+  document.getElementById("gtxRunScanner")?.addEventListener("click",function(){
+    var asset=(document.getElementById("gtxScannerAsset")?.value||"BTC/USD").trim().toUpperCase();
+    var tf=document.getElementById("gtxScannerTimeframe")?.value||"1";
+    if(!asset){window.alert("Enter a market symbol first.");return;}
+    openChartAI("Scanner",null,asset,tf,true);
+  });
+  document.getElementById("gtxOpenChatAI")?.addEventListener("click",function(){setTab("AI Chat")});
+  tabs.forEach(function(b){
+    b.addEventListener("click",function(){setTab(b.getAttribute("data-gtx-tab"))});
+  });
+  stage.querySelectorAll("[data-gtx-go]").forEach(function(b){
+    b.addEventListener("click",function(){setTab(b.getAttribute("data-gtx-go"))});
+  });
+  stage.querySelectorAll("[data-gtx-open-chart-ai]").forEach(function(b){
+    b.addEventListener("click",function(){openChartAI(b.getAttribute("data-gtx-open-chart-ai")||activeTab)});
+  });
+  document.addEventListener("click",function(e){
+    if(e.target.closest&&e.target.closest("#chatBack")){
+      window.setTimeout(function(){if(activeTab==="AI Chat"&&!document.getElementById("chatPage")?.classList.contains("open"))setTab("Analyze");},0);
+    }
+    if(e.target.closest&&e.target.closest("#chartAiBack")){
+      window.setTimeout(function(){if(!document.getElementById("chartAiPage")?.classList.contains("open"))setTab(returnTab);},0);
+    }
+  },true);
+  var observer=new MutationObserver(updateNavVisibility);
+  observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"]});
+  setTab("Analyze");
 })();
 </script>
 </body>
