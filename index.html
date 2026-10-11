@@ -2710,14 +2710,15 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var scannerChartCandles=[];
   var scannerChartTimer=null;
   function gtxScannerPair(raw){
-    var s=String(raw||"").trim().toUpperCase().replace(/\s+/g,"");
+    var s=String(raw||"").trim().toUpperCase().replace(/\s*\/\s*/g,"/");
+    var compact=s.replace(/\s+/g,"");
     if(!s)return "";
-    if(s==="BTCUSD"||s==="BTCUSDT")return "BTC/USD";
-    if(s==="ETHUSD"||s==="ETHUSDT")return "ETH/USD";
-    if(s==="XAUUSD")return "XAU/USD";
-    if(s==="XAGUSD")return "XAG/USD";
-    if(s.indexOf("/")<0&&/^[A-Z]{6}$/.test(s))return s.slice(0,3)+"/"+s.slice(3);
-    if(s.indexOf("/")<0&&/^[A-Z]{3}USDT$/.test(s))return s.slice(0,3)+"/USDT";
+    if(compact==="BTCUSD"||compact==="BTCUSDT")return "BTC/USD";
+    if(compact==="ETHUSD"||compact==="ETHUSDT")return "ETH/USD";
+    if(compact==="XAUUSD")return "XAU/USD";
+    if(compact==="XAGUSD")return "XAG/USD";
+    if(s.indexOf("/")<0&&/^[A-Z]{6}$/.test(compact))return compact.slice(0,3)+"/"+compact.slice(3);
+    if(s.indexOf("/")<0&&/^[A-Z]{3}USDT$/.test(compact))return compact.slice(0,3)+"/USDT";
     return s;
   }
   function gtxScannerType(pair){
