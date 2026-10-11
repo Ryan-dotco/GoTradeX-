@@ -177,6 +177,23 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .gtxPortalPreview{display:block;width:100%;max-height:285px;object-fit:contain;border-radius:10px;background:#050713}
 .gtxPortalFileName{font-size:11px;color:#c6d2f5;word-break:break-word;margin:9px 0 0}
 .gtxPortalNotice{padding:12px 13px;margin-top:13px;border:1px solid #282d52;border-radius:13px;background:#0b1022;color:#979fbe;font-size:11px;line-height:1.5}
+.gtxSignalSummaryCard{margin-top:12px}
+.gtxSignalSummaryRows{display:grid;gap:0;margin-top:8px}
+.gtxSignalSummaryRow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 2px;border-bottom:1px solid #263455;font-size:13px}
+.gtxSignalSummaryRow:last-child{border-bottom:0}
+.gtxSignalSummaryRow>span{color:#a9bad3;font-weight:650}
+.gtxSignalSummaryRow>strong{color:#f4f8ff;font-weight:850;text-align:right;overflow-wrap:anywhere}
+#gtxSignalDirectionValue.gtx-signal-buy{color:#4df0a0}
+#gtxSignalDirectionValue.gtx-signal-sell{color:#ff6678}
+#gtxSignalDirectionValue.gtx-signal-neutral{color:#c5cedd}
+.gtxSignalTechnicalCard{margin-top:12px}
+.gtxSignalTechnicalToggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;padding:0;background:transparent;color:#fff;text-align:left}
+.gtxSignalTechnicalToggle>span:first-child{display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+.gtxSignalTechnicalToggle strong{font-size:14px}
+.gtxSignalTechnicalHint{color:#80aaff;font-size:11px;font-weight:800;white-space:nowrap}
+.gtxSignalTechnicalDetails{margin-top:12px}
+.gtxSignalTechnicalDetails[hidden]{display:none}
+.gtxSignalTechnicalNote{margin:10px 0 0;color:#929fba;font-size:10px;line-height:1.5}
 .gtxPortalBuyPreview{display:flex;width:100%;min-height:68px;align-items:center;justify-content:center;margin-top:13px;padding:12px;border:4px solid #27f58a;border-radius:14px;background:linear-gradient(180deg,#0b984c,#087c3d);color:#fff;font-size:22px;font-weight:950;letter-spacing:1.5px;box-shadow:0 0 18px #27f58a33,inset 0 1px 0 #ffffff35;text-shadow:0 1px 2px #003c1b;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s}
 .gtxPortalBuyPreview.gtx-signal-sell{border-color:#ff4357;background:linear-gradient(180deg,#e92742,#a90927);box-shadow:0 0 22px #ff334455,inset 0 1px 0 #ffffff35}
 .gtxPortalBuyPreview.gtx-signal-neutral{border-color:#9ba6bd;background:linear-gradient(180deg,#45516a,#273147);box-shadow:0 0 14px #8fa4c233}
@@ -2311,11 +2328,30 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 
     <section class="gtxPortalPanel" data-gtx-panel="Signals">
       <div class="gtxPortalSectionHead"><h3>Latest Signals</h3><button type="button" data-gtx-go="Scanner">Open scanner</button></div>
-      <div class="gtxPortalNotice">Signals should be generated from verified market data, not sample or invented prices. Run Chart AI on a supported asset to calculate a technical-rule signal.</div>
-      <div class="gtxPortalItemGrid" style="margin-top:12px">
-        <article class="gtxPortalCard"><span class="gtxPortalPill">TECHNICAL ANALYSIS</span><h4>Trend &amp; Momentum</h4><p>Review EMA, RSI, MACD, momentum, Alligator and fractal readings from loaded candles.</p><button class="gtxPortalAction primary gtxPortalFull" type="button" data-gtx-open-chart-ai="Signals">Open Chart AI</button></article>
-        <article class="gtxPortalCard"><span class="gtxPortalPill">NO MOCK SIGNALS</span><h4>Signal history</h4><p>Saved signal cards will appear here when analysis history is connected. No demo confidence percentages are shown.</p></article>
-      </div>
+      <article class="gtxPortalCard gtxSignalSummaryCard" aria-live="polite">
+        <span class="gtxPortalPill">VERIFIED MARKET SIGNAL</span>
+        <div class="gtxSignalSummaryRows">
+          <div class="gtxSignalSummaryRow"><span>AP:</span><strong id="gtxSignalAssetValue">BTCUSD</strong></div>
+          <div class="gtxSignalSummaryRow"><span>Entry:</span><strong id="gtxSignalEntryValue">—</strong></div>
+          <div class="gtxSignalSummaryRow"><span>Signal:</span><strong id="gtxSignalDirectionValue">—</strong></div>
+          <div class="gtxSignalSummaryRow"><span>RSI:</span><strong id="gtxSignalRsiValue">—</strong></div>
+          <div class="gtxSignalSummaryRow"><span>Momentum:</span><strong id="gtxSignalMomentumValue">—</strong></div>
+        </div>
+        <div class="gtxPortalNotice" id="gtxSignalResultStatus">Run Chart AI on a supported asset to populate these fields from verified market candles. No trade is placed.</div>
+      </article>
+      <article class="gtxPortalCard gtxSignalTechnicalCard">
+        <button class="gtxSignalTechnicalToggle" id="gtxSignalTechnicalToggle" type="button" aria-expanded="false" aria-controls="gtxSignalTechnicalDetails">
+          <span><span class="gtxPortalPill">TECHNICAL</span><strong>Technical indicators</strong></span>
+          <span class="gtxSignalTechnicalHint" id="gtxSignalTechnicalHint">Tap to reveal <span aria-hidden="true">⌄</span></span>
+        </button>
+        <div class="gtxSignalTechnicalDetails" id="gtxSignalTechnicalDetails" hidden>
+          <div class="gtxSignalSummaryRow"><span>EMA 9:</span><strong id="gtxSignalEma9Value">—</strong></div>
+          <div class="gtxSignalSummaryRow"><span>EMA 21:</span><strong id="gtxSignalEma21Value">—</strong></div>
+          <div class="gtxSignalSummaryRow"><span>MACD:</span><strong id="gtxSignalMacdValue">—</strong></div>
+          <p class="gtxSignalTechnicalNote">Values appear after a successful scan. Alligator and fractal readings are not calculated by this scanner yet.</p>
+        </div>
+      </article>
+      <button class="gtxPortalAction primary gtxPortalFull" type="button" data-gtx-open-chart-ai="Signals">Open Chart AI</button>
     </section>
 
     <section class="gtxPortalPanel" data-gtx-panel="Scanner">
@@ -2501,6 +2537,9 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
     button.setAttribute("aria-label","Get a market signal");
     if(status)status.textContent=message||"Ready to scan verified market candles.";
+    ["gtxSignalAssetValue","gtxSignalEntryValue","gtxSignalDirectionValue","gtxSignalRsiValue","gtxSignalMomentumValue","gtxSignalEma9Value","gtxSignalEma21Value","gtxSignalMacdValue"].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=id==="gtxSignalAssetValue"?"BTCUSD":"—";});
+    var direction=document.getElementById("gtxSignalDirectionValue");
+    if(direction)direction.classList.remove("gtx-signal-buy","gtx-signal-sell","gtx-signal-neutral");
   }
   function gtxSignalEma(values,period){
     var k=2/(period+1),ema=values[0];
@@ -2532,6 +2571,10 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
     button.textContent="SCANNING...";
     button.setAttribute("aria-label","Scanning verified market data");
+    resetSignalButton("Checking verified market candles. No trade will be placed.");
+    button.disabled=true;
+    button.textContent="SCANNING...";
+    button.setAttribute("aria-label","Scanning verified market data");
     status.textContent="Checking verified market candles. No trade will be placed.";
     overlay.classList.add("active");
     overlay.setAttribute("aria-hidden","false");
@@ -2547,7 +2590,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       if(!response.ok)throw new Error("Market feed request failed ("+response.status+").");
       var payload=await response.json();
       if(payload.retCode!==0||!payload.result||!Array.isArray(payload.result.list))throw new Error("No verified candles returned for "+raw+".");
-      var candles=payload.result.list.slice().reverse().map(function(row){return {open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4])};}).filter(function(c){return Number.isFinite(c.close)&&c.close>0;});
+      var candles=payload.result.list.slice().reverse().map(function(row){return {time:Number(row[0]),open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4])};}).filter(function(c){return Number.isFinite(c.close)&&c.close>0&&Number.isFinite(c.time);});
       if(candles.length<35)throw new Error("Not enough verified candles to calculate a signal for "+raw+".");
       scanSub.textContent="CALCULATING TREND & MOMENTUM";
       var closes=candles.map(function(c){return c.close;});
@@ -2560,6 +2603,24 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       score+=macd>0?1:-1;
       score+=momentum>0?1:-1;
       var direction=score>=3?"BUY":score<=-3?"SELL":"NO SIGNAL";
+      var entryTime=new Date(candles[candles.length-1].time).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"UTC"});
+      var displayAsset=raw.toUpperCase().replace(/[\\s/_-]/g,"");
+      var signalAsset=document.getElementById("gtxSignalAssetValue");
+      var signalEntry=document.getElementById("gtxSignalEntryValue");
+      var signalDirection=document.getElementById("gtxSignalDirectionValue");
+      var signalRsi=document.getElementById("gtxSignalRsiValue");
+      var signalMomentum=document.getElementById("gtxSignalMomentumValue");
+      var signalEma9=document.getElementById("gtxSignalEma9Value");
+      var signalEma21=document.getElementById("gtxSignalEma21Value");
+      var signalMacd=document.getElementById("gtxSignalMacdValue");
+      if(signalAsset)signalAsset.textContent=displayAsset;
+      if(signalEntry)signalEntry.textContent=entryTime+" UTC";
+      if(signalDirection){signalDirection.textContent=direction;signalDirection.classList.remove("gtx-signal-buy","gtx-signal-sell","gtx-signal-neutral");signalDirection.classList.add(direction==="BUY"?"gtx-signal-buy":direction==="SELL"?"gtx-signal-sell":"gtx-signal-neutral");}
+      if(signalRsi)signalRsi.textContent=rsi.toFixed(1);
+      if(signalMomentum)signalMomentum.textContent=(momentum>0?"+":"")+momentum.toFixed(3)+"%";
+      if(signalEma9)signalEma9.textContent=ema9.toFixed(4);
+      if(signalEma21)signalEma21.textContent=ema21.toFixed(4);
+      if(signalMacd)signalMacd.textContent=(macd>0?"+":"")+macd.toFixed(4);
       await new Promise(function(resolve){window.setTimeout(resolve,2600);});
       overlay.classList.remove("active");
       overlay.setAttribute("aria-hidden","true");
@@ -2598,6 +2659,16 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       signalBusy=false;
     }
   }
+  document.getElementById("gtxSignalTechnicalToggle")?.addEventListener("click",function(){
+    var toggle=this;
+    var details=document.getElementById("gtxSignalTechnicalDetails");
+    var hint=document.getElementById("gtxSignalTechnicalHint");
+    if(!details)return;
+    var opening=details.hidden;
+    details.hidden=!opening;
+    toggle.setAttribute("aria-expanded",String(opening));
+    if(hint)hint.innerHTML=opening?'Tap to hide <span aria-hidden="true">⌃</span>':'Tap to reveal <span aria-hidden="true">⌄</span>';
+  });
   document.getElementById("gtxPortalBuyPreview")?.addEventListener("click",runGtxSignal);
   document.getElementById("gtxRemoveChartImage")?.addEventListener("click",clearSelectedImage);
   document.getElementById("gtxContinueChartAI")?.addEventListener("click",function(){
