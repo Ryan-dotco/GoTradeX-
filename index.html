@@ -2379,8 +2379,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         <div class="gtxScannerChartHead"><strong id="gtxScannerChartTitle">BTCUSD · 1 minute</strong><span id="gtxScannerChartFeed">Loading candles…</span></div>
         <div class="gtxScannerChartWrap"><canvas id="gtxScannerCandleChart" aria-label="Candlestick chart for the selected asset" role="img"></canvas></div>
         <label class="gtxPortalLabel" for="gtxScannerTimeframe">Candle timeframe</label>
-        <select class="gtxPortalField" id="gtxScannerTimeframe">
-          <option value="1 Minute">1 minute</option><option value="5 Minutes" selected>5 minutes</option><option value="15 Minutes">15 minutes</option><option value="1 Hour">1 hour</option><option value="4 Hours">4 hours</option><option value="1 Day">1 day</option>
+        <select class="gtxPortalField" id="gtxScannerTimeframe" disabled aria-label="Timeframe synchronized with Trading chart">
+          <option value="5 Seconds">5 seconds</option><option value="10 Seconds">10 seconds</option><option value="15 Seconds">15 seconds</option><option value="30 Seconds">30 seconds</option><option value="1 Minute">1 minute</option><option value="3 Minutes">3 minutes</option><option value="5 Minutes">5 minutes</option><option value="15 Minutes">15 minutes</option><option value="30 Minutes">30 minutes</option><option value="1 Hour">1 hour</option><option value="4 Hours">4 hours</option><option value="1 Day">1 day</option>
         </select>
         <button class="gtxPortalAction primary gtxPortalFull" id="gtxRunScanner" type="button">ANALYZE ASSET</button>
         <div class="gtxPortalNotice" id="gtxScannerNotice" aria-live="polite">The connected verified feed currently supports available Bybit spot crypto pairs. Forex, OTC, indices and metals require their own verified feed; unsupported symbols will not show substitute candles.</div>
@@ -2624,7 +2624,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       if(navigateOnSuccess){
         raw=document.getElementById("gtxScannerAsset")?.value||"BTCUSD";
         pair=gtxScannerPair(raw);
-        timeframe=document.getElementById("gtxScannerTimeframe")?.value||"5 Minutes";
+        timeframe=(mainState&&mainState.tf)||localStorage.getItem("gotradex_chart_timeframe")||"5 Minutes";
         loadGtxScannerCandles();
       }else{
         raw=(mainState&&mainState.assetLabel)||"";
@@ -2764,22 +2764,25 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     var state=gtxScannerChartState(),feed=document.getElementById("gtxScannerChartFeed"),notice=document.getElementById("gtxScannerNotice");
     if(!state){if(feed)feed.textContent="Trading chart not ready";drawGtxScannerCandles([]);return;}
     var candles=(state.candles||[]).map(function(c){return {time:Number(c.t),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};}).filter(function(c){return Number.isFinite(c.time)&&Number.isFinite(c.open)&&Number.isFinite(c.high)&&Number.isFinite(c.low)&&Number.isFinite(c.close)&&c.close>0;});
+    var tfSelect=document.getElementById("gtxScannerTimeframe"),tf=String(state.tf||localStorage.getItem("gotradex_chart_timeframe")||"5 Minutes");if(tfSelect&&Array.from(tfSelect.options).some(function(o){return o.value===tf}))tfSelect.value=tf;
+    var title=document.getElementById("gtxScannerChartTitle");if(title)title.textContent=gtxScannerPair(document.getElementById("gtxScannerAsset")?.value||state.assetLabel||"BTCUSD").replace(/\\//g,"")+" · "+tf;
     scannerChartCandles=candles;drawGtxScannerCandles(candles);
     if(feed)feed.textContent=state.connected&&state.historyLoaded?("● SAME "+(state.provider||"VERIFIED")+" FEED · "+candles.length+" candles"):(state.provider?String(state.provider).toUpperCase()+" · loading candles":"Waiting for verified feed");
     if(notice){if(state.historyLoaded&&candles.length)notice.textContent="Mirroring the Trading page's verified "+(state.provider||"market")+" candles for "+(state.assetLabel||"the selected pair")+". No separate or synthetic candle feed is used.";else notice.textContent=state.error||state.reason||"Waiting for the Trading page to receive verified candles for this exact asset.";}
   }
   function loadGtxScannerCandles(){
-    var input=document.getElementById("gtxScannerAsset"),raw=(input?.value||"BTCUSD").trim().toUpperCase(),pair=gtxScannerPair(raw),tf=document.getElementById("gtxScannerTimeframe")?.value||"5 Minutes";
+    var input=document.getElementById("gtxScannerAsset"),raw=(input?.value||"BTCUSD").trim().toUpperCase(),pair=gtxScannerPair(raw),state=gtxScannerChartState(),tf=(state&&state.tf)||localStorage.getItem("gotradex_chart_timeframe")||"5 Minutes";
+    var tfSelect=document.getElementById("gtxScannerTimeframe");if(tfSelect&&Array.from(tfSelect.options).some(function(o){return o.value===tf}))tfSelect.value=tf;
     var title=document.getElementById("gtxScannerChartTitle"),feed=document.getElementById("gtxScannerChartFeed");
     if(title)title.textContent=pair.replace(/\//g,"")+" · "+tf;
     if(feed)feed.textContent="Connecting to Trading chart…";
     if(!pair){if(feed)feed.textContent="Enter an asset pair";drawGtxScannerCandles([]);return;}
     var mode="LIVE";try{mode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(e){}
-    var type=gtxScannerType(pair),state=gtxScannerChartState(),chart=window.GoTradeXLiveChart;
+    var type=gtxScannerType(pair),chart=window.GoTradeXLiveChart;
     if(chart&&typeof chart.setAsset==="function"){
       var same=state&&String(state.assetLabel||"").toUpperCase()===pair&&String(state.type||"").toLowerCase()===type&&String(state.mode||"LIVE").toUpperCase()===mode;
       if(!same)chart.setAsset(pair,type,mode);
-      if(typeof chart.setTimeframe==="function"&&state&&state.tf!==tf)chart.setTimeframe(tf);
+
     }
     refreshGtxScannerFromMainChart();
     if(scannerChartTimer)window.clearInterval(scannerChartTimer);
@@ -2787,7 +2790,6 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   }
   document.getElementById("gtxScannerAsset")?.addEventListener("change",loadGtxScannerCandles);
   document.getElementById("gtxScannerAsset")?.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();loadGtxScannerCandles();}});
-  document.getElementById("gtxScannerTimeframe")?.addEventListener("change",loadGtxScannerCandles);
   window.addEventListener("resize",function(){if(scannerChartCandles.length)drawGtxScannerCandles(scannerChartCandles);});
   document.getElementById("gtxRunScanner")?.addEventListener("click",function(){
     var asset=(document.getElementById("gtxScannerAsset")?.value||"").trim().toUpperCase();
