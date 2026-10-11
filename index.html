@@ -2869,7 +2869,7 @@ function analyse(){
   result="FREE TECHNICAL SCAN · "+asset+"\n\nSignal: "+signal+"\nTimeframe: "+tf+"\nLast candle close: "+fmt(last)+"\nRSI (14): "+(r===null?"unavailable":r.toFixed(1))+"\nEMA 9: "+fmt(e9)+"\nEMA 21: "+fmt(e21)+"\nMomentum (5 candles): "+mom.toFixed(3)+"%\nData age: "+Math.round(age/1000)+" seconds\n\nReason: "+why+"\n\nRule-based indicator reading, not a guarantee or a prediction of profit. Directional signals are withheld when the feed is stale or indicators disagree.";
  }
  const row=document.createElement("div");row.className="chatBubble ai";row.textContent=result;box.appendChild(row);box.scrollTop=box.scrollHeight;
- try{const key="gotradex_chat_history";const raw=localStorage.getItem(key);if(raw){const h=JSON.parse(raw);if(Array.isArray(h)){h.push({role:"ai",text:result});localStorage.setItem(key,JSON.stringify(h.slice(-120));}}}catch(_){}
+ try{const key="gotradex_chat_history";const raw=localStorage.getItem(key);if(raw){const h=JSON.parse(raw);if(Array.isArray(h)){h.push({role:"ai",text:result});localStorage.setItem(key,JSON.stringify(h.slice(-120)));}}}catch(_){}
 }
 function install(){
  const b=document.getElementById(btnId);if(!b){setTimeout(install,300);return;}
