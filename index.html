@@ -2465,9 +2465,9 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       ".myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,"+
       ".agentWidget.open,.keypad.open"
     );
-    nav.style.display=blocking?"none":"grid";
-    document.body.classList.toggle("gtx-nav-visible",!blocking);
-    document.body.classList.toggle("gtx-nav-trade-active",(activeTab==="Trade"||activeTab==="Home")&&!blocking);
+    nav.style.display=(blocking||activeTab==="Home")?"none":"grid";
+    document.body.classList.toggle("gtx-nav-visible",!blocking&&activeTab!=="Home");
+    document.body.classList.toggle("gtx-nav-trade-active",activeTab==="Trade"&&!blocking);
   }
 
   function openMenu(){
