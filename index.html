@@ -2569,7 +2569,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     return symbol;
   }
   async function runGtxSignal(navigateOnSuccess){
-    var button=document.getElementById("gtxPortalBuyPreview");
+    var button=document.getElementById(navigateOnSuccess?"gtxRunScanner":"gtxPortalBuyPreview");
     var status=document.getElementById("gtxSignalResultStatus");
     var overlay=document.getElementById("gtxSignalScanOverlay");
     var scanSub=document.getElementById("gtxSignalScanSub");
@@ -2635,7 +2635,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         button.textContent="BUY";
         button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
         button.setAttribute("aria-label","Market analysis result: BUY");
-        status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · technical trend and momentum aligned. No trade placed.";
+        status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · directional bias selected from trend and momentum. No trade placed.";
       }else if(direction==="SELL"){
         button.textContent="SELL";
         button.classList.remove("gtx-signal-neutral");
@@ -2650,18 +2650,24 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         status.textContent=raw+" · "+candles.length+" verified candles · "+timeframe+" timeframe · directional bias selected from trend and momentum. No trade placed.";
       }
       if(navigateOnSuccess)setTab("Signals");
-      signalResetTimer=window.setTimeout(function(){
-        resetSignalButton("Ready for the next scan. Upload or take a new chart image whenever you are ready.");
-      },15000);
+      if(navigateOnSuccess){
+        signalResetTimer=window.setTimeout(function(){button.disabled=false;button.textContent="ANALYZE ASSET";button.classList.remove("gtx-signal-sell","gtx-signal-neutral");},15000);
+      }else{
+        signalResetTimer=window.setTimeout(function(){
+          resetSignalButton("Ready for the next scan. Upload or take a new chart image whenever you are ready.");
+        },15000);
+      }
     }catch(error){
       await new Promise(function(resolve){window.setTimeout(resolve,1000);});
       overlay.classList.remove("active");
       overlay.setAttribute("aria-hidden","true");
       button.disabled=false;
-      button.textContent="GET THE SIGNAL";
+      button.textContent=navigateOnSuccess?"ANALYZE ASSET":"GET THE SIGNAL";
       button.classList.remove("gtx-signal-sell","gtx-signal-neutral");
-      button.setAttribute("aria-label","Get a market signal");
-      status.textContent=(error&&error.message?error.message:"Signal unavailable")+" Select a supported crypto market in Scanner and try again.";
+      button.setAttribute("aria-label",navigateOnSuccess?"Analyze selected asset":"Get a market signal");
+      var errorMessage=(error&&error.message?error.message:"Signal unavailable")+" Select a supported crypto market in Scanner and try again.";
+      status.textContent=errorMessage;
+      var scannerNotice=document.getElementById("gtxScannerNotice");if(navigateOnSuccess&&scannerNotice)scannerNotice.textContent=errorMessage;
     }finally{
       signalBusy=false;
     }
