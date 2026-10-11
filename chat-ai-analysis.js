@@ -66,7 +66,8 @@
       if(!file.type.startsWith("image/")){$("gtxCAIFileStatus").textContent="Please choose an image file.";return}
       const old=$("gtxCAIImage").dataset.url;if(old)URL.revokeObjectURL(old);
       const url=URL.createObjectURL(file);$("gtxCAIImage").src=url;$("gtxCAIImage").dataset.url=url;$("gtxCAIImage").style.display="block";
-      $("gtxCAIFileStatus").textContent="Image loaded: "+file.name+". Preview ready. Signal calculation will use the active chart candles.";
+      $("gtxCAIFileStatus").textContent="Image loaded: "+file.name+". Running offline visual scan…";
+      analyzeScreenshot(file);
     }));
     $("gtxCAIAnalyze").addEventListener("click",runAnalysis);
   }
@@ -108,10 +109,14 @@
     const result=$("gtxCAIResult");if(!result)return;
     try{
       const chart=window.GoTradeXLiveChart;
-      if(!chart||!chart.state)throw new Error("The live chart module is not ready. Wait for the chart to connect.");
-      const state=chart.state;
-      if(!Array.isArray(state.candles)||!state.candles.length)throw new Error("No verified candles are loaded. Connect the selected asset's market feed first.");
+      const state=chart&&chart.state;
+      if(!state||!Array.isArray(state.candles)||state.candles.length<20){
+        const img=$("gtxCAIImage");
+        if(img&&img.dataset.url){analyzeScreenshotUrl(img.dataset.url);return;}
+        throw new Error("No chart candles are loaded yet. Take a chart photo or upload a screenshot to run offline visual analysis.");
+      }
       const a=analyze(state.candles),asset=state.assetLabel||state.symbol||"Selected asset",mode=state.mode||"";
+
       result.innerHTML=`<div><small>${escapeHtml(mode)} • ${escapeHtml(asset)} • ${a.cs.length} candles</small></div>
       <div id="gtxCAISignal" style="color:${a.signal==="BUY"?"#5af0a6":a.signal==="SELL"?"#ff7a83":"#f6d27c"}">${a.signal==="BUY"?"BUY ↑":a.signal==="SELL"?"SELL ↓":"WAIT — NO CLEAR SIGNAL"}</div>
       <div class="gtxCAIgrid">
@@ -129,7 +134,66 @@
       <p><b>Risk note:</b> ATR-like average range of recent candles is ${fmt(a.atr)}. Support/resistance and indicators can fail; no result guarantees the next price move.</p>`;
     }catch(e){result.textContent=e.message||"Analysis could not run."}
   }
+  // Offline screenshot scan: uses canvas pixel colours and candle-position geometry only.
+  // It is a visual heuristic, not OCR or a trained vision model.
+  function analyzeScreenshot(file){
+    const url=$("gtxCAIImage")?.dataset.url;
+    if(url)analyzeScreenshotUrl(url);
+  }
+  function analyzeScreenshotUrl(url){
+    const result=$("gtxCAIResult");if(!result)return;
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const w=360,h=Math.max(120,Math.round(img.height*(w/img.width)));
+        const canvas=document.createElement("canvas");canvas.width=w;canvas.height=Math.min(h,260);
+        const ctx=canvas.getContext("2d",{willReadFrequently:true});
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        const W=canvas.width,H=canvas.height;
+        const data=ctx.getImageData(0,0,W,H).data;
+        const columns=[];
+        let green=0,red=0;
+        for(let x=0;x<W;x++){
+          let gy=0,ry=0,gc=0,rc=0;
+          for(let y=Math.floor(H*.12);y<Math.floor(H*.88);y++){
+            const i=(y*W+x)*4,R=data[i],G=data[i+1],B=data[i+2],max=Math.max(R,G,B),min=Math.min(R,G,B);
+            if(G>90&&G>R*1.28&&G>B*1.08&&G-min>35){gy+=y;gc++;green++}
+            else if(R>110&&R>G*1.3&&R>B*1.12&&R-min>40){ry+=y;rc++;red++}
+          }
+          if(gc+rc>=2)columns.push({x,y:(gy+ry)/(gc+rc),g:gc,r:rc,n:gc+rc});
+        }
+        if(columns.length<8)throw new Error("I couldn't reliably detect enough coloured candle pixels in this screenshot. Try a clearer chart screenshot with visible red/green candles.");
+        const bins=[];
+        for(let i=0;i<6;i++){
+          const subset=columns.filter(p=>p.x>=W*i/6&&p.x<W*(i+1)/6);
+          if(subset.length)bins.push({x:average(subset.map(p=>p.x)),y:average(subset.map(p=>p.y))});
+        }
+        if(bins.length<4)throw new Error("The screenshot does not show enough clear candle structure for a useful offline estimate.");
+        const first=average(bins.slice(0,2).map(b=>b.y)),last=average(bins.slice(-2).map(b=>b.y));
+        const move=((first-last)/H)*100;
+        const bullish=green>red*1.15,bearish=red>green*1.15;
+        let trend="Mixed / unclear",signal="WAIT";
+        if(move>3&&bullish){trend="Visual upward move";signal="POSSIBLE BUY";}
+        else if(move< -3&&bearish){trend="Visual downward move";signal="POSSIBLE SELL";}
+        else if(move>3){trend="Price structure slopes upward, candle colours mixed";}
+        else if(move< -3){trend="Price structure slopes downward, candle colours mixed";}
+        result.innerHTML=`<div><small>OFFLINE SCREENSHOT SCAN • ${W}×${H} sampled pixels</small></div>
+          <div id="gtxCAISignal" style="color:${signal.includes("BUY")?"#5af0a6":signal.includes("SELL")?"#ff7a83":"#f6d27c"}">${signal}</div>
+          <div class="gtxCAIgrid">
+           <div class="gtxCAImetric"><small>Visual trend</small><strong>${trend}</strong></div>
+           <div class="gtxCAImetric"><small>Detected candle columns</small><strong>${columns.length}</strong></div>
+           <div class="gtxCAImetric"><small>Green pixel count</small><strong>${green}</strong></div>
+           <div class="gtxCAImetric"><small>Red pixel count</small><strong>${red}</strong></div>
+          </div>
+          <p><b>What this suggests:</b> ${signal==="POSSIBLE BUY"?"The sampled chart pixels lean upward with more green than red candle pixels.":signal==="POSSIBLE SELL"?"The sampled chart pixels lean downward with more red than green candle pixels.":"The image scan does not show a strong enough combined visual pattern to suggest a direction."}</p>
+          <p><b>Important limitation:</b> This is a simple offline pixel heuristic. It cannot reliably read price labels, RSI values, support/resistance prices, timeframes, or future movement, and chart themes/indicators can confuse colour detection. Use WAIT if the picture is unclear; this is not a confirmed trade signal.</p>`;
+        $("gtxCAIFileStatus").textContent="Offline screenshot scan complete. No API or credits used.";
+      }catch(e){result.textContent=e.message||"Could not analyse screenshot offline.";$("gtxCAIFileStatus").textContent="Offline scan could not identify the chart reliably."}
+    };
+    img.onerror=()=>{result.textContent="Could not read this image. Please try another screenshot.";};
+    img.src=url;
+  }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-  window.GoTradeXChatAnalysis={analyze:analyze,run:runAnalysis,version:"1.0.0-local-deterministic"};
+  window.GoTradeXChatAnalysis={analyze:analyze,run:runAnalysis,version:"1.1.0-offline-screenshot-heuristic"};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",addUI,{once:true});else addUI();
 })();
