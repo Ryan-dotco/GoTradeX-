@@ -24,5 +24,198 @@
 </main>
 <div class="bottom"><button id="homeBtn">← Return to <span>GoTradeX</span></button></div>
 <script>
-(()=>{const $=id=>document.getElementById(id);let imageUrl=null;const pages=['scannerPage','indicatorsPage','conditionsPage','aiPage'];function showPage(id){pages.forEach(p=>$(p).classList.toggle('active',p===id));$('menuBtn').textContent='⋮';window.scrollTo({top:0,behavior:'smooth'});}function setDirection(side,source,asset){const buy=side==='BUY';$('direction').textContent=buy?'BUY SIGNAL — YOU SHOULD BUY':'SELL SIGNAL — YOU SHOULD SELL';$('direction').className='direction '+(buy?'buy':'sell');$('signalStatus').textContent=source==='MANUAL'?'MANUAL SIGNAL':'DIRECTION SELECTED';$('assetLabel').textContent='Selected direction: '+side+(asset?' · '+asset:'');$('momentum').textContent=source==='MANUAL'?'Manually entered':'Manually selected';$('entryTime').textContent=new Intl.DateTimeFormat('en-ZA',{timeZone:'Africa/Johannesburg',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());$('expiration').textContent=$('manualExpiry').value;$('signalNote').textContent=(buy?'YOU ARE BUYING':'YOU ARE SELLING')+' — direction selected by you ('+source.toLowerCase()+'). No broker order has been placed. This is not an AI-verified signal.';$('toast').textContent=(buy?'BUY selected. You are buying':'SELL selected. You are selling')+' (manual choice only; no trade placed).';}function useFile(file){if(!file)return;if(!file.type.startsWith('image/')){$('toast').textContent='Please choose an image file.';return;}if(imageUrl)URL.revokeObjectURL(imageUrl);imageUrl=URL.createObjectURL(file);$('chartImage').src=imageUrl;$('preview').style.display='block';$('preview').classList.remove('scanning');$('signalBtn').disabled=false;$('toast').textContent='Chart image ready. Tap GET THE SIGNAL to run the scan animation.';$('direction').textContent='NO VERIFIED SIGNAL';$('direction').className='direction neutral';$('signalStatus').textContent='IMAGE READY';$('signalNote').textContent='Image selected. This UI-only prototype cannot verify a trading signal until the secure AI backend is connected.';}['cameraInput','uploadInput'].forEach(id=>$(id).addEventListener('change',e=>useFile(e.target.files&&e.target.files[0])));$('signalBtn').addEventListener('click',()=>{if(!imageUrl)return;$('preview').classList.add('scanning');$('signalBtn').disabled=true;$('signalStatus').textContent='SCANNING';$('toast').textContent='Scanning animation running…';$('direction').textContent='ANALYSIS NOT CONNECTED';$('direction').className='direction neutral';$('analysisTime').textContent=new Intl.DateTimeFormat('en-ZA',{timeZone:'Africa/Johannesburg',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());setTimeout(()=>{$('preview').classList.remove('scanning');$('signalBtn').disabled=false;$('signalStatus').textContent='BACKEND REQUIRED';$('direction').textContent='NO VERIFIED SIGNAL';$('direction').className='direction neutral';$('assetLabel').textContent='Chart asset: not confirmed';$('entryTime').textContent='Not confirmed';$('expiration').textContent='Not confirmed';$('momentum').textContent='Not analyzed';$('signalNote').textContent='The visual scan completed, but no BUY/SELL signal was invented. Connect a secured AI vision endpoint to return verified analysis.';$('toast').textContent='Scan animation complete. No verified AI result is connected yet.';},2400);});$('buyBtn').addEventListener('click',()=>setDirection('BUY','MANUAL',''));$('sellBtn').addEventListener('click',()=>setDirection('SELL','MANUAL',''));$('manualToggle').addEventListener('click',()=>{$('manualPanel').classList.toggle('open');if($('manualPanel').classList.contains('open'))$('manualSignal').focus();});$('manualSubmit').addEventListener('click',()=>{const raw=$('manualSignal').value.trim();if(!raw){$('toast').textContent='Type BUY or SELL and optionally the asset, then apply.';return;}const upper=raw.toUpperCase();const side=upper.includes('BUY')?'BUY':upper.includes('SELL')?'SELL':'';if(!side){$('toast').textContent='Signal must contain BUY or SELL.';return;}const asset=raw.replace(/\bBUY\b|\bSELL\b/ig,'').replace(/[·,:-]/g,' ').trim();setDirection(side,'MANUAL',asset);$('manualPanel').classList.remove('open');});$('clearImage').addEventListener('click',()=>{if(imageUrl)URL.revokeObjectURL(imageUrl);imageUrl=null;$('cameraInput').value='';$('uploadInput').value='';$('chartImage').removeAttribute('src');$('preview').style.display='none';$('preview').classList.remove('scanning');$('signalBtn').disabled=true;$('signalStatus').textContent='AWAITING SCAN';$('direction').textContent='NO VERIFIED SIGNAL';$('direction').className='direction neutral';$('toast').textContent='Select a chart image to begin.';});$('menuBtn').addEventListener('click',()=>{const choices=[['Technical indicators','indicatorsPage'],['Market conditions','conditionsPage'],['AI explanation & history','aiPage']];const menu=document.createElement('div');menu.style.cssText='position:fixed;z-index:10;top:72px;right:max(15px,calc((100vw - 590px)/2));width:245px;background:#102036;border:1px solid #34516e;border-radius:15px;padding:8px;box-shadow:0 16px 40px #0009';choices.forEach(([label,id])=>{const b=document.createElement('button');b.textContent=label;b.style.cssText='display:block;width:100%;padding:13px;text-align:left;color:#eef5ff;background:transparent;border:0;border-radius:9px;font-weight:700';b.onclick=()=>{menu.remove();showPage(id)};menu.appendChild(b)});const close=()=>menu.remove();document.addEventListener('click',function outside(e){if(!menu.contains(e.target)&&e.target!==$('menuBtn')){close();document.removeEventListener('click',outside)}},{once:true});document.body.appendChild(menu);});document.querySelectorAll('[data-home]').forEach(b=>b.addEventListener('click',()=>showPage('scannerPage')));$('homeBtn').addEventListener('click',()=>{location.href='../';});})();
+(()=> {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let imageUrl = null;
+  let selectedFile = null;
+  let scanInProgress = false;
+  const pages = ['scannerPage','indicatorsPage','conditionsPage','aiPage'];
+  const timeNow = () => new Intl.DateTimeFormat('en-ZA',{timeZone:'Africa/Johannesburg',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());
+
+  function showPage(id) {
+    pages.forEach(p => $(p).classList.toggle('active',p===id));
+    $('menuBtn').textContent='⋮';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function resetResult(message='Select a chart image to begin.') {
+    $('direction').textContent='NO VERIFIED SIGNAL';
+    $('direction').className='direction neutral';
+    $('signalStatus').textContent='AWAITING SCAN';
+    $('assetLabel').textContent='Chart asset: not confirmed';
+    $('analysisTime').textContent='—';
+    $('entryTime').textContent='Not confirmed';
+    $('expiration').textContent='Not confirmed';
+    $('momentum').textContent='Awaiting verified analysis';
+    $('signalNote').textContent='A BUY/SELL result will appear only after a configured AI vision service returns a valid analysis. This page does not place trades.';
+    $('toast').textContent=message;
+  }
+  function setDirection(side,source,asset='',details={}) {
+    const buy=side==='BUY';
+    $('direction').textContent=buy?'BUY SIGNAL — YOU SHOULD BUY':'SELL SIGNAL — YOU SHOULD SELL';
+    $('direction').className='direction '+(buy?'buy':'sell');
+    $('signalStatus').textContent=source==='AI'?'AI ANALYSIS':'MANUAL SIGNAL';
+    $('assetLabel').textContent=(details.asset?'Chart asset: '+details.asset:'Selected direction: '+side)+(asset?' · '+asset:'');
+    $('analysisTime').textContent=timeNow();
+    $('entryTime').textContent=details.entryTime||'Not provided';
+    $('expiration').textContent=details.expiration||$('manualExpiry').value;
+    $('momentum').textContent=details.momentum||'Not provided';
+    $('signalNote').textContent=source==='AI'
+      ? (details.explanation||'Direction returned by the configured vision service. This is analysis, not a guarantee of market movement; no broker order was placed.')
+      : (buy?'YOU ARE BUYING':'YOU ARE SELLING')+' — direction selected manually. This is not an AI-verified signal and no broker order has been placed.';
+    $('toast').textContent=source==='AI'?'AI analysis returned a '+side+' direction. Review the explanation before acting.':(buy?'BUY selected. You are buying.':'SELL selected. You are selling.')+' Manual selection only; no trade placed.';
+  }
+  function releasePreviewUrl() {
+    if(imageUrl){URL.revokeObjectURL(imageUrl);imageUrl=null;}
+  }
+  function useFile(file) {
+    if(!file) return;
+    if(!file.type || !file.type.startsWith('image/')) {
+      $('toast').textContent='That file is not an image. Please select a JPG, PNG, WEBP, or another supported image.';
+      return;
+    }
+    if(file.size>15*1024*1024) {
+      $('toast').textContent='This image is larger than 15 MB. Please choose a smaller screenshot.';
+      return;
+    }
+    releasePreviewUrl();
+    selectedFile=file;
+    imageUrl=URL.createObjectURL(file);
+    $('chartImage').onload=()=>{
+      $('preview').style.display='block';
+      $('preview').classList.remove('scanning');
+      $('signalBtn').disabled=false;
+      $('signalBtn').textContent='GET THE SIGNAL';
+      $('signalStatus').textContent='IMAGE READY';
+      $('direction').textContent='READY TO ANALYZE';
+      $('direction').className='direction neutral';
+      $('assetLabel').textContent='Selected image: '+(file.name||'Camera photo');
+      $('toast').textContent='Image loaded and visible below. Press GET THE SIGNAL to analyze this chart.';
+      $('signalNote').textContent='Image is ready. Press GET THE SIGNAL to run the scanner and request a result from the configured AI vision service.';
+      $('analysisTime').textContent='—';
+      $('entryTime').textContent='Not confirmed';
+      $('expiration').textContent='Not confirmed';
+      $('momentum').textContent='Awaiting analysis';
+    };
+    $('chartImage').onerror=()=>{
+      $('preview').style.display='none';
+      $('signalBtn').disabled=true;
+      $('toast').textContent='The image could not be displayed. Please take another photo or choose a different image.';
+      releasePreviewUrl();
+      selectedFile=null;
+    };
+    $('chartImage').src=imageUrl;
+  }
+  ['cameraInput','uploadInput'].forEach(id=>{
+    $(id).addEventListener('change',e=>{
+      const file=e.target.files&&e.target.files[0];
+      if(file) useFile(file);
+      e.target.value='';
+    });
+  });
+
+  async function analyzeImage(file) {
+    // Configure this URL to your secured server-side vision endpoint.
+    // The browser must never contain a provider secret/API key.
+    const endpoint = window.GOTRADEX_VISION_ENDPOINT;
+    if(typeof endpoint!=='string'||!endpoint.trim()) {
+      throw new Error('AI vision service is not connected yet. The camera/upload preview and scanner work, but a secure analysis endpoint must be configured before a real BUY/SELL result can be returned.');
+    }
+    const dataUrl = await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=()=>reject(new Error('Could not read the selected image. Please try uploading it again.'));
+      reader.readAsDataURL(file);
+    });
+    const response=await fetch(endpoint,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image:dataUrl,mimeType:file.type,fileName:file.name||'chart-image'})
+    });
+    if(!response.ok) throw new Error('AI analysis service returned HTTP '+response.status+'. Please try again later.');
+    const result=await response.json();
+    const side=String(result.direction||result.signal||result.side||'').trim().toUpperCase();
+    if(side!=='BUY'&&side!=='SELL') throw new Error('The analysis service did not return a valid BUY or SELL direction. No signal was displayed.');
+    return {side,asset:result.asset||'',entryTime:result.entryTime||result.entry_time||'',expiration:result.expiration||result.expiry||'',momentum:result.momentum||'',explanation:result.explanation||result.reasoning||''};
+  }
+
+  $('signalBtn').addEventListener('click',async()=>{
+    if(!selectedFile||scanInProgress) return;
+    scanInProgress=true;
+    $('preview').classList.add('scanning');
+    $('signalBtn').disabled=true;
+    $('signalBtn').textContent='SCANNING…';
+    $('signalStatus').textContent='SCANNING';
+    $('direction').textContent='ANALYZING IMAGE…';
+    $('direction').className='direction neutral';
+    $('analysisTime').textContent=timeNow();
+    $('entryTime').textContent='Analyzing…';
+    $('expiration').textContent='Analyzing…';
+    $('momentum').textContent='Analyzing…';
+    $('signalNote').textContent='The laser is scanning your selected image. Waiting for the vision service to return a valid result.';
+    $('toast').textContent='Scanning image… please keep this page open.';
+    try {
+      const result=await analyzeImage(selectedFile);
+      setDirection(result.side,'AI','',result);
+    } catch(error) {
+      $('signalStatus').textContent='ANALYSIS UNAVAILABLE';
+      $('direction').textContent='NO VERIFIED SIGNAL';
+      $('direction').className='direction neutral';
+      $('assetLabel').textContent='Chart asset: not confirmed';
+      $('entryTime').textContent='Not confirmed';
+      $('expiration').textContent='Not confirmed';
+      $('momentum').textContent='Not analyzed';
+      $('signalNote').textContent=error&&error.message?error.message:'The image could not be analyzed. No signal was invented.';
+      $('toast').textContent=$('signalNote').textContent;
+    } finally {
+      $('preview').classList.remove('scanning');
+      $('signalBtn').disabled=!selectedFile;
+      $('signalBtn').textContent='GET THE SIGNAL';
+      scanInProgress=false;
+    }
+  });
+
+  $('buyBtn').addEventListener('click',()=>setDirection('BUY','MANUAL',''));
+  $('sellBtn').addEventListener('click',()=>setDirection('SELL','MANUAL',''));
+  $('manualToggle').addEventListener('click',()=>{
+    $('manualPanel').classList.toggle('open');
+    if($('manualPanel').classList.contains('open')) $('manualSignal').focus();
+  });
+  $('manualSubmit').addEventListener('click',()=>{
+    const raw=$('manualSignal').value.trim();
+    if(!raw){$('toast').textContent='Type BUY or SELL and optionally the asset, then apply.';return;}
+    const upper=raw.toUpperCase();
+    const side=/\bBUY\b/.test(upper)?'BUY':(/\bSELL\b/.test(upper)?'SELL':'');
+    if(!side){$('toast').textContent='Signal must contain BUY or SELL.';return;}
+    const asset=raw.replace(/\bBUY\b|\bSELL\b/ig,'').replace(/[·,:-]/g,' ').trim();
+    setDirection(side,'MANUAL',asset);
+    $('manualPanel').classList.remove('open');
+  });
+  $('clearImage').addEventListener('click',()=>{
+    releasePreviewUrl();selectedFile=null;
+    $('cameraInput').value='';$('uploadInput').value='';
+    $('chartImage').removeAttribute('src');
+    $('preview').style.display='none';$('preview').classList.remove('scanning');
+    $('signalBtn').disabled=true;$('signalBtn').textContent='GET THE SIGNAL';
+    resetResult();
+  });
+  $('menuBtn').addEventListener('click',()=>{
+    const existing=document.getElementById('gtxToolsMenu');
+    if(existing){existing.remove();return;}
+    const choices=[['Technical indicators','indicatorsPage'],['Market conditions','conditionsPage'],['AI explanation & history','aiPage']];
+    const menu=document.createElement('div');menu.id='gtxToolsMenu';
+    menu.style.cssText='position:fixed;z-index:10;top:72px;right:max(15px,calc((100vw - 590px)/2));width:245px;background:#102036;border:1px solid #34516e;border-radius:15px;padding:8px;box-shadow:0 16px 40px #0009';
+    choices.forEach(([label,id])=>{
+      const b=document.createElement('button');b.textContent=label;
+      b.style.cssText='display:block;width:100%;padding:13px;text-align:left;color:#eef5ff;background:transparent;border:0;border-radius:9px;font-weight:700';
+      b.onclick=()=>{menu.remove();showPage(id);};menu.appendChild(b);
+    });
+    const outside=e=>{if(!menu.contains(e.target)&&e.target!==$('menuBtn')){menu.remove();document.removeEventListener('click',outside);}};
+    setTimeout(()=>document.addEventListener('click',outside),0);
+    document.body.appendChild(menu);
+  });
+  document.querySelectorAll('[data-home]').forEach(b=>b.addEventListener('click',()=>showPage('scannerPage')));
+  $('homeBtn').addEventListener('click',()=>{location.href='../';});
+  resetResult();
+})();
 </script></body></html>
