@@ -2850,5 +2850,31 @@ body[data-theme="light"] .top .person span,body[data-theme="light"] .pair small,
 })();
 </script>
 
+
+<script id="gtx-settings-entrypoint-force">
+(function(){
+ "use strict";
+ function openSettingsDirect(e){
+   var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
+   if(!b)return;
+   e.preventDefault();
+   if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+   e.stopPropagation();
+   var menu=document.getElementById("menuDrawer");if(menu)menu.classList.remove("open");
+   try{if(typeof window.openGtxSettings==="function")window.openGtxSettings();else{
+     var p=document.getElementById("gtxSimplePage");
+     if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483000","important");}
+   }}catch(err){var body=document.getElementById("gtxSimpleBody");if(body){body.innerHTML='<div style="padding:14px;color:#fff;background:#7f1d1d;border-radius:8px">Settings could not initialize: '+String(err&&err.message||err)+'</div>';var p=document.getElementById("gtxSimplePage");if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483000","important");}}}
+ }
+ document.addEventListener("click",openSettingsDirect,true);
+ document.addEventListener("pointerup",function(e){
+   var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
+   if(!b)return;
+   var p=document.getElementById("gtxSimplePage");
+   if(!p||!p.classList.contains("open"))setTimeout(function(){try{if(typeof window.openGtxSettings==="function")window.openGtxSettings()}catch(_){}},0);
+ },true);
+})();
+</script>
+
 </body>
 </html>
