@@ -28,6 +28,27 @@
     booted:false,markersInstalled:false
   };
 
+  function timezoneOffsetMinutes(){
+    try{
+      const raw=localStorage.getItem("gtx_timezone_offset");
+      const m=/^([+-])(\\d{2}):(\\d{2})$/.exec(raw||"");
+      if(m)return (m[1]==="-"?-1:1)*(Number(m[2])*60+Number(m[3]));
+    }catch(_){}
+    return -new Date().getTimezoneOffset();
+  }
+  function formatChartTime(time,tickMarkType){
+    let date;
+    if(typeof time==="number")date=new Date((time+timezoneOffsetMinutes()*60)*1000);
+    else if(time&&typeof time==="object"&&Number.isFinite(time.year)&&Number.isFinite(time.month)&&Number.isFinite(time.day))date=new Date(Date.UTC(time.year,time.month-1,time.day));
+    else return "";
+    const C=window.LightweightCharts||{};
+    const type=C.TickMarkType||{};
+    const pad=n=>String(n).padStart(2,"0");
+    if(tickMarkType===type.Year)return String(date.getUTCFullYear());
+    if(tickMarkType===type.Month)return new Intl.DateTimeFormat("en-GB",{timeZone:"UTC",month:"short"}).format(date);
+    if(tickMarkType===type.DayOfMonth)return pad(date.getUTCDate())+" "+new Intl.DateTimeFormat("en-GB",{timeZone:"UTC",month:"short"}).format(date);
+    return pad(date.getUTCHours())+":"+pad(date.getUTCMinutes());
+  }
   function feed(){return window.GoTradeXMarketFeeds}
   function selection(){
     const f=feed();
@@ -500,7 +521,8 @@
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
       rightPriceScale:{visible:true,borderVisible:true,borderColor:"#31506d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
-      timeScale:{visible:true,borderVisible:true,borderColor:"#31506d",timeVisible:true,secondsVisible:false,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false},
+      timeScale:{visible:true,borderVisible:true,borderColor:"#31506d",timeVisible:true,secondsVisible:false,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false,tickMarkFormatter:formatChartTime},
+      localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}},
       crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
       handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
       handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}
@@ -722,7 +744,8 @@
   window.GoTradeXLiveChart={
     boot,setTimeframe,reconnect:connect,setAsset,state,
     setWallpaper:function(data){const box=document.getElementById("gtxLiveChart");if(box)box.style.setProperty("--gtx-chart-wallpaper",data?'url("'+data+'")':"none");},
-    applyTheme:function(p){if(!p)return;try{if(state.chart)state.chart.applyOptions({layout:{background:{type:window.LightweightCharts.ColorType.Solid,color:"rgba(0,0,0,0)"},textColor:p.text},grid:{vertLines:{color:p.grid},horzLines:{color:p.grid}},rightPriceScale:{borderColor:p.border},timeScale:{borderColor:p.border},crosshair:{vertLine:{color:p.border,labelBackgroundColor:p.background},horzLine:{color:p.border,labelBackgroundColor:p.background}}});}catch(e){}},
+    applyTheme:function(p){if(!p)return;try{if(state.chart)state.chart.applyOptions({layout:{background:{type:window.LightweightCharts.ColorType.Solid,color:"rgba(0,0,0,0)"},textColor:p.text},grid:{vertLines:{color:p.grid},horzLines:{color:p.grid}},rightPriceScale:{borderColor:p.border},timeScale:{borderColor:p.border,tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}},crosshair:{vertLine:{color:p.border,labelBackgroundColor:p.background},horzLine:{color:p.border,labelBackgroundColor:p.background}}});}catch(e){}},
+    applyTimezone:function(offset){try{if(offset&&/^([+-])\\d{2}:\\d{2}$/.test(offset))localStorage.setItem("gtx_timezone_offset",offset);if(state.chart)state.chart.applyOptions({timeScale:{tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}}});}catch(e){}},
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
