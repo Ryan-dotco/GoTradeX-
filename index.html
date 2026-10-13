@@ -201,7 +201,7 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
  .gtxPortalCard{padding:11px}
 }
 </style>
-<link rel="stylesheet" href="style.css?v=20261013profilefix1">
+<link rel="stylesheet" href="style.css?v=20261014navfix1">
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
@@ -1188,7 +1188,7 @@ syncGtxKenglyVisibility();
 <script>
 /* GTX final navigation controller: one deterministic handler for opening and closing UI layers. */
 (function(){
-  const ids=["menuDrawer","walletDrawer","assetDrawer","userAutoBotDrawer","chartToolsDrawer","timeDrawer","keypad","helpPage","supportPage","myTeamPage","privacyPage","termsPage","adminPage","adminDrawer","adminOverview","adminUsers","adminTransactions","adminMarkets","adminReferrals","adminFees","adminSecurity","adminAudit","adminSystemSettings","gtxSimplePage"];
+  const ids=["menuDrawer","walletDrawer","assetDrawer","userAutoBotDrawer","chartToolsDrawer","timeDrawer","keypad","gtxProfileDrawer","gtxAccountDetails","gtxSimplePage","helpPage","supportPage","myTeamPage","privacyPage","termsPage","adminPage","adminDrawer","adminOverview","adminUsers","adminTransactions","adminMarkets","adminReferrals","adminFees","adminSecurity","adminAudit","adminSystemSettings","gtxSimplePage"];
   const get=id=>document.getElementById(id);
   const isLayer=id=>ids.includes(id);
   function sync(){
@@ -1196,14 +1196,50 @@ syncGtxKenglyVisibility();
     const h=document.querySelector(".gtxKenglyHeader");
     if(h)h.style.setProperty("display",open?"none":"flex","important");
   }
-  function close(id){const e=get(id);if(!e)return;e.classList.remove("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.display="none";sync()}
+  function close(id){const e=get(id);if(!e)return;e.classList.remove("open");e.style.removeProperty("display");sync()}
   function closeOthers(except){ids.forEach(id=>{if(id!==except){const e=get(id);if(e)e.classList.remove("open")}});sync()}
-  function show(id){const e=get(id);if(!e)return false;closeOthers(id);e.classList.add("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.display="block";sync();return true}
-  function backFrom(id){
-    const e=get(id);if(!e)return;
-    close(id);
-    if(["adminOverview","adminUsers","adminTransactions","adminMarkets","adminReferrals","adminFees","adminSecurity","adminAudit","adminSystemSettings"].includes(id))show("adminPage");
+  function show(id){const e=get(id);if(!e)return false;closeOthers(id);e.style.removeProperty("display");e.classList.add("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.setProperty("display","block");sync();return true}
+  const history=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+  function activeLayer(){
+    return document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
   }
+  function backFrom(id){
+    const current=get(id)||activeLayer();
+    if(current)close(current.id);
+    let previous=null;
+    while(history.length&&!previous){
+      const candidate=history.pop();
+      const node=get(candidate);
+      if(node&&node!==current)previous=candidate;
+    }
+    if(previous)show(previous);
+  }
+  function closeToTrading(){
+    history.length=0;
+    ids.forEach(id=>{const node=get(id);if(node){node.classList.remove("open");node.style.removeProperty("display");}});
+    document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(node=>{node.classList.remove("open");node.style.removeProperty("display");});
+    sync();
+  }
+  window.addEventListener("click",function(e){
+    const b=e.target.closest&&e.target.closest("button,a");if(!b)return;
+    const current=activeLayer();
+    const label=(b.textContent||"").trim().toLowerCase();
+    const isBack=/back/.test(b.id||"")||label==="back"||label.startsWith("← back");
+    const isClose=/close/.test(b.id||"")||label==="close"||b.hasAttribute("data-close");
+    if(isBack){
+      e.preventDefault();e.stopImmediatePropagation();
+      if(current)backFrom(current.id);
+      return;
+    }
+    if(isClose){
+      e.preventDefault();e.stopImmediatePropagation();
+      closeToTrading();
+      return;
+    }
+    if(current && (b.classList.contains("menuItem")||b.hasAttribute("data-profile-action")) && b.dataset.profileAction!=="profile"){
+      if(!history.length||history[history.length-1]!==current.id)history.push(current.id);
+    }
+  },true);
   document.addEventListener("click",function(e){
     const b=e.target.closest("button,a");if(!b)return;
     const closeId=b.getAttribute("data-close");
@@ -1226,7 +1262,7 @@ syncGtxKenglyVisibility();
     const layer=b.closest(".drawer,.adminPage,.adminDrawer,.helpPage,.supportPage,.myTeamPage,.policyPage,.termsPage,.keypad");
     if(layer&&e.target===layer){e.preventDefault();e.stopImmediatePropagation();close(layer.id)}
   },true);
-  window.GoTradeXNavigation={show,close,closeAll:()=>closeOthers("")};
+  window.GoTradeXNavigation={show,close,closeAll:closeToTrading,back:()=>backFrom((activeLayer()||{}).id)};
   sync();
 })();
 </script>
@@ -2833,7 +2869,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.openGtxProfilePanel=showProfile;
 })();
 </script>
-<script src="settings.js?v=20261013profilefix1"></script>
+<script src="settings.js?v=20261014navfix1"></script>
 <script id="gtx-profile-window-capture-fix">
 (function(){
   "use strict";
