@@ -22,3 +22,27 @@
 #portal-settings-standalone .settings-check-label{display:flex;gap:9px;align-items:center;margin:8px 0}
 #portal-settings-standalone input[type=checkbox]{width:18px;height:18px;accent-color:#00d084}
 @media(max-width:480px){#portal-settings-standalone{padding:0}#portal-settings-standalone .settings-shell{border-radius:0;border-left:0;border-right:0;padding:16px 12px 28px}#portal-settings-standalone .theme-btn{flex:1 1 42%}}
+
+/* Balanced theme palette: selected colors accent the interface instead of painting the page. */
+:root{--gtx-accent:#2563eb;--gtx-accent-soft:#dbeafe;--gtx-accent-light:#a7c5ff;--gtx-accent-border:#7398ec;--gtx-accent-glow:#2563eb35;--gtx-page-surface:#081b31;--gtx-panel-surface:#0b2038;--gtx-screen-text:#f8fafc}
+body,.app{color:var(--gtx-screen-text)}
+.top,.bottom{border-color:var(--gtx-accent-border)!important}
+.top{box-shadow:inset 0 -1px 0 var(--gtx-accent-glow)}
+.menuBtn,.wallet,.option,.time,.amount,.asset,.autoBotBtn,.gtxProfileItem,.gtxNavColumn .option,.panel .option,.adminTop button,.adminSlot,.accountMenuAction{border-color:var(--gtx-accent-border)!important}
+.menuBtn,.gtxProfileAvatar{background:var(--gtx-accent)!important;color:#fff!important}
+.gtxProfileItem,.gtxNavColumn .option,.option,.time,.amount,.asset,.autoBotBtn,.accountMenuAction{background:color-mix(in srgb,var(--gtx-accent) 12%,#102945)!important;color:var(--gtx-accent-light)!important}
+.gtxProfileItem span,.gtxNavTitle,.category,.panel h2,.adminTop h1,.adminTop h2{color:var(--gtx-accent-light)!important}
+.gtxProfileItem strong{color:var(--gtx-accent-soft)!important}
+.gtxMenuColumns,.gtxProfileColumn,.gtxNavColumn,.panel,.adminPage{border-color:var(--gtx-accent-border)!important}
+.gtxMenuColumns{box-shadow:0 0 0 1px var(--gtx-accent-glow)}
+#portal-settings-standalone .settings-shell,#portal-settings-standalone .settings-form-group{border-color:var(--gtx-accent-border)}
+#portal-settings-standalone .settings-secondary-action{border-color:var(--gtx-accent-border);color:var(--gtx-accent-light)}
+#portal-settings-standalone .settings-main-action{background:var(--gtx-accent);color:#fff}
+#portal-settings-standalone .theme-btn.active{outline-color:var(--gtx-accent-light)}
+#gtxLiveChart{background-color:#07111d!important;position:relative}
+#gtxLiveChart::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--gtx-chart-wallpaper,none);background-size:cover;background-position:center;background-repeat:no-repeat;opacity:.23}
+#gtxLWC{z-index:1}
+.gtxLWCHead{z-index:10}
+.gtxLWCAsset,.gtxLWCBtn,.gtxLWCSelect{border-color:var(--gtx-accent-border)!important;color:var(--gtx-accent-light)!important}
+.gtxLWCBtn.active{background:var(--gtx-accent)!important;border-color:var(--gtx-accent-light)!important;color:#fff!important}
+#gtxLiveChart .gtxLWCStatus{border-color:var(--gtx-accent-border)!important}
