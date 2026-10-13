@@ -1,7 +1,8 @@
 (function(){
 "use strict";
 var overlayId="portal-settings-standalone";
-var previousPortalId=null;\nvar previousWasMenu=false;
+var previousPortalId=null;
+var previousWasMenu=false;
 function byId(id){return document.getElementById(id);}
 function safeGet(key,fallback){try{var v=localStorage.getItem(key);return v===null?fallback:v;}catch(e){return fallback;}}
 function safeSet(key,value){try{localStorage.setItem(key,value);return true;}catch(e){return false;}}
