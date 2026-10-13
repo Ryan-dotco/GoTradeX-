@@ -2946,7 +2946,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     var previous=null;
     while(historyStack.length&&!previous){
       var id=historyStack.pop(),candidate=document.getElementById(id);
-      if(candidate&&candidate.id!=="menuDrawer"&&candidate.isConnected)previous=candidate;
+      if(candidate&&candidate.isConnected)previous=candidate;
     }
     if(previous)show(previous);
     syncHeader();
@@ -2989,6 +2989,14 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     };
     api.__gtxReopenStable=true;
   }
+
+  /* Remember the menu as the prior page before legacy click handlers close it. */
+  window.addEventListener("pointerdown",function(e){
+    var b=e.target&&e.target.closest?e.target.closest('[data-profile-action],.menuItem,#menuBtn'):null;
+    if(!b)return;
+    var menu=document.getElementById("menuDrawer");
+    if(menu&&menu.classList.contains("open")&&historyStack[historyStack.length-1]!=="menuDrawer")historyStack.push("menuDrawer");
+  },true);
 
   /* Reopen the main two-column menu even after another handler set display:none. */
   window.addEventListener("click",function(e){
