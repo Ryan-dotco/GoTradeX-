@@ -1055,9 +1055,9 @@ syncGtxKenglyVisibility();
       if(!file.type||!file.type.startsWith("image/")){byId("bgStatus").textContent="Please choose an image file.";return;}
       if(file.size>3*1024*1024){byId("bgStatus").textContent="Image is too large. Choose an image under 3 MB.";this.value="";return;}
       const reader=new FileReader();
-      reader.onload=ev=>{try{localStorage.setItem("gtx_custom_bg_image",ev.target.result);localStorage.removeItem("gtx_custom_color");document.body.style.backgroundImage='url("'+ev.target.result+'")';document.body.style.backgroundSize="cover";document.body.style.backgroundAttachment="fixed";preview.style.backgroundImage='url("'+ev.target.result+'")';preview.style.backgroundColor="";byId("bgStatus").textContent="Custom image set ✓";localStorage.setItem("gtx_theme","custom");}catch(err){byId("bgStatus").textContent="Could not save image. Try a smaller image.";}};reader.readAsDataURL(file);
+      reader.onload=ev=>{try{localStorage.setItem("gtx_custom_bg_image",ev.target.result);preview.style.backgroundImage='url("'+ev.target.result+'")';preview.style.backgroundColor=localStorage.getItem("gtx_custom_color")||"#061426";preview.style.backgroundSize="cover";preview.style.backgroundPosition="center";byId("bgStatus").textContent="Wallpaper saved for the Kengly chart ✓";if(typeof window.gtxApplyChartWallpaper==="function")window.gtxApplyChartWallpaper(ev.target.result);}catch(err){byId("bgStatus").textContent="Could not save image. Try a smaller image.";}};reader.readAsDataURL(file);
     });
-    byId("removeCustomBg").addEventListener("click",()=>{localStorage.removeItem("gtx_custom_bg_image");localStorage.removeItem("gtx_custom_color");document.body.style.backgroundImage="";preview.style.backgroundImage="";preview.style.backgroundColor="";byId("bgStatus").textContent="Removed - Back to Default Dark";gtxSettingsSetTheme("default-dark");});
+    byId("removeCustomBg").addEventListener("click",()=>{localStorage.removeItem("gtx_custom_bg_image");localStorage.removeItem("gtx_custom_color");preview.style.backgroundImage="";preview.style.backgroundColor="";byId("bgStatus").textContent="Custom wallpaper/color removed.";if(typeof window.gtxApplyChartWallpaper==="function")window.gtxApplyChartWallpaper("");gtxSettingsSetTheme("default-dark");});
     byId("saveGtxSettings").addEventListener("click",()=>{
       const prefs={lang:byId("prefLang").value,amount:byId("prefAmount").value,time:byId("prefTime").value,sound:byId("prefSound").checked,confirm:byId("prefConfirm").checked};
       try{localStorage.setItem("gtx_settings",JSON.stringify(prefs));localStorage.setItem("gotradex_confirm_trades",String(prefs.confirm));document.body.dataset.gtxSoundAlerts=String(prefs.sound);byId("gtxSettingsStatus").textContent="Settings saved on this device. Demo and real balances were not changed.";}catch(err){byId("gtxSettingsStatus").textContent="Could not save settings on this device.";}
@@ -1065,18 +1065,43 @@ syncGtxKenglyVisibility();
     byId("gtxSettingsBack").addEventListener("click",gtxSettingsBackToPrevious);
   }
   function gtxSettingsSetTheme(t){
-    localStorage.setItem("gtx_theme",t);document.body.setAttribute("data-theme",t);
-    if(t==="light"){document.body.style.background="#fff";document.body.style.color="#000";document.body.style.backgroundImage="";}
-    else if(t==="dark"||t==="default-dark"){document.body.style.background="#0a0a0a";document.body.style.color="#fff";document.body.style.backgroundImage="";localStorage.removeItem("gtx_custom_bg_image");localStorage.removeItem("gtx_custom_color");}
-    else if(t==="custom"){const img=localStorage.getItem("gtx_custom_bg_image");const col=localStorage.getItem("gtx_custom_color");if(img){document.body.style.backgroundImage='url("'+img+'")';document.body.style.backgroundSize="cover";document.body.style.backgroundAttachment="fixed";}else if(col){document.body.style.background=col;document.body.style.backgroundImage="";}}
+    const allowed=["dark","light","default-dark","custom"];
+    if(!allowed.includes(t))t="default-dark";
+    try{localStorage.setItem("gtx_theme",t);}catch(e){}
+    document.body.setAttribute("data-theme",t);
+    document.body.dataset.gtxTheme=t;
+    const root=document.documentElement;
+    const color=t==="light"?"#f4f6f8":(t==="dark"?"#111827":"#061426");
+    root.style.setProperty("--gtx-screen-bg",color);
+    root.style.setProperty("--gtx-screen-text",t==="light"?"#111827":"#ffffff");
+    document.body.style.setProperty("background-color",color,"important");
+    document.body.style.setProperty("color",t==="light"?"#111827":"#ffffff","important");
+    const app=document.querySelector(".app");
+    if(app){app.style.setProperty("background-color",color,"important");app.style.setProperty("color",t==="light"?"#111827":"#ffffff","important");}
+    const customColor=(()=>{try{return localStorage.getItem("gtx_custom_color")||""}catch(e){return ""}})();
+    const wallpaper=(()=>{try{return localStorage.getItem("gtx_custom_bg_image")||""}catch(e){return ""}})();
+    if(t==="custom"&&customColor){
+      root.style.setProperty("--gtx-screen-bg",customColor);
+      document.body.style.setProperty("background-color",customColor,"important");
+      if(app)app.style.setProperty("background-color",customColor,"important");
+    }
     document.querySelectorAll("#gtxSettingsPortal [data-gtx-theme]").forEach(btn=>btn.classList.toggle("active",btn.getAttribute("data-gtx-theme")===t));
+    if(typeof window.gtxApplyChartWallpaper==="function")window.gtxApplyChartWallpaper(wallpaper);
+    const preview=document.getElementById("bgPreview");
+    if(preview){preview.style.backgroundImage=wallpaper?'url("'+wallpaper+'")':"";preview.style.backgroundColor=customColor||color;preview.style.backgroundSize="cover";preview.style.backgroundPosition="center";}
   }
   function gtxSettingsSetColor(color){
-    localStorage.setItem("gtx_theme","custom");localStorage.setItem("gtx_custom_color",color);localStorage.removeItem("gtx_custom_bg_image");
-    document.body.setAttribute("data-theme","custom");document.body.style.background=color;document.body.style.backgroundImage="";
-    const preview=byId("bgPreview");if(preview){preview.style.backgroundColor=color;preview.style.backgroundImage="";}
-    const status=byId("bgStatus");if(status)status.textContent="Custom color set";
+    if(!/^#[0-9a-f]{6}$/i.test(String(color)))return;
+    try{localStorage.setItem("gtx_theme","custom");localStorage.setItem("gtx_custom_color",color);}catch(e){}
+    document.body.setAttribute("data-theme","custom");document.body.dataset.gtxTheme="custom";
+    document.documentElement.style.setProperty("--gtx-screen-bg",color);
+    document.body.style.setProperty("background-color",color,"important");
+    const app=document.querySelector(".app");if(app)app.style.setProperty("background-color",color,"important");
+    const chart=document.getElementById("gtxChart");if(chart)chart.style.setProperty("background-color",color,"important");
+    const preview=document.getElementById("bgPreview");if(preview){preview.style.backgroundColor=color;preview.style.backgroundImage="";preview.style.backgroundSize="cover";}
+    const status=document.getElementById("bgStatus");if(status)status.textContent="Selected color applied to the screen.";
     document.querySelectorAll("#gtxSettingsPortal [data-gtx-theme]").forEach(btn=>btn.classList.toggle("active",btn.getAttribute("data-gtx-theme")==="custom"));
+    if(typeof window.gtxApplyChartWallpaper==="function")window.gtxApplyChartWallpaper((()=>{try{return localStorage.getItem("gtx_custom_bg_image")||""}catch(e){return ""}})());
   }
   function gtxSettingsCloseToTrading(){
     const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);stack.length=0;
@@ -2762,5 +2787,52 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   },true);
 })();
 </script>
+
+<style id="gtx-settings-theme-wallpaper-fix">
+html,body{background-color:var(--gtx-screen-bg,#061426)}
+.app{background-color:var(--gtx-screen-bg,#061426)}
+body[data-theme="light"] .top,body[data-theme="light"] .pairbar,body[data-theme="light"] .bottom{background-color:#e7edf3!important;color:#111827}
+body[data-theme="light"] .top .person span,body[data-theme="light"] .pair small,body[data-theme="light"] .status{color:#334155}
+body[data-theme="custom"] .app{background-color:var(--gtx-screen-bg,#061426)!important}
+#gtxChart{position:relative!important;isolation:isolate!important;overflow:hidden!important;background-image:none!important;background-color:var(--gtx-screen-bg,#061426)!important}
+#gtxChart>.gtxChartWallpaper{position:absolute;inset:0;z-index:0;pointer-events:none;background-position:center;background-size:cover;background-repeat:no-repeat;opacity:.24;transition:opacity .15s ease}
+#gtxChart>.gtxChartWallpaper::after{content:"";position:absolute;inset:0;background:rgba(5,12,24,.18)}
+#gtxChart canvas{position:relative;z-index:1;background-color:transparent!important}
+#gtxChart>*:not(.gtxChartWallpaper){position:relative;z-index:1}
+#gtxSettingsPortal .theme-btn{padding:9px 11px;border-radius:8px;border:1px solid #35516b;background:#102944;color:#fff;font-weight:700}
+#gtxSettingsPortal .theme-btn.active{outline:2px solid #00d084;outline-offset:1px}
+#gtxSettingsPortal [data-gtx-color]{cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+</style>
+<script id="gtx-settings-theme-wallpaper-runtime">
+(function(){
+ "use strict";
+ function applyWallpaper(data){
+   var chart=document.getElementById("gtxChart");if(!chart)return;
+   var layer=chart.querySelector(":scope > .gtxChartWallpaper");
+   if(!layer){layer=document.createElement("div");layer.className="gtxChartWallpaper";layer.setAttribute("aria-hidden","true");chart.insertBefore(layer,chart.firstChild);}
+   if(data){layer.style.backgroundImage='url("'+String(data).replace(/"/g,"%22")+'")';layer.style.display="block";}
+   else{layer.style.backgroundImage="none";layer.style.display="none";}
+ }
+ window.gtxApplyChartWallpaper=applyWallpaper;
+ function restore(){
+   try{
+     var t=localStorage.getItem("gtx_theme")||"default-dark";
+     var c=localStorage.getItem("gtx_custom_color")||"";
+     var img=localStorage.getItem("gtx_custom_bg_image")||"";
+     var bg=t==="light"?"#f4f6f8":(t==="dark"?"#111827":"#061426");
+     if(t==="custom"&&c)bg=c;
+     document.documentElement.style.setProperty("--gtx-screen-bg",bg);
+     document.body.style.setProperty("background-color",bg,"important");
+     if(t==="light")document.body.style.setProperty("color","#111827","important");
+     else document.body.style.setProperty("color","#ffffff","important");
+     var app=document.querySelector(".app");if(app)app.style.setProperty("background-color",bg,"important");
+     applyWallpaper(img);
+   }catch(e){}
+ }
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",restore,{once:true});else restore();
+ window.addEventListener("storage",function(e){if(["gtx_theme","gtx_custom_color","gtx_custom_bg_image"].includes(e.key))restore();});
+})();
+</script>
+
 </body>
 </html>
