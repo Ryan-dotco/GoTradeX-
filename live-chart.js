@@ -495,7 +495,7 @@
     if(!C||!host)throw new Error("Lightweight Charts library did not load.");
     state.chart=C.createChart(host,{
       autoSize:true,
-      layout:{background:{type:C.ColorType.Solid,color:"#07111d"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
+      layout:{background:{type:C.ColorType.Solid,color:"rgba(0,0,0,0)"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
       rightPriceScale:{visible:true,borderVisible:true,borderColor:"#31506d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
@@ -719,6 +719,8 @@
 
   window.GoTradeXLiveChart={
     boot,setTimeframe,reconnect:connect,setAsset,state,
+    setWallpaper:function(data){const box=document.getElementById("gtxLiveChart");if(box)box.style.setProperty("--gtx-chart-wallpaper",data?'url("'+data+'")':"none");},
+    applyTheme:function(p){if(!p)return;try{if(state.chart)state.chart.applyOptions({layout:{background:{type:window.LightweightCharts.ColorType.Solid,color:"rgba(0,0,0,0)"},textColor:p.text},grid:{vertLines:{color:p.grid},horzLines:{color:p.grid}},rightPriceScale:{borderColor:p.border},timeScale:{borderColor:p.border},crosshair:{vertLine:{color:p.border,labelBackgroundColor:p.background},horzLine:{color:p.border,labelBackgroundColor:p.background}}});}catch(e){}},
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
