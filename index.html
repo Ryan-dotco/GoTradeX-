@@ -1778,53 +1778,178 @@ setTimeout(syncAccountPages,300);
 })();
 </script><script src="keypad-fix.js?v=20261004"></script><script src="agent-ai-fix.js?v=20261004"></script><script>
 (function(){
+  "use strict";
+  const SUPABASE_URL="https://glffecggusetzklmyukv.supabase.co";
+  const SUPABASE_KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
+  let profileClient=null, emailPending="", phonePending="", otpBusy=false;
   function gtxProfileStore(){
     try{return JSON.parse(localStorage.getItem("gotradex_profile")||"{}")}catch(e){return {}}
   }
-  function gtxProfileSave(p){try{localStorage.setItem("gotradex_profile",JSON.stringify(p))}catch(e){}}
+  function gtxProfileSave(p){try{localStorage.setItem("gotradex_profile",JSON.stringify(p));return true}catch(e){return false}}
+  function profileClientReady(){
+    if(profileClient)return profileClient;
+    if(!window.supabase||typeof window.supabase.createClient!=="function")throw new Error("Secure verification service has not loaded. Refresh and try again.");
+    profileClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+    return profileClient;
+  }
+  function profileStatus(message,kind){
+    const el=document.getElementById("gtxProfileMessage");
+    if(el){el.textContent=message;el.dataset.kind=kind||"info"}
+  }
+  function profileSetBusy(value){
+    otpBusy=value;
+    ["btnSendEmailOTP","btnVerifyEmailOTP","btnSendPhoneOTP","btnVerifyPhoneOTP","gtxProfileSave"].forEach(id=>{
+      const b=document.getElementById(id);if(b)b.disabled=value;
+    });
+  }
+  function currentAuthUser(){
+    try{const raw=localStorage.getItem("gotradex_current_user");if(raw){const v=JSON.parse(raw);return v?.user||v}}catch(e){}
+    return null;
+  }
+  async function sendEmailOTP(){
+    if(otpBusy)return;
+    const email=(document.getElementById("email")?.value||"").trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){profileStatus("Enter a valid email address first.","error");return}
+    profileSetBusy(true);profileStatus("Requesting email-change verification…");
+    try{
+      const sb=profileClientReady(),{data,error}=await sb.auth.getUser();
+      if(error)throw error;
+      if(!data?.user){throw new Error("Please sign in to your GoTradeX account before changing your email.")}
+      if(data.user.email?.toLowerCase()===email){profileStatus("This is already the email on your account.","info");return}
+      const result=await sb.auth.updateUser({email});
+      if(result.error)throw result.error;
+      emailPending=email;
+      profileStatus("Verification email requested for "+email+". Check your inbox and enter the code here. The email changes only after the code is verified.","ok");
+    }catch(e){profileStatus(e?.message||"Could not request email verification.","error")}
+    finally{profileSetBusy(false)}
+  }
+  async function verifyEmailOTP(){
+    if(otpBusy)return;
+    const email=(document.getElementById("email")?.value||"").trim().toLowerCase();
+    const token=(document.getElementById("emailOTP")?.value||"").trim().replace(/\s+/g,"");
+    if(!email||!/^\d{6}$/.test(token)){profileStatus("Enter the email address and its 6-digit verification code.","error");return}
+    profileSetBusy(true);profileStatus("Verifying email code…");
+    try{
+      const sb=profileClientReady(),{data,error}=await sb.auth.verifyOtp({email,token,type:"email_change"});
+      if(error)throw error;
+      emailPending="";
+      try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
+      const p=gtxProfileStore();p.email=data?.user?.email||email;gtxProfileSave(p);
+      document.getElementById("email").value=p.email;
+      document.getElementById("emailVerifiedStatus").textContent="✓ Email verified";
+      profileStatus("Email change verified by the account service.","ok");
+    }catch(e){profileStatus(e?.message||"Email code could not be verified. Check the code and try again.","error")}
+    finally{profileSetBusy(false)}
+  }
+  async function sendPhoneOTP(){
+    if(otpBusy)return;
+    const phone=(document.getElementById("phone")?.value||"").trim();
+    if(!/^\+[1-9]\d{7,14}$/.test(phone)){profileStatus("Enter a valid international phone number, including + and country code.","error");return}
+    profileSetBusy(true);profileStatus("Requesting phone-change verification…");
+    try{
+      const sb=profileClientReady(),{data,error}=await sb.auth.getUser();
+      if(error)throw error;
+      if(!data?.user)throw new Error("Please sign in to your GoTradeX account before changing your phone number.");
+      if(data.user.phone===phone){profileStatus("This is already the phone number on your account.","info");return}
+      const result=await sb.auth.updateUser({phone});
+      if(result.error)throw result.error;
+      phonePending=phone;
+      profileStatus("Phone verification requested for "+phone+". If SMS verification is enabled for this project, enter the code you receive.","ok");
+    }catch(e){profileStatus(e?.message||"Could not request phone verification. The SMS provider may not be configured.","error")}
+    finally{profileSetBusy(false)}
+  }
+  async function verifyPhoneOTP(){
+    if(otpBusy)return;
+    const phone=(document.getElementById("phone")?.value||"").trim();
+    const token=(document.getElementById("phoneOTP")?.value||"").trim().replace(/\s+/g,"");
+    if(!phone||!/^\d{6}$/.test(token)){profileStatus("Enter the phone number and its 6-digit SMS code.","error");return}
+    profileSetBusy(true);profileStatus("Verifying phone code…");
+    try{
+      const sb=profileClientReady(),{data,error}=await sb.auth.verifyOtp({phone,token,type:"phone_change"});
+      if(error)throw error;
+      phonePending="";
+      const p=gtxProfileStore();p.phone=data?.user?.phone||phone;gtxProfileSave(p);
+      document.getElementById("phoneVerifiedStatus").textContent="✓ Phone verified";
+      profileStatus("Phone number verified by the account service.","ok");
+    }catch(e){profileStatus(e?.message||"Phone code could not be verified. Check the code and try again.","error")}
+    finally{profileSetBusy(false)}
+  }
+  window.sendEmailOTP=sendEmailOTP;
+  window.verifyEmailOTP=verifyEmailOTP;
+  window.sendPhoneOTP=sendPhoneOTP;
+  window.verifyPhoneOTP=verifyPhoneOTP;
   window.openGtxProfile=function(){
     let d=document.getElementById("gtxProfileDrawer");
     if(!d){
-      d=document.createElement("div");d.id="gtxProfileDrawer";d.className="drawer";d.innerHTML=
+      d=document.createElement("div");d.id="gtxProfileDrawer";d.className="drawer";
+      d.innerHTML=
       '<div class="panel gtxProfilePanel">'+
       '<button class="close" type="button" id="gtxProfileClose">Close</button>'+
       '<h2>My Profile</h2>'+
       '<div class="gtxProfileCard"><div class="gtxProfileAvatar big" id="gtxProfileEditAvatar">R</div><div><strong id="gtxProfileEditId">Trader ID: GTX-000001</strong><span id="gtxProfileEditMode">DEMO ACCOUNT</span></div></div>'+
-      '<label class="gtxProfileField"><span>Display name</span><input id="gtxProfileDisplayName" maxlength="40" placeholder="Your trading name"></label>'+
-      '<label class="gtxProfileField"><span>Email</span><input id="gtxProfileEmail" type="email" readonly></label>'+
+      '<div class="gtxProfileField"><span>Full Names (First + Last)</span><div class="gtxProfileTwo"><input id="firstName" type="text" maxlength="40" placeholder="First Name" autocomplete="given-name"><input id="lastName" type="text" maxlength="40" placeholder="Last Name" autocomplete="family-name"></div></div>'+
+      '<div class="gtxProfileField"><span>Email Address</span><div class="gtxProfileTwo"><input id="email" type="email" placeholder="email@example.com" autocomplete="email"><button id="btnSendEmailOTP" type="button">Send OTP</button></div><div class="gtxProfileTwo gtxProfileOtp"><input id="emailOTP" type="text" inputmode="numeric" maxlength="6" placeholder="Enter Email OTP"><button id="btnVerifyEmailOTP" type="button">Verify</button></div><small id="emailVerifiedStatus" class="gtxProfileVerify">Email status: not verified here</small></div>'+
+      '<div class="gtxProfileField"><span>Phone Number</span><div class="gtxProfileTwo"><input id="phone" type="tel" placeholder="+260..." autocomplete="tel"><button id="btnSendPhoneOTP" type="button">Send OTP</button></div><div class="gtxProfileTwo gtxProfileOtp"><input id="phoneOTP" type="text" inputmode="numeric" maxlength="6" placeholder="Enter SMS OTP"><button id="btnVerifyPhoneOTP" type="button">Verify</button></div><small id="phoneVerifiedStatus" class="gtxProfileVerify">Phone status: not verified here</small></div>'+
       '<label class="gtxProfileField"><span>Referral code</span><input id="gtxProfileReferral" maxlength="24" placeholder="GTX-REF"></label>'+
-      '<div class="gtxProfileReadonly"><span>Account status</span><strong>ACTIVE</strong></div>'+
-      '<div class="gtxProfileReadonly"><span>Verification</span><strong id="gtxProfileVerification">Email status will appear after authentication</strong></div>'+
+      '<div class="gtxProfileReadonly"><span>Account status</span><strong id="gtxProfileAccountStatus">ACTIVE</strong></div>'+
       '<button class="gtxProfileSave" id="gtxProfileSave" type="button">SAVE PROFILE</button>'+
-      '<div class="status" id="gtxProfileMessage"></div>'+
-      '<div class="gtxProfileNotice">Your profile details are stored locally until a verified account-profile table is connected. No payment or trading balance is changed here.</div>'+
+      '<div class="status" id="gtxProfileMessage" role="status" aria-live="polite"></div>'+
+      '<div class="gtxProfileNotice">Profile details are saved on this device. Email and SMS codes are checked by the GoTradeX account service; a request is not the same as successful verification.</div>'+
       '</div>';
       document.body.appendChild(d);
       d.addEventListener("click",e=>{if(e.target===d)d.classList.remove("open")});
       document.getElementById("gtxProfileClose").onclick=()=>d.classList.remove("open");
-      document.getElementById("gtxProfileSave").onclick=()=>{
+      document.getElementById("btnSendEmailOTP").onclick=sendEmailOTP;
+      document.getElementById("btnVerifyEmailOTP").onclick=verifyEmailOTP;
+      document.getElementById("btnSendPhoneOTP").onclick=sendPhoneOTP;
+      document.getElementById("btnVerifyPhoneOTP").onclick=verifyPhoneOTP;
+      document.getElementById("gtxProfileSave").onclick=async()=>{
+        if(otpBusy)return;
+        const first=(document.getElementById("firstName").value||"").trim().slice(0,40);
+        const last=(document.getElementById("lastName").value||"").trim().slice(0,40);
+        const email=(document.getElementById("email").value||"").trim().toLowerCase();
+        const phone=(document.getElementById("phone").value||"").trim();
+        if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){profileStatus("Enter a valid email address before saving.","error");return}
+        if(phone&&!/^\+[1-9]\d{7,14}$/.test(phone)){profileStatus("Use international phone format, for example +260…","error");return}
         const p=gtxProfileStore();
-        p.displayName=(document.getElementById("gtxProfileDisplayName").value||"Ryan Trading Account").trim().slice(0,40);
-        p.referralCode=(document.getElementById("gtxProfileReferral").value||"GTX-REF").trim().toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,24);
-        if(!p.referralCode)p.referralCode="GTX-REF";
-        gtxProfileSave(p);updateGtxProfileMenu();document.getElementById("gtxProfileMessage").textContent="✓ Profile saved on this device.";
+        p.firstName=first;p.lastName=last;p.displayName=([first,last].filter(Boolean).join(" ")||p.displayName||"Ryan Trading Account").slice(0,40);
+        p.email=email;p.phone=phone;
+        p.referralCode=(document.getElementById("gtxProfileReferral").value||"GTX-REF").trim().toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,24)||"GTX-REF";
+        if(!gtxProfileSave(p)){profileStatus("Could not save profile on this device. Check available device storage.","error");return}
+        updateGtxProfileMenu();
+        const av=document.getElementById("gtxProfileEditAvatar");if(av)av.textContent=(p.displayName.charAt(0)||"R").toUpperCase();
+        try{
+          const sb=profileClientReady(),{data,error}=await sb.auth.getUser();
+          if(!error&&data?.user){
+            const meta=await sb.auth.updateUser({data:{full_name:[first,last].filter(Boolean).join(" "),display_name:p.displayName}});
+            if(meta.error)profileStatus("Profile saved on this device. Account-service name update failed: "+meta.error.message,"error");
+            else profileStatus("✓ Profile saved. Name synced to your signed-in account.","ok");
+          }else profileStatus("✓ Profile saved on this device. Sign in to sync account details.","ok");
+        }catch(e){profileStatus("✓ Profile saved on this device. Account sync unavailable: "+(e?.message||"service error"),"info")}
       };
     }
-    const p=gtxProfileStore();
-    const name=p.displayName||localStorage.getItem("gotradex_profile_name")||"Ryan Trading Account";
-    const ref=p.referralCode||"GTX-REF";
+    const p=gtxProfileStore(),u=currentAuthUser()||{};
+    const name=p.displayName||localStorage.getItem("gotradex_profile_name")||u.user_metadata?.display_name||"Ryan Trading Account";
+    const first=p.firstName||u.user_metadata?.first_name||"";
+    const last=p.lastName||u.user_metadata?.last_name||"";
     const mode=localStorage.getItem("gotradex_account_mode")==="REAL"?"LIVE":"DEMO";
-    document.getElementById("gtxProfileDisplayName").value=name;
-    document.getElementById("gtxProfileReferral").value=ref;
+    document.getElementById("firstName").value=first;
+    document.getElementById("lastName").value=last;
+    document.getElementById("gtxProfileReferral").value=p.referralCode||"GTX-REF";
     document.getElementById("gtxProfileEditMode").textContent=mode+" ACCOUNT";
     document.getElementById("gtxProfileEditAvatar").textContent=(name.charAt(0)||"R").toUpperCase();
-    document.getElementById("gtxProfileVerification").textContent=localStorage.getItem("gotradex_email_verified")==="true"?"EMAIL VERIFIED":"EMAIL NOT VERIFIED";
-    let email="";
-    try{const raw=localStorage.getItem("gotradex_current_user");const u=raw?JSON.parse(raw):null;email=u?.email||u?.user?.email||""}catch(e){}
-    document.getElementById("gtxProfileEmail").value=email||"Authenticated account email";
-    d.classList.add("open");
+    let email=p.email||u.email||"",phone=p.phone||u.phone||"";
+    try{const raw=localStorage.getItem("gotradex_current_user");const v=raw?JSON.parse(raw):null;const user=v?.user||v||{};email=email||user.email||"";phone=phone||user.phone||""}catch(e){}
+    document.getElementById("email").value=email;
+    document.getElementById("phone").value=phone;
+    document.getElementById("emailOTP").value="";
+    document.getElementById("phoneOTP").value="";
+    document.getElementById("emailVerifiedStatus").textContent=localStorage.getItem("gotradex_email_verified")==="true"?"Email previously verified":"Email status: not verified here";
+    document.getElementById("phoneVerifiedStatus").textContent=localStorage.getItem("gotradex_phone_verified")==="true"?"Phone previously verified":"Phone status: not verified here";
+    document.getElementById("gtxProfileMessage").textContent="";
+    document.getElementById("gtxProfileAccountStatus").textContent=u.id?"SIGNED IN":"CHECK SIGN-IN";
+    document.getElementById("gtxProfileDrawer").classList.add("open");
   };
-  const originalUpdate=window.updateGtxProfileMenu;
   window.updateGtxProfileMenu=function(){
     const p=gtxProfileStore(),name=p.displayName||"Ryan Trading Account";
     const n=document.getElementById("gtxProfileMenuName"),av=document.getElementById("gtxProfileAvatar");
@@ -1846,6 +1971,19 @@ setTimeout(syncAccountPages,300);
 .gtxProfileReadonly strong{font-size:10px;text-align:right}
 .gtxProfileSave{width:100%;height:43px;border-radius:9px;background:#176fca;color:#fff;font-weight:900;margin-top:8px}
 .gtxProfileNotice{margin-top:10px;padding:10px;background:#081b33;border:1px dashed #23466d;border-radius:8px;color:#8fa8c4;font-size:10px;line-height:1.45}
+
+.gtxProfileField{display:block;margin:12px 0;color:#c9d8ea;font-size:12px;font-weight:650}
+.gtxProfileField>span{display:block;margin:0 0 6px}
+.gtxProfileTwo{display:flex;gap:7px;align-items:stretch;margin-top:6px}
+.gtxProfileTwo input,.gtxProfileField>input{min-width:0;width:100%;flex:1;background:#071a2e;color:#fff;border:1px solid #29496c;border-radius:9px;padding:11px 10px;font-size:13px}
+.gtxProfileTwo button{flex:0 0 auto;background:#176fca;color:#fff;border-radius:9px;padding:0 11px;font-size:12px;font-weight:700;min-height:40px}
+.gtxProfileTwo button:disabled,.gtxProfileSave:disabled{opacity:.55;cursor:wait}
+.gtxProfileOtp{margin-top:7px}
+.gtxProfileVerify{display:block;color:#9bb1ca;font-size:11px;margin-top:6px}
+#gtxProfileMessage[data-kind="error"]{color:#ff9a9a}
+#gtxProfileMessage[data-kind="ok"]{color:#8cf0b0}
+#gtxProfileMessage[data-kind="info"]{color:#b9d9ff}
+.gtxProfileSave{width:100%;margin-top:12px}
 </style>
 <script id="gtx-paypal-client">
 (function(){
