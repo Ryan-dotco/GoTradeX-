@@ -1064,6 +1064,7 @@ syncGtxKenglyVisibility();
     });
     byId("gtxSettingsBack").addEventListener("click",gtxSettingsBackToPrevious);
   }
+  window.openGtxSettings=openGtxSettings;
   function gtxSettingsSetTheme(t){
     const allowed=["dark","light","default-dark","custom"];
     if(!allowed.includes(t))t="default-dark";
