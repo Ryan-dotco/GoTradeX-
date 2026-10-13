@@ -31,7 +31,7 @@
   function timezoneOffsetMinutes(){
     try{
       const raw=localStorage.getItem("gtx_timezone_offset");
-      const m=/^([+-])(\\d{2}):(\\d{2})$/.exec(raw||"");
+      const m=/^([+-])(\d{2}):(\d{2})$/.exec(raw||"");
       if(m)return (m[1]==="-"?-1:1)*(Number(m[2])*60+Number(m[3]));
     }catch(_){}
     return -new Date().getTimezoneOffset();
@@ -745,7 +745,7 @@
     boot,setTimeframe,reconnect:connect,setAsset,state,
     setWallpaper:function(data){const box=document.getElementById("gtxLiveChart");if(box)box.style.setProperty("--gtx-chart-wallpaper",data?'url("'+data+'")':"none");},
     applyTheme:function(p){if(!p)return;try{if(state.chart)state.chart.applyOptions({layout:{background:{type:window.LightweightCharts.ColorType.Solid,color:"rgba(0,0,0,0)"},textColor:p.text},grid:{vertLines:{color:p.grid},horzLines:{color:p.grid}},rightPriceScale:{borderColor:p.border},timeScale:{borderColor:p.border,tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}},crosshair:{vertLine:{color:p.border,labelBackgroundColor:p.background},horzLine:{color:p.border,labelBackgroundColor:p.background}}});}catch(e){}},
-    applyTimezone:function(offset){try{if(offset&&/^([+-])\\d{2}:\\d{2}$/.test(offset))localStorage.setItem("gtx_timezone_offset",offset);if(state.chart)state.chart.applyOptions({timeScale:{tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}}});}catch(e){}},
+    applyTimezone:function(offset){try{if(offset&&/^([+-])\d{2}:\d{2}$/.test(offset))localStorage.setItem("gtx_timezone_offset",offset);if(state.chart)state.chart.applyOptions({timeScale:{tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}}});}catch(e){}},
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
