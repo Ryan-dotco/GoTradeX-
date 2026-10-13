@@ -1097,13 +1097,13 @@ syncGtxKenglyVisibility();
     document.documentElement.style.setProperty("--gtx-screen-bg",color);
     document.body.style.setProperty("background-color",color,"important");
     const app=document.querySelector(".app");if(app)app.style.setProperty("background-color",color,"important");
-    const chart=document.getElementById("gtxChart");if(chart)chart.style.setProperty("background-color",color,"important");
+    const chart=document.getElementById("gtxChart");if(chart){chart.style.setProperty("background-color",color,"important");chart.style.setProperty("--gtx-chart-bg",color);if(typeof window.gtxApplyChartWallpaper==="function")window.gtxApplyChartWallpaper((()=>{try{return localStorage.getItem("gtx_custom_bg_image")||""}catch(e){return ""}})());}
     const preview=document.getElementById("bgPreview");if(preview){preview.style.backgroundColor=color;preview.style.backgroundImage="";preview.style.backgroundSize="cover";}
     const status=document.getElementById("bgStatus");if(status)status.textContent="Selected color applied to the screen.";
     document.querySelectorAll("#gtxSettingsPortal [data-gtx-theme]").forEach(btn=>btn.classList.toggle("active",btn.getAttribute("data-gtx-theme")==="custom"));
     if(typeof window.gtxApplyChartWallpaper==="function")window.gtxApplyChartWallpaper((()=>{try{return localStorage.getItem("gtx_custom_bg_image")||""}catch(e){return ""}})());
   }
-  function gtxSettingsCloseToTrading(){
+  window.gtxSettingsSetTheme=gtxSettingsSetTheme;\n  window.gtxSettingsSetColor=gtxSettingsSetColor;\n  function gtxSettingsCloseToTrading(){
     const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);stack.length=0;
     const selectors=".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open";
     document.querySelectorAll(selectors).forEach(el=>{el.classList.remove("open");el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");});
@@ -2789,27 +2789,40 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 </script>
 
 <style id="gtx-settings-theme-wallpaper-fix">
-html,body{background-color:var(--gtx-screen-bg,#061426)}
-.app{background-color:var(--gtx-screen-bg,#061426)}
-body[data-theme="light"] .top,body[data-theme="light"] .pairbar,body[data-theme="light"] .bottom{background-color:#e7edf3!important;color:#111827}
-body[data-theme="light"] .top .person span,body[data-theme="light"] .pair small,body[data-theme="light"] .status{color:#334155}
-body[data-theme="custom"] .app{background-color:var(--gtx-screen-bg,#061426)!important}
-#gtxChart{position:relative!important;isolation:isolate!important;overflow:hidden!important;background-image:none!important;background-color:var(--gtx-screen-bg,#061426)!important}
-#gtxChart>.gtxChartWallpaper{position:absolute;inset:0;z-index:0;pointer-events:none;background-position:center;background-size:cover;background-repeat:no-repeat;opacity:.24;transition:opacity .15s ease}
-#gtxChart>.gtxChartWallpaper::after{content:"";position:absolute;inset:0;background:rgba(5,12,24,.18)}
-#gtxChart canvas{position:relative;z-index:1;background-color:transparent!important}
-#gtxChart>*:not(.gtxChartWallpaper){position:relative;z-index:1}
-#gtxSettingsPortal .theme-btn{padding:9px 11px;border-radius:8px;border:1px solid #35516b;background:#102944;color:#fff;font-weight:700}
-#gtxSettingsPortal .theme-btn.active{outline:2px solid #00d084;outline-offset:1px}
-#gtxSettingsPortal [data-gtx-color]{cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+/* Settings controls must be visible and tappable on mobile */
+#gtxSimplePage.drawer.open{display:block!important;visibility:visible!important;opacity:1!important;position:fixed!important;inset:0!important;z-index:2147483000!important;background:rgba(0,0,0,.78)!important;pointer-events:auto!important}
+#gtxSimplePage.drawer.open>.panel{display:block!important;visibility:visible!important;opacity:1!important;position:absolute!important;inset:0 0 0 auto!important;width:min(460px,100vw)!important;max-width:100vw!important;height:100%!important;max-height:100dvh!important;overflow-y:auto!important;overflow-x:hidden!important;z-index:2147483001!important;background:#081b31!important;color:#fff!important;padding:18px 14px 36px!important;box-sizing:border-box!important}
+#gtxSimplePage #gtxSimpleBody{display:block!important;visibility:visible!important;opacity:1!important;overflow:visible!important;min-height:50px!important;color:#fff!important}
+#gtxSettingsPortal{display:grid!important;visibility:visible!important;opacity:1!important;gap:14px!important;color:#fff!important;padding-bottom:22px!important}
+#gtxSettingsPortal .form-group{display:block!important;visibility:visible!important;opacity:1!important;color:#fff!important;background:rgba(10,35,59,.96)!important;border:1px solid #35516b!important;border-radius:10px!important;padding:12px!important;margin:0!important}
+#gtxSettingsPortal label{display:block!important;color:#fff!important;font-size:13px!important;font-weight:700!important;margin-bottom:7px!important}
+#gtxSettingsPortal button,#gtxSettingsPortal select,#gtxSettingsPortal input{visibility:visible!important;opacity:1!important;pointer-events:auto!important;max-width:100%!important;box-sizing:border-box!important}
+#gtxSettingsPortal .theme-btn{padding:10px 12px!important;min-height:40px!important;border-radius:8px!important;border:1px solid #54718e!important;background:#102944!important;color:#fff!important;font-weight:800!important}
+#gtxSettingsPortal .theme-btn.active{outline:3px solid #00d084!important;outline-offset:1px!important}
+#gtxSettingsPortal [data-gtx-color]{width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;cursor:pointer!important;box-shadow:0 0 0 2px rgba(255,255,255,.25)!important}
+#gtxSettingsPortal #bgPreview{display:block!important;min-height:80px!important;opacity:1!important}
+#gtxSettingsPortal #saveGtxSettings,#gtxSettingsPortal #gtxSettingsBack{display:block!important;min-height:44px!important}
+html,body{background-color:var(--gtx-screen-bg,#061426)!important}
+.app{background-color:var(--gtx-screen-bg,#061426)!important}
+#gtxChart{position:relative!important;isolation:isolate!important;overflow:hidden!important;background-image:none!important;background-color:var(--gtx-chart-bg,var(--gtx-screen-bg,#061426))!important}
+#gtxChart>.gtxChartWallpaper{position:absolute!important;inset:0!important;z-index:0!important;pointer-events:none!important;background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;opacity:.23!important;transition:opacity .15s ease!important;display:block}
+#gtxChart>.gtxChartWallpaper::after{content:""!important;position:absolute!important;inset:0!important;background:rgba(5,12,24,.08)!important}
+#gtxChart canvas{position:relative!important;z-index:1!important;background-color:transparent!important}
+#gtxChart>*:not(.gtxChartWallpaper){position:relative!important;z-index:1!important}
+body[data-theme="light"] .top,body[data-theme="light"] .pairbar,body[data-theme="light"] .bottom{background-color:#e7edf3!important;color:#111827!important}
+body[data-theme="light"] .top .person span,body[data-theme="light"] .pair small,body[data-theme="light"] .status{color:#334155!important}
 </style>
 <script id="gtx-settings-theme-wallpaper-runtime">
 (function(){
  "use strict";
  function applyWallpaper(data){
    var chart=document.getElementById("gtxChart");if(!chart)return;
-   var layer=chart.querySelector(":scope > .gtxChartWallpaper");
+   var layer=chart.querySelector(".gtxChartWallpaper");
    if(!layer){layer=document.createElement("div");layer.className="gtxChartWallpaper";layer.setAttribute("aria-hidden","true");chart.insertBefore(layer,chart.firstChild);}
+   var color="";
+   try{color=localStorage.getItem("gtx_custom_color")||""}catch(e){}
+   if(color&&/^#[0-9a-f]{6}$/i.test(color))chart.style.setProperty("--gtx-chart-bg",color);
+   else chart.style.setProperty("--gtx-chart-bg","var(--gtx-screen-bg,#061426)");
    if(data){layer.style.backgroundImage='url("'+String(data).replace(/"/g,"%22")+'")';layer.style.display="block";}
    else{layer.style.backgroundImage="none";layer.style.display="none";}
  }
@@ -2823,14 +2836,17 @@ body[data-theme="custom"] .app{background-color:var(--gtx-screen-bg,#061426)!imp
      if(t==="custom"&&c)bg=c;
      document.documentElement.style.setProperty("--gtx-screen-bg",bg);
      document.body.style.setProperty("background-color",bg,"important");
-     if(t==="light")document.body.style.setProperty("color","#111827","important");
-     else document.body.style.setProperty("color","#ffffff","important");
+     document.body.style.setProperty("color",t==="light"?"#111827":"#ffffff","important");
      var app=document.querySelector(".app");if(app)app.style.setProperty("background-color",bg,"important");
      applyWallpaper(img);
    }catch(e){}
  }
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",restore,{once:true});else restore();
  window.addEventListener("storage",function(e){if(["gtx_theme","gtx_custom_color","gtx_custom_bg_image"].includes(e.key))restore();});
+ document.addEventListener("click",function(e){
+   var colorBtn=e.target&&e.target.closest?e.target.closest("#gtxSettingsPortal [data-gtx-color]"):null;
+   if(colorBtn&&typeof window.gtxSettingsSetColor==="function"){e.preventDefault();window.gtxSettingsSetColor(colorBtn.getAttribute("data-gtx-color"));}
+ },true);
 })();
 </script>
 
