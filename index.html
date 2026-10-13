@@ -1007,20 +1007,90 @@ syncGtxKenglyVisibility();
       '<span style="display:block;margin-top:7px;color:#fff;font-weight:900">'+(checked?"ON":"OFF")+'</span></button>';
   }
   function openGtxSettings(){
-    const compact=gtxPrefBool("gotradex_compact_ui",true);
-    const confirm=gtxPrefBool("gotradex_confirm_trades",true);
+    const saved=(function(){try{return JSON.parse(localStorage.getItem("gtx_settings")||"{}")}catch(e){return {}}})();
+    const esc=v=>String(v||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+    const theme=localStorage.getItem("gtx_theme")||"default-dark";
+    const customColor=localStorage.getItem("gtx_custom_color")||"";
+    const customImage=localStorage.getItem("gtx_custom_bg_image")||"";
+    const selected=(a,b)=>String(a)===String(b)?" selected":"";
+    const checked=v=>v===false?"":" checked";
     openSimplePanel("Settings",
-      '<div class="adminSlot"><strong>Interface</strong>These preferences are saved on this device and do not change account balances or trading permissions.</div>'+
-      gtxSettingsRow("gtxCompactToggle","Compact mobile layout","Keep the trading interface optimized for smaller phone screens.",compact)+
-      gtxSettingsRow("gtxConfirmToggle","Trade confirmation","Require a confirmation step before a future supported trade action.",confirm)+
-      '<div class="adminSlot"><strong>Account mode</strong>'+ (localStorage.getItem("gotradex_account_mode")==="REAL"?"LIVE":"DEMO") +' — change it using the account selector on the trading screen.</div>');
-    byId("gtxCompactToggle").onclick=()=>{
-      const v=!gtxPrefBool("gotradex_compact_ui",true);localStorage.setItem("gotradex_compact_ui",String(v));
-      document.body.classList.toggle("gtxCompactMode",v);openGtxSettings();
-    };
-    byId("gtxConfirmToggle").onclick=()=>{
-      const v=!gtxPrefBool("gotradex_confirm_trades",true);localStorage.setItem("gotradex_confirm_trades",String(v));openGtxSettings();
-    };
+      '<div id="gtxSettingsPortal" style="display:grid;gap:12px;color:inherit">'+
+      '<p style="font-size:12px;opacity:.7;margin:0">Manage your local GoTradeX preferences without changing balances or trading connections.</p>'+
+      '<div class="form-group" style="margin-top:4px"><label for="prefLang">Language</label><select id="prefLang" style="width:100%;padding:10px;border-radius:8px;background:#102944;color:#fff;border:1px solid #35516b"><option value="en"'+selected(saved.lang||"en","en")+' >English (Default)</option><option disabled>Bemba - Coming Soon</option><option disabled>Nyanja - Coming Soon</option><option disabled>Swahili - Coming Soon</option><option disabled>French - Coming Soon</option><option disabled>Portuguese - Coming Soon</option></select></div>'+
+      '<div class="form-group"><label>Theme</label><div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button type="button" class="theme-btn" data-gtx-theme="dark">Dark</button><button type="button" class="theme-btn" data-gtx-theme="light">Light</button><button type="button" class="theme-btn" data-gtx-theme="default-dark">Default Dark</button><button type="button" class="theme-btn" data-gtx-theme="custom">Custom</button></div></div>'+
+      '<div class="form-group" style="border:1px solid #333;padding:12px;border-radius:8px"><label>Custom Background - Choose Color</label><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+
+      '<button type="button" data-gtx-color="#ff0000" title="Red" aria-label="Red background" style="width:40px;height:40px;background:red;border-radius:50%;border:1px solid #666"></button>'+
+      '<button type="button" data-gtx-color="#f5f5dc" title="Beige" aria-label="Beige background" style="width:40px;height:40px;background:beige;border-radius:50%;border:1px solid #999"></button>'+
+      '<button type="button" data-gtx-color="#007bff" title="Blue" aria-label="Blue background" style="width:40px;height:40px;background:blue;border-radius:50%;border:1px solid #666"></button>'+
+      '<button type="button" data-gtx-color="#00008b" title="Dark Blue" aria-label="Dark blue background" style="width:40px;height:40px;background:darkblue;border-radius:50%;border:1px solid #666"></button>'+
+      '<button type="button" data-gtx-color="#001f3f" title="Navy" aria-label="Navy background" style="width:40px;height:40px;background:#001f3f;border-radius:50%;border:1px solid #666"></button>'+
+      '<button type="button" data-gtx-color="#00a651" title="Green" aria-label="Green background" style="width:40px;height:40px;background:green;border-radius:50%;border:1px solid #666"></button>'+
+      '<button type="button" data-gtx-color="#0a0a0a" title="Black Default" aria-label="Black background" style="width:40px;height:40px;background:#0a0a0a;border-radius:50%;border:1px solid #fff"></button></div></div>'+
+      '<div class="form-group" style="border:1px dashed #666;padding:12px;border-radius:8px"><label for="bgUpload">Upload Your Own Picture as Background</label><input type="file" id="bgUpload" accept="image/*" style="display:block;margin-top:8px;max-width:100%"/><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><button type="button" id="removeCustomBg">Remove Custom Background</button><span id="bgStatus" style="font-size:12px">'+(customImage?"Custom image set ✓":"No custom image")+'</span></div><div id="bgPreview" style="width:100%;height:80px;margin-top:8px;border-radius:8px;background-size:cover;background-position:center;border:1px solid #333"></div></div>'+
+      '<div class="form-group"><label for="prefAmount">Default Trade Amount</label><select id="prefAmount" style="width:100%;padding:10px;border-radius:8px;background:#102944;color:#fff;border:1px solid #35516b">'+["1","5","10","20","50","100"].map(v=>'<option'+selected(saved.amount||"10",v)+'>'+v+'</option>').join("")+'</select></div>'+
+      '<div class="form-group"><label for="prefTime">Default Timeframe</label><select id="prefTime" style="width:100%;padding:10px;border-radius:8px;background:#102944;color:#fff;border:1px solid #35516b">'+["30s","1 Minute","2 Minutes","5 Minutes"].map(v=>'<option'+selected(saved.time||"1 Minute",v)+'>'+v+'</option>').join("")+'</select></div>'+
+      '<div class="form-group"><label style="display:block"><input type="checkbox" id="prefSound"'+checked(saved.sound)+'/> Sound Alerts ON</label><label style="display:block;margin-top:8px"><input type="checkbox" id="prefConfirm"'+checked(saved.confirm)+'/> Confirm Before Trade</label></div>'+
+      '<button type="button" id="saveGtxSettings" style="width:100%;padding:11px;background:#00d084;color:#06251b;border:0;border-radius:8px;font-weight:800">Save Settings</button>'+
+      '<div id="gtxSettingsStatus" role="status" style="font-size:12px;min-height:16px"></div>'+
+      '<button type="button" id="gtxSettingsBack" style="width:100%;padding:10px;border-radius:8px;background:#183451;color:#fff;border:1px solid #35516b">← Back to Previous Page</button>'+
+      '</div>');
+    const panel=byId("gtxSimplePage");
+    const closeButton=byId("gtxSimpleClose");
+    if(closeButton){closeButton.textContent="Close";closeButton.onclick=gtxSettingsCloseToTrading;}
+    const preview=byId("bgPreview");
+    if(preview){if(customImage)preview.style.backgroundImage='url("'+customImage+'")';else if(customColor)preview.style.backgroundColor=customColor;}
+    document.querySelectorAll("#gtxSettingsPortal [data-gtx-theme]").forEach(btn=>{
+      const t=btn.getAttribute("data-gtx-theme");
+      btn.classList.toggle("active",t===theme);
+      btn.addEventListener("click",()=>gtxSettingsSetTheme(t));
+    });
+    document.querySelectorAll("#gtxSettingsPortal [data-gtx-color]").forEach(btn=>btn.addEventListener("click",()=>gtxSettingsSetColor(btn.getAttribute("data-gtx-color"))));
+    byId("bgUpload").addEventListener("change",function(){
+      const file=this.files&&this.files[0];if(!file)return;
+      if(!file.type||!file.type.startsWith("image/")){byId("bgStatus").textContent="Please choose an image file.";return;}
+      if(file.size>3*1024*1024){byId("bgStatus").textContent="Image is too large. Choose an image under 3 MB.";this.value="";return;}
+      const reader=new FileReader();
+      reader.onload=ev=>{try{localStorage.setItem("gtx_custom_bg_image",ev.target.result);localStorage.removeItem("gtx_custom_color");document.body.style.backgroundImage='url("'+ev.target.result+'")';document.body.style.backgroundSize="cover";document.body.style.backgroundAttachment="fixed";preview.style.backgroundImage='url("'+ev.target.result+'")';preview.style.backgroundColor="";byId("bgStatus").textContent="Custom image set ✓";localStorage.setItem("gtx_theme","custom");}catch(err){byId("bgStatus").textContent="Could not save image. Try a smaller image.";}};reader.readAsDataURL(file);
+    });
+    byId("removeCustomBg").addEventListener("click",()=>{localStorage.removeItem("gtx_custom_bg_image");localStorage.removeItem("gtx_custom_color");document.body.style.backgroundImage="";preview.style.backgroundImage="";preview.style.backgroundColor="";byId("bgStatus").textContent="Removed - Back to Default Dark";gtxSettingsSetTheme("default-dark");});
+    byId("saveGtxSettings").addEventListener("click",()=>{
+      const prefs={lang:byId("prefLang").value,amount:byId("prefAmount").value,time:byId("prefTime").value,sound:byId("prefSound").checked,confirm:byId("prefConfirm").checked};
+      try{localStorage.setItem("gtx_settings",JSON.stringify(prefs));localStorage.setItem("gotradex_confirm_trades",String(prefs.confirm));document.body.dataset.gtxSoundAlerts=String(prefs.sound);byId("gtxSettingsStatus").textContent="Settings saved on this device. Demo and real balances were not changed.";}catch(err){byId("gtxSettingsStatus").textContent="Could not save settings on this device.";}
+    });
+    byId("gtxSettingsBack").addEventListener("click",gtxSettingsBackToPrevious);
+  }
+  function gtxSettingsSetTheme(t){
+    localStorage.setItem("gtx_theme",t);document.body.setAttribute("data-theme",t);
+    if(t==="light"){document.body.style.background="#fff";document.body.style.color="#000";document.body.style.backgroundImage="";}
+    else if(t==="dark"||t==="default-dark"){document.body.style.background="#0a0a0a";document.body.style.color="#fff";document.body.style.backgroundImage="";localStorage.removeItem("gtx_custom_bg_image");localStorage.removeItem("gtx_custom_color");}
+    else if(t==="custom"){const img=localStorage.getItem("gtx_custom_bg_image");const col=localStorage.getItem("gtx_custom_color");if(img){document.body.style.backgroundImage='url("'+img+'")';document.body.style.backgroundSize="cover";document.body.style.backgroundAttachment="fixed";}else if(col){document.body.style.background=col;document.body.style.backgroundImage="";}}
+    document.querySelectorAll("#gtxSettingsPortal [data-gtx-theme]").forEach(btn=>btn.classList.toggle("active",btn.getAttribute("data-gtx-theme")===t));
+  }
+  function gtxSettingsSetColor(color){
+    localStorage.setItem("gtx_theme","custom");localStorage.setItem("gtx_custom_color",color);localStorage.removeItem("gtx_custom_bg_image");
+    document.body.setAttribute("data-theme","custom");document.body.style.background=color;document.body.style.backgroundImage="";
+    const preview=byId("bgPreview");if(preview){preview.style.backgroundColor=color;preview.style.backgroundImage="";}
+    const status=byId("bgStatus");if(status)status.textContent="Custom color set";
+    document.querySelectorAll("#gtxSettingsPortal [data-gtx-theme]").forEach(btn=>btn.classList.toggle("active",btn.getAttribute("data-gtx-theme")==="custom"));
+  }
+  function gtxSettingsCloseToTrading(){
+    const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);stack.length=0;
+    const selectors=".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open";
+    document.querySelectorAll(selectors).forEach(el=>{el.classList.remove("open");el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");});
+    const p=byId("gtxSimplePage");if(p){p.classList.remove("open");p.style.setProperty("display","none","important");}
+    const h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","flex","important");
+    document.body.classList.remove("gtx-subscreen-open");window.scrollTo(0,0);
+  }
+  function gtxSettingsBackToPrevious(){
+    const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+    const p=byId("gtxSimplePage");if(p){p.classList.remove("open");p.style.setProperty("display","none","important");}
+    let previous=null;
+    while(stack.length&&!previous){const id=stack.pop();const candidate=byId(id);if(candidate&&candidate.id!=="menuDrawer"&&candidate.id!=="gtxSimplePage")previous=candidate;}
+    if(previous){previous.classList.add("open");previous.style.removeProperty("display");previous.style.removeProperty("z-index");previous.removeAttribute("aria-hidden");}
+    else{document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(el=>{el.classList.remove("open");el.style.setProperty("display","none","important");});}
+    const h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display",document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open")?"none":"flex","important");
   }
   function openGtxSecurity(){
     const session=!!localStorage.getItem("gotradex_logged_in_user")||!!localStorage.getItem("gotradex_current_user")||!!localStorage.getItem("gotradex_session");
