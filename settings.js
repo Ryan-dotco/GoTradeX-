@@ -24,47 +24,45 @@ function portalMarkup(){
  '<button type="button" class="settings-main-action" id="saveSettingsButton">Save Settings</button><div class="settings-status" id="settingsStatus" role="status"></div>'+
  '<button type="button" class="settings-secondary-action" id="settingsBackButton" style="width:100%;margin-top:10px">← Back to Previous Portal</button></div>';
 }
+function hexMix(hex,amount){
+ var h=String(hex||"#2563eb").replace("#","");if(h.length!==6)return "#93c5fd";
+ var out="#";for(var i=0;i<3;i++){var n=parseInt(h.slice(i*2,i*2+2),16);n=Math.round(n+(255-n)*amount);out+=n.toString(16).padStart(2,"0");}return out;
+}
+function setPalette(accent,theme){
+ var root=document.documentElement,light=hexMix(accent,.62);
+ root.style.setProperty("--gtx-accent",accent);root.style.setProperty("--gtx-accent-soft",hexMix(accent,.84));root.style.setProperty("--gtx-accent-light",light);root.style.setProperty("--gtx-accent-border",hexMix(accent,.38));root.style.setProperty("--gtx-accent-glow",accent+"35");
+ root.style.setProperty("--gtx-page-surface",theme==="light"?"#f4f6f8":"#081b31");root.style.setProperty("--gtx-panel-surface",theme==="light"?"#ffffff":"#0b2038");root.style.setProperty("--gtx-screen-text",theme==="light"?"#111827":"#f8fafc");
+ document.body.setAttribute("data-theme",theme);document.body.dataset.gtxTheme=theme;
+ if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme({accent:accent,text:light,grid:hexMix(accent,.9),border:hexMix(accent,.55),background:theme==="light"?"#f4f6f8":"#07111d"});
+}
 function setTheme(theme){
- if(["dark","light","default-dark","custom"].indexOf(theme)<0)theme="default-dark";
- safeSet("gtx_theme",theme);
- document.body.setAttribute("data-theme",theme);
- var bg=theme==="light"?"#ffffff":(theme==="dark"?"#111827":"#0a0a0a");
- var fg=theme==="light"?"#111827":"#ffffff";
- if(theme==="custom")bg=safeGet("gtx_custom_color","#0a0a0a");
- document.body.style.backgroundColor=bg;document.body.style.color=fg;
- var app=document.querySelector(".app");if(app){app.style.backgroundColor=bg;app.style.color=fg;}
+ if(["dark","light","default-dark","custom"].indexOf(theme)<0)theme="default-dark";safeSet("gtx_theme",theme);
+ var accent=theme==="custom"?safeGet("gtx_custom_color","#2563eb"):(theme==="light"?"#2563eb":theme==="dark"?"#64748b":"#2563eb");
+ setPalette(accent,theme==="light"?"light":"dark");
  var preview=byId("settingsBgPreview"),img=safeGet("gtx_custom_bg_image","");
- if(preview){preview.style.backgroundImage=img?'url("'+img+'")':"none";preview.style.backgroundColor=safeGet("gtx_custom_color",bg);preview.style.backgroundSize="cover";preview.style.backgroundPosition="center";}
+ if(preview){preview.style.backgroundImage=img?'url("'+img+'")':"none";preview.style.backgroundColor=safeGet("gtx_custom_color",accent);preview.style.backgroundSize="cover";preview.style.backgroundPosition="center";}
  document.querySelectorAll("#"+overlayId+" [data-theme-choice]").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-theme-choice")===theme);});
 }
 function setCustomColor(color){
- if(!/^#[0-9a-f]{6}$/i.test(color))return;
- safeSet("gtx_theme","custom");safeSet("gtx_custom_color",color);
- try{localStorage.removeItem("gtx_custom_bg_image");}catch(e){}
- setTheme("custom");
- var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage="none";preview.style.backgroundColor=color;}
- var status=byId("bgStatus");if(status)status.textContent="Custom color applied.";
+ if(!/^#[0-9a-f]{6}$/i.test(color))return;safeSet("gtx_theme","custom");safeSet("gtx_custom_color",color);try{localStorage.removeItem("gtx_custom_bg_image");}catch(e){}
+ setPalette(color,"dark");var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage="none";preview.style.backgroundColor=color;}
+ var status=byId("bgStatus");if(status)status.textContent="Accent color applied to chart, scales and menus.";
 }
 function uploadCustomBg(input){
- var file=input&&input.files&&input.files[0];if(!file)return;
- var status=byId("bgStatus");
+ var file=input&&input.files&&input.files[0];if(!file)return;var status=byId("bgStatus");
  if(!file.type||file.type.indexOf("image/")!==0){if(status)status.textContent="Please select an image file.";return;}
  if(file.size>3*1024*1024){if(status)status.textContent="Image is too large. Choose an image under 3 MB.";input.value="";return;}
- var reader=new FileReader();
- reader.onload=function(e){var data=String(e.target.result||"");if(!safeSet("gtx_custom_bg_image",data)){if(status)status.textContent="Could not save image. Try a smaller image.";return;}
- var preview=byId("settingsBgPreview");if(preview)preview.style.backgroundImage='url("'+data+'")';
- document.body.style.backgroundImage='url("'+data+'")';document.body.style.backgroundSize="cover";document.body.style.backgroundAttachment="fixed";
- var app=document.querySelector(".app");if(app){app.style.backgroundImage='url("'+data+'")';app.style.backgroundSize="cover";app.style.backgroundPosition="center";}
- if(status)status.textContent="Custom image set ✓";};
- reader.readAsDataURL(file);
+ var reader=new FileReader();reader.onload=function(e){var data=String(e.target.result||"");if(!safeSet("gtx_custom_bg_image",data)){if(status)status.textContent="Could not save image. Try a smaller image.";return;}
+  var preview=byId("settingsBgPreview");if(preview)preview.style.backgroundImage='url("'+data+'")';
+  if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.setWallpaper==="function")window.GoTradeXLiveChart.setWallpaper(data);
+  if(status)status.textContent="Wallpaper applied inside the Kengly chart ✓";
+ };reader.readAsDataURL(file);
 }
 function removeCustomBg(){
  try{localStorage.removeItem("gtx_custom_bg_image");localStorage.removeItem("gtx_custom_color");}catch(e){}
- document.body.style.backgroundImage="";document.body.style.backgroundAttachment="";
- var app=document.querySelector(".app");if(app)app.style.backgroundImage="";
  var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage="";preview.style.backgroundColor="";}
- var status=byId("bgStatus");if(status)status.textContent="Removed - Back to Default Dark";
- setTheme("default-dark");
+ if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.setWallpaper==="function")window.GoTradeXLiveChart.setWallpaper("");
+ var status=byId("bgStatus");if(status)status.textContent="Wallpaper and custom color removed.";setTheme("default-dark");
 }
 function closeOverlay(toPrevious){
  var overlay=byId(overlayId);if(overlay)overlay.classList.remove("is-open");
@@ -92,7 +90,7 @@ function openSettings(){
   byId("settingsStatus").textContent="Settings saved locally ✓ Balances and trading connections were not changed.";
  });
  var img=safeGet("gtx_custom_bg_image",""),color=safeGet("gtx_custom_color","");
- var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage=img?'url("'+img+'")':"none";if(color)preview.style.backgroundColor=color;}
+ var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage=img?'url("'+img+'")':"none";if(color)preview.style.backgroundColor=color;} if(img&&window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.setWallpaper==="function")window.GoTradeXLiveChart.setWallpaper(img);
 }
 window.openGtxSettings=openSettings;
 window.gtxSettingsSetTheme=setTheme;
