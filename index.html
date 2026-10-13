@@ -201,7 +201,7 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
  .gtxPortalCard{padding:11px}
 }
 </style>
-<link rel="stylesheet" href="style.css?v=20261014navfix1">
+<link rel="stylesheet" href="style.css?v=20261014navfix2">
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
@@ -2871,7 +2871,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.openGtxProfilePanel=showProfile;
 })();
 </script>
-<script src="settings.js?v=20261014navfix1"></script>
+<script src="settings.js?v=20261014navfix2"></script>
 <script id="gtx-profile-window-capture-fix">
 (function(){
   "use strict";
@@ -3048,6 +3048,101 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var observer=new MutationObserver(function(){addNavButtons();});
   observer.observe(document.body,{childList:true,subtree:true});
   syncHeader();
+})();
+</script>
+
+
+<script id="gtx-navigation-reopen-recovery-20261014">
+(function(){
+  "use strict";
+  var history=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+  var selector=".drawer,.adminPage,.adminDrawer,.helpPage,.supportPage,.myTeamPage,.policyPage,.termsPage,.userAutoBotDrawer,.agentWidget,.keypad";
+  function hide(el){
+    if(!el)return;
+    el.classList.remove("open");
+    el.style.setProperty("display","none","important");
+    el.setAttribute("aria-hidden","true");
+  }
+  function show(el){
+    if(!el)return;
+    el.style.removeProperty("display");
+    el.style.removeProperty("z-index");
+    el.removeAttribute("aria-hidden");
+    el.classList.add("open");
+    if(["helpPage","supportPage","myTeamPage"].indexOf(el.id)>=0)el.style.setProperty("display","block","important");
+  }
+  function sync(){
+    var active=document.querySelector(selector.split(",").map(function(x){return x+".open";}).join(","));
+    var header=document.querySelector(".gtxKenglyHeader");
+    if(header)header.style.setProperty("display",active?"none":"flex","important");
+    document.body.classList.toggle("gtx-subscreen-open",!!active);
+  }
+  function showMenu(){
+    var menu=document.getElementById("menuDrawer");
+    if(!menu)return;
+    document.querySelectorAll(selector+".open").forEach(function(el){if(el!==menu)hide(el);});
+    show(menu);
+    menu.style.setProperty("z-index","2147483001","important");
+    sync();
+  }
+  function showProfile(){
+    var menu=document.getElementById("menuDrawer");
+    if(menu)hide(menu);
+    try{if(typeof window.openGtxProfile==="function")window.openGtxProfile();}catch(e){console.error("Profile open failed",e);}
+    var profile=document.getElementById("gtxProfileDrawer");
+    if(profile){show(profile);profile.style.setProperty("z-index","2147483002","important");}
+    if(typeof window.updateGtxProfileMenu==="function")window.updateGtxProfileMenu();
+    sync();
+  }
+  function closeToTrading(){
+    document.querySelectorAll(selector).forEach(hide);
+    var simple=document.getElementById("gtxSimplePage");
+    if(simple)hide(simple);
+    var settings=document.getElementById("portal-settings-standalone");
+    if(settings)settings.classList.remove("is-open");
+    history.length=0;
+    window.scrollTo(0,0);
+    sync();
+  }
+  function backOne(){
+    var open=Array.prototype.slice.call(document.querySelectorAll(selector+".open"));
+    open.forEach(hide);
+    var simple=document.getElementById("gtxSimplePage");
+    if(simple)hide(simple);
+    var previous=null;
+    while(history.length&&!previous){
+      var id=history.pop(),candidate=document.getElementById(id);
+      if(candidate&&candidate.isConnected&&candidate.id!=="gtxSimplePage")previous=candidate;
+    }
+    if(previous)show(previous);
+    sync();
+  }
+  // Repair the menu after legacy click handlers have finished; opening is idempotent, never a toggle.
+  window.addEventListener("pointerup",function(e){
+    var t=e.target&&e.target.closest?e.target.closest("#menuBtn,#gtxPortalMenu"):null;
+    if(!t)return;
+    setTimeout(showMenu,0);
+  },true);
+  // Profile gets the same recovery if another legacy handler swallowed its click.
+  window.addEventListener("pointerup",function(e){
+    var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="profile"]'):null;
+    if(!b)return;
+    if(history[history.length-1]!=="menuDrawer")history.push("menuDrawer");
+    setTimeout(showProfile,0);
+  },true);
+  // Close always returns to the chart; Back always restores the previous portal.
+  window.addEventListener("click",function(e){
+    var b=e.target&&e.target.closest?e.target.closest(".gtxUniversalBack,[data-nav-back],button.close,[data-close],#settingsCloseToTrading,#gtxProfileClose,#gtxProfileFallbackClose"):null;
+    if(!b)return;
+    if(b.classList.contains("gtxUniversalBack")||b.hasAttribute("data-nav-back")){
+      e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+      backOne();return;
+    }
+    if(b.id==="gtxAccountBackToTrading")return;
+    e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+    closeToTrading();
+  },true);
+  window.GoTradeXNavigationRecovery={showMenu:showMenu,showProfile:showProfile,closeToTrading:closeToTrading,back:backOne};
 })();
 </script>
 
