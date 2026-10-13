@@ -2861,5 +2861,147 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.addEventListener("click",routeProfile,true);
 })();
 </script>
+
+<script id="gtx-navigation-reopen-stability-fix">
+(function(){
+  "use strict";
+  var historyStack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+  var layerSelector=".drawer,.adminPage,.adminDrawer,.helpPage,.supportPage,.myTeamPage,.policyPage,.termsPage,.userAutoBotDrawer,.agentWidget,.keypad";
+  function isVisible(el){return !!el&&(el.classList.contains("open")||getComputedStyle(el).display!=="none");}
+  function hide(el){
+    if(!el)return;
+    el.classList.remove("open");
+    el.style.setProperty("display","none","important");
+    el.setAttribute("aria-hidden","true");
+  }
+  function show(el){
+    if(!el)return;
+    el.classList.add("open");
+    el.style.removeProperty("display");
+    el.style.removeProperty("z-index");
+    el.removeAttribute("aria-hidden");
+    if(["helpPage","supportPage","myTeamPage"].indexOf(el.id)>=0)el.style.display="block";
+  }
+  function visibleLayers(){
+    return Array.prototype.slice.call(document.querySelectorAll(layerSelector))
+      .filter(function(el){return el.id&&isVisible(el)&&el.id!=="menuDrawer";});
+  }
+  function rememberCurrent(exceptId){
+    visibleLayers().forEach(function(el){
+      if(el.id!==exceptId&&historyStack[historyStack.length-1]!==el.id)historyStack.push(el.id);
+    });
+  }
+  function syncHeader(){
+    var open=document.querySelector(layerSelector.split(",").map(function(s){return s+".open";}).join(","));
+    var h=document.querySelector(".gtxKenglyHeader");
+    if(h)h.style.setProperty("display",open?"none":"flex","important");
+    document.body.classList.toggle("gtx-subscreen-open",!!open);
+  }
+  function closeToTrading(){
+    document.querySelectorAll(layerSelector).forEach(hide);
+    var simple=document.getElementById("gtxSimplePage");if(simple)hide(simple);
+    historyStack.length=0;
+    syncHeader();
+    window.scrollTo(0,0);
+  }
+  function backOne(){
+    var current=visibleLayers();
+    current.forEach(hide);
+    var previous=null;
+    while(historyStack.length&&!previous){
+      var id=historyStack.pop(),candidate=document.getElementById(id);
+      if(candidate&&candidate.id!=="menuDrawer"&&candidate.isConnected)previous=candidate;
+    }
+    if(previous)show(previous);
+    syncHeader();
+    if(!previous)window.scrollTo(0,0);
+  }
+  function addNavButtons(){
+    document.querySelectorAll(".drawer,.adminPage,.adminDrawer,.helpPage,.supportPage,.myTeamPage,.policyPage,.termsPage,.userAutoBotDrawer,.agentWidget").forEach(function(layer){
+      if(!layer.id||layer.id==="menuDrawer"||layer.id==="gtxProfileDrawer"&&layer.querySelector("#gtxProfileNavBack"))return;
+      var panel=layer.querySelector(".panel,.adminTop,header");
+      if(!panel)return;
+      if(!panel.querySelector(".gtxUniversalBack")){
+        var back=document.createElement("button");
+        back.type="button";back.className="gtxUniversalBack";back.textContent="← Back";
+        back.setAttribute("aria-label","Go back to previous page");
+        back.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();backOne();});
+        panel.insertBefore(back,panel.firstChild);
+      }
+    });
+  }
+  var style=document.createElement("style");
+  style.id="gtx-universal-navigation-controls-style";
+  style.textContent=".gtxUniversalBack{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin:0 8px 10px 0;padding:7px 12px;border:1px solid #315779;border-radius:8px;background:#12315a;color:#fff;font-size:12px;font-weight:800;cursor:pointer}.gtxUniversalBack:active{transform:scale(.98)}";
+  document.head.appendChild(style);
+  addNavButtons();
+
+  var api=window.GoTradeXNavigation;
+  if(api&&!api.__gtxReopenStable){
+    var oldShow=api.show,oldClose=api.close;
+    api.show=function(id){
+      rememberCurrent(id);
+      var el=document.getElementById(id);
+      if(el){el.style.removeProperty("display");el.style.removeProperty("z-index");el.removeAttribute("aria-hidden");}
+      var result=typeof oldShow==="function"?oldShow.call(this,id):false;
+      if(el)show(el);
+      syncHeader();addNavButtons();return result;
+    };
+    api.close=function(id){
+      var el=document.getElementById(id);if(el)hide(el);
+      syncHeader();return typeof oldClose==="function"?oldClose.call(this,id):undefined;
+    };
+    api.__gtxReopenStable=true;
+  }
+
+  /* Reopen the main two-column menu even after another handler set display:none. */
+  window.addEventListener("click",function(e){
+    var menuButton=e.target&&e.target.closest?e.target.closest("#menuBtn"):null;
+    if(menuButton){
+      var menu=document.getElementById("menuDrawer");
+      if(menu){rememberCurrent("menuDrawer");show(menu);syncHeader();}
+      return;
+    }
+    var profileButton=e.target&&e.target.closest?e.target.closest('[data-profile-action="profile"]'):null;
+    if(profileButton){
+      rememberCurrent("gtxProfileDrawer");
+      var menu=document.getElementById("menuDrawer");if(menu)hide(menu);
+      try{if(typeof window.openGtxProfile==="function")window.openGtxProfile();}catch(err){console.error("GoTradeX Profile open failed:",err);}
+      var profile=document.getElementById("gtxProfileDrawer");
+      if(profile)show(profile);
+      syncHeader();addNavButtons();
+    }
+  },true);
+
+  /* Every explicit Close returns to the trading screen; Back uses the history stack. */
+  window.addEventListener("click",function(e){
+    var b=e.target&&e.target.closest?e.target.closest("button.close,[data-close],#settingsCloseToTrading,#gtxProfileClose,#gtxProfileFallbackClose"):null;
+    if(!b)return;
+    if(b.classList.contains("gtxUniversalBack"))return;
+    if(b.matches("#gtxAccountBackToTrading"))return;
+    if(b.id==="gtxProfileClose"||b.id==="gtxProfileFallbackClose"||b.id==="settingsCloseToTrading"||b.hasAttribute("data-close")||b.classList.contains("close")){
+      e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+      closeToTrading();
+    }
+  },true);
+
+  /* Catch direct opens that bypass the shared navigation helper and normalize visibility. */
+  var profileOpen=window.openGtxProfile;
+  if(typeof profileOpen==="function"&&!profileOpen.__gtxWrapped){
+    var wrapped=function(){
+      rememberCurrent("gtxProfileDrawer");
+      var result=profileOpen.apply(this,arguments);
+      var p=document.getElementById("gtxProfileDrawer");if(p)show(p);
+      syncHeader();addNavButtons();return result;
+    };
+    wrapped.__gtxWrapped=true;
+    window.openGtxProfile=wrapped;
+  }
+  var observer=new MutationObserver(function(){addNavButtons();});
+  observer.observe(document.body,{childList:true,subtree:true});
+  syncHeader();
+})();
+</script>
+
 </body>
 </html>
