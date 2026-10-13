@@ -1277,7 +1277,7 @@ body.gtx-subscreen-open .pairbar{display:none!important}
 document.getElementById("gtxHistoryRefresh")?.addEventListener("click",loadGtxHistory);
 document.addEventListener("click",e=>{if(e.target.closest('[data-account-history-open]'))setTimeout(loadGtxHistory,50)},true);
 function syncAccountPages(){
- var mode=document.body.dataset.accountMode==="REAL"?"REAL":"DEMO";
+ var realTab=document.getElementById("btnRealTab");var mode=realTab&&realTab.classList.contains("active")?"REAL":"DEMO";
  var b=typeof loadTradingBalances==="function"?loadTradingBalances():{demo:10000,real:0};
  var m=document.getElementById("gtxHistoryMode"),d=document.getElementById("gtxDetailsMode"),db=document.getElementById("gtxDetailsDemo"),rb=document.getElementById("gtxDetailsReal");
  if(m)m.textContent="Current account: "+mode;
@@ -1290,7 +1290,203 @@ window.addEventListener("storage",syncAccountPages);
 setTimeout(syncAccountPages,300);
 })();
 </script>
-<script id="gtx-account-portal-client">(function(){var rows=[],filter="ALL",mode="REAL";function money(v){return "$"+Number(v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}function render(){var body=document.getElementById("realHistoryBody");if(!body)return;var shown=rows.filter(function(x){var k=String(x.kind||"").toLowerCase(),st=String(x.status||"recorded").toLowerCase();if(filter==="deposit")return k.indexOf("deposit")>=0;if(filter==="withdrawal")return k.indexOf("withdraw")>=0;if(filter==="pending")return st.indexOf("pending")>=0||st.indexOf("processing")>=0||st.indexOf("review")>=0;if(filter==="rejected")return st.indexOf("reject")>=0||st.indexOf("failed")>=0||st.indexOf("cancel")>=0;if(filter==="successful")return /success|complete|approved|paid|recorded/.test(st);return true;});body.innerHTML=shown.length?shown.map(function(x){return "<tr><td>"+new Date(x.date).toLocaleString()+"</td><td>"+String(x.kind||"ACTIVITY").replace(/[<>]/g,"")+"</td><td>"+money(x.amount)+"</td><td>"+String(x.status||"RECORDED").toUpperCase().replace(/[<>]/g,"")+"</td><td title=\\""+String(x.ref||"—").replace(/["<>]/g,"")+"\\">"+String(x.ref||"—").replace(/[<>]/g,"")+"</td></tr>";}).join(""):"<tr><td colspan=\\"5\\">No records found for this filter.</td></tr>";var st=document.getElementById("accountPortalStatus");if(st)st.textContent=mode+" account selected. Showing "+shown.length+" of "+rows.length+" recorded activities.";var b=typeof loadTradingBalances==="function"?loadTradingBalances():{demo:10000,real:0};var bal=document.getElementById("accountBalance");if(bal)bal.textContent=money(mode==="REAL"?b.real:b.demo);}window.switchAccountTab=function(v){mode=String(v||"DEMO").toUpperCase()==="REAL"?"REAL":"DEMO";document.getElementById("btnRealTab")?.classList.toggle("active",mode==="REAL");document.getElementById("btnDemoTab")?.classList.toggle("active",mode==="DEMO");var d=document.getElementById("gtxDetailsMode");if(d)d.textContent=mode;render();};document.querySelectorAll("[data-account-filter]").forEach(function(b){b.addEventListener("click",function(){filter=b.getAttribute("data-account-filter")||"ALL";document.querySelectorAll("[data-account-filter]").forEach(function(x){x.classList.toggle("active",x===b);});render();});});async function load(){var body=document.getElementById("realHistoryBody");if(body)body.innerHTML="<tr><td colspan=\\"5\\">Loading account history…</td></tr>";try{var sb=window.GoTradeXHistorySupabase||(window.GoTradeXHistorySupabase=window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));var auth=await sb.auth.getUser();var user=auth.data&&auth.data.user;if(!user)throw new Error("Sign in to view your account history.");var res=await Promise.all([sb.from("gotradex_deposits").select("amount,payment_method,payment_reference,status,requested_at").eq("user_id",user.id).order("requested_at",{ascending:false}),sb.from("gotradex_withdrawals").select("amount,status,requested_at").eq("user_id",user.id).order("requested_at",{ascending:false}),sb.from("gotradex_wallet_transactions").select("transaction_type,amount,reference_id,created_at").eq("user_id",user.id).order("created_at",{ascending:false})]);res.forEach(function(r){if(r.error)throw r.error;});var dep=res[0].data||[],wit=res[1].data||[],tx=res[2].data||[];rows=dep.map(function(x){return {kind:"DEPOSIT",amount:x.amount,status:x.status,date:x.requested_at,ref:x.payment_reference||"—"};}).concat(wit.map(function(x){return {kind:"WITHDRAWAL",amount:x.amount,status:x.status,date:x.requested_at,ref:x.reference_id||"—"};}),tx.map(function(x){return {kind:String(x.transaction_type||"WALLET").toUpperCase(),amount:x.amount,status:"RECORDED",date:x.created_at,ref:x.reference_id||"—"};})).sort(function(a,b){return new Date(b.date)-new Date(a.date);});var okDep=dep.filter(function(x){return /success|complete|approved|paid/i.test(String(x.status||""));}).reduce(function(a,x){return a+Number(x.amount||0);},0);var okWit=wit.filter(function(x){return /success|complete|approved|paid/i.test(String(x.status||""));}).reduce(function(a,x){return a+Number(x.amount||0);},0);var pend=dep.concat(wit).filter(function(x){return /pending|processing|review/i.test(String(x.status||""));}).reduce(function(a,x){return a+Number(x.amount||0);},0);var e=document.getElementById("realTotalDep");if(e)e.textContent=money(okDep);e=document.getElementById("realTotalWit");if(e)e.textContent=money(okWit);e=document.getElementById("realPending");if(e)e.textContent=money(pend);render();}catch(err){if(body)body.innerHTML="<tr><td colspan=\\"5\\">"+String(err&&err.message||"History unavailable").replace(/[<>]/g,"")+"</td></tr>";var st=document.getElementById("accountPortalStatus");if(st)st.textContent=String(err&&err.message||"History unavailable");}}document.getElementById("gtxAccountRefresh")?.addEventListener("click",load);document.addEventListener("click",function(e){if(e.target.closest("#gtxAccountDetails"))setTimeout(load,80);},true);var portal=document.getElementById("gtxAccountDetails");if(portal&&window.MutationObserver)new MutationObserver(function(){if(portal.classList.contains("open"))load();}).observe(portal,{attributes:true,attributeFilter:["class"]});window.addEventListener("storage",render);setTimeout(function(){switchAccountTab(document.body.dataset.accountMode||"DEMO");},350);})();</script><style id="gtx-registration-fields">.gtxRegistrationFields{display:grid;gap:0}.gtxRegistrationFields .gtxBybitAuthField{margin-top:10px}</style>\n<style id="gtx-bybit-auth-code">
+<script id="gtx-account-portal-client">
+(function(){
+  "use strict";
+  var rows = [];
+  var filter = "ALL";
+  var mode = "REAL";
+  var loadInProgress = false;
+  var escapeHtml = function(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+    });
+  };
+  function money(value) {
+    var amount = Number(value);
+    if (!Number.isFinite(amount)) amount = 0;
+    return "$" + amount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function getBalances() {
+    try {
+      if (typeof window.loadTradingBalances === "function") {
+        var result = window.loadTradingBalances() || {};
+        return {demo:Number(result.demo)||0, real:Number(result.real)||0};
+      }
+    } catch (e) {}
+    return {demo:10000, real:0};
+  }
+  function isPending(status) {
+    return /pending|processing|review|awaiting|initiated/.test(String(status || "").toLowerCase());
+  }
+  function isRejected(status) {
+    return /reject|failed|failure|cancel|declin|denied/.test(String(status || "").toLowerCase());
+  }
+  function isSuccessful(status) {
+    return /success|complete|approved|paid|settled|confirmed|recorded/.test(String(status || "").toLowerCase());
+  }
+  function filterRows() {
+    return rows.filter(function(row) {
+      var kind = String(row.kind || "").toLowerCase();
+      var status = String(row.status || "").toLowerCase();
+      if (filter === "deposit") return kind.indexOf("deposit") !== -1;
+      if (filter === "withdrawal") return kind.indexOf("withdraw") !== -1;
+      if (filter === "pending") return isPending(status);
+      if (filter === "rejected") return isRejected(status);
+      if (filter === "successful") return isSuccessful(status);
+      return true;
+    });
+  }
+  function render() {
+    var body = document.getElementById("realHistoryBody");
+    if (!body) return;
+    var shown = filterRows();
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5">No history</td></tr>';
+    } else if (!shown.length) {
+      body.innerHTML = '<tr><td colspan="5">No history for this filter</td></tr>';
+    } else {
+      body.innerHTML = shown.map(function(row) {
+        var date = row.date ? new Date(row.date) : null;
+        var dateText = date && !Number.isNaN(date.getTime()) ? date.toLocaleString() : "—";
+        return "<tr><td>" + escapeHtml(dateText) + "</td><td>" +
+          escapeHtml(row.kind || "ACTIVITY") + "</td><td>" + money(row.amount) +
+          "</td><td>" + escapeHtml(String(row.status || "RECORDED").toUpperCase()) +
+          "</td><td>" + escapeHtml(row.ref || "—") + "</td></tr>";
+      }).join("");
+    }
+    var statusNode = document.getElementById("accountPortalStatus");
+    if (statusNode) {
+      statusNode.textContent = rows.length
+        ? mode + " account selected. Showing " + shown.length + " of " + rows.length + " recorded activities."
+        : (loadInProgress ? "Loading account history…" : "No history recorded yet.");
+    }
+    var balances = getBalances();
+    var balanceNode = document.getElementById("accountBalance");
+    if (balanceNode) balanceNode.textContent = money(mode === "REAL" ? balances.real : balances.demo);
+    var demoNode = document.getElementById("gtxDetailsDemo");
+    var realNode = document.getElementById("gtxDetailsReal");
+    var modeNode = document.getElementById("gtxDetailsMode");
+    if (demoNode) demoNode.textContent = money(balances.demo);
+    if (realNode) realNode.textContent = money(balances.real);
+    if (modeNode) modeNode.textContent = mode;
+  }
+  window.switchAccountTab = function(value) {
+    mode = String(value || "").toUpperCase() === "DEMO" ? "DEMO" : "REAL";
+    var realButton = document.getElementById("btnRealTab");
+    var demoButton = document.getElementById("btnDemoTab");
+    if (realButton) {
+      realButton.classList.toggle("active", mode === "REAL");
+      realButton.setAttribute("aria-selected", mode === "REAL" ? "true" : "false");
+    }
+    if (demoButton) {
+      demoButton.classList.toggle("active", mode === "DEMO");
+      demoButton.setAttribute("aria-selected", mode === "DEMO" ? "true" : "false");
+    }
+    render();
+  };
+  document.addEventListener("click", function(event) {
+    var button = event.target && event.target.closest ? event.target.closest("[data-account-filter]") : null;
+    if (button) {
+      filter = button.getAttribute("data-account-filter") || "ALL";
+      document.querySelectorAll("[data-account-filter]").forEach(function(item) {
+        var selected = item === button;
+        item.classList.toggle("active", selected);
+        item.setAttribute("aria-pressed", selected ? "true" : "false");
+      });
+      render();
+      return;
+    }
+    if (event.target && event.target.closest && event.target.closest("#gtxAccountRefresh")) {
+      loadHistory();
+    }
+  });
+  async function loadHistory() {
+    if (loadInProgress) return;
+    var body = document.getElementById("realHistoryBody");
+    if (!body) return;
+    loadInProgress = true;
+    body.innerHTML = '<tr><td colspan="5">Loading account history…</td></tr>';
+    var statusNode = document.getElementById("accountPortalStatus");
+    if (statusNode) statusNode.textContent = "Loading account history…";
+    try {
+      var sb = window.GoTradeXHistorySupabase || (window.GoTradeXHistorySupabase =
+        window.supabase.createClient(
+          "https://glffecggusetzklmyukv.supabase.co",
+          "sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",
+          {auth:{persistSession:true, autoRefreshToken:true}}
+        ));
+      var authResult = await sb.auth.getUser();
+      var user = authResult && authResult.data && authResult.data.user;
+      if (!user) {
+        rows = [];
+        body.innerHTML = '<tr><td colspan="5">No history — sign in to view your account records.</td></tr>';
+        if (statusNode) statusNode.textContent = "Sign in to view recorded account history.";
+        return;
+      }
+      var results = await Promise.all([
+        sb.from("gotradex_deposits").select("amount,payment_method,payment_reference,status,requested_at").eq("user_id", user.id).order("requested_at", {ascending:false}),
+        sb.from("gotradex_withdrawals").select("amount,status,requested_at,reference_id").eq("user_id", user.id).order("requested_at", {ascending:false}),
+        sb.from("gotradex_wallet_transactions").select("transaction_type,amount,reference_id,created_at").eq("user_id", user.id).order("created_at", {ascending:false})
+      ]);
+      var errors = results.filter(function(result) { return result && result.error; });
+      var deposits = results[0] && !results[0].error ? (results[0].data || []) : [];
+      var withdrawals = results[1] && !results[1].error ? (results[1].data || []) : [];
+      var transactions = results[2] && !results[2].error ? (results[2].data || []) : [];
+      rows = deposits.map(function(item) {
+        return {kind:"DEPOSIT", amount:item.amount, status:item.status || "RECORDED", date:item.requested_at, ref:item.payment_reference || item.payment_method || "—"};
+      }).concat(withdrawals.map(function(item) {
+        return {kind:"WITHDRAWAL", amount:item.amount, status:item.status || "RECORDED", date:item.requested_at, ref:item.reference_id || "—"};
+      })).concat(transactions.map(function(item) {
+        return {kind:String(item.transaction_type || "WALLET").toUpperCase(), amount:item.amount, status:"RECORDED", date:item.created_at, ref:item.reference_id || "—"};
+      })).sort(function(a,b) {
+        return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+      });
+      var successfulDeposits = deposits.filter(function(item) { return isSuccessful(item.status); });
+      var successfulWithdrawals = withdrawals.filter(function(item) { return isSuccessful(item.status); });
+      var pendingItems = deposits.concat(withdrawals).filter(function(item) { return isPending(item.status); });
+      var totalDeposits = successfulDeposits.reduce(function(total,item) { return total + (Number(item.amount) || 0); }, 0);
+      var totalWithdrawals = successfulWithdrawals.reduce(function(total,item) { return total + (Number(item.amount) || 0); }, 0);
+      var pendingTotal = pendingItems.reduce(function(total,item) { return total + (Number(item.amount) || 0); }, 0);
+      var node = document.getElementById("realTotalDep"); if (node) node.textContent = money(totalDeposits);
+      node = document.getElementById("realTotalWit"); if (node) node.textContent = money(totalWithdrawals);
+      node = document.getElementById("realPending"); if (node) node.textContent = money(pendingTotal);
+      render();
+      if (errors.length && statusNode) {
+        statusNode.textContent = "Some history sources could not be read. Displaying the records available from accessible sources.";
+      }
+    } catch (error) {
+      rows = [];
+      body.innerHTML = '<tr><td colspan="5">History unavailable — ' +
+        escapeHtml(error && error.message ? error.message : "please try again.") + '</td></tr>';
+      if (statusNode) statusNode.textContent = "Could not load account history. Use Refresh account history to try again.";
+    } finally {
+      loadInProgress = false;
+      if (rows.length === 0 && body && body.textContent.indexOf("History unavailable") === -1 &&
+          body.textContent.indexOf("sign in") === -1) {
+        body.innerHTML = '<tr><td colspan="5">No history</td></tr>';
+        if (statusNode) statusNode.textContent = "No history recorded yet.";
+      }
+    }
+  }
+  document.addEventListener("click", function(event) {
+    if (event.target && event.target.closest && event.target.closest("#gtxAccountDetails")) {
+      window.setTimeout(function() {
+        var portal = document.getElementById("gtxAccountDetails");
+        if (portal && portal.classList.contains("open")) loadHistory();
+      }, 80);
+    }
+  }, true);
+  var portal = document.getElementById("gtxAccountDetails");
+  if (portal && window.MutationObserver) {
+    new MutationObserver(function() {
+      if (portal.classList.contains("open")) loadHistory();
+    }).observe(portal, {attributes:true, attributeFilter:["class"]});
+  }
+  window.addEventListener("storage", render);
+  window.switchAccountTab("REAL");
+})();
+</script><style id="gtx-registration-fields">.gtxRegistrationFields{display:grid;gap:0}.gtxRegistrationFields .gtxBybitAuthField{margin-top:10px}</style>\n<style id="gtx-bybit-auth-code">
 .gtxBybitCodeWrap{display:none;margin-top:12px;padding:12px;border:1px solid #176fca;border-radius:10px;background:#071a30}.gtxBybitCodeWrap.open{display:block}.gtxBybitCodeTitle{font-size:11px;font-weight:900;color:#fff;letter-spacing:.08em}.gtxBybitCodeHint{margin-top:5px;color:#8fa8c4;font-size:10px;line-height:1.45}.gtxBybitCodeActions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.gtxBybitCodeActions button{min-height:40px;border-radius:8px;background:#163554;color:#fff;font-weight:800;font-size:11px}.gtxBybitCodeActions button:first-child{background:#176fca}.gtxBybitAuthField input#gtxBybitAuthCode{text-align:center;letter-spacing:.28em;font-size:18px;font-weight:900}
 </style>
 <style id="gtx-account-mode-colors">
