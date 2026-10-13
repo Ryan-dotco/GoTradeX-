@@ -958,7 +958,7 @@ syncGtxKenglyVisibility();
       '<div class="adminSlot"><strong>Recent activity</strong>'+(rows||'<span>No recorded paper trades yet.</span>')+'</div>'
     );
   }
-  function openAccountPage(title,body){openSimplePanel(title,body)}
+  function openAccountPage(title,body){if(String(title||"").trim().toLowerCase()==="account"){if(window.GoTradeXNavigation&&typeof window.GoTradeXNavigation.show==="function")window.GoTradeXNavigation.show("gtxAccountDetails");else{var p=document.getElementById("gtxAccountDetails");if(p)p.classList.add("open");}if(typeof window.switchAccountTab==="function")window.switchAccountTab(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO");return;}openSimplePanel(title,body)}
 
   /* Replace the old menu handler that only displayed “section ready” for several items. */
   document.querySelectorAll(".menuItem").forEach(b=>{
