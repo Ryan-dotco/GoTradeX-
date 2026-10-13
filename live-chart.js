@@ -86,6 +86,7 @@
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
+    try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
     Object.keys(CFG.intervals).forEach(t=>{
@@ -504,6 +505,7 @@
       handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
       handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true}
     });
+    if(window.__gtxChartTheme&&window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme(window.__gtxChartTheme);
 
     state.candleSeries=state.chart.addCandlestickSeries({
       upColor:"#22c55e",downColor:"#ef4444",
