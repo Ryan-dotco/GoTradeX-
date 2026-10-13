@@ -201,7 +201,7 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
  .gtxPortalCard{padding:11px}
 }
 </style>
-<link rel="stylesheet" href="style.css?v=20261014navfix2">
+<link rel="stylesheet" href="style.css?v=20261014settings17">
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
@@ -2873,7 +2873,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.openGtxProfilePanel=showProfile;
 })();
 </script>
-<script src="settings.js?v=20261014navfix2"></script>
+<script src="settings.js?v=20261014settings17"></script>
 <script id="gtx-profile-window-capture-fix">
 (function(){
   "use strict";
@@ -3148,5 +3148,36 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 })();
 </script>
 
+
+<script id="gtx-final-profile-recovery-20261014">
+(function(){
+  "use strict";
+  function visible(el){if(!el)return false;var s=getComputedStyle(el);return el.classList.contains("open")&&s.display!=="none"&&s.visibility!=="hidden";}
+  window.addEventListener("pointerup",function(e){
+    var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="profile"]'):null;
+    if(!b)return;
+    window.setTimeout(function(){
+      var p=document.getElementById("gtxProfileDrawer");
+      if(visible(p))return;
+      var nav=window.GoTradeXNavigationRecovery;
+      if(nav&&typeof nav.showProfile==="function"){nav.showProfile();return;}
+      if(typeof window.openGtxProfile==="function")window.openGtxProfile();
+      p=document.getElementById("gtxProfileDrawer");
+      if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483002","important");}
+    },80);
+  },true);
+  window.addEventListener("pointerup",function(e){
+    var b=e.target&&e.target.closest?e.target.closest("#menuBtn,#gtxPortalMenu"):null;
+    if(!b)return;
+    window.setTimeout(function(){
+      var menu=document.getElementById("menuDrawer");
+      if(visible(menu))return;
+      var nav=window.GoTradeXNavigationRecovery;
+      if(nav&&typeof nav.showMenu==="function")nav.showMenu();
+      else if(menu){menu.classList.add("open");menu.style.removeProperty("display");menu.style.setProperty("z-index","2147483001","important");}
+    },80);
+  },true);
+})();
+</script>
 </body>
 </html>
