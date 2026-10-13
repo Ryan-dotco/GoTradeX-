@@ -905,7 +905,8 @@ syncGtxKenglyVisibility();
   function close(id){
     const el=byId(id); if(!el)return;
     el.classList.remove("open");
-    if(["helpPage","supportPage","myTeamPage"].includes(id)) el.style.display="none";
+    if(["helpPage","supportPage","myTeamPage","gtxAccountDetails"].includes(id)) el.style.display="none";
+    if(id==="gtxAccountDetails") el.style.zIndex="";
     const h=q(".gtxKenglyHeader");
     if(h) h.style.setProperty("display",document.querySelector(overlaySelectors.join(","))?"none":"flex","important");
   }
