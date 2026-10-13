@@ -2880,7 +2880,9 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     if(e.stopImmediatePropagation)e.stopImmediatePropagation();
     if(e.stopPropagation)e.stopPropagation();
     var menu=document.getElementById("menuDrawer");
-    if(menu)menu.classList.remove("open");
+    var portalHistory=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+    if(menu&&menu.classList.contains("open"))portalHistory.push("menuDrawer");
+    if(menu){menu.classList.remove("open");menu.style.removeProperty("display");}
     try{
       if(typeof window.openGtxProfile==="function")window.openGtxProfile();
     }catch(err){console.error("GoTradeX Profile route failed:",err);}
