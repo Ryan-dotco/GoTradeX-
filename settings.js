@@ -101,6 +101,7 @@ function applyTimezone(value,label){
  safeSet("gtx_timezone_offset",value);safeSet("gtx_timezone_label",label);
  document.documentElement.dataset.gtxTimezoneOffset=value;document.documentElement.dataset.gtxTimezoneLabel=label;
  var mins=parseOffset(value);document.documentElement.style.setProperty("--gtx-timezone-offset-minutes",String(mins));
+ if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTimezone==="function")window.GoTradeXLiveChart.applyTimezone(value);
  updateTimezonePreview();
 }
 function setToggle(id,on){
