@@ -1108,7 +1108,8 @@ syncGtxKenglyVisibility();
     if(typeof window.gtxApplyChartWallpaper==="function")window.gtxApplyChartWallpaper((()=>{try{return localStorage.getItem("gtx_custom_bg_image")||""}catch(e){return ""}})());
   }
   window.gtxSettingsSetTheme=gtxSettingsSetTheme;
-  window.gtxSettingsSetColor=gtxSettingsSetColor;\n  function gtxSettingsCloseToTrading(){
+  window.gtxSettingsSetColor=gtxSettingsSetColor;
+  function gtxSettingsCloseToTrading(){
     const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);stack.length=0;
     const selectors=".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open";
     document.querySelectorAll(selectors).forEach(el=>{el.classList.remove("open");el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");});
