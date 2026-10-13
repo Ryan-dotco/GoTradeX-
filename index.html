@@ -2576,6 +2576,40 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 
 
 
+<script id="gtx-account-close-route-fix">
+(function(){
+  "use strict";
+  function closeAccountNow(e){
+    var b=e.target&&e.target.closest?e.target.closest('#gtxAccountDetails [data-close="gtxAccountDetails"]'):null;
+    if(!b)return;
+    e.preventDefault();
+    e.stopPropagation();
+    if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+    var p=document.getElementById("gtxAccountDetails");
+    if(p){
+      p.classList.remove("open");
+      p.style.setProperty("display","none","important");
+      p.style.setProperty("z-index","-1","important");
+      p.setAttribute("aria-hidden","true");
+    }
+    var menu=document.getElementById("menuDrawer");
+    if(menu)menu.classList.remove("open");
+    var simple=document.getElementById("gtxSimplePage");
+    if(simple){simple.classList.remove("open");simple.style.setProperty("display","none","important");}
+    var header=document.querySelector(".gtxKenglyHeader");
+    var anotherOverlay=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
+    if(header)header.style.setProperty("display",anotherOverlay?"none":"flex","important");
+    document.body.classList.remove("gtx-subscreen-open");
+    document.dispatchEvent(new CustomEvent("gotradex:account-closed"));
+  }
+  document.addEventListener("click",closeAccountNow,true);
+  document.addEventListener("pointerup",function(e){
+    var b=e.target&&e.target.closest?e.target.closest('#gtxAccountDetails [data-close="gtxAccountDetails"]'):null;
+    if(b)closeAccountNow({target:b,preventDefault:function(){},stopPropagation:function(){},stopImmediatePropagation:function(){}});
+  },true);
+})();
+</script>
+
 <script id="gtx-account-force-route-final">
 (function(){
   "use strict";
