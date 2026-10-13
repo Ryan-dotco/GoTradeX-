@@ -1868,6 +1868,7 @@ setTimeout(syncAccountPages,300);
       const sb=profileClientReady(),{data,error}=await sb.auth.verifyOtp({phone,token,type:"phone_change"});
       if(error)throw error;
       phonePending="";
+      try{localStorage.setItem("gotradex_phone_verified","true")}catch(e){}
       const p=gtxProfileStore();p.phone=data?.user?.phone||phone;gtxProfileSave(p);
       document.getElementById("phoneVerifiedStatus").textContent="✓ Phone verified";
       profileStatus("Phone number verified by the account service.","ok");
