@@ -33,7 +33,7 @@ function setPalette(accent,theme){
  root.style.setProperty("--gtx-accent",accent);root.style.setProperty("--gtx-accent-soft",hexMix(accent,.84));root.style.setProperty("--gtx-accent-light",light);root.style.setProperty("--gtx-accent-border",hexMix(accent,.38));root.style.setProperty("--gtx-accent-glow",accent+"35");
  root.style.setProperty("--gtx-page-surface",theme==="light"?"#f4f6f8":"#081b31");root.style.setProperty("--gtx-panel-surface",theme==="light"?"#ffffff":"#0b2038");root.style.setProperty("--gtx-screen-text",theme==="light"?"#111827":"#f8fafc");
  document.body.setAttribute("data-theme",theme);document.body.dataset.gtxTheme=theme;
- if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme({accent:accent,text:light,grid:hexMix(accent,.9),border:hexMix(accent,.55),background:theme==="light"?"#f4f6f8":"#07111d"});
+ var chartTheme={accent:accent,text:light,grid:hexMix(accent,.9),border:hexMix(accent,.55),background:theme==="light"?"#f4f6f8":"#07111d"};window.__gtxChartTheme=chartTheme;if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme(chartTheme);
 }
 function setTheme(theme){
  if(["dark","light","default-dark","custom"].indexOf(theme)<0)theme="default-dark";safeSet("gtx_theme",theme);
