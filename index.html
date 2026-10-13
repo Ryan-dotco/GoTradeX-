@@ -992,7 +992,7 @@ syncGtxKenglyVisibility();
       if(a==="logout"){if(typeof logout==="function")logout(); else if(typeof logoutAccount==="function")logoutAccount(); return;}
       if(a==="help"){if(typeof openHelp==="function")openHelp(); else show("helpPage");return;}
       if(a==="profile"){if(typeof openGtxProfile==="function")return openGtxProfile();return openAccountPage("My Profile","<strong>Trader ID:</strong> GTX-000001<br><strong>Account:</strong> Ryan Trading Account<br><strong>Mode:</strong> "+(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO"));}
-      if(a==="account")return openAccountPage("Account","<strong>Current mode:</strong> "+(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO")+"<br><br>Use the DEMO / REAL controls on the trading screen to change account mode.");
+      if(a==="account"){if(window.GoTradeXNavigation&&typeof window.GoTradeXNavigation.show==="function")window.GoTradeXNavigation.show("gtxAccountDetails");else{const p=document.getElementById("gtxAccountDetails");if(p)p.classList.add("open");}if(typeof window.switchAccountTab==="function")window.switchAccountTab(localStorage.getItem("gotradex_account_mode")==="REAL"?"REAL":"DEMO");return;}
       if(a==="settings"){openGtxSettings();return;}
       if(a==="security"){openGtxSecurity();return;}
       if(a==="notifications"){openGtxNotifications();return;}
