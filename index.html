@@ -19,7 +19,7 @@
 #amountPortal label{display:none}
 #amountBtn{width:100%;height:100%;margin:0;padding:8px 10px;background:transparent;color:#fff;border:0;font-weight:800;font-size:16px;line-height:1.2;display:flex;align-items:center;justify-content:center}
 .gtxMenuPanel{width:min(760px,96vw)!important;padding:10px!important}.gtxMenuColumns{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:stretch;background:#091f3a;border:1px solid #23466d;border-radius:14px;overflow:hidden}.gtxProfileColumn,.gtxNavColumn{background:transparent;border:0;border-radius:0;padding:12px}.gtxProfileColumn{border-right:1px solid #23466d}.gtxProfileHead{display:flex;align-items:center;gap:10px;padding:4px 3px 12px;border-bottom:1px solid #143453;margin-bottom:8px}.gtxProfileAvatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:#176fca;color:#fff;font-size:19px;font-weight:900;flex:0 0 auto}.gtxProfileHead strong{display:block;font-size:13px}.gtxProfileHead span{display:block;color:#8fa8c4;font-size:9px;margin-top:4px}.gtxProfileItem{width:100%;min-height:43px;display:flex;align-items:center;justify-content:space-between;background:#102945;color:#fff;border:1px solid #23466d;border-radius:9px;padding:9px 11px;margin:6px 0;text-align:left;font-size:11px}.gtxProfileItem strong{margin-left:auto;margin-right:7px;color:#dbe9f7}.gtxNavTitle{color:#8fa8c4;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:4px 4px 7px;border-bottom:1px solid #143453;margin-bottom:2px}.gtxNavColumn .option{margin:6px 0}.gtxProfileItem:active,.gtxNavColumn .option:active{transform:scale(.99)}@media(max-width:600px){.gtxMenuPanel{width:96vw!important}.gtxMenuColumns{grid-template-columns:1fr 1fr;gap:0}.gtxProfileColumn,.gtxNavColumn{padding:8px}.gtxProfileColumn{border-right:1px solid #23466d}.gtxProfileHead{gap:7px}.gtxProfileAvatar{width:40px;height:40px;font-size:16px}.gtxProfileHead strong{font-size:11px}.gtxProfileHead span{font-size:8px}.gtxProfileItem,.gtxNavColumn .option{font-size:9px;min-height:40px;padding:8px}.gtxNavTitle{font-size:9px}}
-</style><style id="gtx-visible-chart-fix">#gtxChart{display:flex!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:20!important;flex:1 1 auto!important;min-height:360px!important;height:clamp(360px,56vh,620px)!important;width:100%!important;overflow:hidden!important;padding:0!important;margin:0!important;background:#07111d!important;border:0!important;border-radius:0!important}#gtxLiveChart{display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:20!important;flex:1 1 auto!important;min-height:360px!important;height:100%!important;width:100%!important}#gtxLiveChart #gtxLWC{display:block!important;visibility:visible!important;opacity:1!important;position:absolute!important;inset:0!important;z-index:1!important}</style>
+</style>
 <style id="gtx-green-wallet-force">.top .wallet#walletBtn{width:48px!important;height:44px!important;min-width:48px!important;min-height:44px!important;background:#16a34a!important;background-image:linear-gradient(145deg,#16A34A 0%,#15803d 100%)!important;border:1px solid #4ade80!important;border-radius:12px!important;color:#fff!important;box-shadow:0 0 0 1px rgba(74,222,128,.2),0 4px 14px rgba(34,197,94,.4)!important;display:grid!important;place-items:center!important;opacity:1!important;visibility:visible!important}.top .wallet#walletBtn svg{width:30px!important;height:30px!important;color:#fff!important;fill:#fff!important}.top .wallet#walletBtn svg path:first-child{fill:#fff!important}.top .wallet#walletBtn svg path:nth-child(2){fill:#15803d!important}.top .wallet#walletBtn svg circle{fill:#fff!important}.accountModes{display:flex;align-items:center;gap:4px;margin-left:auto;margin-right:8px;background:#102945;border:1px solid #23466d;border-radius:9px;padding:3px}.accountMode{min-width:72px;height:34px;padding:3px 8px;border-radius:7px;background:transparent;color:#8fa8c4;font-size:9px;font-weight:900;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}.accountMode span{font-size:9px}.accountMode strong{font-size:10px;margin-top:2px;color:#dbe9f7}.accountMode.active{background:#176fca;color:#fff}.accountMode.real.active{background:#16a34a;color:#fff}.accountMode.real.active strong{color:#fff}.accountMode:active{transform:scale(.97)}.pairbar{justify-content:space-between!important}.pairbarLeft{display:flex;align-items:center;gap:6px}.accountModes{margin-left:auto!important;margin-right:0!important}</style><style id="gtx-bybit-auth-ui">
 #gtxBybitAuthOverlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(2,12,25,.78);backdrop-filter:blur(7px)}
 #gtxBybitAuthOverlay.open{display:flex}
@@ -201,6 +201,7 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
  .gtxPortalCard{padding:11px}
 }
 </style>
+<link rel="stylesheet" href="style.css?v=20261013settings14">
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
@@ -2789,93 +2790,12 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 })();
 </script>
 
-<style id="gtx-settings-theme-wallpaper-fix">
-/* Settings controls must be visible and tappable on mobile */
-#gtxSimplePage.drawer.open{display:block!important;visibility:visible!important;opacity:1!important;position:fixed!important;inset:0!important;z-index:2147483000!important;background:rgba(0,0,0,.78)!important;pointer-events:auto!important}
-#gtxSimplePage.drawer.open>.panel{display:block!important;visibility:visible!important;opacity:1!important;position:absolute!important;inset:0 0 0 auto!important;width:min(460px,100vw)!important;max-width:100vw!important;height:100%!important;max-height:100dvh!important;overflow-y:auto!important;overflow-x:hidden!important;z-index:2147483001!important;background:#081b31!important;color:#fff!important;padding:18px 14px 36px!important;box-sizing:border-box!important}
-#gtxSimplePage #gtxSimpleBody{display:block!important;visibility:visible!important;opacity:1!important;overflow:visible!important;min-height:50px!important;color:#fff!important}
-#gtxSettingsPortal{display:grid!important;visibility:visible!important;opacity:1!important;gap:14px!important;color:#fff!important;padding-bottom:22px!important}
-#gtxSettingsPortal .form-group{display:block!important;visibility:visible!important;opacity:1!important;color:#fff!important;background:rgba(10,35,59,.96)!important;border:1px solid #35516b!important;border-radius:10px!important;padding:12px!important;margin:0!important}
-#gtxSettingsPortal label{display:block!important;color:#fff!important;font-size:13px!important;font-weight:700!important;margin-bottom:7px!important}
-#gtxSettingsPortal button,#gtxSettingsPortal select,#gtxSettingsPortal input{visibility:visible!important;opacity:1!important;pointer-events:auto!important;max-width:100%!important;box-sizing:border-box!important}
-#gtxSettingsPortal .theme-btn{padding:10px 12px!important;min-height:40px!important;border-radius:8px!important;border:1px solid #54718e!important;background:#102944!important;color:#fff!important;font-weight:800!important}
-#gtxSettingsPortal .theme-btn.active{outline:3px solid #00d084!important;outline-offset:1px!important}
-#gtxSettingsPortal [data-gtx-color]{width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;cursor:pointer!important;box-shadow:0 0 0 2px rgba(255,255,255,.25)!important}
-#gtxSettingsPortal #bgPreview{display:block!important;min-height:80px!important;opacity:1!important}
-#gtxSettingsPortal #saveGtxSettings,#gtxSettingsPortal #gtxSettingsBack{display:block!important;min-height:44px!important}
-html,body{background-color:var(--gtx-screen-bg,#061426)!important}
-.app{background-color:var(--gtx-screen-bg,#061426)!important}
-#gtxChart{position:relative!important;isolation:isolate!important;overflow:hidden!important;background-image:none!important;background-color:var(--gtx-chart-bg,var(--gtx-screen-bg,#061426))!important}
-#gtxChart>.gtxChartWallpaper{position:absolute!important;inset:0!important;z-index:0!important;pointer-events:none!important;background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;opacity:.23!important;transition:opacity .15s ease!important;display:block}
-#gtxChart>.gtxChartWallpaper::after{content:""!important;position:absolute!important;inset:0!important;background:rgba(5,12,24,.08)!important}
-#gtxChart canvas{position:relative!important;z-index:1!important;background-color:transparent!important}
-#gtxChart>*:not(.gtxChartWallpaper){position:relative!important;z-index:1!important}
-body[data-theme="light"] .top,body[data-theme="light"] .pairbar,body[data-theme="light"] .bottom{background-color:#e7edf3!important;color:#111827!important}
-body[data-theme="light"] .top .person span,body[data-theme="light"] .pair small,body[data-theme="light"] .status{color:#334155!important}
-</style>
-<script id="gtx-settings-theme-wallpaper-runtime">
-(function(){
- "use strict";
- function applyWallpaper(data){
-   var chart=document.getElementById("gtxChart");if(!chart)return;
-   var layer=chart.querySelector(".gtxChartWallpaper");
-   if(!layer){layer=document.createElement("div");layer.className="gtxChartWallpaper";layer.setAttribute("aria-hidden","true");chart.insertBefore(layer,chart.firstChild);}
-   var color="";
-   try{color=localStorage.getItem("gtx_custom_color")||""}catch(e){}
-   if(color&&/^#[0-9a-f]{6}$/i.test(color))chart.style.setProperty("--gtx-chart-bg",color);
-   else chart.style.setProperty("--gtx-chart-bg","var(--gtx-screen-bg,#061426)");
-   if(data){layer.style.backgroundImage='url("'+String(data).replace(/"/g,"%22")+'")';layer.style.display="block";}
-   else{layer.style.backgroundImage="none";layer.style.display="none";}
- }
- window.gtxApplyChartWallpaper=applyWallpaper;
- function restore(){
-   try{
-     var t=localStorage.getItem("gtx_theme")||"default-dark";
-     var c=localStorage.getItem("gtx_custom_color")||"";
-     var img=localStorage.getItem("gtx_custom_bg_image")||"";
-     var bg=t==="light"?"#f4f6f8":(t==="dark"?"#111827":"#061426");
-     if(t==="custom"&&c)bg=c;
-     document.documentElement.style.setProperty("--gtx-screen-bg",bg);
-     document.body.style.setProperty("background-color",bg,"important");
-     document.body.style.setProperty("color",t==="light"?"#111827":"#ffffff","important");
-     var app=document.querySelector(".app");if(app)app.style.setProperty("background-color",bg,"important");
-     applyWallpaper(img);
-   }catch(e){}
- }
- if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",restore,{once:true});else restore();
- window.addEventListener("storage",function(e){if(["gtx_theme","gtx_custom_color","gtx_custom_bg_image"].includes(e.key))restore();});
- document.addEventListener("click",function(e){
-   var colorBtn=e.target&&e.target.closest?e.target.closest("#gtxSettingsPortal [data-gtx-color]"):null;
-   if(colorBtn&&typeof window.gtxSettingsSetColor==="function"){e.preventDefault();window.gtxSettingsSetColor(colorBtn.getAttribute("data-gtx-color"));}
- },true);
-})();
-</script>
 
 
-<script id="gtx-settings-entrypoint-force">
-(function(){
- "use strict";
- function openSettingsDirect(e){
-   var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
-   if(!b)return;
-   e.preventDefault();
-   if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-   e.stopPropagation();
-   var menu=document.getElementById("menuDrawer");if(menu)menu.classList.remove("open");
-   try{if(typeof window.openGtxSettings==="function")window.openGtxSettings();else{
-     var p=document.getElementById("gtxSimplePage");
-     if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483000","important");}
-   }}catch(err){var body=document.getElementById("gtxSimpleBody");if(body){body.innerHTML='<div style="padding:14px;color:#fff;background:#7f1d1d;border-radius:8px">Settings could not initialize: '+String(err&&err.message||err)+'</div>';var p=document.getElementById("gtxSimplePage");if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483000","important");}}}
- }
- document.addEventListener("click",openSettingsDirect,true);
- document.addEventListener("pointerup",function(e){
-   var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
-   if(!b)return;
-   var p=document.getElementById("gtxSimplePage");
-   if(!p||!p.classList.contains("open"))setTimeout(function(){try{if(typeof window.openGtxSettings==="function")window.openGtxSettings()}catch(_){}},0);
- },true);
-})();
-</script>
 
+
+
+
+<script src="settings.js?v=20261013settings14"></script>
 </body>
 </html>
