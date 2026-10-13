@@ -2650,6 +2650,11 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
    };
    api.__gtxHistoryWrapped=true;
  }
+ document.addEventListener("gotradex:account-closed",function(){
+   document.querySelectorAll(selectors).forEach(hideLayer);
+   hideLayer(document.getElementById("gtxSimplePage"));hideLayer(document.getElementById("menuDrawer"));
+   stack.length=0;document.body.classList.remove("gtx-subscreen-open");syncHeader();window.scrollTo(0,0);
+ });
  document.addEventListener("click",goBack,true);
  document.addEventListener("click",closeToTrading,true);
 })();
