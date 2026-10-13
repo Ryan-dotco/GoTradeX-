@@ -1007,6 +1007,8 @@ syncGtxKenglyVisibility();
       '<span style="display:block;margin-top:7px;color:#fff;font-weight:900">'+(checked?"ON":"OFF")+'</span></button>';
   }
   function openGtxSettings(){
+    const portalStack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+    document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(el=>{if(el.id&&el.id!=="menuDrawer"&&el.id!=="gtxSimplePage")portalStack.push(el.id);});
     const saved=(function(){try{return JSON.parse(localStorage.getItem("gtx_settings")||"{}")}catch(e){return {}}})();
     const esc=v=>String(v||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
     const theme=localStorage.getItem("gtx_theme")||"default-dark";
@@ -1041,6 +1043,7 @@ syncGtxKenglyVisibility();
     if(closeButton){closeButton.textContent="Close";closeButton.onclick=gtxSettingsCloseToTrading;}
     const preview=byId("bgPreview");
     if(preview){if(customImage)preview.style.backgroundImage='url("'+customImage+'")';else if(customColor)preview.style.backgroundColor=customColor;}
+    gtxSettingsSetTheme(theme);
     document.querySelectorAll("#gtxSettingsPortal [data-gtx-theme]").forEach(btn=>{
       const t=btn.getAttribute("data-gtx-theme");
       btn.classList.toggle("active",t===theme);
