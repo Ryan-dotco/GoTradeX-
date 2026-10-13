@@ -2834,5 +2834,32 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 })();
 </script>
 <script src="settings.js?v=20261013profilefix1"></script>
+<script id="gtx-profile-window-capture-fix">
+(function(){
+  "use strict";
+  function routeProfile(e){
+    var button=e.target&&e.target.closest?e.target.closest('[data-profile-action="profile"]'):null;
+    if(!button)return;
+    if(e.preventDefault)e.preventDefault();
+    if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+    if(e.stopPropagation)e.stopPropagation();
+    var menu=document.getElementById("menuDrawer");
+    if(menu)menu.classList.remove("open");
+    try{
+      if(typeof window.openGtxProfile==="function")window.openGtxProfile();
+    }catch(err){console.error("GoTradeX Profile route failed:",err);}
+    var drawer=document.getElementById("gtxProfileDrawer");
+    if(drawer){
+      drawer.classList.add("open");
+      drawer.style.setProperty("display","block","important");
+      drawer.style.setProperty("z-index","9999","important");
+      drawer.setAttribute("aria-modal","true");
+      drawer.setAttribute("role","dialog");
+    }
+  }
+  /* Window capture runs before document-level menu handlers that may swallow the click. */
+  window.addEventListener("click",routeProfile,true);
+})();
+</script>
 </body>
 </html>
