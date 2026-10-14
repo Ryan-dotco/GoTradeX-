@@ -1001,7 +1001,10 @@ syncGtxKenglyVisibility();
     b.onclick=function(e){
       e.preventDefault(); e.stopPropagation();
       const a=b.dataset.profileAction||"";
-      if(a==="settings")return; // Let the standalone Settings portal handle this tap.
+      if(a==="settings"){
+        try{if(typeof window.openGtxSettings==="function")window.openGtxSettings();}catch(settingsError){console.error("Could not open Settings:",settingsError);}
+        return;
+      }
       closeMenu();
       if(a==="logout"){if(typeof logout==="function")logout(); else if(typeof logoutAccount==="function")logoutAccount(); return;}
       if(a==="help"){if(typeof openHelp==="function")openHelp(); else show("helpPage");return;}
