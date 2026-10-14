@@ -1125,6 +1125,8 @@ syncGtxKenglyVisibility();
     else{document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(el=>{el.classList.remove("open");el.style.setProperty("display","none","important");});}
     const h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display",document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open")?"none":"flex","important");
   }
+  window.gtxSettingsBackToPrevious=gtxSettingsBackToPrevious;
+  window.gtxSettingsCloseToTrading=gtxSettingsCloseToTrading;
   function openGtxNotifications(){
     const push=gtxPrefBool("gotradex_notify_trades",true);
     const market=gtxPrefBool("gotradex_notify_market",true);
@@ -3223,7 +3225,42 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   }
  },true);
 })();
-</script>
 
+<script id="gtx-settings-navigation-final-20261014">
+(function(){
+ "use strict";
+ function isOpen(el){if(!el)return false;var s=window.getComputedStyle(el);return el.classList.contains("open")&&s.display!=="none"&&s.visibility!=="hidden"&&el.getClientRects().length>0;}
+ function openSettings(){
+  if(typeof window.openGtxSettings==="function")window.openGtxSettings();
+  var p=document.getElementById("gtxSimplePage");
+  if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483002","important");p.removeAttribute("aria-hidden");}
+  var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
+  document.body.classList.add("gtx-subscreen-open");
+ }
+ // Retry after the legacy handlers complete, so a tap never depends on a second Close tap.
+ window.addEventListener("pointerup",function(e){
+  var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
+  if(!b)return;
+  window.setTimeout(function(){var p=document.getElementById("gtxSimplePage");if(!isOpen(p))openSettings();},80);
+ },true);
+ // Explicitly handle Back from Settings before any delegated handlers can swallow it.
+ window.addEventListener("click",function(e){
+  var b=e.target&&e.target.closest?e.target.closest("#gtxSettingsBack"):null;
+  if(!b)return;
+  e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+  if(typeof window.gtxSettingsBackToPrevious==="function")window.gtxSettingsBackToPrevious();
+ },true);
+ // A final safety check makes sure Close has actually returned to the chart.
+ window.addEventListener("pointerup",function(e){
+  var b=e.target&&e.target.closest?e.target.closest("#gtxSimpleClose"):null;
+  if(!b)return;
+  window.setTimeout(function(){
+   var p=document.getElementById("gtxSimplePage");
+   if(isOpen(p)&&typeof window.gtxSettingsCloseToTrading==="function")window.gtxSettingsCloseToTrading();
+   if(p&&!isOpen(p)){p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
+  },80);
+ },true);
+})();
+</script>
 </body>
 </html>
