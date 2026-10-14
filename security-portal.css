@@ -38,3 +38,19 @@
 #menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy small{display:none!important}
 #menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-arrow{display:block!important;flex:0 0 auto!important;font-size:18px!important;color:#83c7ff!important}
 @media(max-width:600px){#menuDrawer .gtxProfileColumn > .gsp-settings-entry{height:40px!important;min-height:40px!important;max-height:40px!important;padding:6px 8px!important;font-size:9px!important}#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy strong{font-size:9px!important}}
+
+/* Final override: Security Portal button height matches ordinary profile rows. */
+#menuDrawer .gtxProfileColumn > button.gsp-settings-entry{
+ height:43px!important;
+ min-height:43px!important;
+ max-height:43px!important;
+ padding:0 11px!important;
+ margin:6px 0!important;
+ box-sizing:border-box!important;
+ overflow:hidden!important;
+}
+@media(max-width:600px){
+ #menuDrawer .gtxProfileColumn > button.gsp-settings-entry{
+  height:40px!important;min-height:40px!important;max-height:40px!important;padding:0 8px!important;
+ }
+}
