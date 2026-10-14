@@ -1051,7 +1051,7 @@ syncGtxKenglyVisibility();
       '</div>');
     const panel=byId("gtxSimplePage");
     const closeButton=byId("gtxSimpleClose");
-    if(closeButton){closeButton.textContent="Close";closeButton.onclick=gtxSettingsCloseToTrading;}
+    if(closeButton){closeButton.textContent="×";closeButton.setAttribute("aria-label","Back to previous page");closeButton.title="Back to previous page";closeButton.onclick=gtxSettingsBackToPrevious;}
     const preview=byId("bgPreview");
     if(preview){if(customImage)preview.style.backgroundImage='url("'+customImage+'")';else if(customColor)preview.style.backgroundColor=customColor;}
     gtxSettingsSetTheme(theme);
@@ -3352,6 +3352,40 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   /* Keep asset search responsive on Android keyboards, including clear/search actions. */
   const input=document.getElementById('assetSearch');
   if(input){const run=()=>{if(typeof window.filterAssets==='function')window.filterAssets(input.value);else input.dispatchEvent(new Event('input',{bubbles:true}));};['input','search','change','keyup'].forEach(type=>input.addEventListener(type,run));}
+})();
+</script>
+
+<script id="gtx-settings-top-right-back-20261014">
+(function(){
+ "use strict";
+ function returnToPrevious(e){
+  var b=e.target&&e.target.closest?e.target.closest("#gtxSimpleClose"):null;
+  if(!b)return;
+  var p=document.getElementById("gtxSimplePage");
+  if(!p||!p.classList.contains("open"))return;
+  var title=document.getElementById("gtxSimpleTitle");
+  if(title&&title.textContent.trim()!=="Settings")return;
+  e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+  if(typeof window.gtxSettingsBackToPrevious==="function")window.gtxSettingsBackToPrevious();
+  window.setTimeout(function(){
+   var panel=document.getElementById("gtxSimplePage");
+   if(panel){panel.classList.remove("open");panel.style.setProperty("display","none","important");panel.style.setProperty("visibility","hidden","important");panel.setAttribute("aria-hidden","true");}
+   var menu=document.getElementById("menuDrawer");
+   if(menu){
+    menu.classList.add("open");
+    menu.style.setProperty("display","block","important");
+    menu.style.setProperty("visibility","visible","important");
+    menu.style.setProperty("pointer-events","auto","important");
+    menu.removeAttribute("aria-hidden");
+   }
+   var profile=document.getElementById("gtxProfileDrawer");
+   if(profile){profile.classList.remove("open");profile.style.setProperty("display","none","important");profile.setAttribute("aria-hidden","true");}
+   document.body.classList.remove("gtx-subscreen-open");
+   var header=document.querySelector(".gtxKenglyHeader");
+   if(header)header.style.setProperty("display","none","important");
+  },120);
+ }
+ window.addEventListener("click",returnToPrevious,true);
 })();
 </script>
 </body>
