@@ -69,6 +69,12 @@
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}"+
       ".gtxLWCDateTime{display:flex;flex-direction:column;align-items:flex-end;gap:3px;color:#dcecff;font:800 9px/1.1 system-ui;white-space:nowrap;padding:4px 6px;background:#0b2036e8;border:1px solid #254c70;border-radius:5px}"+
       ".gtxLWCDateTime span:last-child{color:#8ff0ae;font-variant-numeric:tabular-nums}"+
+      ".gtxLWCTypePicker{position:relative}"+
+      ".gtxLWCTypeButton{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;white-space:nowrap}"+
+      ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:112px;padding:4px;background:#0b2036;border:1px solid #31597f;border-radius:7px;box-shadow:0 8px 24px #0009;z-index:30;display:grid;gap:3px}"+
+      ".gtxLWCTypeMenu[hidden]{display:none}"+
+      ".gtxLWCTypeOption{border:0;border-radius:4px;text-align:left;padding:8px;background:transparent;color:#dcecff;font:800 10px system-ui}"+
+      ".gtxLWCTypeOption.active{background:#17436a;color:#8ff0ae}"+
       ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
@@ -95,6 +101,7 @@
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
         '<div class="gtxLWCControl">'+
+          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
           '<div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
           '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
         '</div>'+
@@ -115,6 +122,16 @@
       tfSelect.appendChild(o);
     });
     tfSelect.onchange=()=>setTimeframe(tfSelect.value);
+    const typeButton=document.getElementById("gtxLWCTypeButton");
+    const typeMenu=document.getElementById("gtxLWCTypeMenu");
+    if(typeButton&&typeMenu){
+      typeButton.onclick=()=>{const open=typeMenu.hidden;typeMenu.hidden=!open;typeButton.setAttribute("aria-expanded",String(open));};
+      typeMenu.querySelectorAll("[data-chart-type]").forEach(option=>option.onclick=()=>{
+        setChartType(option.dataset.chartType);
+        typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");
+      });
+      document.addEventListener("click",e=>{if(!e.target.closest("#gtxLWCTypePicker")){typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");}});
+    }
 
     try{
       const saved=localStorage.getItem(CHART_KEY);
@@ -150,9 +167,36 @@
     if(a)a.textContent=(state.mode==="LIVE"?"LIVE":"OTC")+" • "+(state.assetLabel||"");
   }
   function updateTypeButtons(){
+    const labels={candle:"Candles",line:"Line",mountain:"Mountain"};
+    const button=document.getElementById("gtxLWCTypeButton");
+    if(button)button.textContent=(labels[state.chartType]||"Candles")+" ▾";
     document.querySelectorAll("#gtxLiveChart [data-chart-type]").forEach(b=>{
       b.classList.toggle("active",b.dataset.chartType===state.chartType);
     });
+    applyChartTypeVisibility();
+  }
+
+  function setChartType(type){
+    if(!["candle","line","mountain"].includes(type))return;
+    state.chartType=type;
+    try{localStorage.setItem(TYPE_KEY,type)}catch(_){}
+    if(state.chart){
+      const data=seriesLineData();
+      if(type==="line"||type==="mountain"){
+        if(!state.lineSeries){state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:true});}
+        if(!state.areaSeries){state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:true});}
+        state.lineSeries.setData(data);state.areaSeries.setData(data);
+      }
+      applyChartTypeVisibility();
+      try{state.chart.timeScale().fitContent()}catch(_){}
+    }
+    updateTypeButtons();
+  }
+
+  function applyChartTypeVisibility(){
+    if(state.candleSeries)state.candleSeries.applyOptions({visible:state.chartType==="candle"});
+    if(state.lineSeries)state.lineSeries.applyOptions({visible:state.chartType==="line"});
+    if(state.areaSeries)state.areaSeries.applyOptions({visible:state.chartType==="mountain"});
   }
   function bucket(ms,sec){return Math.floor(ms/1000/sec)*sec*1000}
 
@@ -536,8 +580,8 @@
       priceLineVisible:true,lastValueVisible:true,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
-    // Candle-only baseline: do not create automatic green/mountain overlays or the orange LIVE price-line.
-    // Custom indicators can be added separately later.
+    // Alternate chart styles are created only when selected from the single chart-style menu.
+    // No automatic green overlay or orange LIVE price-line is created.
     state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
     state.currentPriceLine=null;
@@ -560,6 +604,12 @@
     if(!state.chart)buildChart();
     const candles=seriesCandleData();
     state.candleSeries.setData(candles);
+    if(state.chartType==="line"||state.chartType==="mountain"){
+      if(!state.lineSeries)state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+      if(!state.areaSeries)state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+      state.lineSeries.setData(seriesLineData());state.areaSeries.setData(seriesLineData());
+    }
+    applyChartTypeVisibility();
     refreshChartTools();
     state.historyLoaded=candles.length>0;
     state.initialRangeSet=false;
@@ -588,6 +638,9 @@
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
     state.candleSeries.update(item);
+    if(state.lineSeries)state.lineSeries.update({time:item.time,value:item.close});
+    if(state.areaSeries)state.areaSeries.update({time:item.time,value:item.close});
+    applyChartTypeVisibility();
     // No automatic SMA overlays: do not add background moving-average lines to the chart.
     refreshChartTools();
     state.price=c.c;
