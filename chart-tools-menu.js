@@ -94,6 +94,8 @@ function init(){
    "Volatility":"Volatility",
    "Alerts & Controls":"Alert ⚠️ Control"
  };
+ // Keep the exact requested portal order on mobile and desktop.
+ const portalOrder=["Chart Indicators","Custom Indicators","Chart Type","Drawing & Price","Momentum","Volatility","Alert ⚠️ Control"];
  const categories=Array.from(panel.querySelectorAll(".category"));
  categories.forEach((category,idx)=>{
    const original=category.textContent.trim();
@@ -148,6 +150,14 @@ function init(){
      if(open){portalBody.classList.add("show");portalHead.classList.add("open");portalHead.setAttribute("aria-expanded","true");}
    });
  });
+ const portalNodes=Array.from(panel.querySelectorAll(".gtxPortal"));
+ portalNodes.sort((a,b)=>{
+   const at=a.querySelector(".gtxPortalText b")?.textContent||"";
+   const bt=b.querySelector(".gtxPortalText b")?.textContent||"";
+   const ai=portalOrder.indexOf(at),bi=portalOrder.indexOf(bt);
+   return (ai<0?999:ai)-(bi<0?999:bi);
+ }).forEach(node=>panel.insertBefore(node,status||null));
+
 
  panel.querySelectorAll(".chartToolOption").forEach((old,index)=>{
    const name=old.dataset.tool||old.textContent.trim().replace(/›/g,"").trim();
