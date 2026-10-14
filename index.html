@@ -2934,7 +2934,15 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     if(!b)return;
     if(b.classList.contains("gtxUniversalBack"))return;
     if(b.matches("#gtxAccountBackToTrading"))return;
-    if(b.id==="gtxProfileClose"||b.id==="gtxProfileFallbackClose"||b.id==="settingsCloseToTrading"||b.hasAttribute("data-close")||b.classList.contains("close")){
+    if(b.id==="settingsCloseToTrading"){
+      e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+      closeToTrading();
+      var settingsPortal=document.getElementById("portal-settings-standalone");if(settingsPortal){settingsPortal.classList.remove("is-open");settingsPortal.setAttribute("aria-hidden","true");settingsPortal.style.setProperty("display","none","important");settingsPortal.style.setProperty("pointer-events","none","important");}
+      document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(function(layer){layer.classList.remove("open");layer.style.setProperty("display","none","important");layer.setAttribute("aria-hidden","true");});
+      var menu=document.getElementById("menuDrawer");if(menu){menu.classList.remove("open");menu.style.setProperty("display","none","important");}
+      document.body.classList.remove("gtx-subscreen-open");var tradingHeader=document.querySelector(".gtxKenglyHeader");if(tradingHeader)tradingHeader.style.setProperty("display","flex","important");window.scrollTo(0,0);return;
+    }
+    if(b.id==="gtxProfileClose"||b.id==="gtxProfileFallbackClose"||b.hasAttribute("data-close")||b.classList.contains("close")){
       e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
       closeToTrading();
     }
