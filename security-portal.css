@@ -30,31 +30,11 @@
 #menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-arrow{font-size:18px!important;}
 #menuDrawer .gtxProfileColumn > .gsp-settings-entry:hover{background:rgba(255,255,255,.06)!important;}
 
-/* Match the normal profile menu buttons and keep the full Security Portal label visible. */
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry{display:flex!important;align-items:center!important;justify-content:space-between!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:43px!important;height:auto!important;max-height:none!important;margin:6px 0!important;padding:9px 11px!important;gap:8px!important;color:#fff!important;background:#102945!important;border:1px solid #23466d!important;border-radius:9px!important;text-align:left!important;font-size:11px!important;line-height:1.25!important}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-icon{display:grid!important;place-items:center!important;width:26px!important;height:26px!important;flex:0 0 26px!important;border-radius:7px!important;background:#176fca!important;font-size:16px!important;color:#fff!important}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy{display:grid!important;gap:2px!important;flex:1 1 auto!important;min-width:0!important}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy strong{display:block!important;margin:0!important;color:#fff!important;font-size:11px!important;font-weight:700!important}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy small{display:block!important;color:#a9bfd7!important;font-size:9px!important;line-height:1.25!important;white-space:normal!important}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-arrow{display:block!important;flex:0 0 auto!important;font-size:20px!important;color:#83c7ff!important}
-@media(max-width:600px){#menuDrawer .gtxProfileColumn > .gsp-settings-entry{min-height:40px!important;padding:8px!important;font-size:9px!important}#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy strong{font-size:9px!important}#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy small{font-size:8px!important}}
-
-/* Final compact menu-row sizing: exactly like the other profile buttons. */
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry{
- box-sizing:border-box!important;
- height:43px!important;
- min-height:43px!important;
- max-height:43px!important;
- padding:0 11px!important;
- margin:6px 0!important;
- overflow:hidden!important;
- border:1px solid #23466d!important;
- border-radius:9px!important;
- background:#102945!important;
-}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy small{display:none!important;}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-icon{width:24px!important;height:24px!important;flex:0 0 24px!important;}
-#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy strong{white-space:nowrap!important;}
-@media(max-width:600px){
- #menuDrawer .gtxProfileColumn > .gsp-settings-entry{height:40px!important;min-height:40px!important;max-height:40px!important;padding:0 8px!important;}
-}
+/* Security Portal row: match adjacent menu-button height exactly; keep width unchanged. */
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry{display:flex!important;align-items:center!important;justify-content:space-between!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:43px!important;height:43px!important;max-height:43px!important;margin:6px 0!important;padding:8px 11px!important;gap:8px!important;overflow:hidden!important;color:#fff!important;background:#102945!important;border:1px solid #23466d!important;border-radius:9px!important;text-align:left!important;font-size:11px!important;line-height:1.1!important}
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-icon{display:grid!important;place-items:center!important;width:24px!important;height:24px!important;flex:0 0 24px!important;border-radius:7px!important;background:#176fca!important;font-size:15px!important;color:#fff!important}
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy{display:flex!important;align-items:center!important;gap:4px!important;flex:1 1 auto!important;min-width:0!important}
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy strong{display:block!important;margin:0!important;color:#fff!important;font-size:11px!important;font-weight:700!important;white-space:nowrap!important}
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy small{display:none!important}
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-arrow{display:block!important;flex:0 0 auto!important;font-size:18px!important;color:#83c7ff!important}
+@media(max-width:600px){#menuDrawer .gtxProfileColumn > .gsp-settings-entry{height:40px!important;min-height:40px!important;max-height:40px!important;padding:6px 8px!important;font-size:9px!important}#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy strong{font-size:9px!important}}
