@@ -3507,42 +3507,63 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 (function(){
  "use strict";
  var buttonId="gtxSettingsPersistentTopBack";
- function isSettingsOpen(){
-  var page=document.getElementById("gtxSimplePage");
+ var lastSettingsState=null;
+ function settingsTitle(){
   var title=document.getElementById("gtxSimpleTitle");
-  return !!(page&&page.classList.contains("open")&&title&&title.textContent.trim().toLowerCase()==="settings");
+  return !!(title && title.textContent.replace(/\\s+/g," ").trim().toLowerCase()==="settings");
+ }
+ function settingsPanelVisible(){
+  var page=document.getElementById("gtxSimplePage");
+  if(!page)return false;
+  var title=settingsTitle();
+  var visible=page.classList.contains("open") || page.getAttribute("aria-hidden")==="false";
+  var display=page.style.display;
+  if(display==="none")visible=false;
+  return title && visible;
  }
  function goToDashboard(e){
   if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
-  if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();
-  else{
+  if(typeof window.gtxSettingsReturnToMainDashboard==="function"){
+   window.gtxSettingsReturnToMainDashboard();
+  }else{
    var p=document.getElementById("gtxSimplePage");
    if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
    var menu=document.getElementById("menuDrawer");
    if(menu){menu.classList.add("open");menu.style.setProperty("display","block","important");menu.style.setProperty("visibility","visible","important");menu.style.setProperty("pointer-events","auto","important");menu.removeAttribute("aria-hidden");}
   }
+  var button=document.getElementById(buttonId);
+  if(button)button.remove();
  }
  function sync(){
-  var existing=document.getElementById(buttonId);
-  if(!isSettingsOpen()){
-   if(existing)existing.remove();
+  var active=settingsPanelVisible();
+  var button=document.getElementById(buttonId);
+  if(!active){
+   if(button)button.remove();
+   lastSettingsState=false;
    return;
   }
-  if(!existing){
-   existing=document.createElement("button");
-   existing.id=buttonId;
-   existing.type="button";
-   existing.textContent="←";
-   existing.setAttribute("aria-label","Back to main dashboard");
-   existing.title="Back to main dashboard";
-   existing.addEventListener("click",goToDashboard,true);
-   document.body.appendChild(existing);
+  if(!button){
+   button=document.createElement("button");
+   button.id=buttonId;
+   button.type="button";
+   button.textContent="←";
+   button.setAttribute("aria-label","Back to main dashboard");
+   button.title="Back to main dashboard";
+   button.addEventListener("click",goToDashboard,true);
+   document.body.appendChild(button);
   }
-  existing.style.cssText="position:fixed!important;top:calc(env(safe-area-inset-top, 0px) + 12px)!important;right:12px!important;z-index:2147483647!important;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;padding:0!important;border:2px solid #6aa9ff!important;border-radius:7px!important;background:#102944!important;color:#ffffff!important;font-family:Arial,sans-serif!important;font-size:23px!important;font-weight:900!important;line-height:1!important;box-shadow:0 2px 8px rgba(0,0,0,.45)!important;cursor:pointer!important;";
+  var css="position:fixed!important;top:calc(env(safe-area-inset-top, 0px) + 12px)!important;right:12px!important;z-index:2147483647!important;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;padding:0!important;margin:0!important;border:2px solid #ffffff!important;border-radius:8px!important;background:#0755b8!important;color:#ffffff!important;font-family:Arial,sans-serif!important;font-size:27px!important;font-weight:900!important;line-height:1!important;box-shadow:0 3px 12px rgba(0,0,0,.7)!important;cursor:pointer!important;transform:none!important;";
+  if(button.style.cssText!==css)button.style.cssText=css;
+  lastSettingsState=true;
  }
  sync();
  if(window.MutationObserver&&document.documentElement){
-  new MutationObserver(sync).observe(document.documentElement,{childList:true,subtree:true,attributes:true,characterData:true,attributeFilter:["class","style","aria-hidden"]});
+  var queued=false;
+  new MutationObserver(function(){
+   if(queued)return;
+   queued=true;
+   Promise.resolve().then(function(){queued=false;sync();});
+  }).observe(document.documentElement,{childList:true,subtree:true,attributes:true,characterData:true,attributeFilter:["class","style","aria-hidden"]});
  }
  document.addEventListener("DOMContentLoaded",sync);
  window.addEventListener("load",sync);
