@@ -3312,10 +3312,13 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
    if(header)header.style.setProperty("display","none","important");
   },120);
  },true);
- // A final safety check makes sure Close has actually returned to the chart.
+ // Only non-Settings panels use the legacy close-to-chart recovery.
+ // Settings X is Back: do not let this pointerup handler override it.
  window.addEventListener("pointerup",function(e){
   var b=e.target&&e.target.closest?e.target.closest("#gtxSimpleClose"):null;
   if(!b)return;
+  var title=document.getElementById("gtxSimpleTitle");
+  if(title&&title.textContent.trim()==="Settings")return;
   window.setTimeout(function(){
    var p=document.getElementById("gtxSimplePage");
    if(isOpen(p)&&typeof window.gtxSettingsCloseToTrading==="function")window.gtxSettingsCloseToTrading();
