@@ -83,8 +83,8 @@ function installSettingsEntry(){
  const candidates=Array.from(document.querySelectorAll(".drawer .panel, [role='dialog'], .settingsPanel, .settings-panel, .modal, #gtxSimplePage, .gtxProfilePanel"));
  for(const panel of candidates){
   if(!isVisible(panel))continue;
-  const text=(panel.innerText||panel.textContent||"").replace(/\\s+/g," ").toLowerCase();
-  const looksLikeSettings=/(^|\\b)(settings|account settings|trading preferences)(\\b|$)/i.test(text)
+  const text=(panel.innerText||panel.textContent||"").replace(/\s+/g," ").toLowerCase();
+  const looksLikeSettings=/(^|\b)(settings|account settings|trading preferences)(\b|$)/i.test(text)
     ||(text.includes("time zone")&&text.includes("appearance"))
     ||(text.includes("location services")&&text.includes("account & security"))
     ||(text.includes("social trading")&&text.includes("privacy"));
@@ -95,7 +95,7 @@ function installSettingsEntry(){
  // Some builds render Settings as a menu item before the settings panel is mounted.
  const profile=document.getElementById("gtxProfileDrawer");
  if(profile&&isVisible(profile)){
-  const settingsButton=Array.from(profile.querySelectorAll("button,a,[role='button']")).find(el=>/^settings(?:\\s*&\\s*account)?$/i.test((el.innerText||el.textContent||"").trim()));
+  const settingsButton=Array.from(profile.querySelectorAll("button,a,[role='button']")).find(el=>/^settings(?:\s*&\s*account)?$/i.test((el.innerText||el.textContent||"").trim()));
   if(settingsButton&&!profile.querySelector("[data-open-security-portal='true']")){
    const b=document.createElement("button");b.type="button";b.className="gsp-settings-entry";b.setAttribute("data-open-security-portal","true");
    b.innerHTML='<span class="gsp-entry-icon" aria-hidden="true">⛨</span><span class="gsp-entry-copy"><strong>Security Portal</strong><small>Open account security controls</small></span><span class="gsp-entry-arrow" aria-hidden="true">›</span>';
