@@ -3239,32 +3239,46 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 <script id="gtx-settings-tap-recovery-20261014">
 (function(){
  "use strict";
- function visible(el){if(!el)return false;var s=window.getComputedStyle(el);return s.display!=="none"&&s.visibility!=="hidden";}
+ var opening=false;
+ function forceSettingsVisible(){
+  var p=document.getElementById("gtxSimplePage");
+  if(!p){
+   p=document.createElement("div");p.id="gtxSimplePage";p.className="drawer";
+   p.innerHTML='<div class="panel" style="position:relative"><button class="close" id="gtxSimpleClose" type="button">Close</button><h2 id="gtxSimpleTitle">Settings</h2><div id="gtxSimpleBody" class="adminSlot"></div></div>';
+   document.body.appendChild(p);
+   var close=p.querySelector("#gtxSimpleClose");
+   if(close)close.addEventListener("click",function(){if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();else{p.classList.remove("open");p.style.display="none";}});
+  }
+  var title=document.getElementById("gtxSimpleTitle");
+  var body=document.getElementById("gtxSimpleBody");
+  if(title)title.textContent="Settings";
+  if(body&&!body.querySelector("#gtxSettingsPortal")){
+   body.innerHTML='<div id="gtxSettingsPortal" style="display:grid;gap:12px;color:inherit"><p>Settings</p><p>Some settings did not load. You can still use the Back arrow to return to the main dashboard.</p></div>';
+  }
+  p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("visibility","visible","important");p.style.setProperty("pointer-events","auto","important");p.style.setProperty("z-index","2147483002","important");p.removeAttribute("aria-hidden");
+  var menu=document.getElementById("menuDrawer");
+  if(menu){menu.classList.remove("open");menu.style.setProperty("display","none","important");menu.setAttribute("aria-hidden","true");}
+  var profile=document.getElementById("gtxProfileDrawer");
+  if(profile){profile.classList.remove("open");profile.style.setProperty("display","none","important");profile.setAttribute("aria-hidden","true");}
+  var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
+  document.body.classList.add("gtx-subscreen-open");
+ }
  function openSettingsNow(){
-  var openFn=window.openGtxSettings;
-  if(typeof openFn!=="function"){console.error("Settings portal opener is unavailable.");return;}
+  if(opening)return;
+  opening=true;
   try{
    var history=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
    var menu=document.getElementById("menuDrawer");
    if(menu&&menu.classList.contains("open")&&history[history.length-1]!=="menuDrawer")history.push("menuDrawer");
-   openFn();
-   // Close the menu overlays explicitly, then put Settings on top in the same tap.
-   [menu,document.getElementById("gtxProfileDrawer")].forEach(function(el){
-    if(el){el.classList.remove("open");el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");}
-   });
-   var p=document.getElementById("gtxSimplePage");
-   if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483002","important");p.removeAttribute("aria-hidden");}
-   var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
-   document.body.classList.add("gtx-subscreen-open");
-  }catch(err){console.error("Settings portal failed to open:",err);}
+   try{if(typeof window.openGtxSettings==="function")window.openGtxSettings();}catch(err){console.error("Settings content failed to initialize; showing safe fallback:",err);}
+   forceSettingsVisible();
+  }catch(err){console.error("Settings portal could not be shown:",err);}
+  finally{opening=false;}
  }
  window.addEventListener("click",function(e){
   var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
   if(!b)return;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-  var history=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
-  var menu=document.getElementById("menuDrawer");
-  if(menu&&menu.classList.contains("open")&&history[history.length-1]!=="menuDrawer")history.push("menuDrawer");
   openSettingsNow();
  },true);
  window.addEventListener("keydown",function(e){
