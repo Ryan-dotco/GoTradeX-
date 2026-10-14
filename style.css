@@ -1,27 +1,7 @@
-/* GoTradeX Settings portal only — intentionally does not style the trading chart. */
+/* GoTradeX Settings portal: shared overlay frame plus approved compact portal styles below. */
 #portal-settings-standalone{position:fixed;inset:0;z-index:2147483000;display:none;overflow-y:auto;background:rgba(2,8,18,.78);color:#f8fafc;padding:12px;box-sizing:border-box}
 #portal-settings-standalone.is-open{display:block}
-#portal-settings-standalone .settings-shell{width:min(620px,100%);min-height:100%;margin:0 auto;background:#081b31;border:1px solid #244563;border-radius:14px;padding:18px 14px 28px;box-sizing:border-box;box-shadow:0 18px 60px rgba(0,0,0,.4)}
-#portal-settings-standalone h2{margin:4px 0 8px;font-size:23px}
-#portal-settings-standalone .settings-description{font-size:12px;opacity:.75;margin:0 0 14px}
-#portal-settings-standalone .settings-form-group{margin:12px 0;padding:12px;background:rgba(10,35,59,.92);border:1px solid #35516b;border-radius:10px;min-width:0}
-#portal-settings-standalone label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}
-#portal-settings-standalone select,#portal-settings-standalone input[type=file]{width:100%;max-width:100%;padding:10px;border-radius:8px;background:#102944;color:#fff;border:1px solid #35516b;box-sizing:border-box}
-#portal-settings-standalone .settings-theme-row{display:flex;gap:8px;flex-wrap:wrap}
 #portal-settings-standalone button{font:inherit;cursor:pointer;touch-action:manipulation}
-#portal-settings-standalone .theme-btn{flex:1 1 110px;min-height:42px;padding:10px;border-radius:8px;border:1px solid #54718e;background:#102944;color:#fff;font-weight:800}
-#portal-settings-standalone .theme-btn.active{outline:2px solid #00d084;outline-offset:1px}
-#portal-settings-standalone .settings-colors{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
-#portal-settings-standalone .settings-color{width:40px;height:40px;min-width:40px;border-radius:50%;border:1px solid rgba(255,255,255,.5);box-shadow:0 0 0 1px rgba(255,255,255,.12)}
-#portal-settings-standalone .settings-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
-#portal-settings-standalone .settings-main-action{width:100%;min-height:44px;padding:11px;background:#00d084;color:#06251b;border:0;border-radius:8px;font-weight:900;margin-top:10px}
-#portal-settings-standalone .settings-secondary-action{min-height:42px;padding:10px 12px;background:#183451;color:#fff;border:1px solid #35516b;border-radius:8px}
-#portal-settings-standalone #settingsBgPreview{width:100%;height:90px;margin-top:9px;border-radius:8px;background-size:cover;background-position:center;border:1px solid #35516b;background-color:#0a0a0a}
-#portal-settings-standalone .settings-status{font-size:12px;min-height:17px;margin-top:8px;color:#a7f3d0}
-#portal-settings-standalone .settings-close-row{display:flex;justify-content:flex-end;margin-bottom:8px}
-#portal-settings-standalone .settings-check-label{display:flex;gap:9px;align-items:center;margin:8px 0}
-#portal-settings-standalone input[type=checkbox]{width:18px;height:18px;accent-color:#00d084}
-@media(max-width:480px){#portal-settings-standalone{padding:0}#portal-settings-standalone .settings-shell{border-radius:0;border-left:0;border-right:0;padding:16px 12px 28px}#portal-settings-standalone .theme-btn{flex:1 1 42%}}
 
 /* Balanced theme palette: selected colors accent the interface instead of painting the page. */
 :root{--gtx-accent:#2563eb;--gtx-accent-soft:#dbeafe;--gtx-accent-light:#a7c5ff;--gtx-accent-border:#7398ec;--gtx-accent-glow:#2563eb35;--gtx-page-surface:#081b31;--gtx-panel-surface:#0b2038;--gtx-screen-text:#f8fafc}
