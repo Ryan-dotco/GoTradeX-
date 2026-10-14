@@ -3450,7 +3450,15 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     if(simpleIsSettings){
       // This is the arrow/Back/X-style control created at the top of the Settings panel.
       var topControl=simple.querySelector("#gtxSimpleClose");
-      if(topControl)topControl.style.setProperty("display","none","important");
+      if(topControl){
+        topControl.textContent="←";
+        topControl.setAttribute("aria-label","Back to main dashboard");
+        topControl.title="Back to main dashboard";
+        topControl.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:99999!important;display:inline-flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;justify-content:center!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;padding:0!important;border:2px solid #6aa9ff!important;border-radius:8px!important;background:#102944!important;color:#ffffff!important;font-size:26px!important;font-weight:900!important;line-height:1!important;cursor:pointer!important;";
+        var panel=simple.querySelector(".panel");
+        if(panel && getComputedStyle(panel).position==="static")panel.style.setProperty("position","relative","important");
+        topControl.onclick=function(e){e.preventDefault();e.stopPropagation();if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();};
+      }
       // Remove only Back/arrow controls inside Settings content, not preference buttons.
       var body=document.getElementById("gtxSimpleBody");
       if(body)body.querySelectorAll("button,a,[role=button]").forEach(function(el){
@@ -3502,40 +3510,18 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     var page=document.getElementById("gtxSimplePage");
     var title=document.getElementById("gtxSimpleTitle");
     var isSettings=!!(page && page.classList.contains("open") && title && title.textContent.trim().toLowerCase()==="settings");
-    var existing=document.getElementById("gtxSettingsMainDashboardBack");
-    if(!isSettings){
-      if(existing)existing.remove();
-      return;
-    }
-    if(existing)return;
+    var back=page&&page.querySelector("#gtxSimpleClose");
+    if(!isSettings||!back)return;
     var panel=page.querySelector(".panel");
-    if(!panel)return;
-    if(getComputedStyle(panel).position==="static")panel.style.setProperty("position","relative");
-    var back=document.createElement("button");
-    back.type="button";
-    back.id="gtxSettingsMainDashboardBack";
+    if(panel && getComputedStyle(panel).position==="static")panel.style.setProperty("position","relative","important");
     back.textContent="←";
     back.setAttribute("aria-label","Back to main dashboard");
     back.title="Back to main dashboard";
-    back.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:50!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;border:1px solid #35516b!important;border-radius:8px!important;background:#102944!important;color:#fff!important;font-size:22px!important;font-weight:700!important;line-height:1!important;cursor:pointer!important;";
-    back.addEventListener("click",function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      if(typeof window.gtxSettingsReturnToMainDashboard==="function"){
-        window.gtxSettingsReturnToMainDashboard();
-      }else{
-        var p=document.getElementById("gtxSimplePage");
-        if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
-        var menu=document.getElementById("menuDrawer");
-        if(menu){menu.classList.add("open");menu.style.setProperty("display","block","important");menu.style.setProperty("visibility","visible","important");menu.style.setProperty("pointer-events","auto","important");menu.removeAttribute("aria-hidden");}
-      }
-    });
-    panel.insertBefore(back,title||panel.firstChild);
+    back.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:99999!important;display:inline-flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;justify-content:center!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;padding:0!important;border:2px solid #6aa9ff!important;border-radius:8px!important;background:#102944!important;color:#ffffff!important;font-size:26px!important;font-weight:900!important;line-height:1!important;cursor:pointer!important;";
+    back.onclick=function(e){e.preventDefault();e.stopPropagation();if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();};
   }
   syncSettingsDashboardBack();
-  if(window.MutationObserver && document.documentElement){
-    new MutationObserver(syncSettingsDashboardBack).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});
-  }
+  if(window.MutationObserver&&document.documentElement)new MutationObserver(syncSettingsDashboardBack).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});
   document.addEventListener("DOMContentLoaded",syncSettingsDashboardBack);
   window.addEventListener("load",syncSettingsDashboardBack);
 })();
