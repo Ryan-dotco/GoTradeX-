@@ -67,5 +67,19 @@ function init(){
  },true);
  window.addEventListener("keydown",e=>{if(e.key==="Escape"&&root.classList.contains("open"))close()});
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+function installSettingsEntry(){
+ const candidates=Array.from(document.querySelectorAll(".drawer .panel, [role='dialog'], .settingsPanel, .settings-panel, .modal"));
+ for(const panel of candidates){
+  const t=(panel.innerText||panel.textContent||"").replace(/\\s+/g," ").toLowerCase();
+  if(!(t.includes("social trading")&&(t.includes("time zone")||t.includes("appearance")||t.includes("trading preferences"))))continue;
+  if(panel.querySelector("[data-open-security-portal='true']"))return;
+  const b=document.createElement("button");
+  b.type="button";b.className="gsp-settings-entry";b.setAttribute("data-open-security-portal","true");
+  b.innerHTML='<span class="gsp-entry-icon">⛨</span><span class="gsp-entry-copy"><strong>Security Portal</strong><small>Password, withdrawal PIN, email protection & emergency controls</small></span><span class="gsp-entry-arrow">›</span>';
+  panel.appendChild(b);return;
+ }
+}
+const observer=new MutationObserver(installSettingsEntry);
+function watchSettings(){installSettingsEntry();observer.observe(document.body,{childList:true,subtree:true,characterData:true})}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{init();watchSettings()});else{init();watchSettings()}
 })();
