@@ -3292,15 +3292,25 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   if(!b)return;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
   if(typeof window.gtxSettingsBackToPrevious==="function")window.gtxSettingsBackToPrevious();
+  // Force the previous menu visible even if a legacy handler left it
+  // with class="open" but display:none!important.
   window.setTimeout(function(){
    var p=document.getElementById("gtxSimplePage");
-   if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
+   if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.style.setProperty("visibility","hidden","important");p.setAttribute("aria-hidden","true");}
    var menu=document.getElementById("menuDrawer");
-   if(menu&&!menu.classList.contains("open")){
-    menu.classList.add("open");menu.style.removeProperty("display");menu.removeAttribute("aria-hidden");
+   if(menu){
+    menu.classList.add("open");
+    menu.style.setProperty("display","block","important");
+    menu.style.setProperty("visibility","visible","important");
+    menu.style.setProperty("pointer-events","auto","important");
+    menu.removeAttribute("aria-hidden");
    }
+   var profile=document.getElementById("gtxProfileDrawer");
+   if(profile){profile.classList.remove("open");profile.style.setProperty("display","none","important");profile.setAttribute("aria-hidden","true");}
    document.body.classList.remove("gtx-subscreen-open");
-  },60);
+   var header=document.querySelector(".gtxKenglyHeader");
+   if(header)header.style.setProperty("display","none","important");
+  },120);
  },true);
  // A final safety check makes sure Close has actually returned to the chart.
  window.addEventListener("pointerup",function(e){
