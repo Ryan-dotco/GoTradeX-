@@ -1,55 +1,121 @@
-/* GoTradeX Chart Tools drawer: expandable vertical category bars. */
+/* GoTradeX Chart Tools: card-style expanders with real chart-engine actions. */
 (function(){
 "use strict";
+const aliases={
+ alligator:"Alligator",fractals:"Fractals",ao:"Awesome Oscillator",ema:"EMA / SMA",
+ supertrend:"Supertrend",kangaroo:"Kangaroo",lion:"Lion",kenkley:"Kenkley’s Lines",
+ rsi:"RSI",macd:"MACD",bb:"Bollinger Bands",ichimoku:"Ichimoku Cloud",
+ parabolicsar:"Parabolic SAR",adx:"ADX",patterns:"Patterns",stochastic:"Stochastic",
+ cci:"CCI",williamsr:"Williams %R",atr:"ATR",keltnerchannels:"Keltner Channels",
+ donchianchannels:"Donchian Channels",supportresistance:"Support & Resistance",
+ trendline:"Trend Line",horizontalline:"Horizontal Line",verticalline:"Vertical Line",
+ fibonacciRetracement:"Fibonacci Retracement",fibonacciExtension:"Fibonacci Extension",
+ candlesticks:"Candlesticks",heikinashi:"Heikin Ashi",linechart:"Line Chart",areachart:"Area Chart",
+ pricealert:"Price Alert",indicatoralert:"Indicator Alert",buysellsignalalert:"BUY / SELL Signal Alert",
+ chartsettings:"Chart Settings"
+};
+const descriptions={
+ "Alligator":"Jaw, Teeth and Lips overlays calculated from the selected chart candles.",
+ "Fractals":"Marks local swing highs and lows on the selected chart.",
+ "EMA / SMA":"Moving-average overlays based on the current chart history.",
+ "Supertrend":"ATR-based trend overlay calculated from current chart candles.",
+ "Bollinger Bands":"Upper and lower volatility bands from the current chart history.",
+ "Support & Resistance":"Adds horizontal levels from the recent chart high and low.",
+ "Candlesticks":"Switches the main chart to candlesticks.",
+ "Heikin Ashi":"Switches candle rendering to Heikin Ashi.",
+ "Line Chart":"Switches the main chart to a close-price line.",
+ "Area Chart":"Switches the main chart to an area chart."
+};
 function init(){
- const drawer=document.getElementById("chartToolsDrawer");
- if(!drawer||drawer.dataset.gtxAccordionReady==="1")return;
- const panel=drawer.querySelector(".panel"); if(!panel)return;
- drawer.dataset.gtxAccordionReady="1";
- const style=document.createElement("style");
- style.id="gtx-chart-tools-accordion-style";
+ const drawer=document.getElementById("chartToolsDrawer");if(!drawer||drawer.dataset.gtxCardsReady==="1")return;
+ const panel=drawer.querySelector(".panel");if(!panel)return;
+ drawer.dataset.gtxCardsReady="1";
+ const style=document.createElement("style");style.id="gtx-chart-tools-cards-style";
  style.textContent=`
- #chartToolsDrawer{position:fixed!important;inset:0!important;z-index:99990!important;overflow:hidden!important}
- #chartToolsDrawer .panel{width:min(560px,100vw)!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;min-height:0!important;margin:0 auto!important;padding:12px 12px calc(18px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overscroll-behavior:contain!important;border-radius:0!important;box-sizing:border-box!important}
- #chartToolsDrawer .panel>h2{position:sticky;top:0;z-index:5;margin:0;padding:12px 4px;background:#071426}
- #chartToolsDrawer .panel>.close{position:sticky;top:0;z-index:7;float:right;margin-top:4px}
- #chartToolsDrawer .gtxToolCategory{margin:8px 0;border:1px solid #285077;border-radius:10px;overflow:hidden;background:#091f37}
- #chartToolsDrawer .gtxToolCategoryHead{display:flex;width:100%;min-height:48px;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;text-align:left;background:linear-gradient(100deg,#102d4c,#0b2038);color:#e7f4ff;border:0;border-bottom:1px solid #24496b;font-weight:800;font-size:14px}
- #chartToolsDrawer .gtxToolCategoryHead .gtxToolChevron{font-size:20px;color:#63e6a2;transition:transform .16s}
- #chartToolsDrawer .gtxToolCategoryHead[aria-expanded="true"] .gtxToolChevron{transform:rotate(90deg)}
- #chartToolsDrawer .gtxToolCategoryItems{display:none;padding:4px 8px 8px}
- #chartToolsDrawer .gtxToolCategoryItems.open{display:block}
- #chartToolsDrawer .chartToolOption{display:flex!important;align-items:center;justify-content:space-between;width:100%;min-height:46px;margin:4px 0;padding:11px 12px!important;text-align:left;border:1px solid #214363!important;border-radius:8px!important;background:#0b2945!important;color:#e5f2ff!important;font-size:13px!important}
- #chartToolsDrawer .chartToolOption span{color:#74e8a9;font-size:20px}
- #chartToolsDrawer .chartToolOption.selected{border-color:#42d392!important;background:#0b3a2b!important;box-shadow:inset 3px 0 #42d392}
- #chartToolsDrawer #chartToolsStatus{padding:10px 4px;color:#8decb6;font-size:12px;line-height:1.4}
- @media(min-width:600px){#chartToolsDrawer .panel{width:min(560px,92vw)!important;border-left:1px solid #285077!important;border-right:1px solid #285077!important}}
+ #chartToolsDrawer .panel{width:min(560px,100vw)!important;padding:12px!important;overflow-y:auto!important;overscroll-behavior:contain}
+ #chartToolsDrawer .panel h2{margin:8px 0 16px;font-size:18px}
+ #chartToolsDrawer .category{margin:18px 2px 7px;color:#8fa8c4;font-size:10px;letter-spacing:1.3px}
+ #chartToolsDrawer .gtxToolCard{margin:10px 0}
+ #chartToolsDrawer .tool-btn{width:100%;min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#132040;border:1px solid #7a1f1f;border-radius:14px;padding:11px 13px;color:#fff;text-align:left;cursor:pointer}
+ #chartToolsDrawer .tool-btn.open{border-color:#ff3b3b;box-shadow:0 0 12px #ff3b3b22}
+ #chartToolsDrawer .tool-left{display:flex;align-items:center;gap:12px;min-width:0}
+ #chartToolsDrawer .tool-icon{width:42px;height:42px;flex:0 0 42px;background:#1a2f55;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+ #chartToolsDrawer .tool-text b{font-size:14px;color:#d0d8e6;display:block}
+ #chartToolsDrawer .tool-text span{font-size:11px;opacity:.65;display:block;margin-top:3px;line-height:1.35}
+ #chartToolsDrawer .tool-arrow{font-size:16px;opacity:.8;transition:transform .2s}
+ #chartToolsDrawer .tool-btn.open .tool-arrow{transform:rotate(180deg)}
+ #chartToolsDrawer .tool-body{display:none;background:#0f1d36;border:1px solid #1e335a;border-radius:12px;padding:0;margin:4px 0 14px;position:relative;max-height:55vh;overflow-y:auto}
+ #chartToolsDrawer .tool-body.show{display:block;animation:gtxToolSlide .2s ease}
+ @keyframes gtxToolSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+ #chartToolsDrawer .body-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #1a2f55}
+ #chartToolsDrawer .body-head b{font-size:12px;opacity:.9}
+ #chartToolsDrawer .body-content{padding:14px}
+ #chartToolsDrawer .tool-description{font-size:12px;line-height:1.5;color:#9bb1cb}
+ #chartToolsDrawer .tool-current-market{font-size:11px;margin-top:10px;color:#4ade80;background:#081325;border:1px solid #1e3a5f;border-radius:7px;padding:7px 9px}
+ #chartToolsDrawer .apply-row{display:flex;gap:8px;margin-top:14px}
+ #chartToolsDrawer .apply-btn{flex:1;min-height:42px;padding:10px 8px;border-radius:10px;border:1px solid #2a3f66;font-weight:800;font-size:11px;cursor:pointer}
+ #chartToolsDrawer .apply-btn.on{background:#2563eb;border-color:#2563eb;color:#fff}
+ #chartToolsDrawer .apply-btn.off{background:#132040;color:#d0d8e6}
+ #chartToolsDrawer .apply-btn.applied{background:#00d084;border-color:#00d084;color:#061426}
+ #chartToolsDrawer #chartToolsStatus{margin:10px 0;padding:9px;background:#0f1d36;border:1px solid #1a2f55;border-radius:8px;color:#9bb1cb;font-size:11px;line-height:1.45;text-align:left}
+ @media(min-width:600px){#chartToolsDrawer .panel{width:min(560px,92vw)!important}}
  `;
  document.head.appendChild(style);
- const title=panel.querySelector("h2");
+ const icons={"Alligator":"🐊","Fractals":"🔺","Patterns":"🧩","Awesome Oscillator":"📊","EMA / SMA":"📈","Supertrend":"🚀","Kangaroo":"🦘","Lion":"🦁","Kenkley’s Lines":"〰️","RSI":"⚡","MACD":"〰️","Bollinger Bands":"◍"};
  const status=panel.querySelector("#chartToolsStatus");
- const close=panel.querySelector(".close");
- const cats=Array.from(panel.querySelectorAll(".category"));
- cats.forEach((cat,index)=>{
-   const section=document.createElement("section");section.className="gtxToolCategory";
-   const head=document.createElement("button");head.type="button";head.className="gtxToolCategoryHead";head.setAttribute("aria-expanded","false");
-   const label=document.createElement("span");label.textContent=cat.textContent.trim();
-   const chevron=document.createElement("span");chevron.className="gtxToolChevron";chevron.textContent="›";chevron.setAttribute("aria-hidden","true");
-   head.append(label,chevron);
-   const items=document.createElement("div");items.className="gtxToolCategoryItems";
-   let node=cat.nextElementSibling;
-   while(node && !node.classList.contains("category") && node.id!=="chartToolsStatus"){
-     const next=node.nextElementSibling;items.appendChild(node);node=next;
-   }
-   cat.replaceWith(section);section.append(head,items);
+ const market=()=>{const pair=document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"selected market";const mode=document.getElementById("bottomAssetMode")?.textContent||"current feed";return (pair+" • "+mode).trim();};
+ panel.querySelectorAll(".chartToolOption").forEach((old,index)=>{
+   const name=old.dataset.tool||old.textContent.trim().replace(/›/g,"").trim();
+   const card=document.createElement("section");card.className="gtxToolCard";
+   const head=document.createElement("button");head.type="button";head.className="tool-btn";head.dataset.tool=name;
+   const left=document.createElement("span");left.className="tool-left";
+   const icon=document.createElement("span");icon.className="tool-icon";icon.textContent=icons[name]||"›";
+   const textWrap=document.createElement("span");textWrap.className="tool-text";
+   const title=document.createElement("b");title.textContent=name;
+   const sub=document.createElement("span");sub.textContent=descriptions[name]||"Tool settings and chart availability for the selected market.";
+   textWrap.append(title,sub);left.append(icon,textWrap);
+   const arrow=document.createElement("span");arrow.className="tool-arrow";arrow.textContent="V";
+   head.append(left,arrow);
+   const body=document.createElement("div");body.className="tool-body";
+   const bodyHead=document.createElement("div");bodyHead.className="body-head";
+   const bodyTitle=document.createElement("b");bodyTitle.textContent=(icons[name]?icons[name]+" ":"")+name.toUpperCase();
+   const close=document.createElement("button");close.type="button";close.className="closeToolBody";close.textContent="×";close.setAttribute("aria-label","Collapse "+name);close.style.cssText="width:32px;height:32px;background:#1a0a0a;border:1px solid #7a1f1f;border-radius:8px;color:#ff6a6a;font-size:20px";
+   bodyHead.append(bodyTitle,close);
+   const content=document.createElement("div");content.className="body-content";
+   const desc=document.createElement("div");desc.className="tool-description";desc.textContent=descriptions[name]||"This item is in the requested tools list. The chart engine will report if its overlay is not implemented yet.";
+   const current=document.createElement("div");current.className="tool-current-market";current.textContent="Selected chart: "+market();
+   const actions=document.createElement("div");actions.className="apply-row";
+   const apply=document.createElement("button");apply.type="button";apply.className="apply-btn on";apply.textContent="APPLY TO CHART";
+   const remove=document.createElement("button");remove.type="button";remove.className="apply-btn off";remove.textContent="REMOVE";
+   actions.append(apply,remove);content.append(desc,current,actions);body.append(bodyHead,content);
+   old.replaceWith(card);card.append(head,body);
+   const setStatus=msg=>{if(status)status.textContent=msg;};
+   const closeCard=()=>{body.classList.remove("show");head.classList.remove("open");head.setAttribute("aria-expanded","false");};
+   head.setAttribute("aria-expanded","false");
    head.addEventListener("click",()=>{
-     const willOpen=!items.classList.contains("open");
-     panel.querySelectorAll(".gtxToolCategoryItems").forEach(el=>el.classList.remove("open"));
-     panel.querySelectorAll(".gtxToolCategoryHead").forEach(el=>el.setAttribute("aria-expanded","false"));
-     if(willOpen){items.classList.add("open");head.setAttribute("aria-expanded","true");}
+     const opening=!body.classList.contains("show");
+     panel.querySelectorAll(".tool-body.show").forEach(el=>el.classList.remove("show"));
+     panel.querySelectorAll(".tool-btn.open").forEach(el=>{el.classList.remove("open");el.setAttribute("aria-expanded","false")});
+     if(opening){body.classList.add("show");head.classList.add("open");head.setAttribute("aria-expanded","true");current.textContent="Selected chart: "+market();}
+   });
+   close.addEventListener("click",closeCard);
+   apply.addEventListener("click",()=>{
+     const api=window.GoTradeXLiveChart;
+     if(!api||typeof api.setChartTool!=="function"){setStatus("Chart engine is not ready. No tool was applied.");return;}
+     const result=api.setChartTool(name);
+     if(result.ok){apply.classList.toggle("applied",result.active!==false);apply.textContent=result.active===false?"APPLY TO CHART":"✓ APPLIED TO CHART";remove.classList.toggle("applied",false);setStatus(result.message||name+" updated on the selected chart.");}
+     else setStatus(result.message||name+" is not implemented in the chart engine yet. No fake live result was shown.");
+   });
+   remove.addEventListener("click",()=>{
+     const api=window.GoTradeXLiveChart;
+     if(!api||typeof api.setChartTool!=="function"){setStatus("Chart engine is not ready. Nothing was removed.");return;}
+     const result=api.setChartTool(name);
+     if(result.ok){apply.classList.remove("applied");apply.textContent="APPLY TO CHART";setStatus(result.message||name+" removed from the selected chart.");}
+     else setStatus(result.message||name+" could not be removed because it is not implemented.");
    });
  });
- if(title)title.textContent="Chart Tools";
+ const oldClose=panel.querySelector(".close");
+ if(oldClose){oldClose.style.position="sticky";oldClose.style.top="0";oldClose.style.zIndex="8";}
  if(status)status.setAttribute("aria-live","polite");
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
