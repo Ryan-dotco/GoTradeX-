@@ -179,6 +179,11 @@ function openSettings(){
  if(img&&window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.setWallpaper==="function")window.GoTradeXLiveChart.setWallpaper(img);
  updateTimezonePreview();
 }
+function restoreSavedTheme(){
+ setTheme(safeGet("gtx_theme","default-dark"));
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",restoreSavedTheme,{once:true});
+else restoreSavedTheme();
 window.openGtxSettings=openSettings;
 window.gtxSettingsSetTheme=setTheme;
 window.gtxSettingsSetColor=setCustomColor;
