@@ -202,6 +202,16 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
 }
 </style>
 <link rel="stylesheet" href="style.css?v=20261014theme-borders3">
+
+/* Focused Security Portal sizing and navigation repair — isolated test branch only. */
+<style id="gtx-security-portal-sizing-fix">
+/* Use the same box model, height, spacing and text sizing as Settings/Notifications. */
+.gsp-settings-entry{height:43px!important;min-height:43px!important;max-height:43px!important;padding:0 11px!important;margin:6px 0!important;display:flex!important;align-items:center!important;gap:7px!important;overflow:hidden!important;}
+.gsp-settings-entry .gsp-entry-icon,.gsp-settings-entry .gsp-entry-arrow{flex:0 0 auto;line-height:1!important;}
+.gsp-settings-entry .gsp-entry-copy{display:flex!important;align-items:center!important;min-width:0!important;flex:1 1 auto!important;overflow:hidden!important;}
+.gsp-settings-entry .gsp-entry-copy strong{display:block!important;margin:0!important;white-space:nowrap!important;font-size:inherit!important;}
+.gsp-settings-entry .gsp-entry-copy small{display:none!important;}
+</style>
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
@@ -3294,6 +3304,36 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
    if(p&&!isOpen(p)){p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
   },80);
  },true);
+})();
+</script>
+
+<script id="gtx-security-navigation-search-repair">
+(function(){
+  'use strict';
+  const menu=document.getElementById('menuDrawer');
+  const historyStack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+  function showLayer(id){const el=document.getElementById(id);if(!el)return false;document.querySelectorAll('.drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open').forEach(n=>{if(n!==el)n.classList.remove('open')});el.style.removeProperty('display');el.classList.add('open');return true;}
+  document.addEventListener('click',function(e){
+    const security=e.target.closest('[data-open-security-portal]');
+    if(security){e.preventDefault();e.stopImmediatePropagation();if(menu)menu.classList.remove('open');historyStack.push('menuDrawer');
+      /* The existing Settings portal is the destination if present; otherwise open the app's Settings route. */
+      const portal=document.getElementById('portal-settings-standalone');
+      if(portal){portal.classList.add('is-open');portal.style.removeProperty('display');return;}
+      const settingsButton=document.querySelector('[data-profile-action="settings"]');
+      if(settingsButton){settingsButton.click();return;}
+      showLayer('menuDrawer');return;
+    }
+    const b=e.target.closest('button,a');if(!b)return;
+    const label=(b.textContent||'').trim().toLowerCase();
+    const isBack=/back/.test(b.id||'')||label==='back'||label.startsWith('← back');
+    if(isBack){
+      const portal=document.getElementById('portal-settings-standalone');
+      if(portal&&portal.classList.contains('is-open')){e.preventDefault();e.stopImmediatePropagation();portal.classList.remove('is-open');const prev=historyStack.pop();if(prev&&document.getElementById(prev))showLayer(prev);else showLayer('menuDrawer');return;}
+    }
+  },true);
+  /* Keep asset search responsive on Android keyboards, including clear/search actions. */
+  const input=document.getElementById('assetSearch');
+  if(input){const run=()=>{if(typeof window.filterAssets==='function')window.filterAssets(input.value);else input.dispatchEvent(new Event('input',{bubbles:true}));};['input','search','change','keyup'].forEach(type=>input.addEventListener(type,run));}
 })();
 </script>
 </body>
