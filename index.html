@@ -753,9 +753,11 @@ document.getElementById("userAutoBotFund").onclick=()=>{
   document.getElementById("walletBtn").click();
 };document.querySelectorAll(".chartToolOption").forEach(b=>b.onclick=()=>{
   const tool=b.dataset.tool||b.textContent.trim();
-  b.classList.toggle("selected");
-  if(window.GoTradeXLiveChart?.setChartTool) window.GoTradeXLiveChart.setChartTool(tool);
-  document.getElementById("chartToolsStatus").textContent=tool+" selected. The live chart has been updated without changing trade expiry.";
+  const result=window.GoTradeXLiveChart?.setChartTool?window.GoTradeXLiveChart.setChartTool(tool):{ok:false,message:"Chart engine is not ready yet."};
+  if(result.ok){b.classList.toggle("selected",!!result.active);if(result.active===undefined)b.classList.add("selected");}
+  else b.classList.remove("selected");
+  const status=document.getElementById("chartToolsStatus");
+  if(status)status.textContent=result.message||tool+" chart tool updated.";
 });let amount="10",amountEditing=false;
 const openAmountKeypad=()=>{
  amountEditing=false;
