@@ -3289,12 +3289,8 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
   document.body.classList.add("gtx-subscreen-open");
  }
- // Retry after the legacy handlers complete, so a tap never depends on a second Close tap.
- window.addEventListener("pointerup",function(e){
-  var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
-  if(!b)return;
-  window.setTimeout(function(){var p=document.getElementById("gtxSimplePage");if(!isOpen(p))openSettings();},80);
- },true);
+ // Settings opens once from the dedicated capture-phase click handler above.
+ // Do not retry on pointerup: a second open can rebuild the Settings DOM during the same tap.
  // Handle Settings Back before delegated handlers, then verify that the previous menu is visible.
  window.addEventListener("click",function(e){
   var b=e.target&&e.target.closest?e.target.closest("#gtxSettingsBack"):null;
