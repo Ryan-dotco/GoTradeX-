@@ -1047,7 +1047,6 @@ syncGtxKenglyVisibility();
       '<div class="form-group"><label style="display:block"><input type="checkbox" id="prefSound"'+checked(saved.sound)+'/> Sound Alerts ON</label><label style="display:block;margin-top:8px"><input type="checkbox" id="prefConfirm"'+checked(saved.confirm)+'/> Confirm Before Trade</label></div>'+
       '<button type="button" id="saveGtxSettings" style="width:100%;padding:11px;background:#00d084;color:#06251b;border:0;border-radius:8px;font-weight:800">Save Settings</button>'+
       '<div id="gtxSettingsStatus" role="status" style="font-size:12px;min-height:16px"></div>'+
-      '<button type="button" id="gtxSettingsBack" style="width:100%;padding:10px;border-radius:8px;background:#183451;color:#fff;border:1px solid #35516b">← Back to Previous Page</button>'+
       '</div>');
     const panel=byId("gtxSimplePage");
     const closeButton=byId("gtxSimpleClose");
@@ -1060,7 +1059,7 @@ syncGtxKenglyVisibility();
       closeButton.style.setProperty("width","38px","important");
       closeButton.style.setProperty("height","38px","important");
       closeButton.style.setProperty("min-width","38px","important");
-      closeButton.onclick=gtxSettingsReturnToMainDashboard;
+      closeButton.onclick=gtxSettingsBackToPrevious;
     }
     const preview=byId("bgPreview");
     if(preview){if(customImage)preview.style.backgroundImage='url("'+customImage+'")';else if(customColor)preview.style.backgroundColor=customColor;}
@@ -1083,7 +1082,6 @@ syncGtxKenglyVisibility();
       const prefs={lang:byId("prefLang").value,amount:byId("prefAmount").value,time:byId("prefTime").value,sound:byId("prefSound").checked,confirm:byId("prefConfirm").checked};
       try{localStorage.setItem("gtx_settings",JSON.stringify(prefs));localStorage.setItem("gotradex_confirm_trades",String(prefs.confirm));document.body.dataset.gtxSoundAlerts=String(prefs.sound);byId("gtxSettingsStatus").textContent="Settings saved on this device. Demo and real balances were not changed.";}catch(err){byId("gtxSettingsStatus").textContent="Could not save settings on this device.";}
     });
-    byId("gtxSettingsBack").addEventListener("click",gtxSettingsBackToPrevious);
   }
   window.openGtxSettings=openGtxSettings;
   function gtxSettingsSetTheme(t){
@@ -3398,7 +3396,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var title=document.getElementById("gtxSimpleTitle");
   if(title&&title.textContent.trim()!=="Settings")return;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-  if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();
+  if(typeof window.gtxSettingsBackToPrevious==="function")window.gtxSettingsBackToPrevious();
   window.setTimeout(function(){
    var panel=document.getElementById("gtxSimplePage");
    if(panel){panel.classList.remove("open");panel.style.setProperty("display","none","important");panel.style.setProperty("visibility","hidden","important");panel.setAttribute("aria-hidden","true");}
