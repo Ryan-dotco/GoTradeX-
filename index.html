@@ -3398,7 +3398,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var title=document.getElementById("gtxSimpleTitle");
   if(title&&title.textContent.trim()!=="Settings")return;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-  if(typeof window.gtxSettingsBackToPrevious==="function")window.gtxSettingsBackToPrevious();
+  if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();
   window.setTimeout(function(){
    var panel=document.getElementById("gtxSimplePage");
    if(panel){panel.classList.remove("open");panel.style.setProperty("display","none","important");panel.style.setProperty("visibility","hidden","important");panel.setAttribute("aria-hidden","true");}
