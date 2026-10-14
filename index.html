@@ -203,11 +203,10 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
 </style>
 <link rel="stylesheet" href="style.css?v=20261014theme-borders3">
 
-/* Focused Security Portal sizing and navigation repair — isolated test branch only. */
 <style id="gtx-security-portal-sizing-fix">
-/* Use the same box model, height, spacing and text sizing as Settings/Notifications. */
-.gsp-settings-entry{height:43px!important;min-height:43px!important;max-height:43px!important;padding:0 11px!important;margin:6px 0!important;display:flex!important;align-items:center!important;gap:7px!important;overflow:hidden!important;}
-.gsp-settings-entry .gsp-entry-icon,.gsp-settings-entry .gsp-entry-arrow{flex:0 0 auto;line-height:1!important;}
+/* Keep Security on the same sizing rules as adjacent profile buttons. */
+.gsp-settings-entry{height:auto!important;min-height:43px!important;max-height:none!important;padding:9px 11px!important;margin:6px 0!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:7px!important;overflow:hidden!important;font-size:11px!important;}
+.gsp-settings-entry .gsp-entry-icon,.gsp-settings-entry .gsp-entry-arrow{flex:0 0 auto;line-height:normal!important;}
 .gsp-settings-entry .gsp-entry-copy{display:flex!important;align-items:center!important;min-width:0!important;flex:1 1 auto!important;overflow:hidden!important;}
 .gsp-settings-entry .gsp-entry-copy strong{display:block!important;margin:0!important;white-space:nowrap!important;font-size:inherit!important;}
 .gsp-settings-entry .gsp-entry-copy small{display:none!important;}
@@ -3287,12 +3286,21 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   if(!b)return;
   window.setTimeout(function(){var p=document.getElementById("gtxSimplePage");if(!isOpen(p))openSettings();},80);
  },true);
- // Explicitly handle Back from Settings before any delegated handlers can swallow it.
+ // Handle Settings Back before delegated handlers, then verify that the previous menu is visible.
  window.addEventListener("click",function(e){
   var b=e.target&&e.target.closest?e.target.closest("#gtxSettingsBack"):null;
   if(!b)return;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
   if(typeof window.gtxSettingsBackToPrevious==="function")window.gtxSettingsBackToPrevious();
+  window.setTimeout(function(){
+   var p=document.getElementById("gtxSimplePage");
+   if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
+   var menu=document.getElementById("menuDrawer");
+   if(menu&&!menu.classList.contains("open")){
+    menu.classList.add("open");menu.style.removeProperty("display");menu.removeAttribute("aria-hidden");
+   }
+   document.body.classList.remove("gtx-subscreen-open");
+  },60);
  },true);
  // A final safety check makes sure Close has actually returned to the chart.
  window.addEventListener("pointerup",function(e){
