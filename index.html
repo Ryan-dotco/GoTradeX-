@@ -1127,13 +1127,16 @@ syncGtxKenglyVisibility();
     const h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display",document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open")?"none":"flex","important");
   }
   function openGtxSecurity(){
-    const session=!!localStorage.getItem("gotradex_logged_in_user")||!!localStorage.getItem("gotradex_current_user")||!!localStorage.getItem("gotradex_session");
+    const portalUrl="https://raw.githack.com/Ryan-dotco/GoTradeX-/test/profile-registration-chat-ai-isolated-20261013/security-portal-test.html?v=20261014security24";
     openSimplePanel("Security",
-      '<div style="margin:0 0 10px;padding:10px 12px;border:1px solid #30435f;border-radius:10px;background:#0b1b30;color:#dbeafe;font-size:13px;">'+
-      (session?"Security portal opened inside your GoTradeX session.":"Security portal opened inside GoTradeX. Sign in to use account-protection actions.")+
-      '</div>'+
-      '<iframe title="GoTradeX Security settings" src="https://raw.githack.com/Ryan-dotco/GoTradeX-/test/profile-registration-chat-ai-isolated-20261013/security-portal-test.html?v=20261014security22" loading="eager" referrerpolicy="no-referrer" style="display:block;width:100%;height:78vh;min-height:760px;border:1px solid #26364d;border-radius:12px;background:#090d16;"></iframe>'+
-      '<p style="font-size:12px;line-height:1.45;color:#aab6c8;margin:10px 2px 0;">Security controls that require the Phase 4 database migration will remain unavailable until that migration is applied and tested on a separate test database.</p>');
+      '<div style="display:grid;gap:12px;color:#eaf2ff;">'+
+      '<div style="padding:14px;border:1px solid #315078;border-radius:12px;background:#0b1b30;"><strong style="font-size:17px;">A. Login Security</strong><p style="margin:8px 0;color:#b7c7dc;">Change your password and manage email verification.</p></div>'+
+      '<div style="padding:14px;border:1px solid #315078;border-radius:12px;background:#0b1b30;"><strong style="font-size:17px;">B. Money Security</strong><p style="margin:8px 0;color:#b7c7dc;">Withdrawal PIN and withdrawal-freeze status.</p></div>'+
+      '<div style="padding:14px;border:1px solid #315078;border-radius:12px;background:#0b1b30;"><strong style="font-size:17px;">C. Email Protection</strong><p style="margin:8px 0;color:#b7c7dc;">Request an email change and view review status.</p></div>'+
+      '<div style="padding:14px;border:1px solid #315078;border-radius:12px;background:#0b1b30;"><strong style="font-size:17px;">D. Device &amp; Emergency Controls</strong><p style="margin:8px 0;color:#b7c7dc;">Other sessions and emergency account freeze.</p></div>'+
+      '<a href="'+portalUrl+'" target="_blank" rel="noopener" style="display:block;text-align:center;background:#2563eb;color:#fff;padding:15px;border-radius:10px;text-decoration:none;font-weight:900;">OPEN FULL SECURITY PORTAL</a>'+
+      '<p style="color:#b7c7dc;font-size:12px;">Account actions that depend on the Phase 4 database migration are not active until that migration is applied and tested.</p>'+
+      '</div>');
   }
   function openGtxNotifications(){
     const push=gtxPrefBool("gotradex_notify_trades",true);
