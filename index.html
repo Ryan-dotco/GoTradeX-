@@ -1118,12 +1118,32 @@ syncGtxKenglyVisibility();
   }
   function gtxSettingsBackToPrevious(){
     const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
-    const p=byId("gtxSimplePage");if(p){p.classList.remove("open");p.style.setProperty("display","none","important");}
+    const p=byId("gtxSimplePage");
+    if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
     let previous=null;
-    while(stack.length&&!previous){const id=stack.pop();const candidate=byId(id);if(candidate&&candidate.id!=="gtxSimplePage")previous=candidate;}
-    if(previous){previous.classList.add("open");previous.style.removeProperty("display");previous.style.removeProperty("z-index");previous.removeAttribute("aria-hidden");}
-    else{document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(el=>{el.classList.remove("open");el.style.setProperty("display","none","important");});}
-    const h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display",document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open")?"none":"flex","important");
+    while(stack.length&&!previous){
+      const id=stack.pop();
+      const candidate=byId(id);
+      if(candidate&&candidate.id!=="gtxSimplePage")previous=candidate;
+    }
+    // Settings is opened from the profile menu in the normal flow. Restore it explicitly,
+    // even if an older history entry was missing or the menu had been temporarily hidden.
+    if(!previous)previous=byId("menuDrawer")||byId("gtxProfileDrawer");
+    if(previous){
+      previous.classList.add("open");
+      previous.style.removeProperty("display");
+      previous.style.removeProperty("z-index");
+      previous.removeAttribute("aria-hidden");
+      if(previous.id==="menuDrawer"){
+        previous.style.setProperty("display","block","important");
+        const profile=byId("gtxProfileDrawer");
+        if(profile){profile.classList.add("open");profile.style.removeProperty("display");profile.removeAttribute("aria-hidden");}
+      }
+    }
+    const otherOpen=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
+    const header=document.querySelector(".gtxKenglyHeader");
+    if(header)header.style.setProperty("display",otherOpen?"none":"flex","important");
+    document.body.classList.toggle("gtx-subscreen-open",!!previous);
   }
   window.gtxSettingsBackToPrevious=gtxSettingsBackToPrevious;
   window.gtxSettingsCloseToTrading=gtxSettingsCloseToTrading;
