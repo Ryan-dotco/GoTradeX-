@@ -3440,5 +3440,50 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 })();
 </script>
 
+<script id="gtx-remove-settings-back-and-x-final-20261014">
+(function(){
+  "use strict";
+  function cleanSettingsControls(){
+    var simple=document.getElementById("gtxSimplePage");
+    var simpleTitle=document.getElementById("gtxSimpleTitle");
+    var simpleIsSettings=!!(simple && simpleTitle && simpleTitle.textContent.trim().toLowerCase()==="settings");
+    if(simpleIsSettings){
+      // This is the arrow/Back/X-style control created at the top of the Settings panel.
+      var topControl=simple.querySelector("#gtxSimpleClose");
+      if(topControl)topControl.remove();
+      // Remove only Back/arrow controls inside Settings content, not preference buttons.
+      var body=document.getElementById("gtxSimpleBody");
+      if(body)body.querySelectorAll("button,a,[role=button]").forEach(function(el){
+        var label=(el.innerText||el.textContent||"").replace(/\\s+/g," ").trim();
+        var aria=(el.getAttribute("aria-label")||"").trim();
+        var title=(el.getAttribute("title")||"").trim();
+        if(el.id==="gtxSettingsBack" || /back/i.test(label) || /back/i.test(aria) || /back/i.test(title) || /^(?:←|⟵|❮|‹|<)$/u.test(label)) el.remove();
+      });
+    }
+    // A second/standalone Settings implementation may be present in some cached builds.
+    var standalone=document.getElementById("portal-settings-standalone");
+    if(standalone){
+      standalone.querySelectorAll("button,a,[role=button]").forEach(function(el){
+        var label=(el.innerText||el.textContent||"").replace(/\\s+/g," ").trim();
+        var aria=(el.getAttribute("aria-label")||"").trim();
+        var title=(el.getAttribute("title")||"").trim();
+        var closeControl=el.classList.contains("settings-icon-close") ||
+          /close/i.test(aria) || /close/i.test(title) ||
+          /^(?:×|✕|✖|x)$/i.test(label);
+        var backControl=el.id==="gtxSettingsBack" ||
+          /back/i.test(label) || /back/i.test(aria) || /back/i.test(title) ||
+          /^(?:←|⟵|❮|‹|<)$/u.test(label);
+        if(closeControl || backControl)el.remove();
+      });
+    }
+  }
+  cleanSettingsControls();
+  if(window.MutationObserver && document.documentElement){
+    new MutationObserver(cleanSettingsControls).observe(document.documentElement,{childList:true,subtree:true});
+  }
+  document.addEventListener("DOMContentLoaded",cleanSettingsControls);
+  window.addEventListener("load",cleanSettingsControls);
+})();
+</script>
 </body>
 </html>
