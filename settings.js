@@ -155,7 +155,11 @@ function openSettings(){
  if(!existing){existing=document.createElement("div");existing.id=overlayId;existing.className="portal-section";document.body.appendChild(existing);}
  var active=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
  previousPortalId=active&&active.id?active.id:null;
+ // Close visible app layers so they cannot cover the standalone Settings portal.
+ document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(function(layer){layer.classList.remove("open");layer.style.removeProperty("display");});
  existing.innerHTML=portalMarkup();existing.classList.add("is-open");existing.style.setProperty("display","block","important");existing.style.setProperty("visibility","visible","important");existing.style.setProperty("pointer-events","auto","important");existing.style.setProperty("z-index","2147483647","important");existing.setAttribute("role","dialog");existing.setAttribute("aria-modal","true");existing.removeAttribute("aria-hidden");
+ document.body.classList.add("gtx-subscreen-open");
+ var header=document.querySelector(".gtxKenglyHeader");if(header)header.style.setProperty("display","none","important");
  var p=getPrefs();setTheme(safeGet("gtx_theme","default-dark"));applyTimezone(safeGet("gtx_timezone_offset","+02:00"),safeGet("gtx_timezone_label","UTC+02:00 — Johannesburg"));
  document.querySelectorAll("#"+overlayId+" [data-section-toggle]").forEach(function(b){b.addEventListener("click",function(){var section=b.closest(".settings-section"),body=section&&section.querySelector(".settings-section-body");if(!section||!body)return;var open=!section.classList.contains("is-expanded");section.classList.toggle("is-expanded",open);b.setAttribute("aria-expanded",open?"true":"false");body.hidden=!open;});});
  document.querySelectorAll("#"+overlayId+" [data-theme-choice]").forEach(function(b){b.addEventListener("click",function(){setTheme(b.getAttribute("data-theme-choice"));});});
