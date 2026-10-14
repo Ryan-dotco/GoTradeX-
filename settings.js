@@ -58,7 +58,6 @@ function setPalette(accent,theme){
  var root=document.documentElement;
  /* The selected swatch controls borders only. Keep text, fills, chart colors and wallpaper unchanged. */
  root.style.setProperty("--gtx-accent-border",accent);
- root.style.setProperty("--gtx-accent-glow",accent+"35");
  root.style.setProperty("--gtx-page-surface",theme==="light"?"#f4f6f8":"#081b31");
  root.style.setProperty("--gtx-panel-surface",theme==="light"?"#ffffff":"#0b2038");
  root.style.setProperty("--gtx-screen-text",theme==="light"?"#111827":"#f8fafc");
