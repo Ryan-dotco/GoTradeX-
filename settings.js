@@ -183,7 +183,8 @@ function openSettings(){
  var existing=byId(overlayId);
  if(!existing){existing=document.createElement("div");existing.id=overlayId;existing.className="portal-section";document.body.appendChild(existing);}
  var active=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
- previousPortalId=active&&active.id?active.id:null;
+ var historyStack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+ previousPortalId=active&&active.id?active.id:(historyStack.length?historyStack[historyStack.length-1]:(byId("menuDrawer")?"menuDrawer":null));
  // Close visible app layers so they cannot cover the standalone Settings portal.
  document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(function(layer){layer.classList.remove("open");layer.style.removeProperty("display");});
  existing.innerHTML=portalMarkup();existing.classList.add("is-open");forceSettingsOnTop(existing);existing.setAttribute("role","dialog");existing.setAttribute("aria-modal","true");existing.removeAttribute("aria-hidden");
@@ -228,6 +229,15 @@ window.gtxSettingsBackToPrevious=function(){closeOverlay(true);};
 window.gtxSettingsCloseToTrading=function(){closeOverlay(false);};
 window.gtxSettingsSetTheme=setTheme;
 window.gtxSettingsSetColor=setCustomColor;
+/* Intercept these controls at window capture, before legacy navigation handlers can swallow them. */
+window.addEventListener("click",function(e){
+ var button=e.target&&e.target.closest?e.target.closest("#settingsBackButton,#settingsCloseToTrading,#settingsCloseFooter"):null;
+ if(!button)return;
+ e.preventDefault();
+ e.stopPropagation();
+ if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+ closeOverlay(button.id==="settingsBackButton");
+},true);
 document.addEventListener("click",function(e){
  var button=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"],[data-open-security-portal]'):null;
  if(!button)return;
