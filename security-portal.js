@@ -80,28 +80,27 @@ function addLauncher(container){
  return true;
 }
 function installSettingsEntry(){
- const candidates=Array.from(document.querySelectorAll(".drawer .panel, [role='dialog'], .settingsPanel, .settings-panel, .modal, #gtxSimplePage, .gtxProfilePanel"));
- for(const panel of candidates){
-  if(!isVisible(panel))continue;
-  const text=(panel.innerText||panel.textContent||"").replace(/\s+/g," ").toLowerCase();
-  const looksLikeSettings=/(^|\b)(settings|account settings|trading preferences)(\b|$)/i.test(text)
-    ||(text.includes("time zone")&&text.includes("appearance"))
-    ||(text.includes("location services")&&text.includes("account & security"))
-    ||(text.includes("social trading")&&text.includes("privacy"));
-  if(!looksLikeSettings)continue;
-  addLauncher(panel);
-  return;
- }
- // Some builds render Settings as a menu item before the settings panel is mounted.
+ // The Security Portal belongs in the profile drawer, directly between Settings and Notifications.
  const profile=document.getElementById("gtxProfileDrawer");
- if(profile&&isVisible(profile)){
-  const settingsButton=Array.from(profile.querySelectorAll("button,a,[role='button']")).find(el=>/^settings(?:\s*&\s*account)?$/i.test((el.innerText||el.textContent||"").trim()));
-  if(settingsButton&&!profile.querySelector("[data-open-security-portal='true']")){
-   const b=document.createElement("button");b.type="button";b.className="gsp-settings-entry";b.setAttribute("data-open-security-portal","true");
-   b.innerHTML='<span class="gsp-entry-icon" aria-hidden="true">⛨</span><span class="gsp-entry-copy"><strong>Security Portal</strong><small>Open account security controls</small></span><span class="gsp-entry-arrow" aria-hidden="true">›</span>';
-   settingsButton.insertAdjacentElement("afterend",b);
+ if(profile){
+  document.querySelectorAll("[data-open-security-portal='true']").forEach(function(old){
+   if(!profile.contains(old))old.remove();
+  });
+  const settingsButton=profile.querySelector('[data-profile-action="settings"]');
+  if(settingsButton){
+   let launcher=profile.querySelector("[data-open-security-portal='true']");
+   if(!launcher){
+    launcher=document.createElement("button");
+    launcher.type="button";
+    launcher.className="gsp-settings-entry";
+    launcher.setAttribute("data-open-security-portal","true");
+    launcher.innerHTML='<span class="gsp-entry-icon" aria-hidden="true">⛨</span><span class="gsp-entry-copy"><strong>Security Portal</strong><small>Password, withdrawal PIN, email protection &amp; emergency controls</small></span><span class="gsp-entry-arrow" aria-hidden="true">›</span>';
+   }
+   if(settingsButton.nextElementSibling!==launcher)settingsButton.insertAdjacentElement("afterend",launcher);
+   return;
   }
  }
+ // Do not place the launcher inside Settings while the profile drawer is not mounted.
 }
 const observer=new MutationObserver(installSettingsEntry);
 function watchSettings(){installSettingsEntry();observer.observe(document.body,{childList:true,subtree:true,characterData:true})}
