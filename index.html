@@ -1046,7 +1046,7 @@ syncGtxKenglyVisibility();
       '<div class="form-group"><label for="prefTime">Default Timeframe</label><select id="prefTime" style="width:100%;padding:10px;border-radius:8px;background:#102944;color:#fff;border:1px solid #35516b">'+["30s","1 Minute","2 Minutes","5 Minutes"].map(v=>'<option'+selected(saved.time||"1 Minute",v)+'>'+v+'</option>').join("")+'</select></div>'+
       '<div class="form-group"><label style="display:block"><input type="checkbox" id="prefSound"'+checked(saved.sound)+'/> Sound Alerts ON</label><label style="display:block;margin-top:8px"><input type="checkbox" id="prefConfirm"'+checked(saved.confirm)+'/> Confirm Before Trade</label></div>'+
       '<button type="button" id="saveGtxSettings" style="width:100%;padding:11px;background:#00d084;color:#06251b;border:0;border-radius:8px;font-weight:800">Save Settings</button>'+ 
-      '<button type="button" id="gtxSettingsBack" style="width:100%;padding:10px;margin-top:8px;background:#172b40;color:#fff;border:1px solid #35516b;border-radius:8px;font-weight:700">← Back to Dashboard</button>'+
+
       '<div id="gtxSettingsStatus" role="status" style="font-size:12px;min-height:16px"></div>'+
       '</div>');
     const panel=byId("gtxSimplePage");
@@ -1067,8 +1067,6 @@ syncGtxKenglyVisibility();
       closeButton.style.setProperty("min-width","64px","important");
       closeButton.onclick=gtxSettingsReturnToMainDashboard;
     }
-    const bottomBack=byId("gtxSettingsBack");
-    if(bottomBack)bottomBack.onclick=function(e){e.preventDefault();e.stopPropagation();gtxSettingsReturnToMainDashboard();};
     const preview=byId("bgPreview");
     if(preview){if(customImage)preview.style.backgroundImage='url("'+customImage+'")';else if(customColor)preview.style.backgroundColor=customColor;}
     gtxSettingsSetTheme(theme);
