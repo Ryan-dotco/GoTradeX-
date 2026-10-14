@@ -746,6 +746,13 @@
 
   const chartToolSeries={};
   const chartToolLines={};
+  const chartToolMarkers={};
+  function refreshToolMarkers(){
+    if(!state.candleSeries)return;
+    const merged=Object.values(chartToolMarkers).flat().sort((a,b)=>a.time-b.time);
+    try{state.candleSeries.setMarkers(merged)}catch(_){}
+  }
+  function setToolMarkers(name,markers){chartToolMarkers[name]=markers||[];refreshToolMarkers();}
   const activeChartTools=new Set();
   const chartToolParams={};
   function chartToolSMA(period,field="c"){
@@ -806,7 +813,7 @@
     keys.forEach(k=>{removeSeriesSafe(chartToolSeries[k]);delete chartToolSeries[k]});
     (chartToolLines[name]||[]).forEach(line=>{try{state.candleSeries?.removePriceLine(line)}catch(_){}});
     delete chartToolLines[name];
-    if(name==="Fractals"&&state.candleSeries){try{state.candleSeries.setMarkers([])}catch(_){}}
+    if(chartToolMarkers[name]){delete chartToolMarkers[name];refreshToolMarkers();}
     if(["Candlesticks","Heikin Ashi","Line Chart","Area Chart"].includes(name)&&state.candleSeries){
       state.chartType="candle";
       try{state.candleSeries.setData(seriesCandleData())}catch(_){}
@@ -830,13 +837,53 @@
       const markers=[];
       for(let i=2;i<state.candles.length-2;i++){const c=state.candles[i];let hi=true,lo=true;for(let j=i-2;j<=i+2;j++){if(j===i)continue;if(Number(state.candles[j].h)>=Number(c.h))hi=false;if(Number(state.candles[j].l)<=Number(c.l))lo=false;}
         if(hi)markers.push({time:Math.floor(c.t/1000),position:"aboveBar",color:"#f59e0b",shape:"arrowDown",text:"F"});if(lo)markers.push({time:Math.floor(c.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"F"});}
-      try{state.candleSeries.setMarkers(markers)}catch(_){}return true;
+      setToolMarkers(name,markers);return true;
     }
-    if(name==="Support & Resistance"){
+    if(name==="Patterns"||name==="Kangaroo"||name==="Lion"){
+      const markers=[];
+      const candles=state.candles;
+      const timeOf=c=>Math.floor(c.t/1000);
+      for(let i=1;i<candles.length;i++){
+        const c=candles[i],p=candles[i-1];
+        const o=Number(c.o),h=Number(c.h),l=Number(c.l),cl=Number(c.c);
+        const po=Number(p.o),pc=Number(p.c),body=Math.abs(cl-o),range=Math.max(0,h-l),upper=h-Math.max(o,cl),lower=Math.min(o,cl)-l;
+        if(name==="Patterns"){
+          if(body<=range*0.1&&range>0)markers.push({time:timeOf(c),position:"aboveBar",color:"#a78bfa",shape:"circle",text:"Doji"});
+          if(cl>o&&pc<po&&cl>=po&&o<=pc)markers.push({time:timeOf(c),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"Bull Engulf"});
+          else if(cl<o&&pc>po&&o>=pc&&cl<=po)markers.push({time:timeOf(c),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"Bear Engulf"});
+          if(body>0&&lower>=body*2&&upper<=body*0.8)markers.push({time:timeOf(c),position:"belowBar",color:"#34d399",shape:"arrowUp",text:"Pin Bull"});
+          if(body>0&&upper>=body*2&&lower<=body*0.8)markers.push({time:timeOf(c),position:"aboveBar",color:"#fb7185",shape:"arrowDown",text:"Pin Bear"});
+        } else if(name==="Kangaroo"){
+          if(body>0&&lower>=body*2&&lower>upper)markers.push({time:timeOf(c),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"Kangaroo"});
+          else if(body>0&&upper>=body*2&&upper>lower)markers.push({time:timeOf(c),position:"aboveBar",color:"#ef4444",shape:"arrowDown",text:"Kangaroo"});
+        } else if(name==="Lion"&&i>=20){
+          const prior=candles.slice(i-20,i),priorHigh=Math.max(...prior.map(x=>Number(x.h))),priorLow=Math.min(...prior.map(x=>Number(x.l)));
+          if(cl>priorHigh)markers.push({time:timeOf(c),position:"aboveBar",color:"#f59e0b",shape:"arrowUp",text:"Lion Break"});
+          else if(cl<priorLow)markers.push({time:timeOf(c),position:"belowBar",color:"#f97316",shape:"arrowDown",text:"Lion Break"});
+        }
+      }
+      setToolMarkers(name,markers);return true;
+    }
+    if(name==="Support & Resistance"||name==="Kenkley’s Lines"){
       const recent=state.candles.slice(-60);if(!recent.length)return false;
       const high=Math.max(...recent.map(c=>Number(c.h))),low=Math.min(...recent.map(c=>Number(c.l)));
       const lines=[state.candleSeries.createPriceLine({price:high,color:"#f97316",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Resistance"}),state.candleSeries.createPriceLine({price:low,color:"#22c55e",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Support"})];
+      if(name==="Kenkley’s Lines"){
+        const mid=(high+low)/2;
+        lines.push(state.candleSeries.createPriceLine({price:mid,color:"#60a5fa",lineWidth:1,lineStyle:1,axisLabelVisible:true,title:"Kenkley Mid"}));
+      }
       chartToolLines[name]=lines;return true;
+    }
+    if(name==="Ichimoku Cloud"){
+      const cs=state.candles;
+      const mid=(end,period)=>{if(end-period+1<0)return null;let hi=-Infinity,lo=Infinity;for(let j=end-period+1;j<=end;j++){hi=Math.max(hi,Number(cs[j].h));lo=Math.min(lo,Number(cs[j].l));}return (hi+lo)/2;};
+      const specs=[{key:"tenkan",color:"#ef4444",data:[]},{key:"kijun",color:"#3b82f6",data:[]},{key:"senkouA",color:"#22c55e",data:[]},{key:"senkouB",color:"#f97316",data:[]}];
+      for(let i=0;i<cs.length;i++){
+        const t=Math.floor(cs[i].t/1000),ten=mid(i,9),kij=mid(i,26),spanB=mid(i,52);
+        if(ten!==null)specs[0].data.push({time:t,value:ten});if(kij!==null)specs[1].data.push({time:t,value:kij});
+        if(ten!==null&&kij!==null)specs[2].data.push({time:t,value:(ten+kij)/2});if(spanB!==null)specs[3].data.push({time:t,value:spanB});
+      }
+      specs.forEach(spec=>{const key=name+"::"+spec.key;let series=chartToolSeries[key];if(!series){series=state.chart.addLineSeries({color:spec.color,lineWidth:1,priceLineVisible:false,lastValueVisible:false});chartToolSeries[key]=series;}series.setData(spec.data);});return true;
     }
     const specs=chartToolData(name,params);
     if(specs){specs.forEach(spec=>{const key=name+"::"+spec.key;let series=chartToolSeries[key];if(!series){series=state.chart.addLineSeries({color:spec.color,lineWidth:2,priceLineVisible:false,lastValueVisible:false});chartToolSeries[key]=series;}series.setData(spec.data);});return true;}
@@ -876,7 +923,7 @@
     donchianchannels:"Donchian Channels",supportresistance:"Support & Resistance",
     trendline:"Trend Line",horizontalline:"Horizontal Line",verticalline:"Vertical Line",
     fibonacciretracement:"Fibonacci Retracement",fibonacciextension:"Fibonacci Extension",
-    candlesticks:"Candlesticks",heikinashi:"Heikin Ashi",linechart:"Line Chart",areachart:"Area Chart",
+    candlesticks:"Candlesticks",chartcandles:"Candlesticks",heikin:"Heikin Ashi",heikinashi:"Heikin Ashi",linechart:"Line Chart",areachart:"Area Chart",sr:"Support & Resistance",sar:"Parabolic SAR",fib:"Fibonacci Retracement",
     pricealert:"Price Alert",indicatoralert:"Indicator Alert",buysellsignalalert:"BUY / SELL Signal Alert",
     chartsettings:"Chart Settings"
   };
