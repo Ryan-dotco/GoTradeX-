@@ -156,7 +156,7 @@ function init(){
    const bt=b.querySelector(".gtxPortalText b")?.textContent||"";
    const ai=portalOrder.indexOf(at),bi=portalOrder.indexOf(bt);
    return (ai<0?999:ai)-(bi<0?999:bi);
- }).forEach(node=>panel.insertBefore(node,status||null));
+ }).reverse().forEach(node=>panel.insertBefore(node,status||null));
 
 
  panel.querySelectorAll(".chartToolOption").forEach((old,index)=>{
