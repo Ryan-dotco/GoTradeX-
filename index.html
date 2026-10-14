@@ -3505,25 +3505,47 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 </script>
 <script id="gtx-settings-main-dashboard-back-button-20261014">
 (function(){
-  "use strict";
-  function syncSettingsDashboardBack(){
-    var page=document.getElementById("gtxSimplePage");
-    var title=document.getElementById("gtxSimpleTitle");
-    var isSettings=!!(page && page.classList.contains("open") && title && title.textContent.trim().toLowerCase()==="settings");
-    var back=page&&page.querySelector("#gtxSimpleClose");
-    if(!isSettings||!back)return;
-    var panel=page.querySelector(".panel");
-    if(panel && getComputedStyle(panel).position==="static")panel.style.setProperty("position","relative","important");
-    back.textContent="←";
-    back.setAttribute("aria-label","Back to main dashboard");
-    back.title="Back to main dashboard";
-    back.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:99999!important;display:inline-flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;justify-content:center!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;padding:0!important;border:2px solid #6aa9ff!important;border-radius:8px!important;background:#102944!important;color:#ffffff!important;font-size:26px!important;font-weight:900!important;line-height:1!important;cursor:pointer!important;";
-    back.onclick=function(e){e.preventDefault();e.stopPropagation();if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();};
+ "use strict";
+ var buttonId="gtxSettingsPersistentTopBack";
+ function isSettingsOpen(){
+  var page=document.getElementById("gtxSimplePage");
+  var title=document.getElementById("gtxSimpleTitle");
+  return !!(page&&page.classList.contains("open")&&title&&title.textContent.trim().toLowerCase()==="settings");
+ }
+ function goToDashboard(e){
+  if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
+  if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();
+  else{
+   var p=document.getElementById("gtxSimplePage");
+   if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
+   var menu=document.getElementById("menuDrawer");
+   if(menu){menu.classList.add("open");menu.style.setProperty("display","block","important");menu.style.setProperty("visibility","visible","important");menu.style.setProperty("pointer-events","auto","important");menu.removeAttribute("aria-hidden");}
   }
-  syncSettingsDashboardBack();
-  if(window.MutationObserver&&document.documentElement)new MutationObserver(syncSettingsDashboardBack).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});
-  document.addEventListener("DOMContentLoaded",syncSettingsDashboardBack);
-  window.addEventListener("load",syncSettingsDashboardBack);
+ }
+ function sync(){
+  var existing=document.getElementById(buttonId);
+  if(!isSettingsOpen()){
+   if(existing)existing.remove();
+   return;
+  }
+  if(!existing){
+   existing=document.createElement("button");
+   existing.id=buttonId;
+   existing.type="button";
+   existing.textContent="←";
+   existing.setAttribute("aria-label","Back to main dashboard");
+   existing.title="Back to main dashboard";
+   existing.addEventListener("click",goToDashboard,true);
+   document.body.appendChild(existing);
+  }
+  existing.style.cssText="position:fixed!important;top:calc(env(safe-area-inset-top, 0px) + 12px)!important;right:12px!important;z-index:2147483647!important;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;padding:0!important;border:2px solid #6aa9ff!important;border-radius:7px!important;background:#102944!important;color:#ffffff!important;font-family:Arial,sans-serif!important;font-size:23px!important;font-weight:900!important;line-height:1!important;box-shadow:0 2px 8px rgba(0,0,0,.45)!important;cursor:pointer!important;";
+ }
+ sync();
+ if(window.MutationObserver&&document.documentElement){
+  new MutationObserver(sync).observe(document.documentElement,{childList:true,subtree:true,attributes:true,characterData:true,attributeFilter:["class","style","aria-hidden"]});
+ }
+ document.addEventListener("DOMContentLoaded",sync);
+ window.addEventListener("load",sync);
 })();
 </script>
 </body>
