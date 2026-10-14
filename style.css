@@ -103,3 +103,7 @@ body,.app{color:var(--gtx-screen-text)}
 #portal-settings-standalone .settings-secondary-action{background:var(--gtx-panel-surface,#0b2038);border-color:var(--gtx-accent-border,#35516b);color:var(--gtx-accent-light,#a7c5ff)}
 #portal-settings-standalone .settings-status{font-size:11px;line-height:1.4;color:var(--gtx-accent-light,#a7c5ff);min-height:15px}
 @media(max-width:480px){#portal-settings-standalone{padding:0}#portal-settings-standalone .settings-shell{border-radius:0;border-left:0;border-right:0;padding:0 12px 18px}#portal-settings-standalone .settings-header{padding-top:13px}#portal-settings-standalone .settings-section-heading{min-height:61px;padding:9px}#portal-settings-standalone .settings-section-body{padding:0 9px 9px}#portal-settings-standalone .settings-switch-row{gap:8px}#portal-settings-standalone .settings-switch{flex-basis:68px;width:68px}#portal-settings-standalone .settings-footer-actions{grid-template-columns:.8fr 1.2fr .8fr;gap:5px}}
+
+
+/* Global theme border pass: every existing app border follows the selected accent. This changes border colors only; it does not recolor backgrounds or the uploaded chart wallpaper. */
+body *{border-color:var(--gtx-accent-border,#2563eb)!important}
