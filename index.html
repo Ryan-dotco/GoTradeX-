@@ -3551,7 +3551,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   new MutationObserver(function(){
    if(queued)return;queued=true;
    Promise.resolve().then(function(){queued=false;sync();});
-  }).observe(document.documentElement,{childList:true,subtree:true,attributes:true,characterData:true,attributeFilter:["class","style","aria-hidden"]});
+  }).observe(document.documentElement,{childList:true,subtree:true});
  }
  document.addEventListener("DOMContentLoaded",sync);
  window.addEventListener("load",sync);
