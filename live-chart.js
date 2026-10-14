@@ -64,25 +64,25 @@
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
-      ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
-      ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
+      ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:900 9px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
+      ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}"+
-      ".gtxLWCDateTime{display:flex;flex-direction:column;align-items:flex-end;gap:3px;color:#dcecff;font:800 9px/1.1 system-ui;white-space:nowrap;padding:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
-      ".gtxLWCDateTime span:last-child{color:#8ff0ae;font-variant-numeric:tabular-nums}"+
+      ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
+      ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:relative}"+
-      ".gtxLWCTypeButton{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;white-space:nowrap}"+
+      ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
       ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:112px;padding:4px;background:#0b2036;border:1px solid #31597f;border-radius:7px;box-shadow:0 8px 24px #0009;z-index:30;display:grid;gap:3px}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
       ".gtxLWCTypeOption{border:0;border-radius:4px;text-align:left;padding:8px;background:transparent;color:#dcecff;font:800 10px system-ui}"+
       ".gtxLWCTypeOption.active{background:#17436a;color:#8ff0ae}"+
-      ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
+      ".gtxLWCSelect{box-sizing:border-box;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
       ".gtxLWCTradeLine{position:absolute;z-index:9;top:0;bottom:28px;width:2px;display:none;pointer-events:none;border-left:2px dashed #f5a623}"+
       ".gtxLWCTradeLine.end{border-left-color:#fff}"+
       ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCAsset{font-size:9px;padding:5px 6px}.gtxLWCStatus{font-size:8px;padding:5px}.gtxLWCBtn,.gtxLWCSelect{font-size:8px;padding:4px 5px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -98,11 +98,11 @@
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
+        '<div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
         '<div class="gtxLWCControl">'+
-          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
-          '<div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
+          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
           '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
         '</div>'+
       '</div>'+
@@ -137,7 +137,7 @@
       const saved=localStorage.getItem(CHART_KEY);
       if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];tfSelect.value=saved}
       const savedType=localStorage.getItem(TYPE_KEY);
-      if(["candle","line","mountain"].includes(savedType))state.chartType=savedType;
+      if(["candle","heikin","line","mountain"].includes(savedType))state.chartType=savedType;
     }catch(_){}
     updateTypeButtons();
     updateDateTime();
@@ -167,7 +167,7 @@
     if(a)a.textContent=(state.mode==="LIVE"?"LIVE":"OTC")+" • "+(state.assetLabel||"");
   }
   function updateTypeButtons(){
-    const labels={candle:"Candles",line:"Line",mountain:"Mountain"};
+    const labels={candle:"Candles",heikin:"Heikin Ashi",line:"Line",mountain:"Mountain"};
     const button=document.getElementById("gtxLWCTypeButton");
     if(button)button.textContent=(labels[state.chartType]||"Candles")+" ▾";
     document.querySelectorAll("#gtxLiveChart [data-chart-type]").forEach(b=>{
@@ -177,10 +177,11 @@
   }
 
   function setChartType(type){
-    if(!["candle","line","mountain"].includes(type))return;
+    if(!["candle","heikin","line","mountain"].includes(type))return;
     state.chartType=type;
     try{localStorage.setItem(TYPE_KEY,type)}catch(_){}
     if(state.chart){
+      state.candleSeries.setData(seriesCandleData());
       const data=seriesLineData();
       if(type==="line"||type==="mountain"){
         if(!state.lineSeries){state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:true});}
@@ -194,7 +195,7 @@
   }
 
   function applyChartTypeVisibility(){
-    if(state.candleSeries)state.candleSeries.applyOptions({visible:state.chartType==="candle"});
+    if(state.candleSeries)state.candleSeries.applyOptions({visible:state.chartType==="candle"||state.chartType==="heikin"});
     if(state.lineSeries)state.lineSeries.applyOptions({visible:state.chartType==="line"});
     if(state.areaSeries)state.areaSeries.applyOptions({visible:state.chartType==="mountain"});
   }
@@ -539,6 +540,17 @@
   }
 
   function seriesCandleData(){
+    if(state.chartType==="heikin"){
+      let previousOpen=null,previousClose=null;
+      return state.candles.map(c=>{
+        const open=Number(c.o),high=Number(c.h),low=Number(c.l),close=Number(c.c);
+        const haClose=(open+high+low+close)/4;
+        const haOpen=previousOpen===null?(open+close)/2:(previousOpen+previousClose)/2;
+        const item={time:Math.floor(c.t/1000),open:haOpen,high:Math.max(high,haOpen,haClose),low:Math.min(low,haOpen,haClose),close:haClose};
+        previousOpen=haOpen;previousClose=haClose;
+        return item;
+      });
+    }
     return state.candles.map(c=>({
       time:Math.floor(c.t/1000),
       open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)
@@ -637,7 +649,8 @@
       return;
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
-    state.candleSeries.update(item);
+    if(state.chartType==="heikin")state.candleSeries.setData(seriesCandleData());
+    else state.candleSeries.update(item);
     if(state.lineSeries)state.lineSeries.update({time:item.time,value:item.close});
     if(state.areaSeries)state.areaSeries.update({time:item.time,value:item.close});
     applyChartTypeVisibility();
