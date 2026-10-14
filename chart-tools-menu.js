@@ -38,6 +38,11 @@ function init(){
 
  #chartToolsDrawer .gtxPortal{margin:10px 0 14px;border:1px solid #7a1f1f;border-radius:14px;background:#0d1930;overflow:hidden}
  #chartToolsDrawer .gtxPortalHead{width:100%;min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;background:#132040;border:0;color:#fff;text-align:left;font-size:14px;font-weight:800;letter-spacing:.2px;cursor:pointer}
+ #chartToolsDrawer .gtxPortalLeft{display:flex;align-items:center;gap:12px;min-width:0}
+ #chartToolsDrawer .gtxPortalIcon{width:44px;height:44px;flex:0 0 44px;background:#1a2f55;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+ #chartToolsDrawer .gtxPortalText{display:block;min-width:0}
+ #chartToolsDrawer .gtxPortalText b{display:block;color:#e2e8f0;font-size:15px}
+ #chartToolsDrawer .gtxPortalText span{display:block;margin-top:3px;color:#9bb1cb;font-size:11px;font-weight:400;line-height:1.35;letter-spacing:0}
  #chartToolsDrawer .gtxPortalHead.open{background:#192b4d;box-shadow:inset 3px 0 #ff3b3b}
  #chartToolsDrawer .gtxPortalArrow{font-size:20px;color:#ff7777;transition:transform .2s}
  #chartToolsDrawer .gtxPortalHead.open .gtxPortalArrow{transform:rotate(180deg)}
@@ -61,6 +66,10 @@ function init(){
  #chartToolsDrawer .body-head b{font-size:12px;opacity:.9}
  #chartToolsDrawer .body-content{padding:14px}
  #chartToolsDrawer .tool-description{font-size:12px;line-height:1.5;color:#9bb1cb}
+
+ #chartToolsDrawer .tool-settings{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}
+ #chartToolsDrawer .tool-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#c5d3e6;font-size:12px;background:#081325;border:1px solid #1e335a;border-radius:8px;padding:9px 10px}
+ #chartToolsDrawer .tool-setting-row input,#chartToolsDrawer .tool-setting-row select{width:92px;max-width:40%;padding:7px;border-radius:6px;border:1px solid #2a3f66;background:#0a152a;color:#fff;text-align:center}
  #chartToolsDrawer .tool-current-market{font-size:11px;margin-top:10px;color:#4ade80;background:#081325;border:1px solid #1e3a5f;border-radius:7px;padding:7px 9px}
  #chartToolsDrawer .apply-row{display:flex;gap:8px;margin-top:14px}
  #chartToolsDrawer .apply-btn{flex:1;min-height:42px;padding:10px 8px;border-radius:10px;border:1px solid #2a3f66;font-weight:800;font-size:11px;cursor:pointer}
@@ -95,12 +104,33 @@ function init(){
    portalHead.type="button";
    portalHead.className="gtxPortalHead";
    portalHead.setAttribute("aria-expanded","false");
-   const portalTitle=document.createElement("span");
+   const portalLeft=document.createElement("span");
+   portalLeft.className="gtxPortalLeft";
+   const portalIcon=document.createElement("span");
+   portalIcon.className="gtxPortalIcon";
+   const portalMeta={
+     "Chart Indicators":["🐊","Trend & Pattern • Alligator, Fractals, EMA, Supertrend, Ichimoku, SAR, ADX"],
+     "Custom Indicators":["🦘","Kangaroo, Lion, Kenkley’s Lines"],
+     "Chart Type":["📊","Candles, Heikin Ashi, Line and Area"],
+     "Drawing & Price":["✏️","Support/Resistance, lines and Fibonacci"],
+     "Momentum":["⚡","RSI, MACD, Stochastic, CCI and Williams %R"],
+     "Volatility":["🌊","Bollinger Bands, ATR, Keltner and Donchian"],
+     "Alert ⚠️ Control":["⚠️","Price, indicator and signal alerts; chart settings"]
+   };
+   const meta=portalMeta[titleText]||["📈","Open to reveal tools"];
+   portalIcon.textContent=meta[0];
+   const portalText=document.createElement("span");
+   portalText.className="gtxPortalText";
+   const portalTitle=document.createElement("b");
    portalTitle.textContent=titleText;
+   const portalSub=document.createElement("span");
+   portalSub.textContent=meta[1];
+   portalText.append(portalTitle,portalSub);
+   portalLeft.append(portalIcon,portalText);
    const portalArrow=document.createElement("span");
    portalArrow.className="gtxPortalArrow";
-   portalArrow.textContent="⌄";
-   portalHead.append(portalTitle,portalArrow);
+   portalArrow.textContent="V";
+   portalHead.append(portalLeft,portalArrow);
    const portalBody=document.createElement("div");
    portalBody.className="gtxPortalBody";
    let node=category.nextSibling;
@@ -137,11 +167,30 @@ function init(){
    const close=document.createElement("button");close.type="button";close.className="closeToolBody";close.textContent="×";close.setAttribute("aria-label","Collapse "+name);close.style.cssText="width:32px;height:32px;background:#1a0a0a;border:1px solid #7a1f1f;border-radius:8px;color:#ff6a6a;font-size:20px";
    bodyHead.append(bodyTitle,close);
    const content=document.createElement("div");content.className="body-content";
-   const desc=document.createElement("div");desc.className="tool-description";desc.textContent=descriptions[name]||"This item is in the requested tools list. The chart engine will report if its overlay is not implemented yet.";
+   const desc=document.createElement("div");desc.className="tool-description";desc.textContent=descriptions[name]||"This item is in the tools list. If the chart engine cannot perform it, it will report that instead of showing a fake result.";
    const current=document.createElement("div");current.className="tool-current-market";current.textContent="Selected chart: "+market();
+   const params={};
+   if(name==="Alligator"){
+     const settings=document.createElement("div");settings.className="tool-settings";
+     [["Jaw period","jaw",13],["Teeth period","teeth",8],["Lips period","lips",5]].forEach(([label,key,value])=>{
+       const row=document.createElement("label");row.className="tool-setting-row";row.textContent=label;
+       const input=document.createElement("input");input.type="number";input.min="2";input.max="200";input.value=String(value);input.setAttribute("aria-label",label);
+       input.addEventListener("change",()=>{const n=Number(input.value);if(!Number.isInteger(n)||n<2||n>200)input.value=String(value);});
+       params[key]=input;row.append(input);settings.append(row);
+     });content.append(settings);
+   }
+   if(name==="EMA / SMA"){
+     const settings=document.createElement("div");settings.className="tool-settings";
+     const row=document.createElement("label");row.className="tool-setting-row";row.textContent="Period";
+     const period=document.createElement("input");period.type="number";period.min="2";period.max="500";period.value="14";period.setAttribute("aria-label","Moving average period");row.append(period);settings.append(row);
+     const typeRow=document.createElement("label");typeRow.className="tool-setting-row";typeRow.textContent="Average type";
+     const type=document.createElement("select");type.innerHTML='<option value="EMA">EMA</option><option value="SMA">SMA</option>';typeRow.append(type);settings.append(typeRow);
+     params.period=period;params.type=type;content.append(settings);
+   }
    const actions=document.createElement("div");actions.className="apply-row";
    const apply=document.createElement("button");apply.type="button";apply.className="apply-btn on";apply.textContent="APPLY TO CHART";
    const remove=document.createElement("button");remove.type="button";remove.className="apply-btn off";remove.textContent="REMOVE";
+   const readParams=()=>Object.fromEntries(Object.entries(params).map(([k,v])=>[k,k==="type"?v.value:Number(v.value)]));
    actions.append(apply,remove);content.append(desc,current,actions);body.append(bodyHead,content);
    old.replaceWith(card);card.append(head,body);
    const setStatus=msg=>{if(status)status.textContent=msg;};
@@ -157,7 +206,7 @@ function init(){
    apply.addEventListener("click",()=>{
      const api=window.GoTradeXLiveChart;
      if(!api||typeof api.setChartTool!=="function"){setStatus("Chart engine is not ready. No tool was applied.");return;}
-     const result=typeof api.setChartToolEnabled==="function"?api.setChartToolEnabled(name,true):api.setChartTool(name);
+     const result=typeof api.setChartToolEnabled==="function"?api.setChartToolEnabled(name,true,readParams()):api.setChartTool(name);
      if(result.ok){apply.classList.toggle("applied",result.active!==false);apply.textContent=result.active===false?"APPLY TO CHART":"✓ APPLIED TO CHART";remove.classList.toggle("applied",false);setStatus(result.message||name+" updated on the selected chart.");}
      else setStatus(result.message||name+" is not implemented in the chart engine yet. No fake live result was shown.");
    });
