@@ -162,7 +162,7 @@ create or replace function public.gotradex_request_email_change(p_requested_emai
 returns jsonb
 language plpgsql security definer
 set search_path = public, auth
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_current text;
@@ -293,7 +293,7 @@ create or replace function public.gotradex_block_trades_for_frozen_account()
 returns trigger
 language plpgsql security definer
 set search_path = public, auth
-as $
+as $$
 begin
   if exists (
     select 1 from public.profiles p
@@ -303,7 +303,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists gotradex_frozen_account_trade_guard on public.gotradex_trade_commands;
 create trigger gotradex_frozen_account_trade_guard
@@ -328,7 +328,7 @@ commit;
   perform public.gotradex_security_audit_write(v_user,'email_change_requested',jsonb_build_object('request_id',v_id));
   return jsonb_build_object('request_id',v_id,'status','pending');
 end;
-$;
+$$;
 revoke all on function public.gotradex_request_email_change(text,text) from public, anon;
 grant execute on function public.gotradex_request_email_change(text,text) to authenticated;
 
@@ -343,7 +343,7 @@ returns table (
 )
 language plpgsql security definer
 set search_path = public, auth
-as $
+as $$
 declare v_admin uuid := auth.uid();
 begin
   if v_admin is null or not exists(select 1 from public.admin_users where user_id=v_admin) then
@@ -355,7 +355,7 @@ begin
     where r.status='pending'
     order by r.created_at asc;
 end;
-$;
+$$;
 revoke all on function public.gotradex_admin_list_email_change_requests() from public, anon;
 grant execute on function public.gotradex_admin_list_email_change_requests() to authenticated;
 
@@ -365,7 +365,7 @@ create or replace function public.gotradex_admin_review_email_change_request(
 returns boolean
 language plpgsql security definer
 set search_path = public, auth
-as $
+as $$
 declare
   v_admin uuid := auth.uid();
   v_target uuid;
@@ -385,7 +385,7 @@ begin
   perform public.gotradex_security_audit_write(v_target,'email_change_request_'||v_decision,jsonb_build_object('request_id',p_request_id,'admin_note',v_note));
   return true;
 end;
-$;
+$$;
 revoke all on function public.gotradex_admin_review_email_change_request(bigint,text,text) from public, anon;
 grant execute on function public.gotradex_admin_review_email_change_request(bigint,text,text) to authenticated;
 
@@ -511,7 +511,7 @@ create or replace function public.gotradex_block_trades_for_frozen_account()
 returns trigger
 language plpgsql security definer
 set search_path = public, auth
-as $
+as $$
 begin
   if exists (
     select 1 from public.profiles p
@@ -521,7 +521,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists gotradex_frozen_account_trade_guard on public.gotradex_trade_commands;
 create trigger gotradex_frozen_account_trade_guard
