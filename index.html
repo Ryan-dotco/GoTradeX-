@@ -3465,7 +3465,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         var label=(el.innerText||el.textContent||"").replace(/\s+/g," ").trim();
         var aria=(el.getAttribute("aria-label")||"").trim();
         var title=(el.getAttribute("title")||"").trim();
-        if(el.id!=="gtxSettingsMainDashboardBack" && (el.id==="gtxSettingsBack" || /back/i.test(label) || /back/i.test(aria) || /back/i.test(title) || /^(?:←|⟵|❮|‹|<)$/u.test(label))) el.remove();
+        if(el.id!=="gtxSettingsMainDashboardBack" && el.id!=="gtxSimpleClose" && (el.id==="gtxSettingsBack" || /back/i.test(label) || /back/i.test(aria) || /back/i.test(title) || /^(?:←|⟵|❮|‹|<)$/u.test(label))) el.remove();
       });
     } else if(simple){
       // Restore the shared control for other simple panels; this change is Settings-only.
@@ -3507,12 +3507,15 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 (function(){
  "use strict";
  var buttonId="gtxSettingsMainDashboardBack";
- function getSettingsPanel(){
+ function settingsContent(){
   var page=document.getElementById("gtxSimplePage");
   var title=document.getElementById("gtxSimpleTitle");
-  if(!page||!title||title.textContent.replace(/\\s+/g," ").trim().toLowerCase()!=="settings")return null;
-  if(!page.classList.contains("open")||page.getAttribute("aria-hidden")==="true"||page.style.display==="none")return null;
-  return page.querySelector(".panel");
+  if(page&&title&&title.textContent.trim().toLowerCase()==="settings"&&page.classList.contains("open")&&page.getAttribute("aria-hidden")!=="true"&&page.style.display!=="none"){
+   return document.getElementById("gtxSettingsPortal")||document.getElementById("gtxSimpleBody");
+  }
+  var standalone=document.getElementById("portal-settings-standalone");
+  if(standalone&&standalone.classList.contains("is-open"))return standalone;
+  return null;
  }
  function goToDashboard(e){
   if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
@@ -3520,18 +3523,16 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   else{
    var p=document.getElementById("gtxSimplePage");
    if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
+   var standalone=document.getElementById("portal-settings-standalone");
+   if(standalone)standalone.classList.remove("is-open");
    var menu=document.getElementById("menuDrawer");
    if(menu){menu.classList.add("open");menu.style.setProperty("display","block","important");menu.style.setProperty("visibility","visible","important");menu.style.setProperty("pointer-events","auto","important");menu.removeAttribute("aria-hidden");}
   }
  }
  function sync(){
-  var panel=getSettingsPanel();
+  var content=settingsContent();
   var button=document.getElementById(buttonId);
-  if(!panel){
-   if(button)button.remove();
-   return;
-  }
-  if(getComputedStyle(panel).position==="static")panel.style.setProperty("position","relative","important");
+  if(!content){if(button)button.remove();return;}
   if(!button){
    button=document.createElement("button");
    button.id=buttonId;
@@ -3540,19 +3541,15 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
    button.setAttribute("aria-label","Back to main dashboard");
    button.title="Back to main dashboard";
    button.addEventListener("click",goToDashboard,true);
-   panel.appendChild(button);
-  }else if(button.parentElement!==panel){
-   panel.appendChild(button);
   }
-  button.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:2147483647!important;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;padding:0!important;margin:0!important;border:2px solid #ffffff!important;border-radius:8px!important;background:#0755b8!important;color:#ffffff!important;font-family:Arial,sans-serif!important;font-size:27px!important;font-weight:900!important;line-height:1!important;box-shadow:0 3px 12px rgba(0,0,0,.7)!important;cursor:pointer!important;transform:none!important;";
-  panel.style.setProperty("padding-top","58px","important");
+  if(button.parentElement!==content)content.insertBefore(button,content.firstChild);
+  button.style.cssText="display:flex!important;position:relative!important;float:right!important;z-index:2147483647!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;padding:0!important;margin:0 0 8px 12px!important;border:2px solid #ffffff!important;border-radius:8px!important;background:#0755b8!important;color:#ffffff!important;font-family:Arial,sans-serif!important;font-size:27px!important;font-weight:900!important;line-height:1!important;box-shadow:0 3px 12px rgba(0,0,0,.7)!important;cursor:pointer!important;transform:none!important;";
  }
  sync();
  if(window.MutationObserver&&document.documentElement){
   var queued=false;
   new MutationObserver(function(){
-   if(queued)return;
-   queued=true;
+   if(queued)return;queued=true;
    Promise.resolve().then(function(){queued=false;sync();});
   }).observe(document.documentElement,{childList:true,subtree:true,attributes:true,characterData:true,attributeFilter:["class","style","aria-hidden"]});
  }
