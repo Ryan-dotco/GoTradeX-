@@ -67,7 +67,7 @@
       ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
       ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}"+
-      ".gtxLWCDateTime{display:flex;flex-direction:column;align-items:flex-end;gap:3px;color:#dcecff;font:800 9px/1.1 system-ui;white-space:nowrap;padding:4px 6px;background:#0b2036e8;border:1px solid #254c70;border-radius:5px}"+
+      ".gtxLWCDateTime{display:flex;flex-direction:column;align-items:flex-end;gap:3px;color:#dcecff;font:800 9px/1.1 system-ui;white-space:nowrap;padding:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
       ".gtxLWCDateTime span:last-child{color:#8ff0ae;font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:relative}"+
       ".gtxLWCTypeButton{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;white-space:nowrap}"+
