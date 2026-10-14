@@ -229,6 +229,15 @@ window.gtxSettingsBackToPrevious=function(){closeOverlay(true);};
 window.gtxSettingsCloseToTrading=function(){closeOverlay(false);};
 window.gtxSettingsSetTheme=setTheme;
 window.gtxSettingsSetColor=setCustomColor;
+/* Android tap recovery: pointerup is handled separately from legacy click handlers. */
+window.addEventListener("pointerup",function(e){
+ var button=e.target&&e.target.closest?e.target.closest("#settingsBackButton,#settingsCloseToTrading,#settingsCloseFooter"):null;
+ if(!button)return;
+ e.preventDefault();
+ e.stopPropagation();
+ if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+ closeOverlay(button.id==="settingsBackButton");
+},true);
 /* Intercept these controls at window capture, before legacy navigation handlers can swallow them. */
 window.addEventListener("click",function(e){
  var button=e.target&&e.target.closest?e.target.closest("#settingsBackButton,#settingsCloseToTrading,#settingsCloseFooter"):null;
