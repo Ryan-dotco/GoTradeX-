@@ -1461,6 +1461,26 @@ setTimeout(syncAccountPages,300);
         }
         throw error;
       }
+      // Phase 4 security gate: fail closed on backend errors, but keep older test branches usable if the migration is not yet installed.
+      const {data: securityRows,error: securityError}=await ensureClient().rpc("gotradex_security_status");
+      if(securityError){
+        const missingSecurityRpc=securityError.code==="PGRST202"||/could not find the function|schema cache/i.test(String(securityError.message||""));
+        if(!missingSecurityRpc)throw new Error("Security verification failed. Sign-in was stopped to protect your account: "+securityError.message);
+      }else{
+        const security=Array.isArray(securityRows)?securityRows[0]:securityRows;
+        if(security?.account_frozen_at){
+          await ensureClient().auth.signOut({scope:"local"});
+          throw new Error("This account is emergency-frozen. Contact GoTradeX Admin.");
+        }
+        if(security?.require_email_otp){
+          await ensureClient().auth.signOut({scope:"local"});
+          const {error:otpError}=await ensureClient().auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+          if(otpError)throw otpError;
+          el("gtxBybitCodeWrap")?.classList.add("open");
+          status("Additional security check: enter the 6-digit email OTP to finish signing in.","ok");
+          return;
+        }
+      }
       if(localStorage.getItem("gotradex_account_mode")==="REAL"){
         await loadLiveBalance(data.session);
       }else{
