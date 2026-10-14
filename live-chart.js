@@ -574,6 +574,7 @@
     state.ma50.setData(sma(50));
     state.ma100.setData(sma(100));
     state.ma200.setData(sma(200));
+    refreshChartTools();
     state.historyLoaded=candles.length>0;
     state.initialRangeSet=false;
     applySeriesVisibility();
@@ -607,6 +608,7 @@
       const value=smaValue(period);
       if(value!==null)series.update({time:item.time,value});
     }
+    refreshChartTools();
     state.price=c.c;
     updateCurrentPriceLine();
     positionTradeOverlay();
@@ -741,8 +743,90 @@
     if(state.booted) connect();
   }
 
+
+  const chartToolSeries={};
+  const chartToolLines={};
+  const activeChartTools=new Set();
+  function chartToolSMA(period,field="c"){
+    const out=[];
+    for(let i=period-1;i<state.candles.length;i++){
+      let sum=0;for(let j=i-period+1;j<=i;j++)sum+=Number(state.candles[j][field]);
+      out.push({time:Math.floor(state.candles[i].t/1000),value:sum/period});
+    }return out;
+  }
+  function chartToolEMA(period){
+    const out=[];if(!state.candles.length)return out;
+    const k=2/(period+1);let value=Number(state.candles[0].c);
+    for(let i=0;i<state.candles.length;i++){const close=Number(state.candles[i].c);value=i===0?close:close*k+value*(1-k);if(i>=period-1)out.push({time:Math.floor(state.candles[i].t/1000),value});}
+    return out;
+  }
+  function chartToolData(name){
+    const cs=state.candles,n=cs.length,out=[];
+    if(name==="EMA / SMA")return [{key:"ema9",color:"#22d3ee",data:chartToolEMA(9)},{key:"sma20",color:"#f59e0b",data:chartToolSMA(20)}];
+    if(name==="Alligator")return [{key:"jaw",color:"#3b82f6",data:chartToolSMA(13)},{key:"teeth",color:"#ef4444",data:chartToolSMA(8)},{key:"lips",color:"#22c55e",data:chartToolSMA(5)}];
+    if(name==="Bollinger Bands"){
+      for(let i=19;i<n;i++){let sum=0;for(let j=i-19;j<=i;j++)sum+=Number(cs[j].c);const mean=sum/20;let variance=0;for(let j=i-19;j<=i;j++)variance+=(Number(cs[j].c)-mean)**2;const sd=Math.sqrt(variance/20),time=Math.floor(cs[i].t/1000);out.push({time,value:mean+2*sd});}
+      const lower=[];for(let i=19;i<n;i++){let sum=0;for(let j=i-19;j<=i;j++)sum+=Number(cs[j].c);const mean=sum/20;let v=0;for(let j=i-19;j<=i;j++)v+=(Number(cs[j].c)-mean)**2;lower.push({time:Math.floor(cs[i].t/1000),value:mean-2*Math.sqrt(v/20)});}
+      return [{key:"bbUpper",color:"#a78bfa",data:out},{key:"bbLower",color:"#a78bfa",data:lower}];
+    }
+    if(name==="Supertrend"){
+      let upper=0,lower=0,trend=1;
+      for(let i=1;i<n;i++){const c=cs[i],prev=cs[i-1],tr=Math.max(c.h-c.l,Math.abs(c.h-prev.c),Math.abs(c.l-prev.c));let atr=tr;
+        if(i>=10){let sum=0;for(let j=i-9;j<=i;j++){const q=cs[j],p=cs[j-1]||q;sum+=Math.max(q.h-q.l,Math.abs(q.h-p.c),Math.abs(q.l-p.c));}atr=sum/10;}
+        const mid=(Number(c.h)+Number(c.l))/2,bu=mid+3*atr,bl=mid-3*atr;
+        upper=i===1?bu:Math.min(bu,upper);lower=i===1?bl:Math.max(bl,lower);
+        if(Number(c.c)>upper)trend=1;else if(Number(c.c)<lower)trend=-1;
+        out.push({time:Math.floor(c.t/1000),value:trend===1?lower:upper});
+      }return [{key:"supertrend",color:"#f97316",data:out}];
+    }
+    return null;
+  }
+  function clearChartTool(name){
+    const keys=Object.keys(chartToolSeries).filter(k=>k.startsWith(name+"::"));
+    keys.forEach(k=>{removeSeriesSafe(chartToolSeries[k]);delete chartToolSeries[k]});
+    (chartToolLines[name]||[]).forEach(line=>{try{state.candleSeries?.removePriceLine(line)}catch(_){}});
+    delete chartToolLines[name];
+    if(name==="Fractals"&&state.candleSeries){try{state.candleSeries.setMarkers([])}catch(_){}}
+  }
+  function drawChartTool(name){
+    if(!state.chart||!state.candleSeries||!state.candles.length)return false;
+    if(name==="Candlesticks"||name==="Heikin Ashi"||name==="Line Chart"||name==="Area Chart"){
+      state.chartType=name==="Line Chart"?"line":name==="Area Chart"?"mountain":"candle";
+      if(name==="Heikin Ashi"){
+        let prevO=null,prevC=null;const data=state.candles.map(c=>{const close=(Number(c.o)+Number(c.h)+Number(c.l)+Number(c.c))/4;const open=prevO===null?(Number(c.o)+Number(c.c))/2:(prevO+prevC)/2;prevO=open;prevC=close;return {time:Math.floor(c.t/1000),open,high:Math.max(Number(c.h),open,close),low:Math.min(Number(c.l),open,close),close};});
+        state.candleSeries.setData(data);
+      }else renderHistory();
+      applySeriesVisibility();return true;
+    }
+    if(name==="Fractals"){
+      const markers=[];
+      for(let i=2;i<state.candles.length-2;i++){const c=state.candles[i];let hi=true,lo=true;for(let j=i-2;j<=i+2;j++){if(j===i)continue;if(Number(state.candles[j].h)>=Number(c.h))hi=false;if(Number(state.candles[j].l)<=Number(c.l))lo=false;}
+        if(hi)markers.push({time:Math.floor(c.t/1000),position:"aboveBar",color:"#f59e0b",shape:"arrowDown",text:"F"});if(lo)markers.push({time:Math.floor(c.t/1000),position:"belowBar",color:"#22c55e",shape:"arrowUp",text:"F"});}
+      try{state.candleSeries.setMarkers(markers)}catch(_){}return true;
+    }
+    if(name==="Support & Resistance"){
+      const recent=state.candles.slice(-60);if(!recent.length)return false;
+      const high=Math.max(...recent.map(c=>Number(c.h))),low=Math.min(...recent.map(c=>Number(c.l)));
+      const lines=[state.candleSeries.createPriceLine({price:high,color:"#f97316",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Resistance"}),state.candleSeries.createPriceLine({price:low,color:"#22c55e",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Support"})];
+      chartToolLines[name]=lines;return true;
+    }
+    const specs=chartToolData(name);
+    if(specs){specs.forEach(spec=>{const key=name+"::"+spec.key;let series=chartToolSeries[key];if(!series){series=state.chart.addLineSeries({color:spec.color,lineWidth:2,priceLineVisible:false,lastValueVisible:false});chartToolSeries[key]=series;}series.setData(spec.data);});return true;}
+    return false;
+  }
+  function setChartTool(name){
+    name=String(name||"").trim();if(!name)return {ok:false,message:"Choose a chart tool."};
+    if(activeChartTools.has(name)){activeChartTools.delete(name);clearChartTool(name);return {ok:true,active:false,message:name+" removed from chart."};}
+    const ok=drawChartTool(name);
+    if(ok){activeChartTools.add(name);return {ok:true,active:true,message:name+" applied to the current chart data."};}
+    return {ok:false,message:name+" is listed in Chart Tools but is not implemented in the current chart engine yet."};
+  }
+  function refreshChartTools(){
+    for(const name of activeChartTools){clearChartTool(name);drawChartTool(name);}
+  }
+
   window.GoTradeXLiveChart={
-    boot,setTimeframe,reconnect:connect,setAsset,state,
+    boot,setTimeframe,reconnect:connect,setAsset,setChartTool,state,
     setWallpaper:function(data){const box=document.getElementById("gtxLiveChart");if(box)box.style.setProperty("--gtx-chart-wallpaper",data?'url("'+data+'")':"none");},
     applyTheme:function(p){if(!p||!p.border)return;try{if(state.chart)state.chart.applyOptions({rightPriceScale:{borderVisible:true,borderColor:p.border},timeScale:{borderVisible:true,borderColor:p.border}});}catch(e){}},
     applyTimezone:function(offset){try{if(offset&&/^([+-])\d{2}:\d{2}$/.test(offset))localStorage.setItem("gtx_timezone_offset",offset);if(state.chart)state.chart.applyOptions({timeScale:{tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}}});}catch(e){}},
