@@ -102,14 +102,14 @@ function init(){
    apply.addEventListener("click",()=>{
      const api=window.GoTradeXLiveChart;
      if(!api||typeof api.setChartTool!=="function"){setStatus("Chart engine is not ready. No tool was applied.");return;}
-     const result=api.setChartTool(name);
+     const result=typeof api.setChartToolEnabled==="function"?api.setChartToolEnabled(name,true):api.setChartTool(name);
      if(result.ok){apply.classList.toggle("applied",result.active!==false);apply.textContent=result.active===false?"APPLY TO CHART":"✓ APPLIED TO CHART";remove.classList.toggle("applied",false);setStatus(result.message||name+" updated on the selected chart.");}
      else setStatus(result.message||name+" is not implemented in the chart engine yet. No fake live result was shown.");
    });
    remove.addEventListener("click",()=>{
      const api=window.GoTradeXLiveChart;
      if(!api||typeof api.setChartTool!=="function"){setStatus("Chart engine is not ready. Nothing was removed.");return;}
-     const result=api.setChartTool(name);
+     const result=typeof api.setChartToolEnabled==="function"?api.setChartToolEnabled(name,false):api.setChartTool(name);
      if(result.ok){apply.classList.remove("applied");apply.textContent="APPLY TO CHART";setStatus(result.message||name+" removed from the selected chart.");}
      else setStatus(result.message||name+" could not be removed because it is not implemented.");
    });
