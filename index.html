@@ -1120,7 +1120,7 @@ syncGtxKenglyVisibility();
     const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
     const p=byId("gtxSimplePage");if(p){p.classList.remove("open");p.style.setProperty("display","none","important");}
     let previous=null;
-    while(stack.length&&!previous){const id=stack.pop();const candidate=byId(id);if(candidate&&candidate.id!=="menuDrawer"&&candidate.id!=="gtxSimplePage")previous=candidate;}
+    while(stack.length&&!previous){const id=stack.pop();const candidate=byId(id);if(candidate&&candidate.id!=="gtxSimplePage")previous=candidate;}
     if(previous){previous.classList.add("open");previous.style.removeProperty("display");previous.style.removeProperty("z-index");previous.removeAttribute("aria-hidden");}
     else{document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(el=>{el.classList.remove("open");el.style.setProperty("display","none","important");});}
     const h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display",document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open")?"none":"flex","important");
@@ -3193,7 +3193,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   },true);
 })();
 </script>
-<link rel="stylesheet" href="security-portal.css?v=20261014bottom3"><script src="security-portal.js?v=20261014bottom3"></script>
+<link rel="stylesheet" href="security-portal.css?v=20261014profilecolumn2"><script src="security-portal.js?v=20261014profilecolumn2"></script>
 
 <script id="gtx-settings-tap-recovery-20261014">
 (function(){
@@ -3203,7 +3203,14 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var openFn=window.openGtxSettings;
   if(typeof openFn!=="function"){console.error("Settings portal opener is unavailable.");return;}
   try{
+   var history=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
+   var menu=document.getElementById("menuDrawer");
+   if(menu&&menu.classList.contains("open")&&history[history.length-1]!=="menuDrawer")history.push("menuDrawer");
    openFn();
+   // Close the menu overlays explicitly, then put Settings on top in the same tap.
+   [menu,document.getElementById("gtxProfileDrawer")].forEach(function(el){
+    if(el){el.classList.remove("open");el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");}
+   });
    var p=document.getElementById("gtxSimplePage");
    if(p){p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("z-index","2147483002","important");p.removeAttribute("aria-hidden");}
    var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
