@@ -171,7 +171,85 @@ declare
   v_id bigint;
 begin
   if v_user is null then raise exception 'Sign in required'; end if;
-  if v_requested !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+
+  if v_requested !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+    raise exception 'Enter a valid requested email address';
+  end if;
+  if length(v_reason) < 3 or length(v_reason) > 240 then
+    raise exception 'Enter a reason between 3 and 240 characters';
+  end if;
+  select lower(email) into v_current from auth.users where id = v_user;
+  if v_current is null then raise exception 'Authenticated account email not found'; end if;
+  if v_current = v_requested then raise exception 'Requested email is already registered'; end if;
+  if exists(select 1 from public.gotradex_email_change_requests where user_id=v_user and status='pending') then
+    raise exception 'You already have a pending email-change request';
+  end if;
+  insert into public.gotradex_email_change_requests(user_id,current_email,requested_email,reason)
+  values(v_user,v_current,v_requested,v_reason) returning id into v_id;
+  perform public.gotradex_security_audit_write(v_user,'email_change_requested',jsonb_build_object('request_id',v_id));
+  return jsonb_build_object('request_id',v_id,'status','pending');
+end;
+$$;
+revoke all on function public.gotradex_request_email_change(text,text) from public, anon;
+grant execute on function public.gotradex_request_email_change(text,text) to authenticated;
+
+create or replace function public.gotradex_admin_list_email_change_requests()
+returns table (
+  id bigint,
+  user_id uuid,
+  current_email text,
+  requested_email text,
+  reason text,
+  created_at timestamptz
+)
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare v_admin uuid := auth.uid();
+begin
+  if v_admin is null or not exists(select 1 from public.admin_users where user_id=v_admin) then
+    raise exception 'Admin permission required';
+  end if;
+  return query
+    select r.id,r.user_id,r.current_email,r.requested_email,r.reason,r.created_at
+    from public.gotradex_email_change_requests r
+    where r.status='pending'
+    order by r.created_at asc;
+end;
+$$;
+revoke all on function public.gotradex_admin_list_email_change_requests() from public, anon;
+grant execute on function public.gotradex_admin_list_email_change_requests() to authenticated;
+
+create or replace function public.gotradex_admin_review_email_change_request(
+  p_request_id bigint, p_decision text, p_admin_note text
+)
+returns boolean
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare
+  v_admin uuid := auth.uid();
+  v_target uuid;
+  v_decision text := lower(trim(coalesce(p_decision,'')));
+  v_note text := trim(coalesce(p_admin_note,''));
+begin
+  if v_admin is null or not exists(select 1 from public.admin_users where user_id=v_admin) then
+    raise exception 'Admin permission required';
+  end if;
+  if v_decision not in ('approved','rejected') then raise exception 'Decision must be approved or rejected'; end if;
+  if length(v_note) < 3 or length(v_note) > 240 then raise exception 'Admin note must be 3 to 240 characters'; end if;
+  update public.gotradex_email_change_requests
+     set status=v_decision,admin_note=v_note,reviewed_by=v_admin,reviewed_at=now()
+   where id=p_request_id and status='pending'
+   returning user_id into v_target;
+  if v_target is null then raise exception 'Pending request not found or already reviewed'; end if;
+  perform public.gotradex_security_audit_write(v_target,'email_change_request_'||v_decision,jsonb_build_object('request_id',p_request_id,'admin_note',v_note));
+  return true;
+end;
+$$;
+revoke all on function public.gotradex_admin_review_email_change_request(bigint,text,text) from public, anon;
+grant execute on function public.gotradex_admin_review_email_change_request(bigint,text,text) to authenticated;
+
+create or replace function public.gotradex_admin_release_withdrawal_freeze(p_target_user uuid, p_reason text)
 returns boolean
 language plpgsql security definer
 set search_path = public, auth
