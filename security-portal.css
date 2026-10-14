@@ -14,3 +14,9 @@
 .gsp-state{font-size:10px;color:#a9bfd7;line-height:1.5;margin-top:8px;white-space:pre-wrap}
 .gsp-state.ok{color:#75dfa1}.gsp-state.err{color:#ff9ba7}
 .gsp-warning{border:1px dashed #9c6c33;background:#2b2115;color:#f1d2a1;padding:9px;border-radius:8px;font-size:10px;line-height:1.45;margin-top:8px}
+.gsp-settings-entry{display:flex;align-items:center;gap:10px;width:100%;margin:14px 0 4px;padding:13px 12px;border:1px solid #287ac0;border-radius:12px;background:linear-gradient(120deg,#102f50,#0a2038);color:#fff;text-align:left;cursor:pointer}
+.gsp-entry-icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:9px;background:#176fca;font-size:20px}
+.gsp-entry-copy{display:grid;gap:4px;flex:1;min-width:0}
+.gsp-entry-copy strong{font-size:12px}
+.gsp-entry-copy small{font-size:10px;line-height:1.4;color:#a9bfd7}
+.gsp-entry-arrow{font-size:24px;color:#83c7ff}
