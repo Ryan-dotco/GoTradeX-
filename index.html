@@ -1129,9 +1129,11 @@ syncGtxKenglyVisibility();
   function openGtxSecurity(){
     const session=!!localStorage.getItem("gotradex_logged_in_user")||!!localStorage.getItem("gotradex_current_user")||!!localStorage.getItem("gotradex_session");
     openSimplePanel("Security",
-      '<div class="adminSlot"><strong>Session status</strong>'+ (session?"A local GoTradeX session is present.":"No local GoTradeX session marker was found.") +'</div>'+
-      '<div class="adminSlot"><strong>Real-money protection</strong>BUY, SELL and live AutoBot execution remain protected until a verified broker connection is configured.</div>'+
-      '<div class="adminSlot"><strong>Password & authentication</strong>Use the configured Supabase authentication flow for password and recovery changes. This panel does not store passwords.</div>');
+      '<div style="margin:0 0 10px;padding:10px 12px;border:1px solid #30435f;border-radius:10px;background:#0b1b30;color:#dbeafe;font-size:13px;">'+
+      (session?"Security portal opened inside your GoTradeX session.":"Security portal opened inside GoTradeX. Sign in to use account-protection actions.")+
+      '</div>'+
+      '<iframe title="GoTradeX Security settings" src="./security-portal-test.html" loading="eager" referrerpolicy="same-origin" style="display:block;width:100%;height:72vh;min-height:620px;border:1px solid #26364d;border-radius:12px;background:#090d16;"></iframe>'+
+      '<p style="font-size:12px;line-height:1.45;color:#aab6c8;margin:10px 2px 0;">Security controls that require the Phase 4 database migration will remain unavailable until that migration is applied and tested on a separate test database.</p>');
   }
   function openGtxNotifications(){
     const push=gtxPrefBool("gotradex_notify_trades",true);
