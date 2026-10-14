@@ -744,7 +744,7 @@
   window.GoTradeXLiveChart={
     boot,setTimeframe,reconnect:connect,setAsset,state,
     setWallpaper:function(data){const box=document.getElementById("gtxLiveChart");if(box)box.style.setProperty("--gtx-chart-wallpaper",data?'url("'+data+'")':"none");},
-    applyTheme:function(p){if(!p)return;try{if(state.chart)state.chart.applyOptions({layout:{background:{type:window.LightweightCharts.ColorType.Solid,color:"rgba(0,0,0,0)"},textColor:p.text},grid:{vertLines:{color:p.grid},horzLines:{color:p.grid}},rightPriceScale:{borderColor:p.border},timeScale:{borderColor:p.border,tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}},crosshair:{vertLine:{color:p.border,labelBackgroundColor:p.background},horzLine:{color:p.border,labelBackgroundColor:p.background}}});}catch(e){}},
+    applyTheme:function(p){if(!p||!p.border)return;try{if(state.chart)state.chart.applyOptions({rightPriceScale:{borderVisible:true,borderColor:p.border},timeScale:{borderVisible:true,borderColor:p.border}});}catch(e){}},
     applyTimezone:function(offset){try{if(offset&&/^([+-])\d{2}:\d{2}$/.test(offset))localStorage.setItem("gtx_timezone_offset",offset);if(state.chart)state.chart.applyOptions({timeScale:{tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}}});}catch(e){}},
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
