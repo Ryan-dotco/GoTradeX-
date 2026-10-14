@@ -35,6 +35,16 @@ function init(){
  #chartToolsDrawer .panel{width:min(560px,100vw)!important;padding:12px!important;overflow-y:auto!important;overscroll-behavior:contain}
  #chartToolsDrawer .panel h2{margin:8px 0 16px;font-size:18px}
  #chartToolsDrawer .category{margin:18px 2px 7px;color:#8fa8c4;font-size:10px;letter-spacing:1.3px}
+
+ #chartToolsDrawer .gtxPortal{margin:10px 0 14px;border:1px solid #7a1f1f;border-radius:14px;background:#0d1930;overflow:hidden}
+ #chartToolsDrawer .gtxPortalHead{width:100%;min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;background:#132040;border:0;color:#fff;text-align:left;font-size:14px;font-weight:800;letter-spacing:.2px;cursor:pointer}
+ #chartToolsDrawer .gtxPortalHead.open{background:#192b4d;box-shadow:inset 3px 0 #ff3b3b}
+ #chartToolsDrawer .gtxPortalArrow{font-size:20px;color:#ff7777;transition:transform .2s}
+ #chartToolsDrawer .gtxPortalHead.open .gtxPortalArrow{transform:rotate(180deg)}
+ #chartToolsDrawer .gtxPortalBody{display:none;padding:8px 10px 2px;max-height:65vh;overflow-y:auto}
+ #chartToolsDrawer .gtxPortalBody.show{display:block}
+ #chartToolsDrawer .gtxPortalBody .gtxToolCard{margin:8px 0 10px}
+
  #chartToolsDrawer .gtxToolCard{margin:10px 0}
  #chartToolsDrawer .tool-btn{width:100%;min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#132040;border:1px solid #7a1f1f;border-radius:14px;padding:11px 13px;color:#fff;text-align:left;cursor:pointer}
  #chartToolsDrawer .tool-btn.open{border-color:#ff3b3b;box-shadow:0 0 12px #ff3b3b22}
@@ -64,6 +74,51 @@ function init(){
  const icons={"Alligator":"🐊","Fractals":"🔺","Patterns":"🧩","Awesome Oscillator":"📊","EMA / SMA":"📈","Supertrend":"🚀","Kangaroo":"🦘","Lion":"🦁","Kenkley’s Lines":"〰️","RSI":"⚡","MACD":"〰️","Bollinger Bands":"◍"};
  const status=panel.querySelector("#chartToolsStatus");
  const market=()=>{const pair=document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"selected market";const mode=document.getElementById("bottomAssetMode")?.textContent||"current feed";return (pair+" • "+mode).trim();};
+
+ // Turn each heading into a real expandable PORTAL and keep every existing tool inside it.
+ const portalNames={
+   "Trend & Pattern":"Chart Indicators",
+   "Custom Indicators":"Custom Indicators",
+   "Chart Type":"Chart Type",
+   "Drawing & Price":"Drawing & Price",
+   "Momentum":"Momentum",
+   "Volatility":"Volatility",
+   "Alerts & Controls":"Alert ⚠️ Control"
+ };
+ const categories=Array.from(panel.querySelectorAll(".category"));
+ categories.forEach((category,idx)=>{
+   const original=category.textContent.trim();
+   const titleText=portalNames[original]||original;
+   const portal=document.createElement("section");
+   portal.className="gtxPortal";
+   const portalHead=document.createElement("button");
+   portalHead.type="button";
+   portalHead.className="gtxPortalHead";
+   portalHead.setAttribute("aria-expanded","false");
+   const portalTitle=document.createElement("span");
+   portalTitle.textContent=titleText;
+   const portalArrow=document.createElement("span");
+   portalArrow.className="gtxPortalArrow";
+   portalArrow.textContent="⌄";
+   portalHead.append(portalTitle,portalArrow);
+   const portalBody=document.createElement("div");
+   portalBody.className="gtxPortalBody";
+   let node=category.nextSibling;
+   while(node && !(node.nodeType===1 && (node.classList.contains("category") || node.id==="chartToolsStatus"))){
+     const next=node.nextSibling;
+     portalBody.appendChild(node);
+     node=next;
+   }
+   category.replaceWith(portal);
+   portal.append(portalHead,portalBody);
+   portalHead.addEventListener("click",()=>{
+     const open=!portalBody.classList.contains("show");
+     panel.querySelectorAll(".gtxPortalBody.show").forEach(el=>el.classList.remove("show"));
+     panel.querySelectorAll(".gtxPortalHead.open").forEach(el=>{el.classList.remove("open");el.setAttribute("aria-expanded","false")});
+     if(open){portalBody.classList.add("show");portalHead.classList.add("open");portalHead.setAttribute("aria-expanded","true");}
+   });
+ });
+
  panel.querySelectorAll(".chartToolOption").forEach((old,index)=>{
    const name=old.dataset.tool||old.textContent.trim().replace(/›/g,"").trim();
    const card=document.createElement("section");card.className="gtxToolCard";
