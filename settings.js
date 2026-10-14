@@ -55,11 +55,16 @@ function hexMix(hex,amount){
  var out="#";for(var i=0;i<3;i++){var n=parseInt(h.slice(i*2,i*2+2),16);n=Math.round(n+(255-n)*amount);out+=n.toString(16).padStart(2,"0");}return out;
 }
 function setPalette(accent,theme){
- var root=document.documentElement,light=hexMix(accent,.62);
- root.style.setProperty("--gtx-accent",accent);root.style.setProperty("--gtx-accent-soft",hexMix(accent,.84));root.style.setProperty("--gtx-accent-light",light);root.style.setProperty("--gtx-accent-border",accent);root.style.setProperty("--gtx-accent-glow",accent+"35");
- root.style.setProperty("--gtx-page-surface",theme==="light"?"#f4f6f8":"#081b31");root.style.setProperty("--gtx-panel-surface",theme==="light"?"#ffffff":"#0b2038");root.style.setProperty("--gtx-screen-text",theme==="light"?"#111827":"#f8fafc");
+ var root=document.documentElement;
+ /* The selected swatch controls borders only. Keep text, fills, chart colors and wallpaper unchanged. */
+ root.style.setProperty("--gtx-accent-border",accent);
+ root.style.setProperty("--gtx-accent-glow",accent+"35");
+ root.style.setProperty("--gtx-page-surface",theme==="light"?"#f4f6f8":"#081b31");
+ root.style.setProperty("--gtx-panel-surface",theme==="light"?"#ffffff":"#0b2038");
+ root.style.setProperty("--gtx-screen-text",theme==="light"?"#111827":"#f8fafc");
  document.body.setAttribute("data-theme",theme);document.body.dataset.gtxTheme=theme;
- var chartTheme={accent:accent,text:light,grid:hexMix(accent,.9),border:accent,background:theme==="light"?"#f4f6f8":"#07111d"};window.__gtxChartTheme=chartTheme;if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme(chartTheme);
+ var chartTheme={border:accent};window.__gtxChartTheme=chartTheme;
+ if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme(chartTheme);
 }
 function setTheme(theme){
  if(["dark","light","default-dark","custom"].indexOf(theme)<0)theme="default-dark";safeSet("gtx_theme",theme);
@@ -70,9 +75,13 @@ function setTheme(theme){
  document.querySelectorAll("#"+overlayId+" [data-theme-choice]").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-theme-choice")===theme);});
 }
 function setCustomColor(color){
- if(!/^#[0-9a-f]{6}$/i.test(color))return;safeSet("gtx_theme","custom");safeSet("gtx_custom_color",color);
- setPalette(color,"dark");var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage="none";preview.style.backgroundColor=color;}
- var status=byId("bgStatus");if(status)status.textContent="Accent color applied to chart, scales and menus.";
+ if(!/^#[0-9a-f]{6}$/i.test(color))return;
+ safeSet("gtx_theme","custom");safeSet("gtx_custom_color",color);
+ /* Preserve the uploaded chart wallpaper when the border color changes. */
+ setPalette(color,"dark");
+ var preview=byId("settingsBgPreview"),img=safeGet("gtx_custom_bg_image","");
+ if(preview){preview.style.backgroundImage=img?'url("'+img+'")':"none";if(!img)preview.style.backgroundColor="";}
+ var status=byId("bgStatus");if(status)status.textContent="Border color applied throughout GoTradeX. Your chart wallpaper is unchanged.";
 }
 function uploadCustomBg(input){
  var file=input&&input.files&&input.files[0];if(!file)return;var status=byId("bgStatus");
