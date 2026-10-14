@@ -1346,6 +1346,18 @@ setTimeout(syncAccountPages,300);
     try{
       const {data}=await ensureClient().auth.getSession();
       if(data?.session){
+        const {data: securityRows,error: securityError}=await ensureClient().rpc("gotradex_security_status");
+        if(!securityError){
+          const security=Array.isArray(securityRows)?securityRows[0]:securityRows;
+          if(security?.account_frozen_at){
+            await ensureClient().auth.signOut({scope:"local"});
+            status("This account is emergency-frozen. Contact GoTradeX Admin.","error");
+            return;
+          }
+        }else if(!(securityError.code==="PGRST202"||/could not find the function|schema cache/i.test(String(securityError.message||"")))){
+          status("Could not verify account security. Please try again before continuing.","error");
+          return;
+        }
         if(localStorage.getItem("gotradex_account_mode")==="REAL"){
           status("Secure GoTradeX session found. Checking Bybit LIVE balance…","ok");
           await loadLiveBalance(data.session);
