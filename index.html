@@ -1794,10 +1794,31 @@ setTimeout(syncAccountPages,300);
         if(/email.*confirm|confirm.*email|not confirmed/i.test(msg)){
           el("gtxBybitCodeWrap")?.classList.add("open");
           status("Your email is not activated yet. Enter the 6-digit code from your email below, then tap VERIFY & ACTIVATE.","error");
-          el("gtxBybitAuthCode")?.focus();
-          return;
+          el("gtxBybitAuthCode")?.focus();return;
         }
         throw error;
+      }
+      // Phase 4 enforcement: check only the signed-in user's server-side row.
+      let security=null;
+      try{
+        const sr=await ensureClient().rpc("gotradex_security_status");
+        if(!sr.error){security=Array.isArray(sr.data)?sr.data[0]:sr.data;}
+        else if(!/gotradex_security_status|schema cache|PGRST202|does not exist/i.test(String(sr.error.message||""))){throw sr.error;}
+      }catch(se){
+        if(/Account is emergency-frozen|EMERGENCY FROZEN/i.test(String(se.message||""))){await ensureClient().auth.signOut({scope:"local"});throw new Error("This account is frozen. Contact GoTradeX Admin for review.");}
+        if(!/gotradex_security_status|schema cache|PGRST202|does not exist/i.test(String(se.message||""))){throw se;}
+      }
+      if(security?.account_frozen_at){
+        await ensureClient().auth.signOut({scope:"local"});
+        throw new Error("This account is emergency-frozen. Contact GoTradeX Admin for review.");
+      }
+      if(security?.require_email_otp){
+        await ensureClient().auth.signOut({scope:"local"});
+        const {error:otpError}=await ensureClient().auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+        if(otpError)throw new Error("Password accepted, but email OTP could not be sent: "+otpError.message);
+        el("gtxBybitCodeWrap")?.classList.add("open");
+        status("Password accepted. Email OTP is required. Enter the 6-digit code sent to your registered email, then tap VERIFY & ACTIVATE.","ok");
+        el("gtxBybitAuthCode")?.focus();return;
       }
       if(localStorage.getItem("gotradex_account_mode")==="REAL"){
         await loadLiveBalance(data.session);
@@ -2227,7 +2248,7 @@ setTimeout(syncAccountPages,300);
       '<h2>My Profile</h2>'+
       '<div class="gtxProfileCard"><div class="gtxProfileAvatar big" id="gtxProfileEditAvatar">R</div><div><strong id="gtxProfileEditId">Trader ID: GTX-000001</strong><span id="gtxProfileEditMode">DEMO ACCOUNT</span></div></div>'+
       '<div class="gtxProfileField"><span>Full Names (First + Last)</span><div class="gtxProfileTwo"><input id="firstName" type="text" maxlength="40" placeholder="First Name" autocomplete="given-name"><input id="lastName" type="text" maxlength="40" placeholder="Last Name" autocomplete="family-name"></div></div>'+
-      '<div class="gtxProfileField"><span>Email Address</span><div class="gtxProfileTwo"><input id="email" type="email" placeholder="email@example.com" autocomplete="email"><button id="btnSendEmailOTP" type="button">Send OTP</button></div><div class="gtxProfileTwo gtxProfileOtp"><input id="emailOTP" type="text" inputmode="numeric" maxlength="6" placeholder="Enter Email OTP"><button id="btnVerifyEmailOTP" type="button">Verify</button></div><small id="emailVerifiedStatus" class="gtxProfileVerify">Email status: not verified here</small></div>'+
+      '<div class="gtxProfileField"><span>Registered Email · Locked</span><div class="gtxProfileTwo"><input id="email" type="email" readonly disabled autocomplete="email" aria-readonly="true"><button id="btnRequestEmailChange" type="button">Request Change</button></div><small id="emailVerifiedStatus" class="gtxProfileVerify">Registered email is locked. Submit a request in Security for Admin review.</small></div>'+
       '<div class="gtxProfileField"><span>Phone Number</span><div class="gtxProfileTwo"><input id="phone" type="tel" placeholder="+260..." autocomplete="tel"><button id="btnSendPhoneOTP" type="button">Send OTP</button></div><div class="gtxProfileTwo gtxProfileOtp"><input id="phoneOTP" type="text" inputmode="numeric" maxlength="6" placeholder="Enter SMS OTP"><button id="btnVerifyPhoneOTP" type="button">Verify</button></div><small id="phoneVerifiedStatus" class="gtxProfileVerify">Phone status: not verified here</small></div>'+
       '<label class="gtxProfileField"><span>Referral code</span><input id="gtxProfileReferral" maxlength="24" placeholder="GTX-REF"></label>'+
       '<div class="gtxProfileReadonly"><span>Account status</span><strong id="gtxProfileAccountStatus">ACTIVE</strong></div>'+
@@ -2238,8 +2259,7 @@ setTimeout(syncAccountPages,300);
       document.body.appendChild(d);
       d.addEventListener("click",e=>{if(e.target===d)d.classList.remove("open")});
       document.getElementById("gtxProfileClose").onclick=()=>d.classList.remove("open");
-      document.getElementById("btnSendEmailOTP").onclick=sendEmailOTP;
-      document.getElementById("btnVerifyEmailOTP").onclick=verifyEmailOTP;
+      document.getElementById("btnRequestEmailChange").onclick=()=>{d.classList.remove("open");const menu=document.getElementById("menuDrawer");if(menu)menu.classList.add("open");document.querySelector('[data-profile-action="security"]')?.click();};
       document.getElementById("btnSendPhoneOTP").onclick=sendPhoneOTP;
       document.getElementById("btnVerifyPhoneOTP").onclick=verifyPhoneOTP;
       document.getElementById("gtxProfileSave").onclick=async()=>{
@@ -2252,7 +2272,7 @@ setTimeout(syncAccountPages,300);
         if(phone&&!/^\+[1-9]\d{7,14}$/.test(phone)){profileStatus("Use international phone format, for example +260…","error");return}
         const p=gtxProfileStore();
         p.firstName=first;p.lastName=last;p.displayName=([first,last].filter(Boolean).join(" ")||p.displayName||"Ryan Trading Account").slice(0,40);
-        p.email=email;p.phone=phone;
+        p.email=(currentAuthUser()?.email||p.email||"");p.phone=phone;
         p.referralCode=(document.getElementById("gtxProfileReferral").value||"GTX-REF").trim().toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,24)||"GTX-REF";
         if(!gtxProfileSave(p)){profileStatus("Could not save profile on this device. Check available device storage.","error");return}
         updateGtxProfileMenu();
@@ -2277,7 +2297,7 @@ setTimeout(syncAccountPages,300);
     document.getElementById("gtxProfileReferral").value=p.referralCode||"GTX-REF";
     document.getElementById("gtxProfileEditMode").textContent=mode+" ACCOUNT";
     document.getElementById("gtxProfileEditAvatar").textContent=(name.charAt(0)||"R").toUpperCase();
-    let email=p.email||u.email||"",phone=p.phone||u.phone||"";
+    let email=u.email||p.email||"",phone=p.phone||u.phone||"";
     try{const raw=localStorage.getItem("gotradex_current_user");const v=raw?JSON.parse(raw):null;const user=v?.user||v||{};email=email||user.email||"";phone=phone||user.phone||""}catch(e){}
     document.getElementById("email").value=email;
     document.getElementById("phone").value=phone;
