@@ -3399,5 +3399,24 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
  window.addEventListener("click",returnToPrevious,true);
 })();
 </script>
+
+<script id="gtx-remove-settings-bottom-back-fix-20261014">
+(function(){
+  function removeSettingsBottomBack(){
+    // Remove only the obsolete bottom Back control inside the Settings portal.
+    document.querySelectorAll("#gtxSettingsBack, #gtxSettingsPortal button").forEach(function(el){
+      if(el.id === "gtxSettingsBack" || /^(←\s*)?Back to Dashboard$/i.test((el.textContent||"").trim())){
+        if(el.id === "gtxSettingsBack" || el.closest("#gtxSettingsPortal")) el.remove();
+      }
+    });
+  }
+  removeSettingsBottomBack();
+  if(document.body && window.MutationObserver){
+    new MutationObserver(removeSettingsBottomBack).observe(document.body,{childList:true,subtree:true});
+  }
+  document.addEventListener("DOMContentLoaded",removeSettingsBottomBack);
+})();
+</script>
+
 </body>
 </html>
