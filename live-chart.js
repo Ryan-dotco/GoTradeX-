@@ -787,6 +787,11 @@
     (chartToolLines[name]||[]).forEach(line=>{try{state.candleSeries?.removePriceLine(line)}catch(_){}});
     delete chartToolLines[name];
     if(name==="Fractals"&&state.candleSeries){try{state.candleSeries.setMarkers([])}catch(_){}}
+    if(["Candlesticks","Heikin Ashi","Line Chart","Area Chart"].includes(name)&&state.candleSeries){
+      state.chartType="candle";
+      try{state.candleSeries.setData(seriesCandleData())}catch(_){}
+      applySeriesVisibility();
+    }
   }
   function drawChartTool(name){
     if(!state.chart||!state.candleSeries||!state.candles.length)return false;
@@ -795,7 +800,10 @@
       if(name==="Heikin Ashi"){
         let prevO=null,prevC=null;const data=state.candles.map(c=>{const close=(Number(c.o)+Number(c.h)+Number(c.l)+Number(c.c))/4;const open=prevO===null?(Number(c.o)+Number(c.c))/2:(prevO+prevC)/2;prevO=open;prevC=close;return {time:Math.floor(c.t/1000),open,high:Math.max(Number(c.h),open,close),low:Math.min(Number(c.l),open,close),close};});
         state.candleSeries.setData(data);
-      }else renderHistory();
+      }else state.candleSeries.setData(seriesCandleData());
+      state.lineSeries.setData(seriesLineData());
+      state.areaSeries.setData(seriesLineData());
+      state.ma50.setData(sma(50));state.ma100.setData(sma(100));state.ma200.setData(sma(200));
       applySeriesVisibility();return true;
     }
     if(name==="Fractals"){
