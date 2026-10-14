@@ -3239,48 +3239,41 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 <script id="gtx-settings-tap-recovery-20261014">
 (function(){
  "use strict";
- var opening=false;
- function forceSettingsVisible(){
-  var p=document.getElementById("gtxSimplePage");
-  if(!p){
-   p=document.createElement("div");p.id="gtxSimplePage";p.className="drawer";
-   p.innerHTML='<div class="panel" style="position:relative"><button class="close" id="gtxSimpleClose" type="button">Close</button><h2 id="gtxSimpleTitle">Settings</h2><div id="gtxSimpleBody" class="adminSlot"></div></div>';
-   document.body.appendChild(p);
-   var close=p.querySelector("#gtxSimpleClose");
-   if(close)close.addEventListener("click",function(){if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();else{p.classList.remove("open");p.style.display="none";}});
-  }
-  var title=document.getElementById("gtxSimpleTitle");
-  var body=document.getElementById("gtxSimpleBody");
-  if(title)title.textContent="Settings";
-  if(body&&!body.querySelector("#gtxSettingsPortal")){
-   body.innerHTML='<div id="gtxSettingsPortal" style="display:grid;gap:12px;color:inherit"><p>Settings</p><p>Some settings did not load. You can still use the Back arrow to return to the main dashboard.</p></div>';
-  }
-  p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("visibility","visible","important");p.style.setProperty("pointer-events","auto","important");p.style.setProperty("z-index","2147483002","important");p.removeAttribute("aria-hidden");
-  var menu=document.getElementById("menuDrawer");
-  if(menu){menu.classList.remove("open");menu.style.setProperty("display","none","important");menu.setAttribute("aria-hidden","true");}
-  var profile=document.getElementById("gtxProfileDrawer");
-  if(profile){profile.classList.remove("open");profile.style.setProperty("display","none","important");profile.setAttribute("aria-hidden","true");}
-  var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
-  document.body.classList.add("gtx-subscreen-open");
- }
+ var lastHandledAt=0;
  function openSettingsNow(){
-  if(opening)return;
-  opening=true;
+  var openFn=window.openGtxSettings;
   try{
    var history=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
    var menu=document.getElementById("menuDrawer");
    if(menu&&menu.classList.contains("open")&&history[history.length-1]!=="menuDrawer")history.push("menuDrawer");
-   try{if(typeof window.openGtxSettings==="function")window.openGtxSettings();}catch(err){console.error("Settings content failed to initialize; showing safe fallback:",err);}
-   forceSettingsVisible();
-  }catch(err){console.error("Settings portal could not be shown:",err);}
-  finally{opening=false;}
+   if(typeof openFn==="function")openFn();
+   var p=document.getElementById("gtxSimplePage");
+   if(!p){
+    p=document.createElement("div");p.id="gtxSimplePage";p.className="drawer";
+    p.innerHTML='<div class="panel" style="position:relative"><button type="button" id="gtxSimpleClose" class="close">←</button><h2 id="gtxSimpleTitle">Settings</h2><div id="gtxSimpleBody" class="adminSlot"><div id="gtxSettingsPortal"><p>Settings</p><p>The Settings panel could not fully initialize. Refresh and try again.</p></div></div></div>';
+    document.body.appendChild(p);
+   }
+   var title=document.getElementById("gtxSimpleTitle");
+   if(title&&title.textContent.trim()!=="Settings"&&typeof openFn!=="function")title.textContent="Settings";
+   [menu,document.getElementById("gtxProfileDrawer")].forEach(function(el){
+    if(el){el.classList.remove("open");el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");}
+   });
+   p.classList.add("open");p.style.setProperty("display","block","important");p.style.setProperty("visibility","visible","important");p.style.setProperty("z-index","2147483002","important");p.removeAttribute("aria-hidden");
+   var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
+   document.body.classList.add("gtx-subscreen-open");
+  }catch(err){console.error("Settings portal failed to open:",err);}
  }
- window.addEventListener("click",function(e){
+ function handleTap(e){
   var b=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
   if(!b)return;
+  var now=Date.now();
+  if(e.type==="click"&&now-lastHandledAt<900){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();return;}
+  lastHandledAt=now;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
   openSettingsNow();
- },true);
+ }
+ window.addEventListener("pointerup",handleTap,true);
+ window.addEventListener("click",handleTap,true);
  window.addEventListener("keydown",function(e){
   if(e.key!=="Escape")return;
   var p=document.getElementById("gtxSimplePage");
