@@ -1,0 +1,391 @@
+-- GoTradeX Security Portal #4
+-- Additive migration: no existing tables or records are deleted.
+begin;
+
+create extension if not exists pgcrypto with schema extensions;
+
+alter table public.profiles
+  add column if not exists withdrawal_frozen_until timestamptz,
+  add column if not exists freeze_reason text,
+  add column if not exists withdrawal_pin_hash text,
+  add column if not exists require_email_otp boolean not null default false,
+  add column if not exists account_frozen_at timestamptz,
+  add column if not exists account_frozen_reason text;
+
+create table if not exists public.gotradex_security_audit (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  actor_user_id uuid references auth.users(id) on delete set null,
+  event_type text not null,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+alter table public.gotradex_security_audit enable row level security;
+
+drop policy if exists "Users can read own security audit" on public.gotradex_security_audit;
+create policy "Users can read own security audit"
+  on public.gotradex_security_audit for select
+  to authenticated using (user_id = auth.uid());
+
+revoke insert, update, delete on public.gotradex_security_audit from anon, authenticated;
+grant select on public.gotradex_security_audit to authenticated;
+
+create or replace function public.gotradex_security_audit_write(
+  p_user_id uuid, p_event_type text, p_details jsonb default '{}'::jsonb
+) returns void
+language plpgsql security definer
+set search_path = public, auth
+as $$
+begin
+  insert into public.gotradex_security_audit(user_id, actor_user_id, event_type, details)
+  values (p_user_id, auth.uid(), p_event_type, coalesce(p_details, '{}'::jsonb));
+end;
+$$;
+revoke all on function public.gotradex_security_audit_write(uuid,text,jsonb) from public, anon, authenticated;
+
+create or replace function public.gotradex_security_status()
+returns table (
+  withdrawal_frozen_until timestamptz,
+  freeze_reason text,
+  has_withdrawal_pin boolean,
+  require_email_otp boolean,
+  account_frozen_at timestamptz,
+  account_frozen_reason text
+)
+language sql stable security definer
+set search_path = public, auth
+as $$
+  select p.withdrawal_frozen_until, p.freeze_reason,
+         (p.withdrawal_pin_hash is not null),
+         coalesce(p.require_email_otp, false),
+         p.account_frozen_at, p.account_frozen_reason
+  from public.profiles p
+  where p.id = auth.uid()
+    and auth.uid() is not null;
+$$;
+revoke all on function public.gotradex_security_status() from public, anon;
+grant execute on function public.gotradex_security_status() to authenticated;
+
+create or replace function public.gotradex_set_withdrawal_pin(p_pin text)
+returns timestamptz
+language plpgsql security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_until timestamptz := now() + interval '24 hours';
+  v_email text;
+begin
+  if v_user is null then raise exception 'Sign in required'; end if;
+  if p_pin is null or p_pin !~ '^[0-9]{4}$' then
+    raise exception 'Withdrawal PIN must be exactly four digits';
+  end if;
+  select email into v_email from auth.users where id = v_user;
+  insert into public.profiles(id, email, withdrawal_pin_hash, withdrawal_frozen_until, freeze_reason, updated_at)
+  values (v_user, v_email, extensions.crypt(p_pin, extensions.gen_salt('bf')), v_until, 'pin_change', now())
+  on conflict (id) do update set
+    withdrawal_pin_hash = excluded.withdrawal_pin_hash,
+    withdrawal_frozen_until = greatest(coalesce(public.profiles.withdrawal_frozen_until, '-infinity'::timestamptz), excluded.withdrawal_frozen_until),
+    freeze_reason = 'pin_change',
+    updated_at = now();
+  perform public.gotradex_security_audit_write(v_user, 'withdrawal_pin_changed', jsonb_build_object('freeze_until', v_until));
+  return v_until;
+end;
+$$;
+revoke all on function public.gotradex_set_withdrawal_pin(text) from public, anon;
+grant execute on function public.gotradex_set_withdrawal_pin(text) to authenticated;
+
+create or replace function public.gotradex_set_email_otp_requirement(p_enabled boolean)
+returns boolean
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare v_user uuid := auth.uid(); v_email text;
+begin
+  if v_user is null then raise exception 'Sign in required'; end if;
+  select email into v_email from auth.users where id = v_user;
+  insert into public.profiles(id, email, require_email_otp, updated_at)
+  values (v_user, v_email, coalesce(p_enabled,false), now())
+  on conflict (id) do update set require_email_otp = coalesce(p_enabled,false), updated_at = now();
+  perform public.gotradex_security_audit_write(v_user, 'email_otp_requirement_changed', jsonb_build_object('enabled', coalesce(p_enabled,false)));
+  return coalesce(p_enabled,false);
+end;
+$$;
+revoke all on function public.gotradex_set_email_otp_requirement(boolean) from public, anon;
+grant execute on function public.gotradex_set_email_otp_requirement(boolean) to authenticated;
+
+create or replace function public.gotradex_freeze_my_account()
+returns timestamptz
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare v_user uuid := auth.uid(); v_email text; v_now timestamptz := now();
+begin
+  if v_user is null then raise exception 'Sign in required'; end if;
+  select email into v_email from auth.users where id = v_user;
+  insert into public.profiles(id, email, account_frozen_at, account_frozen_reason, updated_at)
+  values (v_user, v_email, v_now, 'emergency_self_freeze', v_now)
+  on conflict (id) do update set account_frozen_at = v_now, account_frozen_reason = 'emergency_self_freeze', updated_at = v_now;
+  perform public.gotradex_security_audit_write(v_user, 'account_emergency_frozen', '{}'::jsonb);
+  return v_now;
+end;
+$$;
+revoke all on function public.gotradex_freeze_my_account() from public, anon;
+grant execute on function public.gotradex_freeze_my_account() to authenticated;
+
+-- Email changes are requests first. Approval is an audited decision; a privileged
+-- Auth Admin operation must apply the actual email change after approval.
+create table if not exists public.gotradex_email_change_requests (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  current_email text not null,
+  requested_email text not null,
+  reason text not null,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  admin_note text,
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint gotradex_email_change_not_same check (lower(current_email) <> lower(requested_email))
+);
+create index if not exists gotradex_email_change_pending_idx
+  on public.gotradex_email_change_requests(status, created_at desc);
+alter table public.gotradex_email_change_requests enable row level security;
+drop policy if exists "Users can read own email change requests" on public.gotradex_email_change_requests;
+create policy "Users can read own email change requests"
+  on public.gotradex_email_change_requests for select to authenticated
+  using (user_id = (select auth.uid()));
+revoke all on public.gotradex_email_change_requests from anon, authenticated;
+grant select on public.gotradex_email_change_requests to authenticated;
+
+create or replace function public.gotradex_request_email_change(p_requested_email text, p_reason text)
+returns jsonb
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_current text;
+  v_requested text := lower(trim(coalesce(p_requested_email,'')));
+  v_reason text := trim(coalesce(p_reason,''));
+  v_id bigint;
+begin
+  if v_user is null then raise exception 'Sign in required'; end if;
+  if v_requested !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
+    raise exception 'Enter a valid requested email address';
+  end if;
+  if length(v_reason) < 3 or length(v_reason) > 240 then
+    raise exception 'Enter a reason between 3 and 240 characters';
+  end if;
+  select lower(email) into v_current from auth.users where id = v_user;
+  if v_current is null then raise exception 'Authenticated account email not found'; end if;
+  if v_current = v_requested then raise exception 'Requested email is already registered'; end if;
+  if exists(select 1 from public.gotradex_email_change_requests where user_id=v_user and status='pending') then
+    raise exception 'You already have a pending email-change request';
+  end if;
+  insert into public.gotradex_email_change_requests(user_id,current_email,requested_email,reason)
+  values(v_user,v_current,v_requested,v_reason) returning id into v_id;
+  perform public.gotradex_security_audit_write(v_user,'email_change_requested',jsonb_build_object('request_id',v_id));
+  return jsonb_build_object('request_id',v_id,'status','pending');
+end;
+$$;
+revoke all on function public.gotradex_request_email_change(text,text) from public, anon;
+grant execute on function public.gotradex_request_email_change(text,text) to authenticated;
+
+create or replace function public.gotradex_admin_list_email_change_requests()
+returns table (
+  id bigint,
+  user_id uuid,
+  current_email text,
+  requested_email text,
+  reason text,
+  created_at timestamptz
+)
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare v_admin uuid := auth.uid();
+begin
+  if v_admin is null or not exists(select 1 from public.admin_users where user_id=v_admin) then
+    raise exception 'Admin permission required';
+  end if;
+  return query
+    select r.id,r.user_id,r.current_email,r.requested_email,r.reason,r.created_at
+    from public.gotradex_email_change_requests r
+    where r.status='pending'
+    order by r.created_at asc;
+end;
+$$;
+revoke all on function public.gotradex_admin_list_email_change_requests() from public, anon;
+grant execute on function public.gotradex_admin_list_email_change_requests() to authenticated;
+
+create or replace function public.gotradex_admin_review_email_change_request(
+  p_request_id bigint, p_decision text, p_admin_note text
+)
+returns boolean
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare
+  v_admin uuid := auth.uid();
+  v_target uuid;
+  v_decision text := lower(trim(coalesce(p_decision,'')));
+  v_note text := trim(coalesce(p_admin_note,''));
+begin
+  if v_admin is null or not exists(select 1 from public.admin_users where user_id=v_admin) then
+    raise exception 'Admin permission required';
+  end if;
+  if v_decision not in ('approved','rejected') then raise exception 'Decision must be approved or rejected'; end if;
+  if length(v_note) < 3 or length(v_note) > 240 then raise exception 'Admin note must be 3 to 240 characters'; end if;
+  update public.gotradex_email_change_requests
+     set status=v_decision,admin_note=v_note,reviewed_by=v_admin,reviewed_at=now()
+   where id=p_request_id and status='pending'
+   returning user_id into v_target;
+  if v_target is null then raise exception 'Pending request not found or already reviewed'; end if;
+  perform public.gotradex_security_audit_write(v_target,'email_change_request_'||v_decision,jsonb_build_object('request_id',p_request_id,'admin_note',v_note));
+  return true;
+end;
+$$;
+revoke all on function public.gotradex_admin_review_email_change_request(bigint,text,text) from public, anon;
+grant execute on function public.gotradex_admin_review_email_change_request(bigint,text,text) to authenticated;
+
+create or replace function public.gotradex_admin_release_withdrawal_freeze(p_target_user uuid, p_reason text)
+returns boolean
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare v_admin uuid := auth.uid();
+begin
+  if v_admin is null or not exists(select 1 from public.admin_users where user_id = v_admin) then
+    raise exception 'Admin permission required';
+  end if;
+  if nullif(trim(coalesce(p_reason,'')), '') is null then raise exception 'A reason is required'; end if;
+  update public.profiles
+     set withdrawal_frozen_until = null, freeze_reason = null, updated_at = now()
+   where id = p_target_user;
+  if not found then raise exception 'Trader profile not found'; end if;
+  insert into public.gotradex_security_audit(user_id, actor_user_id, event_type, details)
+  values (p_target_user, v_admin, 'admin_released_withdrawal_freeze', jsonb_build_object('reason', trim(p_reason)));
+  return true;
+end;
+$$;
+revoke all on function public.gotradex_admin_release_withdrawal_freeze(uuid,text) from public, anon;
+grant execute on function public.gotradex_admin_release_withdrawal_freeze(uuid,text) to authenticated;
+
+create or replace function public.gotradex_block_self_email_change()
+returns trigger
+language plpgsql security definer
+set search_path = public, auth
+as $$
+begin
+  if new.email is distinct from old.email
+     and auth.uid() = old.id
+     and not exists(select 1 from public.admin_users where user_id = auth.uid()) then
+    raise exception 'Email is locked for security. Contact GoTradeX Admin.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists gotradex_profile_email_locked on public.profiles;
+create trigger gotradex_profile_email_locked
+before update of email on public.profiles
+for each row execute function public.gotradex_block_self_email_change();
+
+create or replace function public.gotradex_block_auth_email_change()
+returns trigger
+language plpgsql security definer
+set search_path = public, auth
+as $$
+begin
+  if new.email is distinct from old.email
+     and auth.uid() = old.id
+     and not exists(select 1 from public.admin_users where user_id = auth.uid()) then
+    raise exception 'Email is locked for security. Contact GoTradeX Admin.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists gotradex_auth_email_locked on auth.users;
+create trigger gotradex_auth_email_locked
+before update of email on auth.users
+for each row execute function public.gotradex_block_auth_email_change();
+
+create or replace function public.gotradex_password_change_freeze()
+returns trigger
+language plpgsql security definer
+set search_path = public, auth
+as $$
+begin
+  if new.encrypted_password is distinct from old.encrypted_password then
+    insert into public.profiles(id, email, withdrawal_frozen_until, freeze_reason, updated_at)
+    values (new.id, new.email, now() + interval '24 hours', 'password_change', now())
+    on conflict (id) do update set
+      withdrawal_frozen_until = greatest(coalesce(public.profiles.withdrawal_frozen_until, '-infinity'::timestamptz), now() + interval '24 hours'),
+      freeze_reason = 'password_change',
+      updated_at = now();
+    insert into public.gotradex_security_audit(user_id, actor_user_id, event_type, details)
+    values (new.id, new.id, 'password_changed_withdrawal_freeze', jsonb_build_object('freeze_until', now() + interval '24 hours'));
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists gotradex_password_change_freeze on auth.users;
+create trigger gotradex_password_change_freeze
+after update of encrypted_password on auth.users
+for each row when (new.encrypted_password is distinct from old.encrypted_password)
+execute function public.gotradex_password_change_freeze();
+
+create or replace function public.gotradex_enforce_withdrawal_security()
+returns trigger
+language plpgsql security definer
+set search_path = public, auth
+as $$
+declare v_freeze timestamptz; v_account_frozen timestamptz;
+begin
+  if new.status in ('pending','approved','paid') then
+    select withdrawal_frozen_until, account_frozen_at
+      into v_freeze, v_account_frozen
+      from public.profiles where id = new.user_id;
+    if v_account_frozen is not null then
+      raise exception 'Account is emergency-frozen. Contact GoTradeX Admin.';
+    end if;
+    if v_freeze is not null and v_freeze > now() then
+      raise exception 'Withdrawals frozen until % for security protection', to_char(v_freeze, 'YYYY-MM-DD HH24:MI:SS TZ');
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists gotradex_withdrawal_security_guard on public.gotradex_withdrawals;
+create trigger gotradex_withdrawal_security_guard
+before insert or update of status on public.gotradex_withdrawals
+for each row execute function public.gotradex_enforce_withdrawal_security();
+
+
+-- Emergency-frozen accounts cannot enqueue new trades. Existing positions are not force-closed.
+create or replace function public.gotradex_block_trades_for_frozen_account()
+returns trigger
+language plpgsql security definer
+set search_path = public, auth
+as $$
+begin
+  if exists (
+    select 1 from public.profiles p
+    where p.id = new.user_id and p.account_frozen_at is not null
+  ) then
+    raise exception 'Account is emergency-frozen. New trades are disabled until Admin review.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists gotradex_frozen_account_trade_guard on public.gotradex_trade_commands;
+create trigger gotradex_frozen_account_trade_guard
+before insert on public.gotradex_trade_commands
+for each row execute function public.gotradex_block_trades_for_frozen_account();
+
+commit;
