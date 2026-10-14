@@ -536,15 +536,11 @@
       priceLineVisible:true,lastValueVisible:true,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
-    state.lineSeries=state.chart.addLineSeries({color:"#42d392",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-    state.areaSeries=state.chart.addAreaSeries({lineColor:"#42d392",topColor:"#42d39255",bottomColor:"#42d39205",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-    // Built-in SMA 50/100/200 overlays intentionally disabled.
-    // Keep candle, line and area series untouched; custom indicators are managed separately.
+    // Candle-only baseline: do not create automatic green/mountain overlays or the orange LIVE price-line.
+    // Custom indicators can be added separately later.
+    state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
-    state.currentPriceLine=state.candleSeries.createPriceLine({
-      price:0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Dashed,
-      axisLabelVisible:true,title:"LIVE"
-    });
+    state.currentPriceLine=null;
     applySeriesVisibility();
     state.chart.timeScale().subscribeSizeChange(()=>positionTradeOverlay());
     state.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>positionTradeOverlay());
@@ -552,13 +548,9 @@
 
   function applySeriesVisibility(){
     if(!state.chart)return;
-    const candle=state.chartType==="candle";
-    const line=state.chartType==="line";
-    const mountain=state.chartType==="mountain";
-    state.candleSeries?.applyOptions({visible:candle});
-    state.lineSeries?.applyOptions({visible:line});
-    state.areaSeries?.applyOptions({visible:mountain});
-    const ind=candle;
+    // Keep the verified candlesticks visible; no automatic line/mountain overlays.
+    state.candleSeries?.applyOptions({visible:true});
+    const ind=true;
     state.ma50?.applyOptions({visible:ind});
     state.ma100?.applyOptions({visible:ind});
     state.ma200?.applyOptions({visible:ind});
@@ -567,10 +559,7 @@
   function renderHistory(){
     if(!state.chart)buildChart();
     const candles=seriesCandleData();
-    const lines=seriesLineData();
     state.candleSeries.setData(candles);
-    state.lineSeries.setData(lines);
-    state.areaSeries.setData(lines);
     refreshChartTools();
     state.historyLoaded=candles.length>0;
     state.initialRangeSet=false;
@@ -599,8 +588,6 @@
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
     state.candleSeries.update(item);
-    state.lineSeries.update({time:item.time,value:item.close});
-    state.areaSeries.update({time:item.time,value:item.close});
     // No automatic SMA overlays: do not add background moving-average lines to the chart.
     refreshChartTools();
     state.price=c.c;
@@ -609,16 +596,7 @@
   }
 
   function updateCurrentPriceLine(){
-    if(!state.currentPriceLine||!Number.isFinite(state.price))return;
-    const C=window.LightweightCharts;
-    state.currentPriceLine.applyOptions({
-      price:Number(state.price),
-      color:"#f5a623",
-      lineWidth:1,
-      lineStyle:C.LineStyle.Dashed,
-      axisLabelVisible:true,
-      title:"LIVE"
-    });
+    // Intentionally no automatic orange LIVE price-line or axis marker.
   }
 
   function observeTradeMarkers(){
