@@ -747,6 +747,7 @@
   const chartToolSeries={};
   const chartToolLines={};
   const activeChartTools=new Set();
+  const chartToolParams={};
   function chartToolSMA(period,field="c"){
     const out=[];
     for(let i=period-1;i<state.candles.length;i++){
@@ -760,10 +761,29 @@
     for(let i=0;i<state.candles.length;i++){const close=Number(state.candles[i].c);value=i===0?close:close*k+value*(1-k);if(i>=period-1)out.push({time:Math.floor(state.candles[i].t/1000),value});}
     return out;
   }
-  function chartToolData(name){
+  function chartToolSMMA(period){
+    const cs=state.candles,out=[];if(!cs.length)return out;
+    let value=0;
+    for(let i=0;i<cs.length;i++){
+      const median=(Number(cs[i].h)+Number(cs[i].l))/2;
+      if(i<period){value+=median;if(i===period-1){value/=period;out.push({time:Math.floor(cs[i].t/1000),value});}}
+      else{value=(value*(period-1)+median)/period;out.push({time:Math.floor(cs[i].t/1000),value});}
+    }
+    return out;
+  }
+  function chartToolData(name,params={}){
     const cs=state.candles,n=cs.length,out=[];
-    if(name==="EMA / SMA")return [{key:"ema9",color:"#22d3ee",data:chartToolEMA(9)},{key:"sma20",color:"#f59e0b",data:chartToolSMA(20)}];
-    if(name==="Alligator")return [{key:"jaw",color:"#3b82f6",data:chartToolSMA(13)},{key:"teeth",color:"#ef4444",data:chartToolSMA(8)},{key:"lips",color:"#22c55e",data:chartToolSMA(5)}];
+    if(name==="EMA / SMA"){
+      const period=Math.max(2,Math.min(500,Math.floor(Number(params.period)||14)));
+      const isSma=String(params.type||"EMA").toUpperCase()==="SMA";
+      return [{key:"ma-custom",color:"#22d3ee",data:isSma?chartToolSMA(period):chartToolEMA(period)}];
+    }
+    if(name==="Alligator"){
+      const jaw=Math.max(2,Math.min(200,Math.floor(Number(params.jaw)||13)));
+      const teeth=Math.max(2,Math.min(200,Math.floor(Number(params.teeth)||8)));
+      const lips=Math.max(2,Math.min(200,Math.floor(Number(params.lips)||5)));
+      return [{key:"jaw",color:"#3b82f6",data:chartToolSMMA(jaw)},{key:"teeth",color:"#ef4444",data:chartToolSMMA(teeth)},{key:"lips",color:"#22c55e",data:chartToolSMMA(lips)}];
+    }
     if(name==="Bollinger Bands"){
       for(let i=19;i<n;i++){let sum=0;for(let j=i-19;j<=i;j++)sum+=Number(cs[j].c);const mean=sum/20;let variance=0;for(let j=i-19;j<=i;j++)variance+=(Number(cs[j].c)-mean)**2;const sd=Math.sqrt(variance/20),time=Math.floor(cs[i].t/1000);out.push({time,value:mean+2*sd});}
       const lower=[];for(let i=19;i<n;i++){let sum=0;for(let j=i-19;j<=i;j++)sum+=Number(cs[j].c);const mean=sum/20;let v=0;for(let j=i-19;j<=i;j++)v+=(Number(cs[j].c)-mean)**2;lower.push({time:Math.floor(cs[i].t/1000),value:mean-2*Math.sqrt(v/20)});}
@@ -793,7 +813,7 @@
       applySeriesVisibility();
     }
   }
-  function drawChartTool(name){
+  function drawChartTool(name,params={}){
     if(!state.chart||!state.candleSeries||!state.candles.length)return false;
     if(name==="Candlesticks"||name==="Heikin Ashi"||name==="Line Chart"||name==="Area Chart"){
       state.chartType=name==="Line Chart"?"line":name==="Area Chart"?"mountain":"candle";
@@ -818,33 +838,33 @@
       const lines=[state.candleSeries.createPriceLine({price:high,color:"#f97316",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Resistance"}),state.candleSeries.createPriceLine({price:low,color:"#22c55e",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"Support"})];
       chartToolLines[name]=lines;return true;
     }
-    const specs=chartToolData(name);
+    const specs=chartToolData(name,params);
     if(specs){specs.forEach(spec=>{const key=name+"::"+spec.key;let series=chartToolSeries[key];if(!series){series=state.chart.addLineSeries({color:spec.color,lineWidth:2,priceLineVisible:false,lastValueVisible:false});chartToolSeries[key]=series;}series.setData(spec.data);});return true;}
     return false;
   }
-  function setChartTool(name){
+  function setChartTool(name,params={}){
     name=String(name||"").trim();if(!name)return {ok:false,message:"Choose a chart tool."};
     const chartTypes=["Candlesticks","Heikin Ashi","Line Chart","Area Chart"];
     if(activeChartTools.has(name)){activeChartTools.delete(name);clearChartTool(name);return {ok:true,active:false,message:name+" removed from chart."};}
     if(chartTypes.includes(name)){
       chartTypes.forEach(type=>{if(activeChartTools.has(type)){activeChartTools.delete(type);clearChartTool(type)}});
     }
-    const ok=drawChartTool(name);
-    if(ok){activeChartTools.add(name);return {ok:true,active:true,message:name+" applied to the current chart data."};}
+    const ok=drawChartTool(name,params);
+    if(ok){activeChartTools.add(name);chartToolParams[name]=params||{};return {ok:true,active:true,message:name+" applied to the current chart candles."};}
     return {ok:false,message:name+" is listed in Chart Tools but is not implemented in the current chart engine yet."};
   }
   function refreshChartTools(){
-    for(const name of activeChartTools){clearChartTool(name);drawChartTool(name);}
+    for(const name of activeChartTools){clearChartTool(name);drawChartTool(name,chartToolParams[name]||{});}
   }
 
   function setChartToolEnabled(name,enabled,params){
     const active=activeChartTools.has(name);
     if(enabled){
       if(active){clearChartTool(name);activeChartTools.delete(name);}
-      const result=setChartTool(name);
+      const result=setChartTool(name,params||{});
       return result;
     }
-    if(active){activeChartTools.delete(name);clearChartTool(name);return {ok:true,active:false,message:name+" removed from the selected chart."};}
+    if(active){activeChartTools.delete(name);clearChartTool(name);delete chartToolParams[name];return {ok:true,active:false,message:name+" removed from the selected chart."};}
     return {ok:true,active:false,message:name+" is already removed."};
   }
   const eventToolNames={
@@ -887,7 +907,7 @@
     const d=event&&event.detail?event.detail:{};
     const name=normalizeToolName(d.tool||d.name);
     if(!name)return;
-    if(activeChartTools.has(name)){activeChartTools.delete(name);clearChartTool(name);}
+    if(activeChartTools.has(name)){activeChartTools.delete(name);clearChartTool(name);delete chartToolParams[name];}
   });
 
   window.GoTradeXLiveChart={
