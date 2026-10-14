@@ -3560,5 +3560,54 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
  window.addEventListener("load",sync);
 })();
 </script>
+
+<script id="gtx-settings-direct-tap-emergency-20261014">
+(function(){
+ "use strict";
+ var lastOpen=0;
+ function openSettingsFromTap(e){
+  var b=e&&e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
+  if(!b)return;
+  if(e.cancelable)e.preventDefault();
+  e.stopPropagation();
+  if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+  var now=Date.now();
+  if(now-lastOpen<350)return;
+  lastOpen=now;
+  try{
+   if(typeof window.openGtxSettings==="function")window.openGtxSettings();
+  }catch(err){console.error("Settings opener error",err);}
+  var p=document.getElementById("gtxSimplePage");
+  if(!p){
+   p=document.createElement("div");p.id="gtxSimplePage";p.className="drawer";
+   p.innerHTML='<div class="panel" style="position:relative"><button type="button" id="gtxSimpleClose" class="close" aria-label="Back to main dashboard">←</button><h2 id="gtxSimpleTitle">Settings</h2><div id="gtxSimpleBody" class="adminSlot"><div id="gtxSettingsPortal"><p>Settings could not fully load. Please refresh and try again.</p></div></div></div>';
+   document.body.appendChild(p);
+  }
+  var title=document.getElementById("gtxSimpleTitle");
+  if(title && (!title.textContent.trim() || title.textContent.trim()===""))title.textContent="Settings";
+  var menu=document.getElementById("menuDrawer");
+  if(menu){menu.classList.remove("open");menu.style.setProperty("display","none","important");menu.setAttribute("aria-hidden","true");}
+  var profile=document.getElementById("gtxProfileDrawer");
+  if(profile){profile.classList.remove("open");profile.style.setProperty("display","none","important");profile.setAttribute("aria-hidden","true");}
+  p.classList.add("open");
+  p.style.setProperty("display","block","important");
+  p.style.setProperty("visibility","visible","important");
+  p.style.setProperty("pointer-events","auto","important");
+  p.style.setProperty("z-index","2147483002","important");
+  p.removeAttribute("aria-hidden");
+  var h=document.querySelector(".gtxKenglyHeader");if(h)h.style.setProperty("display","none","important");
+  document.body.classList.add("gtx-subscreen-open");
+ }
+ // Earliest mobile event plus click/keyboard fallback; stop legacy menu handlers from closing Settings.
+ window.addEventListener("pointerdown",openSettingsFromTap,true);
+ window.addEventListener("click",openSettingsFromTap,true);
+ document.addEventListener("DOMContentLoaded",function(){
+  document.querySelectorAll('[data-profile-action="settings"]').forEach(function(b){
+   b.setAttribute("type","button");
+   b.onclick=function(e){openSettingsFromTap({target:b,cancelable:true,preventDefault:function(){e.preventDefault();},stopPropagation:function(){e.stopPropagation();},stopImmediatePropagation:function(){e.stopImmediatePropagation();}});};
+  });
+ });
+})();
+</script>
 </body>
 </html>
