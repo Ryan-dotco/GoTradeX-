@@ -150,6 +150,11 @@ function closeOverlay(toPrevious){
   var menu=byId("menuDrawer");if(menu)menu.classList.remove("open");
  }
 }
+function forceSettingsOnTop(overlay){
+ if(!overlay)return;
+ if(overlay.parentElement!==document.body)document.body.appendChild(overlay);
+ ["position","fixed","inset","0","width","100vw","height","100dvh","max-width","none","max-height","none","margin","0","transform","none","isolation","isolate","z-index","2147483647","display","block","visibility","visible","opacity","1","pointer-events","auto"].reduce(function(_,v,i,a){if(i%2===0)overlay.style.setProperty(v,a[i+1],"important");return _;},null);
+}
 function openSettings(){
  var existing=byId(overlayId);
  if(!existing){existing=document.createElement("div");existing.id=overlayId;existing.className="portal-section";document.body.appendChild(existing);}
@@ -157,7 +162,7 @@ function openSettings(){
  previousPortalId=active&&active.id?active.id:null;
  // Close visible app layers so they cannot cover the standalone Settings portal.
  document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(function(layer){layer.classList.remove("open");layer.style.removeProperty("display");});
- existing.innerHTML=portalMarkup();existing.classList.add("is-open");existing.style.setProperty("display","block","important");existing.style.setProperty("visibility","visible","important");existing.style.setProperty("pointer-events","auto","important");existing.style.setProperty("z-index","2147483647","important");existing.setAttribute("role","dialog");existing.setAttribute("aria-modal","true");existing.removeAttribute("aria-hidden");
+ existing.innerHTML=portalMarkup();existing.classList.add("is-open");forceSettingsOnTop(existing);existing.setAttribute("role","dialog");existing.setAttribute("aria-modal","true");existing.removeAttribute("aria-hidden");
  document.body.classList.add("gtx-subscreen-open");
  var header=document.querySelector(".gtxKenglyHeader");if(header)header.style.setProperty("display","none","important");
  var p=getPrefs();setTheme(safeGet("gtx_theme","default-dark"));applyTimezone(safeGet("gtx_timezone_offset","+02:00"),safeGet("gtx_timezone_label","UTC+02:00 — Johannesburg"));
@@ -196,7 +201,7 @@ window.gtxSettingsCloseToTrading=function(){closeOverlay(false);};
 window.gtxSettingsSetTheme=setTheme;
 window.gtxSettingsSetColor=setCustomColor;
 document.addEventListener("click",function(e){
- var button=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
+ var button=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"],[data-open-security-portal]'):null;
  if(!button)return;
  e.preventDefault();if(e.stopImmediatePropagation)e.stopImmediatePropagation();e.stopPropagation();
  openSettings();
