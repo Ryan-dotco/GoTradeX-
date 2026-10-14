@@ -137,18 +137,42 @@ function requestLocation(){
  },{enableHighAccuracy:false,timeout:10000,maximumAge:300000});
 }
 function closeOverlay(toPrevious){
- var overlay=byId(overlayId);if(overlay){overlay.classList.remove("is-open");overlay.style.removeProperty("display");overlay.style.removeProperty("visibility");overlay.style.removeProperty("pointer-events");overlay.style.removeProperty("z-index");}
+ var overlay=byId(overlayId);
+ if(overlay){
+  overlay.classList.remove("is-open");
+  overlay.setAttribute("aria-hidden","true");
+  overlay.style.setProperty("display","none","important");
+  overlay.style.setProperty("pointer-events","none","important");
+  overlay.style.removeProperty("z-index");
+ }
+ document.body.classList.remove("gtx-subscreen-open");
+ var header=document.querySelector(".gtxKenglyHeader");
+ if(header)header.style.setProperty("display","flex","important");
  if(toPrevious){
-  if(previousPortalId){var prev=byId(previousPortalId);if(prev){prev.classList.add("open");prev.style.removeProperty("display");prev.removeAttribute("aria-hidden");return;}}
+  var previous=previousPortalId?byId(previousPortalId):null;
+  if(previous&&previous.isConnected){
+   previous.classList.add("open");
+   previous.style.setProperty("display","block","important");
+   previous.style.setProperty("visibility","visible","important");
+   previous.style.setProperty("pointer-events","auto","important");
+   previous.style.setProperty("z-index","2147483000","important");
+   previous.removeAttribute("aria-hidden");
+   return;
+  }
   var nav=window.GoTradeXNavigationRecovery||window.GoTradeXNavigation;
   if(nav&&typeof nav.back==="function"){try{nav.back();return;}catch(e){}}
- }else{
-  var navClose=window.GoTradeXNavigationRecovery||window.GoTradeXNavigation;
-  if(navClose&&typeof navClose.closeToTrading==="function"){try{navClose.closeToTrading();return;}catch(e){}}
-  if(navClose&&typeof navClose.closeAll==="function"){try{navClose.closeAll();return;}catch(e){}}
-  document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(function(el){el.classList.remove("open");el.style.removeProperty("display");});
-  var menu=byId("menuDrawer");if(menu)menu.classList.remove("open");
+  var menu=byId("menuDrawer");
+  if(menu){menu.classList.add("open");menu.style.setProperty("display","block","important");menu.style.setProperty("z-index","2147483001","important");menu.removeAttribute("aria-hidden");}
+  return;
  }
+ document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(function(el){
+  el.classList.remove("open");el.style.setProperty("display","none","important");el.setAttribute("aria-hidden","true");
+ });
+ var menu=byId("menuDrawer");
+ if(menu){menu.classList.remove("open");menu.style.setProperty("display","none","important");menu.setAttribute("aria-hidden","true");}
+ var simple=byId("gtxSimplePage");
+ if(simple){simple.classList.remove("open");simple.style.setProperty("display","none","important");}
+ window.scrollTo(0,0);
 }
 function forceSettingsOnTop(overlay){
  if(!overlay)return;
@@ -174,9 +198,13 @@ function openSettings(){
  byId("removeCustomBg").addEventListener("click",removeCustomBg);
  byId("prefTimezone").addEventListener("change",updateTimezonePreview);
  byId("locationToggle").addEventListener("click",function(){if(safeGet("gtx_location_enabled","false")==="true"){safeSet("gtx_location_enabled","false");this.classList.remove("is-on");this.setAttribute("aria-checked","false");this.querySelector("b").textContent="OFF";var st=byId("locationStatus");if(st)st.textContent="Location is off.";return;}requestLocation();});
- byId("settingsCloseToTrading").addEventListener("click",function(){closeOverlay(false);});
- byId("settingsCloseFooter").addEventListener("click",function(){closeOverlay(false);});
- byId("settingsBackButton").addEventListener("click",function(){closeOverlay(true);});
+ ["settingsCloseToTrading","settingsCloseFooter","settingsBackButton"].forEach(function(id){
+  var button=byId(id);if(!button)return;
+  button.addEventListener("click",function(e){
+   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+   closeOverlay(id==="settingsBackButton");
+  },true);
+ });
  byId("saveSettingsButton").addEventListener("click",function(){
   var old=getPrefs(),social=getSocial();
   var prefs=Object.assign({},old,{amount:byId("prefAmount").value,time:byId("prefTime").value,sound:old.sound!==false,confirm:old.confirm!==false,social:social});
