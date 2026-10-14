@@ -67,8 +67,10 @@ function setPalette(accent,theme){
 }
 function setTheme(theme){
  if(["dark","light","default-dark","custom"].indexOf(theme)<0)theme="default-dark";safeSet("gtx_theme",theme);
+ if(theme!=="custom")safeSet("gtx_appearance",theme==="light"?"light":"dark");
  var accent=theme==="custom"?safeGet("gtx_custom_color","#2563eb"):(theme==="light"?"#2563eb":theme==="dark"?"#64748b":"#2563eb");
- setPalette(accent,theme==="light"?"light":"dark");
+ var appearance=theme==="custom"?safeGet("gtx_appearance","dark"):(theme==="light"?"light":"dark");
+ setPalette(accent,appearance);
  var preview=byId("settingsBgPreview"),img=safeGet("gtx_custom_bg_image","");
  if(preview){preview.style.backgroundImage=img?'url("'+img+'")':"none";preview.style.backgroundColor=safeGet("gtx_custom_color",accent);preview.style.backgroundSize="cover";preview.style.backgroundPosition="center";}
  document.querySelectorAll("#"+overlayId+" [data-theme-choice]").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-theme-choice")===theme);});
@@ -77,7 +79,7 @@ function setCustomColor(color){
  if(!/^#[0-9a-f]{6}$/i.test(color))return;
  safeSet("gtx_theme","custom");safeSet("gtx_custom_color",color);
  /* Preserve the uploaded chart wallpaper when the border color changes. */
- setPalette(color,"dark");
+ setPalette(color,safeGet("gtx_appearance","dark"));
  var preview=byId("settingsBgPreview"),img=safeGet("gtx_custom_bg_image","");
  if(preview){preview.style.backgroundImage=img?'url("'+img+'")':"none";if(!img)preview.style.backgroundColor="";}
  var status=byId("bgStatus");if(status)status.textContent="Border color applied throughout GoTradeX. Your chart wallpaper is unchanged.";
