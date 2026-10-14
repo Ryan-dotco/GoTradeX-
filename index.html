@@ -1213,6 +1213,7 @@ syncGtxKenglyVisibility();
     if(previous)show(previous);
   }
   function closeToTrading(){
+    var settingsPortal=document.getElementById("portal-settings-standalone");if(settingsPortal)settingsPortal.classList.remove("is-open");
     history.length=0;
     ids.forEach(id=>{const node=get(id);if(node){node.classList.remove("open");node.style.removeProperty("display");}});
     document.querySelectorAll(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open").forEach(node=>{node.classList.remove("open");node.style.removeProperty("display");});
@@ -2954,6 +2955,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     document.body.classList.toggle("gtx-subscreen-open",!!open);
   }
   function closeToTrading(){
+    var settingsPortal=document.getElementById("portal-settings-standalone");if(settingsPortal)settingsPortal.classList.remove("is-open");
     document.querySelectorAll(layerSelector).forEach(hide);
     var simple=document.getElementById("gtxSimplePage");if(simple)hide(simple);
     historyStack.length=0;
@@ -3111,6 +3113,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     sync();
   }
   function closeToTrading(){
+    var settingsPortal=document.getElementById("portal-settings-standalone");if(settingsPortal)settingsPortal.classList.remove("is-open");
     document.querySelectorAll(selector).forEach(hide);
     var simple=document.getElementById("gtxSimplePage");
     if(simple)hide(simple);
