@@ -837,8 +837,61 @@
     for(const name of activeChartTools){clearChartTool(name);drawChartTool(name);}
   }
 
+  function setChartToolEnabled(name,enabled,params){
+    const active=activeChartTools.has(name);
+    if(enabled){
+      if(active){clearChartTool(name);activeChartTools.delete(name);}
+      const result=setChartTool(name);
+      return result;
+    }
+    if(active){activeChartTools.delete(name);clearChartTool(name);return {ok:true,active:false,message:name+" removed from the selected chart."};}
+    return {ok:true,active:false,message:name+" is already removed."};
+  }
+  const eventToolNames={
+    alligator:"Alligator",fractals:"Fractals",ao:"Awesome Oscillator",ema:"EMA / SMA",
+    supertrend:"Supertrend",kangaroo:"Kangaroo",lion:"Lion",kenkley:"Kenkley’s Lines",
+    rsi:"RSI",macd:"MACD",bb:"Bollinger Bands",ichimoku:"Ichimoku Cloud",
+    parabolicsar:"Parabolic SAR",adx:"ADX",patterns:"Patterns",stochastic:"Stochastic",
+    cci:"CCI",williamsr:"Williams %R",atr:"ATR",keltnerchannels:"Keltner Channels",
+    donchianchannels:"Donchian Channels",supportresistance:"Support & Resistance",
+    trendline:"Trend Line",horizontalline:"Horizontal Line",verticalline:"Vertical Line",
+    fibonacciretracement:"Fibonacci Retracement",fibonacciextension:"Fibonacci Extension",
+    candlesticks:"Candlesticks",heikinashi:"Heikin Ashi",linechart:"Line Chart",areachart:"Area Chart",
+    pricealert:"Price Alert",indicatoralert:"Indicator Alert",buysellsignalalert:"BUY / SELL Signal Alert",
+    chartsettings:"Chart Settings"
+  };
+  function normalizeToolName(value){
+    const raw=String(value||"").trim();
+    if(!raw)return "";
+    if(eventToolNames[raw.toLowerCase().replace(/[^a-z0-9]/g,"")])return eventToolNames[raw.toLowerCase().replace(/[^a-z0-9]/g,"")];
+    const match=Object.values(eventToolNames).find(n=>n.toLowerCase()===raw.toLowerCase());
+    return match||raw;
+  }
+  window.addEventListener("gtx-tool-apply",function(event){
+    const d=event&&event.detail?event.detail:{};
+    const name=normalizeToolName(d.tool||d.name);
+    if(!name)return;
+    const result=setChartToolEnabled(name,!!d.enabled,d.params||{});
+    const status=document.getElementById("chartToolsStatus");
+    if(status)status.textContent=result.message||name+" chart action processed.";
+  });
+  window.addEventListener("gtx-indicator-toggle",function(event){
+    const d=event&&event.detail?event.detail:{};
+    const name=normalizeToolName(d.name||d.tool);
+    if(!name)return;
+    const result=setChartToolEnabled(name,!!d.enabled,d.params||{});
+    const status=document.getElementById("chartToolsStatus");
+    if(status)status.textContent=result.message||name+" chart action processed.";
+  });
+  window.addEventListener("gtx-tool-delete",function(event){
+    const d=event&&event.detail?event.detail:{};
+    const name=normalizeToolName(d.tool||d.name);
+    if(!name)return;
+    if(activeChartTools.has(name)){activeChartTools.delete(name);clearChartTool(name);}
+  });
+
   window.GoTradeXLiveChart={
-    boot,setTimeframe,reconnect:connect,setAsset,setChartTool,state,
+    boot,setTimeframe,reconnect:connect,setAsset,setChartTool,setChartToolEnabled,state,
     setWallpaper:function(data){const box=document.getElementById("gtxLiveChart");if(box)box.style.setProperty("--gtx-chart-wallpaper",data?'url("'+data+'")':"none");},
     applyTheme:function(p){if(!p||!p.border)return;try{if(state.chart)state.chart.applyOptions({rightPriceScale:{borderVisible:true,borderColor:p.border},timeScale:{borderVisible:true,borderColor:p.border}});}catch(e){}},
     applyTimezone:function(offset){try{if(offset&&/^([+-])\d{2}:\d{2}$/.test(offset))localStorage.setItem("gtx_timezone_offset",offset);if(state.chart)state.chart.applyOptions({timeScale:{tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}}});}catch(e){}},
