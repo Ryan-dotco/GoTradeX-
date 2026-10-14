@@ -199,19 +199,8 @@ function openSettings(){
  byId("removeCustomBg").addEventListener("click",removeCustomBg);
  byId("prefTimezone").addEventListener("change",updateTimezonePreview);
  byId("locationToggle").addEventListener("click",function(){if(safeGet("gtx_location_enabled","false")==="true"){safeSet("gtx_location_enabled","false");this.classList.remove("is-on");this.setAttribute("aria-checked","false");this.querySelector("b").textContent="OFF";var st=byId("locationStatus");if(st)st.textContent="Location is off.";return;}requestLocation();});
- ["settingsCloseToTrading","settingsCloseFooter","settingsBackButton"].forEach(function(id){
-  var button=byId(id);if(!button)return;
-  var action=function(e){
-   if(e&&e.preventDefault)e.preventDefault();
-   if(e&&e.stopPropagation)e.stopPropagation();
-   if(e&&e.stopImmediatePropagation)e.stopImmediatePropagation();
-   closeOverlay(id==="settingsBackButton");
-  };
-  button.onclick=action;
-  button.addEventListener("click",action,true);
-  button.addEventListener("pointerup",action,true);
-  button.addEventListener("touchend",action,{capture:true,passive:false});
- });
+ /* Navigation is delegated once below. Do not bind click, pointerup and touchend
+    together: Android emits a pointerup followed by click, which used to close twice. */
  byId("saveSettingsButton").addEventListener("click",function(){
   var old=getPrefs(),social=getSocial();
   var prefs=Object.assign({},old,{amount:byId("prefAmount").value,time:byId("prefTime").value,sound:old.sound!==false,confirm:old.confirm!==false,social:social});
@@ -235,28 +224,21 @@ window.gtxSettingsBackToPrevious=function(){closeOverlay(true);};
 window.gtxSettingsCloseToTrading=function(){closeOverlay(false);};
 window.gtxSettingsSetTheme=setTheme;
 window.gtxSettingsSetColor=setCustomColor;
-/* Android tap recovery: pointerup is handled separately from legacy click handlers. */
-window.addEventListener("pointerup",function(e){
- var button=e.target&&e.target.closest?e.target.closest("#settingsBackButton,#settingsCloseToTrading,#settingsCloseFooter"):null;
- if(!button)return;
- e.preventDefault();
- e.stopPropagation();
- if(e.stopImmediatePropagation)e.stopImmediatePropagation();
- closeOverlay(button.id==="settingsBackButton");
-},true);
-/* Intercept these controls at window capture, before legacy navigation handlers can swallow them. */
+/* One capture-phase click handler for all Settings navigation controls.
+   Back restores the exact portal/menu opened before Settings; X and Close return
+   to the trading dashboard. A single click path avoids Android double-close bugs. */
 window.addEventListener("click",function(e){
  var button=e.target&&e.target.closest?e.target.closest("#settingsBackButton,#settingsCloseToTrading,#settingsCloseFooter"):null;
  if(!button)return;
- e.preventDefault();
- e.stopPropagation();
+ e.preventDefault();e.stopPropagation();
  if(e.stopImmediatePropagation)e.stopImmediatePropagation();
  closeOverlay(button.id==="settingsBackButton");
 },true);
 document.addEventListener("click",function(e){
- var button=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"],[data-open-security-portal]'):null;
+ var button=e.target&&e.target.closest?e.target.closest('[data-profile-action="settings"]'):null;
  if(!button)return;
- e.preventDefault();if(e.stopImmediatePropagation)e.stopImmediatePropagation();e.stopPropagation();
+ e.preventDefault();e.stopPropagation();
+ if(e.stopImmediatePropagation)e.stopImmediatePropagation();
  openSettings();
 },true);
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){var p=byId(overlayId);if(p&&p.classList.contains("is-open"))closeOverlay(false);}});
