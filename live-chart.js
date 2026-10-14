@@ -40,7 +40,8 @@
     s.id="gtx-lwc-style";
     s.textContent=
       "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
-      "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
+      ".gtxWallpaperLayer{position:absolute;inset:0;z-index:0;pointer-events:none;background-position:center;background-size:cover;background-repeat:no-repeat;opacity:.22}"+
+      "#gtxLWC{position:absolute;inset:0;width:100%;height:100%;z-index:1;background:transparent}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
@@ -86,6 +87,7 @@
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
+    setWallpaper();
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
     Object.keys(CFG.intervals).forEach(t=>{
@@ -495,7 +497,7 @@
     if(!C||!host)throw new Error("Lightweight Charts library did not load.");
     state.chart=C.createChart(host,{
       autoSize:true,
-      layout:{background:{type:C.ColorType.Solid,color:"#07111d"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
+      layout:{background:{type:C.ColorType.Solid,color:"rgba(7,17,29,0)"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
       rightPriceScale:{visible:true,borderVisible:true,borderColor:"#31506d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
@@ -717,8 +719,24 @@
     if(state.booted) connect();
   }
 
+  function setWallpaper(data){
+    let image=typeof data==="string"?data:"";
+    if(!image){try{image=localStorage.getItem("gtx_custom_bg_image")||""}catch(_){image=""}}
+    const box=document.getElementById("gtxLiveChart");
+    if(!box)return false;
+    let layer=document.getElementById("gtxChartWallpaperLayer");
+    if(!layer){layer=document.createElement("div");layer.id="gtxChartWallpaperLayer";layer.className="gtxWallpaperLayer";layer.setAttribute("aria-hidden","true");box.insertBefore(layer,box.firstChild)}
+    if(image){layer.style.backgroundImage="url("+JSON.stringify(image)+")";layer.style.display="block"}
+    else{layer.style.backgroundImage="none";layer.style.display="none"}
+    return true;
+  }
+  function applyTheme(theme){
+    if(!state.chart||!theme)return false;
+    const border=typeof theme.border==="string"?theme.border:"#31506d";
+    try{state.chart.applyOptions({rightPriceScale:{borderColor:border},timeScale:{borderColor:border}});return true}catch(_){return false}
+  }
   window.GoTradeXLiveChart={
-    boot,setTimeframe,reconnect:connect,setAsset,state,
+    boot,setTimeframe,reconnect:connect,setAsset,setWallpaper,applyTheme,state,
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"
   };
