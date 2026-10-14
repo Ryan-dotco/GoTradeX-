@@ -137,7 +137,7 @@ function requestLocation(){
  },{enableHighAccuracy:false,timeout:10000,maximumAge:300000});
 }
 function closeOverlay(toPrevious){
- var overlay=byId(overlayId);if(overlay)overlay.classList.remove("is-open");
+ var overlay=byId(overlayId);if(overlay){overlay.classList.remove("is-open");overlay.style.removeProperty("display");overlay.style.removeProperty("visibility");overlay.style.removeProperty("pointer-events");overlay.style.removeProperty("z-index");}
  if(toPrevious){
   if(previousPortalId){var prev=byId(previousPortalId);if(prev){prev.classList.add("open");prev.style.removeProperty("display");prev.removeAttribute("aria-hidden");return;}}
   var nav=window.GoTradeXNavigationRecovery||window.GoTradeXNavigation;
@@ -155,7 +155,7 @@ function openSettings(){
  if(!existing){existing=document.createElement("div");existing.id=overlayId;existing.className="portal-section";document.body.appendChild(existing);}
  var active=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
  previousPortalId=active&&active.id?active.id:null;
- existing.innerHTML=portalMarkup();existing.classList.add("is-open");existing.setAttribute("role","dialog");existing.setAttribute("aria-modal","true");
+ existing.innerHTML=portalMarkup();existing.classList.add("is-open");existing.style.setProperty("display","block","important");existing.style.setProperty("visibility","visible","important");existing.style.setProperty("pointer-events","auto","important");existing.style.setProperty("z-index","2147483647","important");existing.setAttribute("role","dialog");existing.setAttribute("aria-modal","true");existing.removeAttribute("aria-hidden");
  var p=getPrefs();setTheme(safeGet("gtx_theme","default-dark"));applyTimezone(safeGet("gtx_timezone_offset","+02:00"),safeGet("gtx_timezone_label","UTC+02:00 — Johannesburg"));
  document.querySelectorAll("#"+overlayId+" [data-section-toggle]").forEach(function(b){b.addEventListener("click",function(){var section=b.closest(".settings-section"),body=section&&section.querySelector(".settings-section-body");if(!section||!body)return;var open=!section.classList.contains("is-expanded");section.classList.toggle("is-expanded",open);b.setAttribute("aria-expanded",open?"true":"false");body.hidden=!open;});});
  document.querySelectorAll("#"+overlayId+" [data-theme-choice]").forEach(function(b){b.addEventListener("click",function(){setTheme(b.getAttribute("data-theme-choice"));});});
