@@ -56,10 +56,10 @@ function hexMix(hex,amount){
 }
 function setPalette(accent,theme){
  var root=document.documentElement,light=hexMix(accent,.62);
- root.style.setProperty("--gtx-accent",accent);root.style.setProperty("--gtx-accent-soft",hexMix(accent,.84));root.style.setProperty("--gtx-accent-light",light);root.style.setProperty("--gtx-accent-border",hexMix(accent,.38));root.style.setProperty("--gtx-accent-glow",accent+"35");
+ root.style.setProperty("--gtx-accent",accent);root.style.setProperty("--gtx-accent-soft",hexMix(accent,.84));root.style.setProperty("--gtx-accent-light",light);root.style.setProperty("--gtx-accent-border",accent);root.style.setProperty("--gtx-accent-glow",accent+"35");
  root.style.setProperty("--gtx-page-surface",theme==="light"?"#f4f6f8":"#081b31");root.style.setProperty("--gtx-panel-surface",theme==="light"?"#ffffff":"#0b2038");root.style.setProperty("--gtx-screen-text",theme==="light"?"#111827":"#f8fafc");
  document.body.setAttribute("data-theme",theme);document.body.dataset.gtxTheme=theme;
- var chartTheme={accent:accent,text:light,grid:hexMix(accent,.9),border:hexMix(accent,.55),background:theme==="light"?"#f4f6f8":"#07111d"};window.__gtxChartTheme=chartTheme;if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme(chartTheme);
+ var chartTheme={accent:accent,text:light,grid:hexMix(accent,.9),border:accent,background:theme==="light"?"#f4f6f8":"#07111d"};window.__gtxChartTheme=chartTheme;if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.applyTheme==="function")window.GoTradeXLiveChart.applyTheme(chartTheme);
 }
 function setTheme(theme){
  if(["dark","light","default-dark","custom"].indexOf(theme)<0)theme="default-dark";safeSet("gtx_theme",theme);
@@ -70,7 +70,7 @@ function setTheme(theme){
  document.querySelectorAll("#"+overlayId+" [data-theme-choice]").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-theme-choice")===theme);});
 }
 function setCustomColor(color){
- if(!/^#[0-9a-f]{6}$/i.test(color))return;safeSet("gtx_theme","custom");safeSet("gtx_custom_color",color);safeRemove("gtx_custom_bg_image");
+ if(!/^#[0-9a-f]{6}$/i.test(color))return;safeSet("gtx_theme","custom");safeSet("gtx_custom_color",color);
  setPalette(color,"dark");var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage="none";preview.style.backgroundColor=color;}
  var status=byId("bgStatus");if(status)status.textContent="Accent color applied to chart, scales and menus.";
 }
@@ -85,10 +85,10 @@ function uploadCustomBg(input){
  };reader.readAsDataURL(file);
 }
 function removeCustomBg(){
- safeRemove("gtx_custom_bg_image");safeRemove("gtx_custom_color");
+ safeRemove("gtx_custom_bg_image");
  var preview=byId("settingsBgPreview");if(preview){preview.style.backgroundImage="none";preview.style.backgroundColor="";}
  if(window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.setWallpaper==="function")window.GoTradeXLiveChart.setWallpaper("");
- var status=byId("bgStatus");if(status)status.textContent="Wallpaper removed.";setTheme("default-dark");
+ var status=byId("bgStatus");if(status)status.textContent="Wallpaper removed.";setTheme(safeGet("gtx_theme","default-dark"));
 }
 function parseOffset(s){var m=/^([+-])(\d{2}):(\d{2})$/.exec(s||"");if(!m)return 120;return (m[1]==="-"?-1:1)*(Number(m[2])*60+Number(m[3]));}
 function zoneName(value){var opt=byId("prefTimezone");return opt&&opt.selectedOptions&&opt.selectedOptions[0]?opt.selectedOptions[0].textContent:"UTC"+value;}
