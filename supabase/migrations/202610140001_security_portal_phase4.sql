@@ -206,7 +206,6 @@ begin
     insert into public.profiles(id, email, withdrawal_frozen_until, freeze_reason, updated_at)
     values (new.id, new.email, now() + interval '24 hours', 'password_change', now())
     on conflict (id) do update set
-      email = coalesce(public.profiles.email, excluded.email),
       withdrawal_frozen_until = greatest(coalesce(public.profiles.withdrawal_frozen_until, '-infinity'::timestamptz), now() + interval '24 hours'),
       freeze_reason = 'password_change',
       updated_at = now();
@@ -249,5 +248,28 @@ drop trigger if exists gotradex_withdrawal_security_guard on public.gotradex_wit
 create trigger gotradex_withdrawal_security_guard
 before insert or update of status on public.gotradex_withdrawals
 for each row execute function public.gotradex_enforce_withdrawal_security();
+
+
+-- Emergency-frozen accounts cannot enqueue new trades. Existing positions are not force-closed.
+create or replace function public.gotradex_block_trades_for_frozen_account()
+returns trigger
+language plpgsql security definer
+set search_path = public, auth
+as $
+begin
+  if exists (
+    select 1 from public.profiles p
+    where p.id = new.user_id and p.account_frozen_at is not null
+  ) then
+    raise exception 'Account is emergency-frozen. New trades are disabled until Admin review.';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists gotradex_frozen_account_trade_guard on public.gotradex_trade_commands;
+create trigger gotradex_frozen_account_trade_guard
+before insert on public.gotradex_trade_commands
+for each row execute function public.gotradex_block_trades_for_frozen_account();
 
 commit;
