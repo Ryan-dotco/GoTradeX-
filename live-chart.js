@@ -538,9 +538,9 @@
     });
     state.lineSeries=state.chart.addLineSeries({color:"#42d392",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
     state.areaSeries=state.chart.addAreaSeries({lineColor:"#42d392",topColor:"#42d39255",bottomColor:"#42d39205",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-    state.ma50=state.chart.addLineSeries({color:"#22e36f",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
-    state.ma100=state.chart.addLineSeries({color:"#f59e0b",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
-    state.ma200=state.chart.addLineSeries({color:"#3b82f6",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+    // Built-in SMA 50/100/200 overlays intentionally disabled.
+    // Keep candle, line and area series untouched; custom indicators are managed separately.
+    state.ma50=null;state.ma100=null;state.ma200=null;
     state.currentPriceLine=state.candleSeries.createPriceLine({
       price:0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Dashed,
       axisLabelVisible:true,title:"LIVE"
@@ -571,9 +571,6 @@
     state.candleSeries.setData(candles);
     state.lineSeries.setData(lines);
     state.areaSeries.setData(lines);
-    state.ma50.setData(sma(50));
-    state.ma100.setData(sma(100));
-    state.ma200.setData(sma(200));
     refreshChartTools();
     state.historyLoaded=candles.length>0;
     state.initialRangeSet=false;
@@ -604,10 +601,7 @@
     state.candleSeries.update(item);
     state.lineSeries.update({time:item.time,value:item.close});
     state.areaSeries.update({time:item.time,value:item.close});
-    for(const [series,period] of [[state.ma50,50],[state.ma100,100],[state.ma200,200]]){
-      const value=smaValue(period);
-      if(value!==null)series.update({time:item.time,value});
-    }
+    // No automatic SMA overlays: do not add background moving-average lines to the chart.
     refreshChartTools();
     state.price=c.c;
     updateCurrentPriceLine();
@@ -830,8 +824,7 @@
       }else state.candleSeries.setData(seriesCandleData());
       state.lineSeries.setData(seriesLineData());
       state.areaSeries.setData(seriesLineData());
-      state.ma50.setData(sma(50));state.ma100.setData(sma(100));state.ma200.setData(sma(200));
-      applySeriesVisibility();return true;
+        applySeriesVisibility();return true;
     }
     if(name==="Fractals"){
       const markers=[];
