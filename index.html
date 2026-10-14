@@ -1051,7 +1051,17 @@ syncGtxKenglyVisibility();
       '</div>');
     const panel=byId("gtxSimplePage");
     const closeButton=byId("gtxSimpleClose");
-    if(closeButton){closeButton.textContent="×";closeButton.setAttribute("aria-label","Back to previous page");closeButton.title="Back to previous page";closeButton.onclick=gtxSettingsBackToPrevious;}
+    if(closeButton){
+      closeButton.textContent="←";
+      closeButton.setAttribute("aria-label","Back to main dashboard");
+      closeButton.title="Back to main dashboard";
+      closeButton.style.setProperty("font-size","22px","important");
+      closeButton.style.setProperty("line-height","1","important");
+      closeButton.style.setProperty("width","38px","important");
+      closeButton.style.setProperty("height","38px","important");
+      closeButton.style.setProperty("min-width","38px","important");
+      closeButton.onclick=gtxSettingsReturnToMainDashboard;
+    }
     const preview=byId("bgPreview");
     if(preview){if(customImage)preview.style.backgroundImage='url("'+customImage+'")';else if(customColor)preview.style.backgroundColor=customColor;}
     gtxSettingsSetTheme(theme);
@@ -1154,6 +1164,26 @@ syncGtxKenglyVisibility();
     if(header)header.style.setProperty("display",otherOpen?"none":"flex","important");
     document.body.classList.toggle("gtx-subscreen-open",!!previous);
   }
+  function gtxSettingsReturnToMainDashboard(){
+    // Return to the app's main navigation/dashboard instead of closing to the trading chart.
+    const panel=byId("gtxSimplePage");
+    if(panel){panel.classList.remove("open");panel.style.setProperty("display","none","important");panel.style.setProperty("visibility","hidden","important");panel.setAttribute("aria-hidden","true");}
+    const menu=byId("menuDrawer");
+    if(menu){
+      menu.classList.add("open");
+      menu.style.setProperty("display","block","important");
+      menu.style.setProperty("visibility","visible","important");
+      menu.style.setProperty("pointer-events","auto","important");
+      menu.removeAttribute("aria-hidden");
+    }
+    const profile=byId("gtxProfileDrawer");
+    if(profile){profile.classList.remove("open");profile.style.setProperty("display","none","important");profile.setAttribute("aria-hidden","true");}
+    document.body.classList.remove("gtx-subscreen-open");
+    const header=document.querySelector(".gtxKenglyHeader");
+    if(header)header.style.setProperty("display","none","important");
+    window.__gtxPortalHistory=[];
+  }
+  window.gtxSettingsReturnToMainDashboard=gtxSettingsReturnToMainDashboard;
   window.gtxSettingsBackToPrevious=gtxSettingsBackToPrevious;
   window.gtxSettingsCloseToTrading=gtxSettingsCloseToTrading;
   function openGtxNotifications(){
@@ -3312,8 +3342,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
    if(header)header.style.setProperty("display","none","important");
   },120);
  },true);
- // Only non-Settings panels use the legacy close-to-chart recovery.
- // Settings X is Back: do not let this pointerup handler override it.
+ // Settings uses its own dashboard-return action. Never override it with chart-close behavior.
  window.addEventListener("pointerup",function(e){
   var b=e.target&&e.target.closest?e.target.closest("#gtxSimpleClose"):null;
   if(!b)return;
