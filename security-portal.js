@@ -80,27 +80,24 @@ function addLauncher(container){
  return true;
 }
 function installSettingsEntry(){
- // The Security Portal belongs in the profile drawer, directly between Settings and Notifications.
- const profile=document.getElementById("gtxProfileDrawer");
- if(profile){
-  document.querySelectorAll("[data-open-security-portal='true']").forEach(function(old){
-   if(!profile.contains(old))old.remove();
-  });
-  const settingsButton=profile.querySelector('[data-profile-action="settings"]');
-  if(settingsButton){
-   let launcher=profile.querySelector("[data-open-security-portal='true']");
-   if(!launcher){
-    launcher=document.createElement("button");
-    launcher.type="button";
-    launcher.className="gsp-settings-entry";
-    launcher.setAttribute("data-open-security-portal","true");
-    launcher.innerHTML='<span class="gsp-entry-icon" aria-hidden="true">⛨</span><span class="gsp-entry-copy"><strong>Security Portal</strong><small>Password, withdrawal PIN, email protection &amp; emergency controls</small></span><span class="gsp-entry-arrow" aria-hidden="true">›</span>';
-   }
-   if(settingsButton.nextElementSibling!==launcher)settingsButton.insertAdjacentElement("afterend",launcher);
-   return;
-  }
+ // The visible two-column menu is #menuDrawer; place Security Portal inside its left profile column.
+ const column=document.querySelector("#menuDrawer .gtxProfileColumn");
+ const settingsButton=column&&column.querySelector('[data-profile-action="settings"]');
+ if(!column||!settingsButton)return;
+ let launcher=column.querySelector("[data-open-security-portal='true']");
+ // Remove stale versions that were appended outside the bordered menu.
+ document.querySelectorAll("[data-open-security-portal='true']").forEach(function(old){
+  if(old!==launcher)old.remove();
+ });
+ if(!launcher){
+  launcher=document.createElement("button");
+  launcher.type="button";
+  launcher.className="gtxProfileItem gsp-settings-entry";
+  launcher.setAttribute("data-open-security-portal","true");
+  launcher.innerHTML='<span class="gsp-entry-icon" aria-hidden="true">⛨</span><span class="gsp-entry-copy"><strong>Security Portal</strong><small>Password, withdrawal PIN, email protection &amp; emergency controls</small></span><span class="gsp-entry-arrow" aria-hidden="true">›</span>';
  }
- // Do not place the launcher inside Settings while the profile drawer is not mounted.
+ // Keep it directly between Settings and Notifications, within the menu's border.
+ if(settingsButton.nextElementSibling!==launcher)settingsButton.insertAdjacentElement("afterend",launcher);
 }
 const observer=new MutationObserver(installSettingsEntry);
 function watchSettings(){installSettingsEntry();observer.observe(document.body,{childList:true,subtree:true,characterData:true})}
