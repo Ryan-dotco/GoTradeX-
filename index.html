@@ -3495,5 +3495,50 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   window.addEventListener("load",cleanSettingsControls);
 })();
 </script>
+<script id="gtx-settings-main-dashboard-back-button-20261014">
+(function(){
+  "use strict";
+  function syncSettingsDashboardBack(){
+    var page=document.getElementById("gtxSimplePage");
+    var title=document.getElementById("gtxSimpleTitle");
+    var isSettings=!!(page && page.classList.contains("open") && title && title.textContent.trim().toLowerCase()==="settings");
+    var existing=document.getElementById("gtxSettingsMainDashboardBack");
+    if(!isSettings){
+      if(existing)existing.remove();
+      return;
+    }
+    if(existing)return;
+    var panel=page.querySelector(".panel");
+    if(!panel)return;
+    if(getComputedStyle(panel).position==="static")panel.style.setProperty("position","relative");
+    var back=document.createElement("button");
+    back.type="button";
+    back.id="gtxSettingsMainDashboardBack";
+    back.textContent="← Back";
+    back.setAttribute("aria-label","Back to main dashboard");
+    back.title="Back to main dashboard";
+    back.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:20!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:36px!important;padding:7px 12px!important;border:1px solid #35516b!important;border-radius:8px!important;background:#102944!important;color:#fff!important;font-size:14px!important;font-weight:700!important;line-height:1.2!important;cursor:pointer!important;";
+    back.addEventListener("click",function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof window.gtxSettingsReturnToMainDashboard==="function"){
+        window.gtxSettingsReturnToMainDashboard();
+      }else{
+        var p=document.getElementById("gtxSimplePage");
+        if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
+        var menu=document.getElementById("menuDrawer");
+        if(menu){menu.classList.add("open");menu.style.setProperty("display","block","important");menu.style.setProperty("visibility","visible","important");menu.style.setProperty("pointer-events","auto","important");menu.removeAttribute("aria-hidden");}
+      }
+    });
+    panel.insertBefore(back,title||panel.firstChild);
+  }
+  syncSettingsDashboardBack();
+  if(window.MutationObserver && document.documentElement){
+    new MutationObserver(syncSettingsDashboardBack).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});
+  }
+  document.addEventListener("DOMContentLoaded",syncSettingsDashboardBack);
+  window.addEventListener("load",syncSettingsDashboardBack);
+})();
+</script>
 </body>
 </html>
