@@ -25,7 +25,7 @@
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
-    booted:false,markersInstalled:false
+    booted:false,markersInstalled:false,dateTimeTimer:null
   };
 
   function timezoneOffsetMinutes(){
@@ -66,9 +66,9 @@
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCAsset{font:900 11px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:6px 8px;white-space:nowrap}"+
       ".gtxLWCStatus{font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:6px 7px;white-space:nowrap}"+
-      ".gtxLWCControl{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}"+
-      ".gtxLWCBtn{border:1px solid #31597f;background:#102945;color:#dcecff;border-radius:5px;padding:5px 7px;font:800 9px system-ui;cursor:pointer}"+
-      ".gtxLWCBtn.active{background:#20a96b;color:#fff;border-color:#54e09a}"+
+      ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}"+
+      ".gtxLWCDateTime{display:flex;flex-direction:column;align-items:flex-end;gap:3px;color:#dcecff;font:800 9px/1.1 system-ui;white-space:nowrap;padding:4px 6px;background:#0b2036e8;border:1px solid #254c70;border-radius:5px}"+
+      ".gtxLWCDateTime span:last-child{color:#8ff0ae;font-variant-numeric:tabular-nums}"+
       ".gtxLWCSelect{border:1px solid #31597f;background:#102945;color:#fff;border-radius:5px;padding:5px 7px;font:800 9px system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
@@ -95,9 +95,7 @@
         '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
         '<div class="gtxLWCControl">'+
-          '<button class="gtxLWCBtn active" data-chart-type="candle" type="button">Candles</button>'+
-          '<button class="gtxLWCBtn" data-chart-type="line" type="button">Line</button>'+
-          '<button class="gtxLWCBtn" data-chart-type="mountain" type="button">Mountain</button>'+
+          '<div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
           '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
         '</div>'+
       '</div>'+
@@ -118,15 +116,6 @@
     });
     tfSelect.onchange=()=>setTimeframe(tfSelect.value);
 
-    box.querySelectorAll("[data-chart-type]").forEach(b=>{
-      b.addEventListener("click",()=>{
-        state.chartType=b.dataset.chartType||"candle";
-        try{localStorage.setItem(TYPE_KEY,state.chartType)}catch(_){}
-        updateTypeButtons();
-        applySeriesVisibility();
-      });
-    });
-
     try{
       const saved=localStorage.getItem(CHART_KEY);
       if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];tfSelect.value=saved}
@@ -134,7 +123,18 @@
       if(["candle","line","mountain"].includes(savedType))state.chartType=savedType;
     }catch(_){}
     updateTypeButtons();
+    updateDateTime();
+    if(!state.dateTimeTimer)state.dateTimeTimer=setInterval(updateDateTime,1000);
     return true;
+  }
+
+  function updateDateTime(){
+    const now=new Date();
+    const dateEl=document.getElementById("gtxLWCDate");
+    const clockEl=document.getElementById("gtxLWCClock");
+    if(!dateEl||!clockEl)return;
+    dateEl.textContent=new Intl.DateTimeFormat("en-ZA",{weekday:"short",day:"2-digit",month:"short",year:"numeric",timeZone:"Africa/Johannesburg"}).format(now);
+    clockEl.textContent=new Intl.DateTimeFormat("en-ZA",{hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23",timeZone:"Africa/Johannesburg"}).format(now)+" SAST";
   }
 
   function status(t,ok){
