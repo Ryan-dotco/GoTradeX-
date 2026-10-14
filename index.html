@@ -3418,5 +3418,27 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
 })();
 </script>
 
+
+<script id="gtx-remove-settings-back-control-final-20261014">
+(function(){
+  function removeObsoleteSettingsBack(){
+    var panel=document.getElementById("gtxSimplePage");
+    if(!panel)return;
+    panel.querySelectorAll("button").forEach(function(btn){
+      if(btn.id==="gtxSimpleClose")return; // Keep the separate header navigation/Close control.
+      var label=(btn.innerText||btn.textContent||"").replace(/\s+/g," ").trim();
+      if(btn.id==="gtxSettingsBack" || /^(?:←\s*)?Back(?:\s+to\s+Dashboard)?$/i.test(label)){
+        btn.remove();
+      }
+    });
+  }
+  removeObsoleteSettingsBack();
+  if(window.MutationObserver && document.documentElement){
+    new MutationObserver(removeObsoleteSettingsBack).observe(document.documentElement,{childList:true,subtree:true});
+  }
+  document.addEventListener("DOMContentLoaded",removeObsoleteSettingsBack);
+})();
+</script>
+
 </body>
 </html>
