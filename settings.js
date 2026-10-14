@@ -48,7 +48,7 @@ function portalMarkup(){
  sectionMarkup("appearance","◐","Appearance","Theme color and chart wallpaper.",themeBody,false)+
  sectionMarkup("trading","↗","Trading Preferences","Default amount, expiration and confirmations.",tradingBody,false)+
  sectionMarkup("security","◇","Account & Security","Account protection and privacy information.",securityBody,false)+
- '</div><div class="settings-footer-actions"><button type="button" class="settings-secondary-action" id="settingsBackButton">← Back</button><button type="button" class="settings-main-action" id="saveSettingsButton">Save Settings</button><button type="button" class="settings-secondary-action settings-close-footer" id="settingsCloseFooter">Close</button></div><div class="settings-status" id="settingsStatus" role="status"></div></div>';
+ '</div><div class="settings-footer-actions" style="display:grid!important;grid-template-columns:minmax(76px,.8fr) minmax(110px,1.2fr) minmax(76px,.8fr)!important;gap:8px!important;margin-top:14px!important;position:relative!important;z-index:2147483647!important"><button type="button" class="settings-secondary-action" id="settingsBackButton" aria-label="Back to previous menu" style="display:flex!important;align-items:center!important;justify-content:center!important;min-height:44px!important;padding:10px 8px!important;border:1px solid #52749a!important;border-radius:10px!important;background:#102944!important;color:#ffffff!important;font-size:13px!important;font-weight:800!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;position:relative!important;z-index:2147483647!important;touch-action:manipulation!important">← Back</button><button type="button" class="settings-main-action" id="saveSettingsButton">Save Settings</button><button type="button" class="settings-secondary-action settings-close-footer" id="settingsCloseFooter" aria-label="Close Settings to trading dashboard" style="display:flex!important;align-items:center!important;justify-content:center!important;min-height:44px!important;padding:10px 8px!important;border:1px solid #52749a!important;border-radius:10px!important;background:#102944!important;color:#ffffff!important;font-size:13px!important;font-weight:800!important;opacity:1!important;visibility:visible!important;pointer-events:auto!important;position:relative!important;z-index:2147483647!important;touch-action:manipulation!important">Close</button></div><div class="settings-status" id="settingsStatus" role="status"></div></div>';
 }
 function hexMix(hex,amount){
  var h=String(hex||"#2563eb").replace("#","");if(h.length!==6)return "#93c5fd";
@@ -201,10 +201,16 @@ function openSettings(){
  byId("locationToggle").addEventListener("click",function(){if(safeGet("gtx_location_enabled","false")==="true"){safeSet("gtx_location_enabled","false");this.classList.remove("is-on");this.setAttribute("aria-checked","false");this.querySelector("b").textContent="OFF";var st=byId("locationStatus");if(st)st.textContent="Location is off.";return;}requestLocation();});
  ["settingsCloseToTrading","settingsCloseFooter","settingsBackButton"].forEach(function(id){
   var button=byId(id);if(!button)return;
-  button.addEventListener("click",function(e){
-   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+  var action=function(e){
+   if(e&&e.preventDefault)e.preventDefault();
+   if(e&&e.stopPropagation)e.stopPropagation();
+   if(e&&e.stopImmediatePropagation)e.stopImmediatePropagation();
    closeOverlay(id==="settingsBackButton");
-  },true);
+  };
+  button.onclick=action;
+  button.addEventListener("click",action,true);
+  button.addEventListener("pointerup",action,true);
+  button.addEventListener("touchend",action,{capture:true,passive:false});
  });
  byId("saveSettingsButton").addEventListener("click",function(){
   var old=getPrefs(),social=getSocial();
