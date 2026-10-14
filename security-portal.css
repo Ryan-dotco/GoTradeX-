@@ -29,3 +29,17 @@
 #menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy small{font-size:9px!important;line-height:1.25!important;}
 #menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-arrow{font-size:18px!important;}
 #menuDrawer .gtxProfileColumn > .gsp-settings-entry:hover{background:rgba(255,255,255,.06)!important;}
+
+/* Keep the Security Portal row the same footprint as Settings and Notifications. */
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry{
+ height:70px!important;
+ min-height:70px!important;
+ max-height:70px!important;
+ box-sizing:border-box!important;
+ padding:0 14px!important;
+ margin:0 0 10px!important;
+ border:1px solid rgba(35,130,105,.85)!important;
+ border-radius:18px!important;
+ background:#142f53!important;
+}
+#menuDrawer .gtxProfileColumn > .gsp-settings-entry .gsp-entry-copy small{display:none!important;}
