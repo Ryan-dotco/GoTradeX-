@@ -824,7 +824,11 @@
   }
   function setChartTool(name){
     name=String(name||"").trim();if(!name)return {ok:false,message:"Choose a chart tool."};
+    const chartTypes=["Candlesticks","Heikin Ashi","Line Chart","Area Chart"];
     if(activeChartTools.has(name)){activeChartTools.delete(name);clearChartTool(name);return {ok:true,active:false,message:name+" removed from chart."};}
+    if(chartTypes.includes(name)){
+      chartTypes.forEach(type=>{if(activeChartTools.has(type)){activeChartTools.delete(type);clearChartTool(type)}});
+    }
     const ok=drawChartTool(name);
     if(ok){activeChartTools.add(name);return {ok:true,active:true,message:name+" applied to the current chart data."};}
     return {ok:false,message:name+" is listed in Chart Tools but is not implemented in the current chart engine yet."};
