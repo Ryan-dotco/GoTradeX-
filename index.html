@@ -1092,7 +1092,7 @@ syncGtxKenglyVisibility();
   }
   function close(id){const e=get(id);if(!e)return;e.classList.remove("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.display="none";sync()}
   function closeOthers(except){ids.forEach(id=>{if(id!==except){const e=get(id);if(e)e.classList.remove("open")}});sync()}
-  function show(id){const e=get(id);if(!e)return false;closeOthers(id);e.classList.add("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.display="block";if(id===)e.style.display="flex";sync();return true}
+  function show(id){const e=get(id);if(!e)return false;closeOthers(id);e.classList.add("open");if(["helpPage","supportPage","myTeamPage"].includes(id))e.style.display="block";sync();return true}
   function backFrom(id){
     const e=get(id);if(!e)return;
     close(id);
