@@ -187,6 +187,8 @@ function restoreSavedTheme(){
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",restoreSavedTheme,{once:true});
 else restoreSavedTheme();
 window.openGtxSettings=openSettings;
+window.gtxSettingsBackToPrevious=function(){closeOverlay(true);};
+window.gtxSettingsCloseToTrading=function(){closeOverlay(false);};
 window.gtxSettingsSetTheme=setTheme;
 window.gtxSettingsSetColor=setCustomColor;
 document.addEventListener("click",function(e){
