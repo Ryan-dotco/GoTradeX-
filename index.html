@@ -1045,7 +1045,8 @@ syncGtxKenglyVisibility();
       '<div class="form-group"><label for="prefAmount">Default Trade Amount</label><select id="prefAmount" style="width:100%;padding:10px;border-radius:8px;background:#102944;color:#fff;border:1px solid #35516b">'+["1","5","10","20","50","100"].map(v=>'<option'+selected(saved.amount||"10",v)+'>'+v+'</option>').join("")+'</select></div>'+
       '<div class="form-group"><label for="prefTime">Default Timeframe</label><select id="prefTime" style="width:100%;padding:10px;border-radius:8px;background:#102944;color:#fff;border:1px solid #35516b">'+["30s","1 Minute","2 Minutes","5 Minutes"].map(v=>'<option'+selected(saved.time||"1 Minute",v)+'>'+v+'</option>').join("")+'</select></div>'+
       '<div class="form-group"><label style="display:block"><input type="checkbox" id="prefSound"'+checked(saved.sound)+'/> Sound Alerts ON</label><label style="display:block;margin-top:8px"><input type="checkbox" id="prefConfirm"'+checked(saved.confirm)+'/> Confirm Before Trade</label></div>'+
-      '<button type="button" id="saveGtxSettings" style="width:100%;padding:11px;background:#00d084;color:#06251b;border:0;border-radius:8px;font-weight:800">Save Settings</button>'+
+      '<button type="button" id="saveGtxSettings" style="width:100%;padding:11px;background:#00d084;color:#06251b;border:0;border-radius:8px;font-weight:800">Save Settings</button>'+ 
+      '<button type="button" id="gtxSettingsBack" style="width:100%;padding:10px;margin-top:8px;background:#172b40;color:#fff;border:1px solid #35516b;border-radius:8px;font-weight:700">← Back to Dashboard</button>'+
       '<div id="gtxSettingsStatus" role="status" style="font-size:12px;min-height:16px"></div>'+
       '</div>');
     const panel=byId("gtxSimplePage");
@@ -1059,8 +1060,15 @@ syncGtxKenglyVisibility();
       closeButton.style.setProperty("width","38px","important");
       closeButton.style.setProperty("height","38px","important");
       closeButton.style.setProperty("min-width","38px","important");
-      closeButton.onclick=gtxSettingsBackToPrevious;
+      closeButton.textContent="← Back";
+      closeButton.setAttribute("aria-label","Back to main dashboard");
+      closeButton.title="Back to main dashboard";
+      closeButton.style.setProperty("width","auto","important");
+      closeButton.style.setProperty("min-width","64px","important");
+      closeButton.onclick=gtxSettingsReturnToMainDashboard;
     }
+    const bottomBack=byId("gtxSettingsBack");
+    if(bottomBack)bottomBack.onclick=function(e){e.preventDefault();e.stopPropagation();gtxSettingsReturnToMainDashboard();};
     const preview=byId("bgPreview");
     if(preview){if(customImage)preview.style.backgroundImage='url("'+customImage+'")';else if(customColor)preview.style.backgroundColor=customColor;}
     gtxSettingsSetTheme(theme);
@@ -1134,33 +1142,8 @@ syncGtxKenglyVisibility();
     document.body.classList.remove("gtx-subscreen-open");window.scrollTo(0,0);
   }
   function gtxSettingsBackToPrevious(){
-    const stack=window.__gtxPortalHistory||(window.__gtxPortalHistory=[]);
-    const p=byId("gtxSimplePage");
-    if(p){p.classList.remove("open");p.style.setProperty("display","none","important");p.setAttribute("aria-hidden","true");}
-    let previous=null;
-    while(stack.length&&!previous){
-      const id=stack.pop();
-      const candidate=byId(id);
-      if(candidate&&candidate.id!=="gtxSimplePage")previous=candidate;
-    }
-    // Settings is opened from the profile menu in the normal flow. Restore it explicitly,
-    // even if an older history entry was missing or the menu had been temporarily hidden.
-    if(!previous)previous=byId("menuDrawer")||byId("gtxProfileDrawer");
-    if(previous){
-      previous.classList.add("open");
-      previous.style.removeProperty("display");
-      previous.style.removeProperty("z-index");
-      previous.removeAttribute("aria-hidden");
-      if(previous.id==="menuDrawer"){
-        previous.style.setProperty("display","block","important");
-        const profile=byId("gtxProfileDrawer");
-        if(profile){profile.classList.add("open");profile.style.removeProperty("display");profile.removeAttribute("aria-hidden");}
-      }
-    }
-    const otherOpen=document.querySelector(".drawer.open,.adminPage.open,.adminDrawer.open,.helpPage.open,.supportPage.open,.myTeamPage.open,.policyPage.open,.termsPage.open,.userAutoBotDrawer.open,.agentWidget.open,.keypad.open");
-    const header=document.querySelector(".gtxKenglyHeader");
-    if(header)header.style.setProperty("display",otherOpen?"none":"flex","important");
-    document.body.classList.toggle("gtx-subscreen-open",!!previous);
+    // Settings Back always returns to the main navigation dashboard, never to the trading chart.
+    gtxSettingsReturnToMainDashboard();
   }
   function gtxSettingsReturnToMainDashboard(){
     // Return to the app's main navigation/dashboard instead of closing to the trading chart.
@@ -3319,7 +3302,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
   var b=e.target&&e.target.closest?e.target.closest("#gtxSettingsBack"):null;
   if(!b)return;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-  if(typeof window.gtxSettingsBackToPrevious==="function")window.gtxSettingsBackToPrevious();
+  if(typeof window.gtxSettingsReturnToMainDashboard==="function")window.gtxSettingsReturnToMainDashboard();
   // Force the previous menu visible even if a legacy handler left it
   // with class="open" but display:none!important.
   window.setTimeout(function(){
