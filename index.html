@@ -3019,7 +3019,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
       if(!panel)return;
       if(!panel.querySelector(".gtxUniversalBack")){
         var back=document.createElement("button");
-        back.type="button";back.className="gtxUniversalBack";back.textContent="← Back";
+        back.type="button";back.className="gtxUniversalBack";back.textContent="←";
         back.setAttribute("aria-label","Go back to previous page");
         back.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();backOne();});
         panel.insertBefore(back,panel.firstChild);
@@ -3457,7 +3457,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
         var label=(el.innerText||el.textContent||"").replace(/\s+/g," ").trim();
         var aria=(el.getAttribute("aria-label")||"").trim();
         var title=(el.getAttribute("title")||"").trim();
-        if(el.id==="gtxSettingsBack" || /back/i.test(label) || /back/i.test(aria) || /back/i.test(title) || /^(?:←|⟵|❮|‹|<)$/u.test(label)) el.remove();
+        if(el.id!=="gtxSettingsMainDashboardBack" && (el.id==="gtxSettingsBack" || /back/i.test(label) || /back/i.test(aria) || /back/i.test(title) || /^(?:←|⟵|❮|‹|<)$/u.test(label))) el.remove();
       });
     } else if(simple){
       // Restore the shared control for other simple panels; this change is Settings-only.
@@ -3517,7 +3517,7 @@ document.addEventListener("DOMContentLoaded",()=>{document.getElementById("ident
     back.textContent="← Back";
     back.setAttribute("aria-label","Back to main dashboard");
     back.title="Back to main dashboard";
-    back.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:20!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:36px!important;padding:7px 12px!important;border:1px solid #35516b!important;border-radius:8px!important;background:#102944!important;color:#fff!important;font-size:14px!important;font-weight:700!important;line-height:1.2!important;cursor:pointer!important;";
+    back.style.cssText="position:absolute!important;top:12px!important;right:12px!important;z-index:50!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;border:1px solid #35516b!important;border-radius:8px!important;background:#102944!important;color:#fff!important;font-size:22px!important;font-weight:700!important;line-height:1!important;cursor:pointer!important;";
     back.addEventListener("click",function(e){
       e.preventDefault();
       e.stopPropagation();
