@@ -1,5 +1,5 @@
 /* GoTradeX Settings portal: shared overlay frame plus approved compact portal styles below. */
-#portal-settings-standalone{position:fixed;inset:0;z-index:2147483000;display:none;overflow-y:auto;background:rgba(2,8,18,.78);color:#f8fafc;padding:12px;box-sizing:border-box}
+#portal-settings-standalone{position:fixed;inset:0;z-index:2147483647;display:none;overflow-y:auto;background:rgba(2,8,18,.78);color:#f8fafc;padding:12px;box-sizing:border-box}
 #portal-settings-standalone.is-open{display:block}
 #portal-settings-standalone button{font:inherit;cursor:pointer;touch-action:manipulation}
 
