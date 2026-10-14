@@ -107,3 +107,9 @@ body,.app{color:var(--gtx-screen-text)}
 
 /* Global theme border pass: every existing app border follows the selected accent. This changes border colors only; it does not recolor backgrounds or the uploaded chart wallpaper. */
 body *{border-color:var(--gtx-accent-border,#2563eb)!important}
+
+
+/* Global theme border pass: swatches recolor borders only. Wallpaper and fills remain untouched. */
+body *:not(#gtx-theme-border-force){border-color:var(--gtx-accent-border,#2563eb)!important;}
+body *:not(#gtx-theme-border-force){outline-color:var(--gtx-accent-border,#2563eb);}
+#gtxLiveChart::before{background-image:var(--gtx-chart-wallpaper,none)!important;}
