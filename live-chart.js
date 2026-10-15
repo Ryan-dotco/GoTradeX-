@@ -861,8 +861,8 @@
     const days=Math.floor(hours/24);
     return days+"d "+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
   }
-  // Result is deliberately delayed until the entry marker has been visible for 3 seconds
-  // after expiry. The result card then remains for 5 seconds and removes itself.
+  // The trade marker itself stays visible for 30 full seconds after expiry.
+  // Do not replace it with a separate result card during this retention window.
   function addResultCard(trade,now){
     if(!trade||trade.resultCardQueued)return;
     trade.resultCardQueued=true;
@@ -891,12 +891,12 @@
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
     const now=Date.now();
-    // Keep the marker anchored in one position until expiry, then leave it for
-    // three more seconds. Never rebuild the layer on each tick: that caused a
-    // visible flash and could look like the marker was disappearing.
+    // Keep the marker anchored in one position for the whole trade countdown,
+    // then leave the same line and tag visible together for 30 more seconds.
+    // Never rebuild the layer on each tick: that caused visible flashing.
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
-      if(now>=Number(t.expiryAt)+3000){
+      if(now>=Number(t.expiryAt)+30000){
         if(t.markerNode&&t.markerNode.parentNode)t.markerNode.parentNode.removeChild(t.markerNode);
         expiryTrades.splice(i,1);
       }
