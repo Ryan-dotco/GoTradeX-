@@ -87,11 +87,6 @@
       ".gtxTradeTag.sell{background:#b72d43;border:1px solid #f16b70}"+
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
-      ".gtxTradeResult{position:absolute;left:10px;top:68px;max-width:calc(100% - 92px);padding:10px 12px;border:1px solid #315779;border-radius:9px;background:rgba(7,26,51,.96);color:#eaf4ff;font:700 11px/1.45 system-ui;box-shadow:0 5px 18px rgba(0,0,0,.28)}"+
-      ".gtxTradeResult strong{display:block;margin-bottom:4px;font-size:12px}"+
-      ".gtxTradeResult .gtxTradeResultGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}"+
-      ".gtxTradeResult .gtxTradeResultGrid span{display:block;color:#8fa8c4;font-size:9px;font-weight:600}"+
-      ".gtxTradeResult .gtxTradeResultGrid b{display:block;margin-top:2px;color:#fff;font-size:10px;overflow-wrap:anywhere}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
       "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
