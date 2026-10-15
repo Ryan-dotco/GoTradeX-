@@ -826,7 +826,11 @@
   function onServerSync(event){
     const detail=event&&event.detail||{};
     const open=Array.isArray(detail.open)?detail.open:[];
-    open.filter(t=>String(t.result||t.status||"OPEN").toUpperCase()==="OPEN").forEach(upsertServerTrade);
+    // Do not resurrect stale markers for a different pair from background server sync.
+    const selected=String(selectedAssetFlag().label||"").replace(/\\s+(LIVE|OTC)$/i,"").trim().toUpperCase();
+    open.filter(t=>String(t.result||t.status||"OPEN").toUpperCase()==="OPEN")
+      .filter(t=>assetForTrade(t).label.replace(/\\s+(LIVE|OTC)$/i,"").trim().toUpperCase()===selected)
+      .forEach(upsertServerTrade);
     const completed=Array.isArray(detail.recent)?detail.recent:(Array.isArray(detail.history)?detail.history:[]);
     completed.forEach(raw=>{
       const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
@@ -855,47 +859,10 @@
     const days=Math.floor(hours/24);
     return days+"d "+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
   }
-  function addResultCard(trade,now){
-    const raw=trade&&trade.raw||{};
-    const profitValue=raw.profit??raw.pnl??raw.net_profit??raw.netProfit;
-    const returnValue=raw.total_return??raw.totalReturn??raw.payout??raw.return_amount;
-    const hasProfit=profitValue!==undefined&&profitValue!==null&&Number.isFinite(Number(profitValue));
-    const hasReturn=returnValue!==undefined&&returnValue!==null&&Number.isFinite(Number(returnValue));
-    // Keep the result portal hidden until the server has recorded a real result.
-    if(!hasProfit&&!hasReturn)return;
-    const existing=resultCards.find(c=>c.id===trade.id);
-    if(existing){existing.trade=trade;return;}
-    const showAt=Math.max(now,Number(trade.completedAt)||now)+3000;
-    resultCards.push({id:trade.id,trade,createdAt:now,showAt,removeAt:showAt+4000});
-  }
-  function renderResultCard(layer,card){
-    const trade=card.trade,raw=trade.raw||{};
-    const profitValue=raw.profit??raw.pnl??raw.net_profit??raw.netProfit;
-    const returnValue=raw.total_return??raw.totalReturn??raw.payout??raw.return_amount;
-    const hasProfit=profitValue!==undefined&&profitValue!==null&&Number.isFinite(Number(profitValue));
-    const hasReturn=returnValue!==undefined&&returnValue!==null&&Number.isFinite(Number(returnValue));
-    const el=document.createElement("div");
-    el.className="gtxTradeResult";
-    el.style.cssText+=";left:10px;top:10px;padding:7px 9px;max-width:180px;z-index:3";
-    const heading=document.createElement("span");
-    heading.textContent="TRADE RESULT";
-    heading.style.cssText="display:block;font-size:9px;letter-spacing:.06em;color:#8fa8c4;margin-bottom:3px";
-    el.appendChild(heading);
-    const amount=document.createElement("strong");
-    if(hasProfit){
-      const value=Number(profitValue);
-      amount.textContent=(value>0?"+":"")+(value<0?"-":"")+"$"+Math.abs(value).toFixed(2)+" PROFIT";
-      amount.style.color=value>0?"#22c58b":value<0?"#f16b70":"#eaf4ff";
-    }else if(hasReturn){
-      amount.textContent="RETURN $"+Number(returnValue).toFixed(2);
-    }else{
-      // A result card is never rendered without a recorded profit or return.
-      return;
-    }
-    amount.style.cssText+=";margin:0;font-size:15px;font-variant-numeric:tabular-nums";
-    el.appendChild(amount);
-    layer.appendChild(el);
-  }
+  // Profit/result badges are intentionally disabled while the chart marker system is being reset.
+  // The chat/chart stays clean; no static or repeating profit badge is created.
+  function addResultCard(trade,now){return;}
+  function renderResultCard(layer,card){return;}
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
