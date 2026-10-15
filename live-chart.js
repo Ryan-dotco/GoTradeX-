@@ -861,13 +861,27 @@
     const trade=card.trade,raw=trade.raw||{};
     const profitValue=raw.profit??raw.pnl??raw.net_profit??raw.netProfit;
     const returnValue=raw.total_return??raw.totalReturn??raw.payout??raw.return_amount;
-    if((profitValue===undefined||profitValue===null)&&(returnValue===undefined||returnValue===null))return;
+    const hasProfit=profitValue!==undefined&&profitValue!==null&&Number.isFinite(Number(profitValue));
+    const hasReturn=returnValue!==undefined&&returnValue!==null&&Number.isFinite(Number(returnValue));
     const el=document.createElement("div");
     el.className="gtxTradeResult";
-    el.style.cssText+=";left:10px;top:10px;padding:7px 9px;max-width:145px";
+    el.style.cssText+=";left:10px;top:10px;padding:7px 9px;max-width:180px;z-index:3";
+    const heading=document.createElement("span");
+    heading.textContent="TRADE RESULT";
+    heading.style.cssText="display:block;font-size:9px;letter-spacing:.06em;color:#8fa8c4;margin-bottom:3px";
+    el.appendChild(heading);
     const amount=document.createElement("strong");
-    amount.textContent=String(returnValue!==undefined&&returnValue!==null?Number(returnValue).toFixed(2):Number(profitValue).toFixed(2));
-    amount.style.cssText="margin:0;font-size:15px;font-variant-numeric:tabular-nums";
+    if(hasProfit){
+      const value=Number(profitValue);
+      amount.textContent=(value>0?"+":"")+(value<0?"-":"")+"$"+Math.abs(value).toFixed(2)+" PROFIT";
+      amount.style.color=value>0?"#22c58b":value<0?"#f16b70":"#eaf4ff";
+    }else if(hasReturn){
+      amount.textContent="RETURN $"+Number(returnValue).toFixed(2);
+    }else{
+      amount.textContent="RESULT PENDING";
+      amount.style.color="#ffd166";
+    }
+    amount.style.cssText+=";margin:0;font-size:15px;font-variant-numeric:tabular-nums";
     el.appendChild(amount);
     layer.appendChild(el);
   }
