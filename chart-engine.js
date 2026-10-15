@@ -539,7 +539,9 @@ function startTrade(direction){
  if(!Number.isFinite(controls.seconds)||controls.seconds<=0){setTradeControlStatus("Choose a valid trade time first.");return;}
  const x=candles.at(-1),now=Math.floor(Date.now()/1000),step=controls.seconds;
  completedTrade=null;
- const candleUp=Number(x.close)>=Number(x.open);\n const anchorPrice=candleUp?Math.max(Number(x.open),Number(x.close)):Math.min(Number(x.open),Number(x.close));\n trade={direction,symbol:pairLabel(),amount:controls.amount,expiryLabel:controls.label,startTime:x.time,startPrice:x.close,markerTime:x.time,markerPrice:anchorPrice,markerAttach:candleUp?"up":"down",endTime:now+step,endPrice:x.close,execution:"NO_TRADE"};
+ const candleUp=Number(x.close)>=Number(x.open);
+ const anchorPrice=candleUp?Math.max(Number(x.open),Number(x.close)):Math.min(Number(x.open),Number(x.close));
+ trade={direction,symbol:pairLabel(),amount:controls.amount,expiryLabel:controls.label,startTime:x.time,startPrice:x.close,markerTime:x.time,markerPrice:anchorPrice,markerAttach:candleUp?"up":"down",endTime:now+step,endPrice:x.close,execution:"NO_TRADE"};
  signalExpiryAt=Date.now()+step*1000;
  setTradeControlStatus("✓ "+direction+" control verified • Amount $"+controls.amount.toFixed(2)+" • "+controls.label+" • NO TRADE placed.",true);
  drawTrade();
