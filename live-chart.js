@@ -729,22 +729,23 @@
   function rememberIntent(side,source){
     const now=Date.now();
     const expiryAt=now+selectedExpirySeconds()*1000;
-    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice:Number(state.price),amount:null,expiryAt,marker:null};
+    const latest=state.candles&&state.candles.length?Number(state.candles[state.candles.length-1].c):NaN;
+    const livePrice=Number(state.price);
+    const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
+    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
     }catch(_){}
     // Show a visible provisional entry line immediately on the button press.
     // The server response will confirm/update it; a rejected order removes it.
-    if(Number.isFinite(intent.entryPrice)&&intent.entryPrice>0){
-      intent.marker={
-        id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:now,expiryAt,
-        entryPrice:intent.entryPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
-        side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
-      };
-      expiryTrades.push(intent.marker);
-      renderExpiryMarkers();
-    }
+    intent.marker={
+      id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:now,expiryAt,
+      entryPrice:intent.entryPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
+      side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
+    };
+    expiryTrades.push(intent.marker);
+    renderExpiryMarkers();
     pendingTradeIntents.push(intent);
     while(pendingTradeIntents.length>20)pendingTradeIntents.shift();
     nextTradeSource="MANUAL";
@@ -883,8 +884,13 @@
     layer.replaceChildren();
     const plotRight=Math.max(20,layer.clientWidth-70);
     expiryTrades.filter(t=>!t.completed).forEach(t=>{
-      const y=state.candleSeries&&state.candleSeries.priceToCoordinate(t.entryPrice);
-      if(y===null||y===undefined||!Number.isFinite(y)||y<0||y>layer.clientHeight)return;
+      let y=null;
+      if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
+        try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
+      }
+      if(y===null||y===undefined||!Number.isFinite(y)||y<12||y>layer.clientHeight-12){
+        y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
+      }
       const scale=state.chart.timeScale();
       const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
       const rawStart=lastCandle?scale.timeToCoordinate(Math.floor(Number(lastCandle.t)/1000)):coordinateForTimestamp(t.entryAt);
