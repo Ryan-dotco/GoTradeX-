@@ -944,34 +944,48 @@
       let anchorTime=Number(t.markerTime);
       let anchorPrice=Number(t.markerPrice||t.entryPrice);
       let candleIndex=-1;
-      if(Number.isFinite(anchorTime)&&state.candles.length){
+      const hasCandleAnchor=Number.isFinite(anchorTime);
+      if(hasCandleAnchor&&state.candles.length){
         candleIndex=state.candles.findIndex(c=>Math.floor(Number(c.t)/1000)===anchorTime);
+      }
+      // A known candle anchor is immutable: never transfer this marker to a
+      // newer candle just because its original candle is outside the viewport
+      // or no longer present in the loaded history.
+      if(hasCandleAnchor&&candleIndex<0){
+        node.style.display="none";
+        return;
       }
       if(candleIndex>=0){
         const anchorCandle=state.candles[candleIndex];
-        const open=Number(anchorCandle.o),close=Number(anchorCandle.c);
-        // The close edge is the top of a bullish body and bottom of a bearish body.
-        anchorPrice=close;
-        t.markerPrice=close;
+        // Follow the same candle's live body edge as its close changes.
+        anchorPrice=Number(anchorCandle.c);
+        if(!Number.isFinite(anchorPrice)){
+          node.style.display="none";
+          return;
+        }
+        t.markerPrice=anchorPrice;
         t.markerTime=anchorTime;
+      }else if(!hasCandleAnchor&&state.candles.length){
+        // Legacy/server markers without a saved candle identity are anchored
+        // exactly once; subsequent renders never rebind them.
+        const last=state.candles[state.candles.length-1];
+        anchorTime=Math.floor(Number(last.t)/1000);
+        anchorPrice=Number(last.c);
+        t.markerTime=anchorTime;
+        t.markerPrice=anchorPrice;
       }
       let x=null,y=null;
       try{
         if(state.chart&&Number.isFinite(anchorTime))x=state.chart.timeScale().timeToCoordinate(anchorTime);
         if(state.candleSeries&&Number.isFinite(anchorPrice))y=state.candleSeries.priceToCoordinate(anchorPrice);
       }catch(_){}
-      // If a legacy/server marker has no candle anchor, bind it once to the
-      // latest candle close and keep the resulting candle identity.
-      if((x===null||x===undefined||!Number.isFinite(x))&&(state.candles.length)){
-        const last=state.candles[state.candles.length-1];
-        anchorTime=Math.floor(Number(last.t)/1000);anchorPrice=Number(last.c);
-        try{x=state.chart.timeScale().timeToCoordinate(anchorTime);y=state.candleSeries.priceToCoordinate(anchorPrice)}catch(_){}
-        t.markerTime=anchorTime;t.markerPrice=anchorPrice;
-      }
+      // Lightweight Charts returns null coordinates when the anchored candle
+      // is outside the visible range. Hide the whole marker with that candle.
       if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)){
-        y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
-        x=24;
+        node.style.display="none";
+        return;
       }
+      node.style.display="";
       const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
       const bodyRight=x+Math.max(3,barSpacing*0.42);
       const tagLeft=Math.max(bodyRight+8,plotRight-148);
