@@ -685,10 +685,14 @@
   let nextTradeSource="MANUAL";
 
   function selectedExpirySeconds(){
-    let label="5 Seconds";
-    try{label=localStorage.getItem("gotradex_trade_expiration")||label}catch(_){}
     const values={"5 Seconds":5,"1 Minute":60,"3 Minutes":180,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400,"1 Day":86400};
-    return values[label]||5;
+    // Read the visible selector first so the chart countdown matches the trade control.
+    const visible=String(document.getElementById("timeBtn")?.textContent||"").trim().replace(/\\s+/g," ");
+    if(values[visible])return values[visible];
+    try{const saved=localStorage.getItem("gotradex_trade_expiration");if(values[saved])return values[saved]}catch(_){}
+    const m=visible.match(/(\\d+)\\s*(Seconds?|Minutes?|Hours?|Days?)/i);
+    if(m){const n=Number(m[1]),u=m[2].toLowerCase();return n*(u.startsWith("second")?1:u.startsWith("minute")?60:u.startsWith("hour")?3600:86400)}
+    return 5;
   }
   function selectedAssetFlag(){
     const label=String(state.assetLabel||state.symbol||"BTC/USD").replace(/\s+OTC$/i,"").trim();
@@ -724,14 +728,38 @@
   }
   function rememberIntent(side,source){
     const now=Date.now();
-    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice:Number(state.price),amount:null};
+    const expiryAt=now+selectedExpirySeconds()*1000;
+    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice:Number(state.price),amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
     }catch(_){}
+    // Show a visible provisional entry line immediately on the button press.
+    // The server response will confirm/update it; a rejected order removes it.
+    if(Number.isFinite(intent.entryPrice)&&intent.entryPrice>0){
+      intent.marker={
+        id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:now,expiryAt,
+        entryPrice:intent.entryPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
+        side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
+      };
+      expiryTrades.push(intent.marker);
+      renderExpiryMarkers();
+    }
     pendingTradeIntents.push(intent);
     while(pendingTradeIntents.length>20)pendingTradeIntents.shift();
     nextTradeSource="MANUAL";
+  }
+  function clearPendingIntent(side){
+    const now=Date.now();
+    for(let i=pendingTradeIntents.length-1;i>=0;i--){
+      const it=pendingTradeIntents[i];
+      if(it.side===String(side||"").toUpperCase()&&now-it.at<30000){
+        if(it.marker){const idx=expiryTrades.indexOf(it.marker);if(idx>=0)expiryTrades.splice(idx,1);}
+        pendingTradeIntents.splice(i,1);
+        break;
+      }
+    }
+    renderExpiryMarkers();
   }
   function matchIntent(raw,side,asset){
     const now=Date.now();
@@ -752,11 +780,11 @@
     const asset=assetForTrade(raw);
     const intent=matchIntent(raw,side,asset.label);
     const createdAt=parseTimestamp(raw.created_at||raw.opened_at||raw.openedAt||raw.createdAt, intent?intent.at:Date.now());
-    const expiryAt=parseTimestamp(raw.expires_at||raw.expiry_at||raw.expiresAt||raw.expiryAt, createdAt+Number(raw.expiry_seconds||raw.expirySeconds||selectedExpirySeconds())*1000);
+    const expiryAt=parseTimestamp(raw.expires_at||raw.expiry_at||raw.expiresAt||raw.expiryAt, intent&&intent.expiryAt?intent.expiryAt:createdAt+Number(raw.expiry_seconds||raw.expirySeconds||selectedExpirySeconds())*1000);
     const entryPrice=priceForTrade(raw,intent);
     if(!entryPrice)return null;
     const amountRaw=Number(raw.amount||raw.stake||raw.trade_amount||(intent&&intent.amount));
-    return {
+    const confirmed={
       id:id||("server-trade-"+(++expiryTradeCounter)),
       serverId:id||null,
       entryAt:createdAt,
@@ -767,8 +795,14 @@
       source:sourceForTrade(raw,intent),
       amount:Number.isFinite(amountRaw)&&amountRaw>0?amountRaw:null,
       raw,
-      completed:false
+      completed:false,
+      pending:false
     };
+    if(intent&&intent.marker){
+      Object.assign(intent.marker,confirmed);
+      return intent.marker;
+    }
+    return confirmed;
   }
   function upsertServerTrade(raw){
     const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
@@ -783,7 +817,7 @@
     }
     const t=normalizeServerTrade(raw);
     if(!t)return null;
-    expiryTrades.push(t);
+    if(!expiryTrades.includes(t))expiryTrades.push(t);
     return t;
   }
   function onServerSync(event){
@@ -868,7 +902,8 @@
       tag.style.top=y+"px";
       tag.style.left=Math.max(2,Math.min(plotRight-140,x2-130))+"px";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";tag.appendChild(ab);}
-      const label=document.createElement("span");label.textContent=t.asset.label+" "+t.side;tag.appendChild(label);
+      const label=document.createElement("span");label.textContent=t.source==="AB"?"AB · "+t.asset.label+" "+t.side:t.asset.label+" "+t.side;tag.appendChild(label);
+      if(t.pending){const pending=document.createElement("span");pending.className="gtxTradeCountdown";pending.textContent="SUBMITTING";tag.appendChild(pending);}
       const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.expiryAt-now);tag.appendChild(countdown);
       layer.appendChild(tag);
     });
@@ -887,6 +922,9 @@
       rememberIntent(button.id==="sell"?"SELL":"BUY",nextTradeSource);
     },true);
     window.addEventListener("gotradex:server-sync",onServerSync);
+    window.addEventListener("gotradex:trade-open-failed",event=>{
+      clearPendingIntent(event&&event.detail&&event.detail.direction);
+    });
     window.addEventListener("gotradex:trade-opened",event=>{
       const raw=event&&event.detail&&(event.detail.trade||event.detail);
       if(raw)upsertServerTrade(raw);
