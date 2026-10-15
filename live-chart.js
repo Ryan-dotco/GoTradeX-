@@ -904,7 +904,7 @@
     const plotRight=Math.max(20,layer.clientWidth-70);
     const liveIds=new Set();
     expiryTrades.forEach(t=>{
-      const key=String(t.serverId||t.id||("marker-"+t.entryAt));
+      const key=String(t.markerKey||(t.markerKey="marker-"+t.entryAt+"-"+(++expiryTradeCounter)));
       liveIds.add(key);
       let node=t.markerNode;
       if(!node||node.parentNode!==layer){
