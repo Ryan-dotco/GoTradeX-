@@ -957,8 +957,11 @@
       }
       if(candleIndex>=0){
         const anchorCandle=state.candles[candleIndex];
-        // Follow the same candle's live body edge as its close changes.
-        anchorPrice=Number(anchorCandle.c);
+        // Anchor to the CENTER of the candle body, not its close/wick edge.
+        // The midpoint follows the body as open/close values change, so the
+        // marker never gets left attached to a wick when the body moves away.
+        const bodyOpen=Number(anchorCandle.o),bodyClose=Number(anchorCandle.c);
+        anchorPrice=(bodyOpen+bodyClose)/2;
         if(!Number.isFinite(anchorPrice)){
           node.style.display="none";
           return;
@@ -967,10 +970,10 @@
         t.markerTime=anchorTime;
       }else if(!hasCandleAnchor&&state.candles.length){
         // Legacy/server markers without a saved candle identity are anchored
-        // exactly once; subsequent renders never rebind them.
+        // exactly once to the center of the current body; never rebind later.
         const last=state.candles[state.candles.length-1];
         anchorTime=Math.floor(Number(last.t)/1000);
-        anchorPrice=Number(last.c);
+        anchorPrice=(Number(last.o)+Number(last.c))/2;
         t.markerTime=anchorTime;
         t.markerPrice=anchorPrice;
       }
@@ -987,9 +990,11 @@
       }
       node.style.display="";
       const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
-      const bodyRight=x+Math.max(3,barSpacing*0.42);
-      const tagLeft=Math.max(bodyRight+8,plotRight-148);
-      line.style.left=bodyRight+"px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-bodyRight)+"px";
+      // timeToCoordinate is the candle center. Start the marker line there,
+      // so it originates inside the body rather than at the wick/body edge.
+      const bodyCenterX=x;
+      const tagLeft=Math.max(bodyCenterX+barSpacing*0.5+8,plotRight-148);
+      line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-bodyCenterX)+"px";
       line.style.background=t.side==="SELL"?"#f16b70":"#22c58b";
       tag.style.left=tagLeft+"px";tag.style.top=y+"px";tag.style.background=t.side==="SELL"?"#b72d43":"#087d5b";
       const label=tag.querySelector(".gtxTradeAssetLabel");
