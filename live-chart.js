@@ -928,6 +928,7 @@
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
     state.markersInstalled=true;
+    if(!document.getElementById("gtx-ab-pulse-style")){const s=document.createElement("style");s.id="gtx-ab-pulse-style";s.textContent="@keyframes gtxAbPulse{0%,100%{opacity:1}50%{opacity:.35}}";document.head.appendChild(s);}
     window.addEventListener("gotradex:trade-intent",event=>{
       const detail=event&&event.detail||{};
       nextTradeSource=String(detail.source||"").toUpperCase()==="AB"?"AB":"MANUAL";
