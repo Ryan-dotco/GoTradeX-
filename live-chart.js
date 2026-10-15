@@ -902,7 +902,7 @@
       tag.style.top=y+"px";
       tag.style.left=Math.max(2,Math.min(plotRight-140,x2-130))+"px";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";tag.appendChild(ab);}
-      const label=document.createElement("span");label.textContent=t.source==="AB"?"AB · "+t.asset.label+" "+t.side:t.asset.label+" "+t.side;tag.appendChild(label);
+      const label=document.createElement("span");label.textContent=t.asset.label+" "+t.side;tag.appendChild(label);
       if(t.pending){const pending=document.createElement("span");pending.className="gtxTradeCountdown";pending.textContent="SUBMITTING";tag.appendChild(pending);}
       const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.expiryAt-now);tag.appendChild(countdown);
       layer.appendChild(tag);
