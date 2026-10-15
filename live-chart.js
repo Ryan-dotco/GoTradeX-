@@ -981,7 +981,7 @@
       }catch(_){}
       // Lightweight Charts returns null coordinates when the anchored candle
       // is outside the visible range. Hide the whole marker with that candle.
-      if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)){
+      if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)||x<0||x>layer.clientWidth){
         node.style.display="none";
         return;
       }
