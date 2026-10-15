@@ -978,7 +978,18 @@
       let x=null,y=null;
       try{
         if(state.chart&&Number.isFinite(anchorTime))x=state.chart.timeScale().timeToCoordinate(anchorTime);
-        if(state.candleSeries&&Number.isFinite(anchorPrice))y=state.candleSeries.priceToCoordinate(anchorPrice);
+        // Capture the body's wick-connection height once, at trade entry.
+        // Keep that screen-space Y fixed while the live candle body/wick changes,
+        // preventing the line from shaking up and down on every incoming tick.
+        if(Number.isFinite(Number(t.markerY))){
+          y=Number(t.markerY);
+        }else if(state.candleSeries&&Number.isFinite(anchorPrice)){
+          const initialY=state.candleSeries.priceToCoordinate(anchorPrice);
+          if(initialY!==null&&initialY!==undefined&&Number.isFinite(initialY)){
+            t.markerY=initialY;
+            y=initialY;
+          }
+        }
       }catch(_){}
       // Lightweight Charts returns null coordinates when the anchored candle
       // is outside the visible range. Hide the whole marker with that candle.
