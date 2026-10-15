@@ -793,7 +793,7 @@
     completed.forEach(raw=>{
       const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
       const trade=expiryTrades.find(t=>t.serverId===id||t.id===id);
-      if(trade){trade.raw=raw;trade.completed=true;trade.completedAt=Date.now();}
+      if(trade){trade.raw=raw;trade.completed=true;trade.completedAt=Date.now();addResultCard(trade,trade.completedAt);}
     });
     renderExpiryMarkers();
   }
@@ -815,7 +815,7 @@
     const hours=Math.floor(s/3600),minutes=Math.floor((s%3600)/60),seconds=s%60;
     if(hours<24)return String(hours).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
     const days=Math.floor(hours/24);
-    return days+"d "+String(hours%24).padStart(2,"0")+":"+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0");
+    return days+"d "+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
   }
   function addResultCard(trade,now){
     if(resultCards.some(c=>c.id===trade.id))return;
@@ -878,7 +878,7 @@
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
     state.markersInstalled=true;
-    document.addEventListener("gotradex:trade-intent",event=>{
+    window.addEventListener("gotradex:trade-intent",event=>{
       const detail=event&&event.detail||{};
       nextTradeSource=String(detail.source||"").toUpperCase()==="AB"?"AB":"MANUAL";
     });
