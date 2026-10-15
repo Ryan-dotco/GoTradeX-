@@ -78,7 +78,7 @@
       ".gtxLWCSelect{box-sizing:border-box;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
-      "#gtxLWCExpiryLayer{position:absolute;inset:0;z-index:10;overflow:hidden;pointer-events:none}"+
+      "#gtxLWCExpiryLayer{display:none!important;position:absolute;inset:0;z-index:10;overflow:hidden;pointer-events:none}"+
       ".gtxExpirySolid{position:absolute;top:24px;bottom:28px;width:1px;background:#ffd400;transform:translateX(-50%);pointer-events:none}"+
       ".gtxExpiryTarget{position:absolute;top:0;bottom:28px;width:0;border-left:1px dotted #ffd400;pointer-events:none}"+
       ".gtxExpiryFlag{position:absolute;top:5px;transform:translateX(-50%);display:block;padding:0;margin:0;background:transparent;color:inherit;border:0;border-radius:0;box-shadow:none;font:14px/1 system-ui;white-space:nowrap;pointer-events:none}"+
