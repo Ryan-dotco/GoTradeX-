@@ -826,22 +826,13 @@
     open.filter(t=>String(t.result||t.status||"OPEN").toUpperCase()==="OPEN")
       .filter(t=>assetForTrade(t).label.replace(/\\s+(LIVE|OTC)$/i,"").trim().toUpperCase()===selected)
       .forEach(upsertServerTrade);
+    // Server sync may update trade details, but it must never make the
+    // entry line/countdown page vanish before its own countdown reaches zero.
     const completed=Array.isArray(detail.recent)?detail.recent:(Array.isArray(detail.history)?detail.history:[]);
     completed.forEach(raw=>{
-      const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
+      const id=String(raw&&(raw.id||raw.trade_id||raw.tradeId)||"");
       const trade=expiryTrades.find(t=>t.serverId===id||t.id===id);
-      if(!trade)return;
-      const terminal=String(raw.result||raw.status||raw.outcome||"").toUpperCase();
-      const hasCloseTime=!!(raw.closed_at||raw.closedAt||raw.completed_at||raw.completedAt||raw.settled_at||raw.settledAt);
-      // Some sync responses include recent/open rows together. Never end the marker
-      // just because a row appeared in recent/history: require a terminal status
-      // and an actual close timestamp or the expected expiration time.
-      if(!["WIN","WON","LOSS","LOST","DRAW","TIE","EXPIRED","CLOSED","COMPLETED","SETTLED"].includes(terminal))return;
-      const finishedAt=parseTimestamp(raw.closed_at||raw.closedAt||raw.completed_at||raw.completedAt||raw.settled_at||raw.settledAt,Date.now());
-      if(Date.now()<trade.expiryAt&&!hasCloseTime)return;
-      trade.raw=raw;
-      if(!trade.completed){trade.completed=true;trade.completedAt=Math.max(finishedAt,trade.entryAt);}
-      addResultCard(trade,trade.completedAt);
+      if(trade)trade.raw=raw;
     });
     renderExpiryMarkers();
   }
@@ -895,13 +886,12 @@
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
     const now=Date.now();
+    // Keep both the line and its countdown page visible for the full selected
+    // trade duration. Leave 00:00 visible briefly, then remove both together.
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
-      // Reaching zero only stops the countdown; it does not remove the marker.
-      // Keep the entry line visible until the server confirms the trade is finished.
-      if(t.completed&&now-(t.completedAt||now)>=3000)expiryTrades.splice(i,1);
+      if(now>=Number(t.expiryAt)+1000)expiryTrades.splice(i,1);
     }
-    for(let i=resultCards.length-1;i>=0;i--)if(now>=resultCards[i].removeAt)resultCards.splice(i,1);
     layer.replaceChildren();
     const plotRight=Math.max(20,layer.clientWidth-70);
     expiryTrades.filter(t=>!t.completed||now-(t.completedAt||now)<3000).forEach(t=>{
@@ -918,24 +908,24 @@
         const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
         rawStart=scale?(lastCandle?scale.timeToCoordinate(Math.floor(Number(lastCandle.t)/1000)):coordinateForTimestamp(t.entryAt)):null;
       }catch(_){}
-      // Keep the entry line steady for the whole active trade. A growing line
-      // was too short near entry and looked as if it was appearing/disappearing.
-      const startFallback=rawStart===null||rawStart===undefined?Math.max(0,plotRight-120):rawStart;
-      const x1=Math.max(0,Math.min(plotRight-24,startFallback));
-      const x2=plotRight;
+      // Stable left-to-right line, with the countdown page at the right end.
+      // The label never covers the entire line or appears as a separate overlay.
+      const tagLeft=Math.max(8,plotRight-148);
+      const x1=24;
+      const x2=tagLeft-3;
       const line=document.createElement("div");
       line.className="gtxTradeEntryLine "+(t.side==="SELL"?"sell":"buy");
       line.style.cssText="position:absolute;display:block;visibility:visible;opacity:.96;z-index:1;height:2px;min-width:1px;transform:translateY(-50%);left:"+x1+"px;top:"+y+"px;width:"+Math.max(1,x2-x1)+"px";
       layer.appendChild(line);
       const tag=document.createElement("div");
       tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
-      tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+Math.max(2,Math.min(plotRight-140,x2-160))+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
+      tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+tagLeft+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";tag.appendChild(ab);}
       const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;tag.appendChild(label);
       const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.completed?0:Math.max(0,t.expiryAt-now));tag.appendChild(countdown);
       layer.appendChild(tag);
     });
-    resultCards.filter(card=>now>=card.showAt&&now<card.removeAt).forEach(card=>renderResultCard(layer,card));
+    // No separate centered result overlay: the countdown page stays at the line's right end.
   }
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
