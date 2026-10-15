@@ -86,8 +86,7 @@
       ".gtxTradeTag.buy{background:#087d5b;border:1px solid #22c58b}"+
       ".gtxTradeTag.sell{background:#b72d43;border:1px solid #f16b70}"+
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
-      ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:gtxABPulse 1s ease-in-out infinite alternate}"+
-      "@keyframes gtxABPulse{from{opacity:.45;transform:scale(.92)}to{opacity:1;transform:scale(1.06)}}"+
+      ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxTradeResult{position:absolute;left:10px;top:68px;max-width:calc(100% - 92px);padding:10px 12px;border:1px solid #315779;border-radius:9px;background:rgba(7,26,51,.96);color:#eaf4ff;font:700 11px/1.45 system-ui;box-shadow:0 5px 18px rgba(0,0,0,.28)}"+
       ".gtxTradeResult strong{display:block;margin-bottom:4px;font-size:12px}"+
       ".gtxTradeResult .gtxTradeResultGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}"+
@@ -751,13 +750,15 @@
     nextTradeSource="MANUAL";
   }
   function clearPendingIntent(side){
-    const now=Date.now();
+    const normalized=String(side||"").toUpperCase();
     for(let i=pendingTradeIntents.length-1;i>=0;i--){
       const it=pendingTradeIntents[i];
-      if(it.side===String(side||"").toUpperCase()&&now-it.at<30000){
-        // Keep the marker on screen after the button interaction ends. Its normal expiry
-        // lifecycle removes it after the 30-second post-expiry grace period.
+      if(it.side===normalized){
         pendingTradeIntents.splice(i,1);
+        if(it.marker){
+          const markerIndex=expiryTrades.indexOf(it.marker);
+          if(markerIndex>=0)expiryTrades.splice(markerIndex,1);
+        }
         break;
       }
     }
@@ -855,8 +856,16 @@
     return days+"d "+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
   }
   function addResultCard(trade,now){
-    if(resultCards.some(c=>c.id===trade.id))return;
-    resultCards.push({id:trade.id,trade,createdAt:now,showAt:now+30000,removeAt:now+34000});
+    const raw=trade&&trade.raw||{};
+    const profitValue=raw.profit??raw.pnl??raw.net_profit??raw.netProfit;
+    const returnValue=raw.total_return??raw.totalReturn??raw.payout??raw.return_amount;
+    const hasProfit=profitValue!==undefined&&profitValue!==null&&Number.isFinite(Number(profitValue));
+    const hasReturn=returnValue!==undefined&&returnValue!==null&&Number.isFinite(Number(returnValue));
+    // Keep the result portal hidden until the server has recorded a real result.
+    if(!hasProfit&&!hasReturn)return;
+    const existing=resultCards.find(c=>c.id===trade.id);
+    if(existing){existing.trade=trade;return;}
+    resultCards.push({id:trade.id,trade,createdAt:now,showAt:now+3000,removeAt:now+7000});
   }
   function renderResultCard(layer,card){
     const trade=card.trade,raw=trade.raw||{};
@@ -879,8 +888,8 @@
     }else if(hasReturn){
       amount.textContent="RETURN $"+Number(returnValue).toFixed(2);
     }else{
-      amount.textContent="RESULT PENDING";
-      amount.style.color="#ffd166";
+      // A result card is never rendered without a recorded profit or return.
+      return;
     }
     amount.style.cssText+=";margin:0;font-size:15px;font-variant-numeric:tabular-nums";
     el.appendChild(amount);
@@ -893,12 +902,12 @@
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
       if(now>=t.expiryAt&&!t.completed){t.completed=true;t.completedAt=now;addResultCard(t,now);}
-      if(t.completed&&now-(t.completedAt||now)>=30000)expiryTrades.splice(i,1);
+      if(t.completed&&now-(t.completedAt||now)>=3000)expiryTrades.splice(i,1);
     }
     for(let i=resultCards.length-1;i>=0;i--)if(now>=resultCards[i].removeAt)resultCards.splice(i,1);
     layer.replaceChildren();
     const plotRight=Math.max(20,layer.clientWidth-70);
-    expiryTrades.filter(t=>!t.completed||now-(t.completedAt||now)<30000).forEach(t=>{
+    expiryTrades.filter(t=>!t.completed||now-(t.completedAt||now)<3000).forEach(t=>{
       let y=null;
       if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
         try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
@@ -929,7 +938,7 @@
       const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.completed?0:t.expiryAt-now);tag.appendChild(countdown);
       layer.appendChild(tag);
     });
-    resultCards.filter(card=>now>=card.showAt).forEach(card=>renderResultCard(layer,card));
+    resultCards.filter(card=>now>=card.showAt&&now<card.removeAt).forEach(card=>renderResultCard(layer,card));
   }
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
