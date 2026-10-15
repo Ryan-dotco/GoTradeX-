@@ -55,7 +55,10 @@
         window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.trade}}));
       }
       await sync();
-    }catch(e){status(e?.message||"Trade could not be opened.");}
+    }catch(e){
+      window.dispatchEvent(new CustomEvent("gotradex:trade-open-failed",{detail:{direction:String(direction||"").toUpperCase(),message:e?.message||"Trade could not be opened."}}));
+      status(e?.message||"Trade could not be opened.");
+    }
   }
   async function touchMarketSubscription(){
     const s=client(); if(!s) return;
