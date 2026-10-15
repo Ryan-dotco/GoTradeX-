@@ -854,10 +854,11 @@
       const scale=state.chart.timeScale();
       const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
       const rawStart=lastCandle?scale.timeToCoordinate(Math.floor(Number(lastCandle.t)/1000)):coordinateForTimestamp(t.entryAt);
-      const elapsed=Math.max(0,Math.min(1,(now-t.entryAt)/Math.max(1,t.expiryAt-t.entryAt)));
-      const startFallback=rawStart===null||rawStart===undefined?Math.max(0,plotRight-100):rawStart;
-      const x1=Math.max(0,Math.min(plotRight-2,startFallback));
-      const x2=Math.max(x1+2,Math.min(plotRight,x1+Math.max(2,(plotRight-x1)*elapsed)));
+      // Keep the entry line steady for the whole active trade. A growing line
+      // was too short near entry and looked as if it was appearing/disappearing.
+      const startFallback=rawStart===null||rawStart===undefined?Math.max(0,plotRight-120):rawStart;
+      const x1=Math.max(0,Math.min(plotRight-24,startFallback));
+      const x2=plotRight;
       const line=document.createElement("div");
       line.className="gtxTradeEntryLine "+(t.side==="SELL"?"sell":"buy");
       line.style.left=x1+"px";line.style.top=y+"px";line.style.width=Math.max(1,x2-x1)+"px";
