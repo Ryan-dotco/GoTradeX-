@@ -706,7 +706,8 @@
     const candidates=[raw.entry_price,raw.entryPrice,raw.open_price,raw.openPrice,raw.price_at_entry,raw.entry_rate,raw.open_rate,raw.price];
     for(const v of candidates){const n=Number(v);if(Number.isFinite(n)&&n>0)return n;}
     if(intent&&Number.isFinite(intent.entryPrice)&&intent.entryPrice>0)return intent.entryPrice;
-    return null;
+    const last=state.candles&&state.candles.length?Number(state.candles[state.candles.length-1].c):NaN;
+    return Number.isFinite(last)&&last>0?last:null;
   }
   function sourceForTrade(raw,intent){
     const source=String(raw.source||raw.origin||raw.trade_source||raw.source_type||raw.strategy_source||"").toLowerCase();
@@ -737,7 +738,7 @@
     for(let i=pendingTradeIntents.length-1;i>=0;i--){
       const it=pendingTradeIntents[i];
       if(now-it.at>30000){pendingTradeIntents.splice(i,1);continue;}
-      if(it.side===side&&(!asset||it.asset===asset||String(asset).replace(/\s+(LIVE|OTC)$/i,"")===it.asset)){
+      if(it.side===side&&(!asset||it.asset===asset||String(asset).replace(/\s+(LIVE|OTC)$/i,"")===it.asset||now-it.at<3000)){
         pendingTradeIntents.splice(i,1);
         return it;
       }
@@ -825,20 +826,15 @@
     const trade=card.trade,raw=trade.raw||{};
     const profitValue=raw.profit??raw.pnl??raw.net_profit??raw.netProfit;
     const returnValue=raw.total_return??raw.totalReturn??raw.payout??raw.return_amount;
-    const confirmed=profitValue!==undefined&&profitValue!==null&&returnValue!==undefined&&returnValue!==null;
+    if((profitValue===undefined||profitValue===null)&&(returnValue===undefined||returnValue===null))return;
     const el=document.createElement("div");
     el.className="gtxTradeResult";
-    const title=document.createElement("strong");
-    title.textContent=(trade.source==="AB"?"AB · ":"")+trade.asset.label+" "+trade.side+" · Expired";
-    el.appendChild(title);
-    const grid=document.createElement("div");grid.className="gtxTradeResultGrid";
-    const values=[
-      ["Stake",trade.amount===null?"—":"$"+trade.amount.toFixed(2)],
-      ["Profit",confirmed?((Number(profitValue)>=0?"+":"")+"$"+Number(profitValue).toFixed(2)):"Awaiting confirmation"],
-      ["Total return",confirmed?"$"+Number(returnValue).toFixed(2):"Awaiting confirmation"]
-    ];
-    values.forEach(([label,value])=>{const cell=document.createElement("div");const small=document.createElement("span");small.textContent=label;const strong=document.createElement("b");strong.textContent=value;cell.append(small,strong);grid.appendChild(cell);});
-    el.appendChild(grid);layer.appendChild(el);
+    el.style.cssText+=";left:10px;top:10px;padding:7px 9px;max-width:145px";
+    const amount=document.createElement("strong");
+    amount.textContent=String(returnValue!==undefined&&returnValue!==null?Number(returnValue).toFixed(2):Number(profitValue).toFixed(2));
+    amount.style.cssText="margin:0;font-size:15px;font-variant-numeric:tabular-nums";
+    el.appendChild(amount);
+    layer.appendChild(el);
   }
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
@@ -855,11 +851,13 @@
     expiryTrades.filter(t=>!t.completed).forEach(t=>{
       const y=state.candleSeries&&state.candleSeries.priceToCoordinate(t.entryPrice);
       if(y===null||y===undefined||!Number.isFinite(y)||y<0||y>layer.clientHeight)return;
-      const rawStart=coordinateForTimestamp(t.entryAt);
-      const rawEnd=coordinateForTimestamp(Math.min(now,t.expiryAt));
-      if(rawEnd===null||rawEnd===undefined)return;
-      const x1=Math.max(0,Math.min(plotRight-2,rawStart===null||rawStart===undefined?0:rawStart));
-      const x2=Math.max(x1+2,Math.min(plotRight,rawEnd));
+      const scale=state.chart.timeScale();
+      const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+      const rawStart=lastCandle?scale.timeToCoordinate(Math.floor(Number(lastCandle.t)/1000)):coordinateForTimestamp(t.entryAt);
+      const elapsed=Math.max(0,Math.min(1,(now-t.entryAt)/Math.max(1,t.expiryAt-t.entryAt)));
+      const startFallback=rawStart===null||rawStart===undefined?Math.max(0,plotRight-100):rawStart;
+      const x1=Math.max(0,Math.min(plotRight-2,startFallback));
+      const x2=Math.max(x1+2,Math.min(plotRight,x1+Math.max(2,(plotRight-x1)*elapsed)));
       const line=document.createElement("div");
       line.className="gtxTradeEntryLine "+(t.side==="SELL"?"sell":"buy");
       line.style.left=x1+"px";line.style.top=y+"px";line.style.width=Math.max(1,x2-x1)+"px";
