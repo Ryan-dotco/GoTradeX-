@@ -78,11 +78,21 @@
       ".gtxLWCSelect{box-sizing:border-box;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
-      "#gtxLWCExpiryLayer{display:none!important;position:absolute;inset:0;z-index:10;overflow:hidden;pointer-events:none}"+
-      ".gtxExpirySolid{position:absolute;top:24px;bottom:28px;width:1px;background:#ffd400;transform:translateX(-50%);pointer-events:none}"+
-      ".gtxExpiryTarget{position:absolute;top:0;bottom:28px;width:0;border-left:1px dotted #ffd400;pointer-events:none}"+
-      ".gtxExpiryFlag{position:absolute;top:5px;transform:translateX(-50%);display:block;padding:0;margin:0;background:transparent;color:inherit;border:0;border-radius:0;box-shadow:none;font:14px/1 system-ui;white-space:nowrap;pointer-events:none}"+
-      ".gtxExpiryFlag.preview{background:transparent;border:0;box-shadow:none}"+
+      "#gtxLWCExpiryLayer{display:block;position:absolute;inset:0;z-index:10;overflow:hidden;pointer-events:none}"+
+      ".gtxTradeEntryLine{position:absolute;height:2px;min-width:1px;transform:translateY(-50%);opacity:.96}"+
+      ".gtxTradeEntryLine.buy{background:#22c58b;box-shadow:0 0 5px rgba(34,197,139,.28)}"+
+      ".gtxTradeEntryLine.sell{background:#f16b70;box-shadow:0 0 5px rgba(241,107,112,.28)}"+
+      ".gtxTradeTag{position:absolute;transform:translateY(-50%);padding:4px 6px;border-radius:5px;color:#fff;font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)}"+
+      ".gtxTradeTag.buy{background:#087d5b;border:1px solid #22c58b}"+
+      ".gtxTradeTag.sell{background:#b72d43;border:1px solid #f16b70}"+
+      ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
+      ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:gtxABPulse 1s ease-in-out infinite alternate}"+
+      "@keyframes gtxABPulse{from{opacity:.45;transform:scale(.92)}to{opacity:1;transform:scale(1.06)}}"+
+      ".gtxTradeResult{position:absolute;left:10px;top:68px;max-width:calc(100% - 92px);padding:10px 12px;border:1px solid #315779;border-radius:9px;background:rgba(7,26,51,.96);color:#eaf4ff;font:700 11px/1.45 system-ui;box-shadow:0 5px 18px rgba(0,0,0,.28)}"+
+      ".gtxTradeResult strong{display:block;margin-bottom:4px;font-size:12px}"+
+      ".gtxTradeResult .gtxTradeResultGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}"+
+      ".gtxTradeResult .gtxTradeResultGrid span{display:block;color:#8fa8c4;font-size:9px;font-weight:600}"+
+      ".gtxTradeResult .gtxTradeResultGrid b{display:block;margin-top:2px;color:#fff;font-size:10px;overflow-wrap:anywhere}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
       "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
@@ -568,6 +578,7 @@
 
   function buildChart(){
     if(state.chart)return;
+    observeTradeMarkers();
     const C=window.LightweightCharts;
     const host=document.getElementById("gtxLWC");
     if(!C||!host)throw new Error("Lightweight Charts library did not load.");
@@ -662,13 +673,16 @@
   }
 
   function updateCurrentPriceLine(){
-    // Intentionally no automatic orange LIVE price-line or axis marker.
+    // The candlestick series already supplies the current-price line and right-axis marker.
+    // Keep it separate from the fixed trade entry-price line.
   }
 
   const expiryTrades=[];
-  let expiryPreview=null;
+  const pendingTradeIntents=[];
+  const resultCards=[];
   let expiryTimer=null;
   let expiryTradeCounter=0;
+  let nextTradeSource="MANUAL";
 
   function selectedExpirySeconds(){
     let label="5 Seconds";
@@ -678,14 +692,110 @@
   }
   function selectedAssetFlag(){
     const label=String(state.assetLabel||state.symbol||"BTC/USD").replace(/\s+OTC$/i,"").trim();
-    const flags={"EUR/USD":"🇪🇺","GBP/USD":"🇬🇧","USD/JPY":"🇯🇵","AUD/USD":"🇦🇺","USD/CAD":"🇨🇦","USD/CHF":"🇨🇭","NZD/USD":"🇳🇿","BTC/USD":"₿","ETH/USD":"Ξ"};
+    const flags={"EUR/USD":"🇪🇺","GBP/USD":"🇬🇧","USD/JPY":"🇯🇵","AUD/USD":"🇦🇺","USD/CAD":"🇨🇦","USD/CHF":"🇨🇭","NZD/USD":"🇳🇿","BTC/USD":"₿","BTC/USDT":"₿","ETH/USD":"Ξ","ETH/USDT":"Ξ"};
     return {label,flag:flags[label]||"🏳️"};
   }
-  function ensureExpiryPreview(){
-    if(!expiryPreview)expiryPreview={id:"preview",preview:true,entryAt:Date.now(),expiryAt:Date.now()+selectedExpirySeconds()*1000,asset:selectedAssetFlag()};
-    expiryPreview.expiryAt=Date.now()+selectedExpirySeconds()*1000;
-    expiryPreview.entryAt=Date.now();
-    expiryPreview.asset=selectedAssetFlag();
+  function parseTimestamp(value,fallback){
+    if(value===undefined||value===null||value==="")return fallback;
+    const n=Number(value);
+    if(Number.isFinite(n)&&n>0)return n<1e12?n*1000:n;
+    const parsed=Date.parse(value);
+    return Number.isFinite(parsed)?parsed:fallback;
+  }
+  function priceForTrade(raw,intent){
+    const candidates=[raw.entry_price,raw.entryPrice,raw.open_price,raw.openPrice,raw.price_at_entry,raw.entry_rate,raw.open_rate,raw.price];
+    for(const v of candidates){const n=Number(v);if(Number.isFinite(n)&&n>0)return n;}
+    if(intent&&Number.isFinite(intent.entryPrice)&&intent.entryPrice>0)return intent.entryPrice;
+    return null;
+  }
+  function sourceForTrade(raw,intent){
+    const source=String(raw.source||raw.origin||raw.trade_source||raw.source_type||raw.strategy_source||"").toLowerCase();
+    if(raw.is_autobot===true||raw.autobot===true||raw.isAutoBot===true||/\b(auto.?bot|autobot|^ab$)\b/i.test(source))return "AB";
+    return intent&&intent.source==="AB"?"AB":"MANUAL";
+  }
+  function directionForTrade(raw){
+    return String(raw.direction||raw.side||raw.action||"BUY").toUpperCase().includes("SELL")?"SELL":"BUY";
+  }
+  function assetForTrade(raw){
+    const label=String(raw.asset||raw.symbol||state.assetLabel||state.symbol||"BTC/USD").replace(/\s+(LIVE|OTC)$/i,"").trim();
+    const flags={"EUR/USD":"🇪🇺","GBP/USD":"🇬🇧","USD/JPY":"🇯🇵","AUD/USD":"🇦🇺","USD/CAD":"🇨🇦","USD/CHF":"🇨🇭","NZD/USD":"🇳🇿","BTC/USD":"₿","BTC/USDT":"₿","ETH/USD":"Ξ","ETH/USDT":"Ξ"};
+    return {label,flag:flags[label]||"🏳️"};
+  }
+  function rememberIntent(side,source){
+    const now=Date.now();
+    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice:Number(state.price),amount:null};
+    try{
+      const amountEl=document.getElementById("amountValueText");
+      if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
+    }catch(_){}
+    pendingTradeIntents.push(intent);
+    while(pendingTradeIntents.length>20)pendingTradeIntents.shift();
+    nextTradeSource="MANUAL";
+  }
+  function matchIntent(raw,side,asset){
+    const now=Date.now();
+    for(let i=pendingTradeIntents.length-1;i>=0;i--){
+      const it=pendingTradeIntents[i];
+      if(now-it.at>30000){pendingTradeIntents.splice(i,1);continue;}
+      if(it.side===side&&(!asset||it.asset===asset||String(asset).replace(/\s+(LIVE|OTC)$/i,"")===it.asset)){
+        pendingTradeIntents.splice(i,1);
+        return it;
+      }
+    }
+    return null;
+  }
+  function normalizeServerTrade(raw){
+    if(!raw||typeof raw!=="object")return null;
+    const id=String(raw.id||raw.trade_id||raw.tradeId||"");
+    const side=directionForTrade(raw);
+    const asset=assetForTrade(raw);
+    const intent=matchIntent(raw,side,asset.label);
+    const createdAt=parseTimestamp(raw.created_at||raw.opened_at||raw.openedAt||raw.createdAt, intent?intent.at:Date.now());
+    const expiryAt=parseTimestamp(raw.expires_at||raw.expiry_at||raw.expiresAt||raw.expiryAt, createdAt+Number(raw.expiry_seconds||raw.expirySeconds||selectedExpirySeconds())*1000);
+    const entryPrice=priceForTrade(raw,intent);
+    if(!entryPrice)return null;
+    const amountRaw=Number(raw.amount||raw.stake||raw.trade_amount||(intent&&intent.amount));
+    return {
+      id:id||("server-trade-"+(++expiryTradeCounter)),
+      serverId:id||null,
+      entryAt:createdAt,
+      expiryAt,
+      entryPrice,
+      asset,
+      side,
+      source:sourceForTrade(raw,intent),
+      amount:Number.isFinite(amountRaw)&&amountRaw>0?amountRaw:null,
+      raw,
+      completed:false
+    };
+  }
+  function upsertServerTrade(raw){
+    const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
+    let existing=id?expiryTrades.find(t=>t.serverId===id||t.id===id):null;
+    if(existing){
+      const updatedExpiry=parseTimestamp(raw.expires_at||raw.expiry_at||raw.expiresAt||raw.expiryAt,existing.expiryAt);
+      existing.expiryAt=updatedExpiry;
+      existing.raw=raw;
+      const p=Number(raw.entry_price||raw.entryPrice||raw.open_price||raw.openPrice||raw.price_at_entry||raw.entry_rate);
+      if(Number.isFinite(p)&&p>0)existing.entryPrice=p;
+      return existing;
+    }
+    const t=normalizeServerTrade(raw);
+    if(!t)return null;
+    expiryTrades.push(t);
+    return t;
+  }
+  function onServerSync(event){
+    const detail=event&&event.detail||{};
+    const open=Array.isArray(detail.open)?detail.open:[];
+    open.filter(t=>String(t.result||t.status||"OPEN").toUpperCase()==="OPEN").forEach(upsertServerTrade);
+    const completed=Array.isArray(detail.recent)?detail.recent:(Array.isArray(detail.history)?detail.history:[]);
+    completed.forEach(raw=>{
+      const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
+      const trade=expiryTrades.find(t=>t.serverId===id||t.id===id);
+      if(trade){trade.raw=raw;trade.completed=true;trade.completedAt=Date.now();}
+    });
+    renderExpiryMarkers();
   }
   function coordinateForTimestamp(timestampMs){
     if(!state.chart||!state.candles.length)return null;
@@ -695,78 +805,103 @@
     const lastIndex=state.candles.length-1;
     const last=state.candles[lastIndex];
     const lastTime=Math.floor(Number(last.t)/1000);
-    const x0=scale.logicalToCoordinate(lastIndex);
-    const x1=scale.logicalToCoordinate(lastIndex+1);
-    if(x0===null||x0===undefined||x1===null||x1===undefined)return null;
-    const step=Number(state.sec)||300;
-    const logical=lastIndex+(ts-lastTime)/step;
+    const logical=lastIndex+(ts-lastTime)/(Number(state.sec)||300);
     return scale.logicalToCoordinate(logical);
+  }
+  function formatRemaining(ms){
+    const s=Math.max(0,Math.ceil(ms/1000));
+    if(s<60)return "00:"+String(s).padStart(2,"0");
+    if(s<3600)return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+    const hours=Math.floor(s/3600),minutes=Math.floor((s%3600)/60),seconds=s%60;
+    if(hours<24)return String(hours).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
+    const days=Math.floor(hours/24);
+    return days+"d "+String(hours%24).padStart(2,"0")+":"+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0");
+  }
+  function addResultCard(trade,now){
+    if(resultCards.some(c=>c.id===trade.id))return;
+    resultCards.push({id:trade.id,trade,createdAt:now,removeAt:now+5000});
+  }
+  function renderResultCard(layer,card){
+    const trade=card.trade,raw=trade.raw||{};
+    const profitValue=raw.profit??raw.pnl??raw.net_profit??raw.netProfit;
+    const returnValue=raw.total_return??raw.totalReturn??raw.payout??raw.return_amount;
+    const confirmed=profitValue!==undefined&&profitValue!==null&&returnValue!==undefined&&returnValue!==null;
+    const el=document.createElement("div");
+    el.className="gtxTradeResult";
+    const title=document.createElement("strong");
+    title.textContent=(trade.source==="AB"?"AB · ":"")+trade.asset.label+" "+trade.side+" · Expired";
+    el.appendChild(title);
+    const grid=document.createElement("div");grid.className="gtxTradeResultGrid";
+    const values=[
+      ["Stake",trade.amount===null?"—":"$"+trade.amount.toFixed(2)],
+      ["Profit",confirmed?((Number(profitValue)>=0?"+":"")+"$"+Number(profitValue).toFixed(2)):"Awaiting confirmation"],
+      ["Total return",confirmed?"$"+Number(returnValue).toFixed(2):"Awaiting confirmation"]
+    ];
+    values.forEach(([label,value])=>{const cell=document.createElement("div");const small=document.createElement("span");small.textContent=label;const strong=document.createElement("b");strong.textContent=value;cell.append(small,strong);grid.appendChild(cell);});
+    el.appendChild(grid);layer.appendChild(el);
   }
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer||!state.chart)return;
-    ensureExpiryPreview();
     const now=Date.now();
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
-      if(now>=t.expiryAt&&!t.completed){
-        t.completed=true;
-        t.entryAt=t.expiryAt;
-        t.completedAt=now;
-      }
-      if(t.completed&&now-t.completedAt>900)expiryTrades.splice(i,1);
+      if(now>=t.expiryAt&&!t.completed){t.completed=true;t.completedAt=now;addResultCard(t,now);}
+      if(t.completed&&now-(t.completedAt||now)>5000)expiryTrades.splice(i,1);
     }
-    const all=expiryTrades.concat(expiryPreview?[expiryPreview]:[]);
+    for(let i=resultCards.length-1;i>=0;i--)if(now>=resultCards[i].removeAt)resultCards.splice(i,1);
     layer.replaceChildren();
-    all.forEach(t=>{
-      // Thin solid marker follows the right edge of the currently forming chart candle.
-      // The dotted marker measures the selected expiration duration into the future.
-      const candleEdgeAt=bucket(Date.now(),Number(state.sec)||300)+((Number(state.sec)||300)*1000);
-      const x=coordinateForTimestamp(candleEdgeAt);
-      const targetX=coordinateForTimestamp(t.expiryAt);
-      if(x===null||x===undefined)return;
+    const plotRight=Math.max(20,layer.clientWidth-70);
+    expiryTrades.filter(t=>!t.completed).forEach(t=>{
+      const y=state.candleSeries&&state.candleSeries.priceToCoordinate(t.entryPrice);
+      if(y===null||y===undefined||!Number.isFinite(y)||y<0||y>layer.clientHeight)return;
+      const rawStart=coordinateForTimestamp(t.entryAt);
+      const rawEnd=coordinateForTimestamp(Math.min(now,t.expiryAt));
+      if(rawEnd===null||rawEnd===undefined)return;
+      const x1=Math.max(0,Math.min(plotRight-2,rawStart===null||rawStart===undefined?0:rawStart));
+      const x2=Math.max(x1+2,Math.min(plotRight,rawEnd));
       const line=document.createElement("div");
-      line.className="gtxExpirySolid";
-      line.style.left=x+"px";
-      const flag=document.createElement("div");
-      flag.className="gtxExpiryFlag"+(t.preview?" preview":"");
-      flag.style.left=x+"px";
-      flag.textContent=t.asset&&t.asset.flag?t.asset.flag:"🏳️";
-      line.style.display="block";
+      line.className="gtxTradeEntryLine "+(t.side==="SELL"?"sell":"buy");
+      line.style.left=x1+"px";line.style.top=y+"px";line.style.width=Math.max(1,x2-x1)+"px";
       layer.appendChild(line);
-      layer.appendChild(flag);
-      if(targetX!==null&&targetX!==undefined){
-        const target=document.createElement("div");
-        target.className="gtxExpiryTarget";
-        target.style.left=targetX+"px";
-        layer.appendChild(target);
-      }
+      const tag=document.createElement("div");
+      tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
+      tag.style.top=y+"px";
+      tag.style.left=Math.max(2,Math.min(plotRight-140,x2-130))+"px";
+      if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";tag.appendChild(ab);}
+      const label=document.createElement("span");label.textContent=t.asset.label+" "+t.side;tag.appendChild(label);
+      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.expiryAt-now);tag.appendChild(countdown);
+      layer.appendChild(tag);
     });
+    resultCards.forEach(card=>renderResultCard(layer,card));
   }
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
     state.markersInstalled=true;
-    expiryPreview={id:"preview",preview:true,entryAt:Date.now(),expiryAt:Date.now()+selectedExpirySeconds()*1000,asset:selectedAssetFlag()};
-    document.addEventListener("click",e=>{
-      const b=e.target.closest("#buy,#sell");
-      if(!b||!Number.isFinite(state.price))return;
-      const now=Date.now();
-      const seconds=selectedExpirySeconds();
-      expiryTrades.push({
-        id:"trade-"+(++expiryTradeCounter),
-        preview:false,
-        entryAt:now,
-        expiryAt:now+seconds*1000,
-        asset:selectedAssetFlag(),
-        side:b.id==="buy"?"BUY":"SELL",
-        completed:false
-      });
-      ensureExpiryPreview();
-      renderExpiryMarkers();
+    document.addEventListener("gotradex:trade-intent",event=>{
+      const detail=event&&event.detail||{};
+      nextTradeSource=String(detail.source||"").toUpperCase()==="AB"?"AB":"MANUAL";
+    });
+    document.addEventListener("click",event=>{
+      const button=event.target&&event.target.closest?event.target.closest("#buy,#sell"):null;
+      if(!button)return;
+      rememberIntent(button.id==="sell"?"SELL":"BUY",nextTradeSource);
     },true);
+    window.addEventListener("gotradex:server-sync",onServerSync);
+    window.addEventListener("gotradex:trade-opened",event=>{
+      const raw=event&&event.detail&&(event.detail.trade||event.detail);
+      if(raw)upsertServerTrade(raw);
+      renderExpiryMarkers();
+    });
+    window.addEventListener("gotradex:autobot-trade-opened",event=>{
+      const raw=event&&event.detail&&(event.detail.trade||event.detail);
+      if(raw){raw.source="AB";upsertServerTrade(raw);}
+      renderExpiryMarkers();
+    });
+    window.addEventListener("resize",renderExpiryMarkers);
     if(!expiryTimer)expiryTimer=setInterval(renderExpiryMarkers,250);
   }
-  function positionTradeOverlay(){
+    function positionTradeOverlay(){
     renderExpiryMarkers();
   }
 
