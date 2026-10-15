@@ -753,14 +753,12 @@
   }
   function clearPendingIntent(side){
     const normalized=String(side||"").toUpperCase();
+    // A failed/open-rejected event may arrive after the provisional marker is
+    // drawn. Do not tear the marker off the chart; let its visible countdown
+    // finish so the user never sees a one-second flash.
     for(let i=pendingTradeIntents.length-1;i>=0;i--){
-      const it=pendingTradeIntents[i];
-      if(it.side===normalized){
+      if(pendingTradeIntents[i].side===normalized){
         pendingTradeIntents.splice(i,1);
-        if(it.marker){
-          const markerIndex=expiryTrades.indexOf(it.marker);
-          if(markerIndex>=0)expiryTrades.splice(markerIndex,1);
-        }
         break;
       }
     }
@@ -893,46 +891,70 @@
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
     const now=Date.now();
-    // Keep both the line and its countdown page visible for the full selected
-    // trade duration. Leave 00:00 visible briefly, then remove both together.
+    // Keep the marker anchored in one position until expiry, then leave it for
+    // three more seconds. Never rebuild the layer on each tick: that caused a
+    // visible flash and could look like the marker was disappearing.
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
-      if(now>=Number(t.expiryAt)+1000)expiryTrades.splice(i,1);
+      if(now>=Number(t.expiryAt)+3000){
+        if(t.markerNode&&t.markerNode.parentNode)t.markerNode.parentNode.removeChild(t.markerNode);
+        expiryTrades.splice(i,1);
+      }
     }
-    layer.replaceChildren();
     const plotRight=Math.max(20,layer.clientWidth-70);
+    const liveIds=new Set();
     expiryTrades.forEach(t=>{
-      let y=null;
-      if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
-        try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
+      const key=String(t.serverId||t.id||("marker-"+t.entryAt));
+      liveIds.add(key);
+      let node=t.markerNode;
+      if(!node||node.parentNode!==layer){
+        node=document.createElement("div");
+        node.className="gtxTradeMarkerGroup";
+        node.dataset.tradeMarker=key;
+        node.style.cssText="position:absolute;inset:0;pointer-events:none;visibility:visible;opacity:1";
+        const line=document.createElement("div");
+        line.className="gtxTradeEntryLine "+(t.side==="SELL"?"sell":"buy");
+        line.style.cssText="position:absolute;display:block;visibility:visible;opacity:.96;z-index:1;height:2px;min-width:1px;transform:translateY(-50%);";
+        const tag=document.createElement("div");
+        tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
+        tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);padding:4px 6px;border-radius:5px;color:#fff;border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25);";
+        if(t.source==="AB"){
+          const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";
+          ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";
+          tag.appendChild(ab);
+        }
+        const label=document.createElement("span");label.className="gtxTradeAssetLabel";label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;tag.appendChild(label);
+        const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";tag.appendChild(countdown);
+        node.append(line,tag);
+        layer.appendChild(node);
+        t.markerNode=node;
       }
-      if(y===null||y===undefined||!Number.isFinite(y)||y<12||y>layer.clientHeight-12){
-        y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
+      const line=node.querySelector(".gtxTradeEntryLine");
+      const tag=node.querySelector(".gtxTradeTag");
+      const countdown=node.querySelector(".gtxTradeCountdown");
+      if(!t.markerY){
+        let y=null;
+        if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
+          try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
+        }
+        if(y===null||y===undefined||!Number.isFinite(y)||y<12||y>layer.clientHeight-12)
+          y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
+        t.markerY=y;
       }
-      let rawStart=null;
-      try{
-        const scale=state.chart&&state.chart.timeScale();
-        const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
-        rawStart=scale?(lastCandle?scale.timeToCoordinate(Math.floor(Number(lastCandle.t)/1000)):coordinateForTimestamp(t.entryAt)):null;
-      }catch(_){}
-      // Stable left-to-right line, with the countdown page at the right end.
-      // The label never covers the entire line or appears as a separate overlay.
+      // Keep the same chart position through candle updates and rerenders.
+      const y=t.markerY;
       const tagLeft=Math.max(8,plotRight-148);
-      const x1=24;
-      const x2=tagLeft-3;
-      const line=document.createElement("div");
-      line.className="gtxTradeEntryLine "+(t.side==="SELL"?"sell":"buy");
-      line.style.cssText="position:absolute;display:block;visibility:visible;opacity:.96;z-index:1;height:2px;min-width:1px;transform:translateY(-50%);left:"+x1+"px;top:"+y+"px;width:"+Math.max(1,x2-x1)+"px";
-      layer.appendChild(line);
-      const tag=document.createElement("div");
-      tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
-      tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+tagLeft+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
-      if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";tag.appendChild(ab);}
-      const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;tag.appendChild(label);
-      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));tag.appendChild(countdown);
-      layer.appendChild(tag);
+      line.style.left="24px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-27)+"px";
+      line.style.background=t.side==="SELL"?"#f16b70":"#22c58b";
+      tag.style.left=tagLeft+"px";tag.style.top=y+"px";tag.style.background=t.side==="SELL"?"#b72d43":"#087d5b";
+      const label=tag.querySelector(".gtxTradeAssetLabel");
+      if(label)label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;
+      if(countdown)countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));
     });
-    // No separate centered result overlay: the countdown page stays at the line's right end.
+    // Remove only orphaned marker DOM; active markers are never cleared wholesale.
+    Array.from(layer.querySelectorAll("[data-trade-marker]")).forEach(node=>{
+      if(!liveIds.has(node.dataset.tradeMarker))node.remove();
+    });
   }
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
