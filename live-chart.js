@@ -78,9 +78,11 @@
       ".gtxLWCSelect{box-sizing:border-box;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
-      ".gtxLWCTradeLine{position:absolute;z-index:9;top:0;bottom:28px;width:2px;display:none;pointer-events:none;border-left:2px dashed #f5a623}"+
-      ".gtxLWCTradeLine.end{border-left-color:#fff}"+
-      ".gtxLWCFlag{position:absolute;z-index:11;transform:translate(-50%,-100%);display:none;font:900 12px/1 system-ui;filter:drop-shadow(0 2px 3px #000);pointer-events:none}"+
+      "#gtxLWCExpiryLayer{position:absolute;inset:0;z-index:10;overflow:hidden;pointer-events:none}"+
+      ".gtxExpirySolid{position:absolute;top:24px;bottom:28px;width:4px;background:#ffd400;transform:translateX(-50%);box-shadow:0 0 2px #ffd400;pointer-events:none}"+
+      ".gtxExpiryTarget{position:absolute;top:0;bottom:28px;width:0;border-left:3px dotted #ffd400;pointer-events:none}"+
+      ".gtxExpiryFlag{position:absolute;top:4px;min-height:20px;display:flex;align-items:center;gap:4px;padding:3px 6px 3px 5px;background:#ffd400;color:#101820;border:1px solid #fff0a6;border-radius:0 4px 4px 0;font:900 10px/1 system-ui;white-space:nowrap;box-shadow:0 1px 4px #0009;pointer-events:none}"+
+      ".gtxExpiryFlag.preview{background:#facc15;color:#111827}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
       "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
@@ -106,9 +108,7 @@
           '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
         '</div>'+
       '</div>'+
-      '<div class="gtxLWCTradeLine" id="gtxLWCTradeStart"></div>'+
-      '<div class="gtxLWCTradeLine end" id="gtxLWCTradeEnd"></div>'+
-      '<div class="gtxLWCFlag" id="gtxLWCFlag">🚩</div>'+
+      '<div id="gtxLWCExpiryLayer" aria-hidden="true"></div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
@@ -665,45 +665,108 @@
     // Intentionally no automatic orange LIVE price-line or axis marker.
   }
 
+  const expiryTrades=[];
+  let expiryPreview=null;
+  let expiryTimer=null;
+  let expiryTradeCounter=0;
+
+  function selectedExpirySeconds(){
+    let label="5 Seconds";
+    try{label=localStorage.getItem("gotradex_trade_expiration")||label}catch(_){}
+    const values={"5 Seconds":5,"1 Minute":60,"3 Minutes":180,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400,"1 Day":86400};
+    return values[label]||5;
+  }
+  function selectedAssetFlag(){
+    const label=String(state.assetLabel||state.symbol||"BTC/USD").replace(/\s+OTC$/i,"").trim();
+    const flags={"EUR/USD":"🇪🇺","GBP/USD":"🇬🇧","USD/JPY":"🇯🇵","AUD/USD":"🇦🇺","USD/CAD":"🇨🇦","USD/CHF":"🇨🇭","NZD/USD":"🇳🇿","BTC/USD":"₿","ETH/USD":"Ξ"};
+    return {label,flag:flags[label]||"🏳️"};
+  }
+  function ensureExpiryPreview(){
+    if(!expiryPreview)expiryPreview={id:"preview",preview:true,entryAt:Date.now(),expiryAt:Date.now()+selectedExpirySeconds()*1000,asset:selectedAssetFlag()};
+    expiryPreview.expiryAt=Date.now()+selectedExpirySeconds()*1000;
+    expiryPreview.entryAt=Date.now();
+    expiryPreview.asset=selectedAssetFlag();
+  }
+  function coordinateForTimestamp(timestampMs){
+    if(!state.chart||!state.candles.length)return null;
+    const ts=timestampMs/1000, scale=state.chart.timeScale();
+    const exact=scale.timeToCoordinate(Math.floor(ts));
+    if(exact!==null&&exact!==undefined)return exact;
+    const lastIndex=state.candles.length-1;
+    const last=state.candles[lastIndex];
+    const lastTime=Math.floor(Number(last.t)/1000);
+    const x0=scale.logicalToCoordinate(lastIndex);
+    const x1=scale.logicalToCoordinate(lastIndex+1);
+    if(x0===null||x0===undefined||x1===null||x1===undefined)return null;
+    const step=Number(state.sec)||300;
+    const logical=lastIndex+(ts-lastTime)/step;
+    return scale.logicalToCoordinate(logical);
+  }
+  function renderExpiryMarkers(){
+    const layer=document.getElementById("gtxLWCExpiryLayer");
+    if(!layer||!state.chart)return;
+    ensureExpiryPreview();
+    const now=Date.now();
+    for(let i=expiryTrades.length-1;i>=0;i--){
+      const t=expiryTrades[i];
+      if(now>=t.expiryAt&&!t.completed){
+        t.completed=true;
+        t.entryAt=t.expiryAt;
+        t.completedAt=now;
+      }
+      if(t.completed&&now-t.completedAt>900)expiryTrades.splice(i,1);
+    }
+    const all=expiryTrades.concat(expiryPreview?[expiryPreview]:[]);
+    layer.replaceChildren();
+    all.forEach(t=>{
+      const x=coordinateForTimestamp(t.entryAt);
+      const targetX=coordinateForTimestamp(t.expiryAt);
+      if(x===null||x===undefined)return;
+      const line=document.createElement("div");
+      line.className="gtxExpirySolid";
+      line.style.left=x+"px";
+      const flag=document.createElement("div");
+      flag.className="gtxExpiryFlag"+(t.preview?" preview":"");
+      flag.style.left=x+"px";
+      flag.textContent=(t.asset&&t.asset.flag?t.asset.flag+" ":"")+(t.asset&&t.asset.label?t.asset.label:"ASSET");
+      if(t.side)flag.textContent+=" · "+t.side;
+      if(t.preview)flag.textContent+=" · PREVIEW";
+      line.style.display="block";
+      layer.appendChild(line);
+      layer.appendChild(flag);
+      if(targetX!==null&&targetX!==undefined){
+        const target=document.createElement("div");
+        target.className="gtxExpiryTarget";
+        target.style.left=targetX+"px";
+        layer.appendChild(target);
+      }
+    });
+  }
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
     state.markersInstalled=true;
+    expiryPreview={id:"preview",preview:true,entryAt:Date.now(),expiryAt:Date.now()+selectedExpirySeconds()*1000,asset:selectedAssetFlag()};
     document.addEventListener("click",e=>{
       const b=e.target.closest("#buy,#sell");
       if(!b||!Number.isFinite(state.price))return;
-      state.tradeStart={time:bucket(Date.now(),state.sec),price:state.price,side:b.id==="buy"?"BUY":"SELL"};
-      state.tradeEnd=null;
-      try{
-        const markerTime=Math.floor(state.tradeStart.time/1000);
-        state.candleSeries?.setMarkers([{
-          time:markerTime,
-          position:b.id==="buy"?"belowBar":"aboveBar",
-          color:b.id==="buy"?"#22c55e":"#ef4444",
-          shape:b.id==="buy"?"arrowUp":"arrowDown",
-          text:b.id==="buy"?"BUY":"SELL",
-          size:2
-        }]);
-      }catch(_){}
-      positionTradeOverlay();
+      const now=Date.now();
+      const seconds=selectedExpirySeconds();
+      expiryTrades.push({
+        id:"trade-"+(++expiryTradeCounter),
+        preview:false,
+        entryAt:now,
+        expiryAt:now+seconds*1000,
+        asset:selectedAssetFlag(),
+        side:b.id==="buy"?"BUY":"SELL",
+        completed:false
+      });
+      ensureExpiryPreview();
+      renderExpiryMarkers();
     },true);
+    if(!expiryTimer)expiryTimer=setInterval(renderExpiryMarkers,250);
   }
-
   function positionTradeOverlay(){
-    if(!state.chart||!state.tradeStart)return;
-    const x=state.chart.timeScale().timeToCoordinate(Math.floor(state.tradeStart.time/1000));
-    const line=document.getElementById("gtxLWCTradeStart");
-    const flag=document.getElementById("gtxLWCFlag");
-    if(x!==null&&x!==undefined){
-      line.style.left=x+"px";line.style.display="block";
-      flag.style.left=x+"px";
-      const y=state.candleSeries?.priceToCoordinate(state.tradeStart.price);
-      if(y!==null&&y!==undefined){flag.style.top=y+"px";flag.style.display="block"}
-    }
-    if(state.tradeEnd){
-      const ex=state.chart.timeScale().timeToCoordinate(Math.floor(state.tradeEnd.time/1000));
-      const end=document.getElementById("gtxLWCTradeEnd");
-      if(ex!==null&&ex!==undefined){end.style.left=ex+"px";end.style.display="block"}
-    }
+    renderExpiryMarkers();
   }
 
   function installLibraryAndStart(){
