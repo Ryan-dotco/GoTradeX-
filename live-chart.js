@@ -873,7 +873,7 @@
   }
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
-    if(!layer||!state.chart)return;
+    if(!layer)return;
     const now=Date.now();
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
@@ -891,9 +891,12 @@
       if(y===null||y===undefined||!Number.isFinite(y)||y<12||y>layer.clientHeight-12){
         y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
       }
-      const scale=state.chart.timeScale();
-      const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
-      const rawStart=lastCandle?scale.timeToCoordinate(Math.floor(Number(lastCandle.t)/1000)):coordinateForTimestamp(t.entryAt);
+      let rawStart=null;
+      try{
+        const scale=state.chart&&state.chart.timeScale();
+        const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+        rawStart=scale?(lastCandle?scale.timeToCoordinate(Math.floor(Number(lastCandle.t)/1000)):coordinateForTimestamp(t.entryAt)):null;
+      }catch(_){}
       // Keep the entry line steady for the whole active trade. A growing line
       // was too short near entry and looked as if it was appearing/disappearing.
       const startFallback=rawStart===null||rawStart===undefined?Math.max(0,plotRight-120):rawStart;
@@ -908,8 +911,7 @@
       tag.style.top=y+"px";
       tag.style.left=Math.max(2,Math.min(plotRight-140,x2-130))+"px";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";tag.appendChild(ab);}
-      const label=document.createElement("span");label.textContent=t.asset.label+" "+t.side;tag.appendChild(label);
-      if(t.pending){const pending=document.createElement("span");pending.className="gtxTradeCountdown";pending.textContent="SUBMITTING";tag.appendChild(pending);}
+      const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label+" "+t.side;tag.appendChild(label);
       const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.expiryAt-now);tag.appendChild(countdown);
       layer.appendChild(tag);
     });
@@ -922,11 +924,22 @@
       const detail=event&&event.detail||{};
       nextTradeSource=String(detail.source||"").toUpperCase()==="AB"?"AB":"MANUAL";
     });
-    document.addEventListener("click",event=>{
-      const button=event.target&&event.target.closest?event.target.closest("#buy,#sell"):null;
-      if(!button)return;
-      rememberIntent(button.id==="sell"?"SELL":"BUY",nextTradeSource);
-    },true);
+    function bindTradeButton(button,side){
+      if(!button||button.dataset.gtxMarkerBound==="1")return;
+      button.dataset.gtxMarkerBound="1";
+      const create=()=>rememberIntent(side,nextTradeSource);
+      // Bind directly to the actual controls so other document-level handlers
+      // cannot swallow the marker-creation event.
+      button.addEventListener("pointerdown",create,true);
+      button.addEventListener("click",create,true);
+    }
+    function bindTradeButtons(){
+      bindTradeButton(document.getElementById("buy"),"BUY");
+      bindTradeButton(document.getElementById("sell"),"SELL");
+    }
+    bindTradeButtons();
+    const tradeButtonObserver=new MutationObserver(bindTradeButtons);
+    tradeButtonObserver.observe(document.body,{childList:true,subtree:true});
     window.addEventListener("gotradex:server-sync",onServerSync);
     window.addEventListener("gotradex:trade-open-failed",event=>{
       clearPendingIntent(event&&event.detail&&event.detail.direction);
