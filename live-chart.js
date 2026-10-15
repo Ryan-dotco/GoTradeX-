@@ -724,7 +724,7 @@
       if(x===null||x===undefined)return;
       const line=document.createElement("div");
       line.className="gtxExpirySolid";
-      line.style.left=x+"px";
+      line.style.left=(x+2)+"px";
       const flag=document.createElement("div");
       flag.className="gtxExpiryFlag"+(t.preview?" preview":"");
       flag.style.left=x+"px";
