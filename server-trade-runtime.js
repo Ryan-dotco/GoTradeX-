@@ -49,7 +49,11 @@
     try{
       const mode=String(localStorage.getItem("gotradex_account_mode")||"DEMO").toUpperCase();
       const j=await call("open",{account_mode:mode,market_mode:String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase(),asset:asset(),direction,amount:amount(),expiry_seconds:secondsFromUi()});
-      if(j.trade) status(direction+" OPEN • SERVER "+new Date(j.trade.expires_at).toLocaleTimeString());
+      if(j.trade){
+        const el=document.getElementById("status");
+        if(el)el.textContent="";
+        window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.trade}}));
+      }
       await sync();
     }catch(e){status(e?.message||"Trade could not be opened.");}
   }
@@ -83,11 +87,11 @@
       window.GoTradeXServerRuntime.last=j;
 
       const open=(j.open||[]).filter(x=>x.result==="OPEN");
-      if(open.length){
-        const t=open[0];
-        status("LIVE SERVER • "+t.asset+" • "+t.direction+" • "+Math.max(0,Math.ceil((new Date(t.expires_at)-Date.now())/1000))+"s");
+      // Running trade state is displayed on the chart, not as a sentence below the controls.
+      if(!open.length){
+        const el=document.getElementById("status");
+        if(el && /LIVE SERVER|TRADE OPEN|BUY OPEN|SELL OPEN/i.test(el.textContent||""))el.textContent="";
       }
-
       window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:j}));
     }catch(e){
       // Recovery remains on the next five-second sync/realtime reconnect.
