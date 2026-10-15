@@ -193,8 +193,8 @@
       state.candleSeries.setData(seriesCandleData());
       const data=seriesLineData();
       if(type==="line"||type==="mountain"){
-        if(!state.lineSeries){state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:true});}
-        if(!state.areaSeries){state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:true});}
+        if(!state.lineSeries){state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:false});}
+        if(!state.areaSeries){state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:false});}
         state.lineSeries.setData(data);state.areaSeries.setData(data);
       }
       applyChartTypeVisibility();
@@ -599,7 +599,7 @@
       upColor:"#22c55e",downColor:"#ef4444",
       borderUpColor:"#22c55e",borderDownColor:"#ef4444",
       wickUpColor:"#a7f3c2",wickDownColor:"#fca5a5",
-      priceLineVisible:true,lastValueVisible:true,
+      priceLineVisible:false,lastValueVisible:false,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
     // Alternate chart styles are created only when selected from the single chart-style menu.
@@ -627,8 +627,8 @@
     const candles=seriesCandleData();
     state.candleSeries.setData(candles);
     if(state.chartType==="line"||state.chartType==="mountain"){
-      if(!state.lineSeries)state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-      if(!state.areaSeries)state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+      if(!state.lineSeries)state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+      if(!state.areaSeries)state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
       state.lineSeries.setData(seriesLineData());state.areaSeries.setData(seriesLineData());
     }
     applyChartTypeVisibility();
