@@ -7,7 +7,7 @@ function openScanner(){const base=location.href.split('#')[0];location.href=new 
 function insertDashboardEntry(){
  const menu=document.querySelector('#menuDrawer .gtxNavColumn');
  if(menu&&!document.getElementById('gtxOtcScannerMenuEntry')){
-  const b=makeButton('AI OTC Scanner Pro  ›','option menuItem');b.id='gtxOtcScannerMenuEntry';b.style.borderColor='#2585f6';b.addEventListener('click',openScanner);
+  const b=makeButton('AI OTC Scanner Pro  ›','option gtxOtcScannerEntry');b.id='gtxOtcScannerMenuEntry';b.style.borderColor='#2585f6';b.addEventListener('click',openScanner);
   const title=Array.from(menu.querySelectorAll('.gtxNavTitle')).find(x=>/trading/i.test(x.textContent));
   if(title)title.insertAdjacentElement('afterend',b);else menu.prepend(b);
  }
