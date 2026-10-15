@@ -734,14 +734,13 @@
     const latest=lastCandle?Number(lastCandle.c):NaN;
     const livePrice=Number(state.price);
     const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
-    // Capture the bottom of the most recent candle at the exact button press.
-    // Store the screen coordinate now; later candle ticks and chart zoom/scroll
-    // must not recalculate or drag this marker.
+    // Capture the last candle's live end/close level at the exact button press,
+    // not its lower wick. Freeze this pixel coordinate so subsequent candle
+    // movement cannot drag the trade-entry marker up or down.
     let markerY=null;
     try{
-      const candleLow=lastCandle&&Number(lastCandle.l);
-      if(state.candleSeries&&Number.isFinite(candleLow)&&candleLow>0){
-        const y=state.candleSeries.priceToCoordinate(candleLow);
+      if(state.candleSeries&&Number.isFinite(entryPrice)&&entryPrice>0){
+        const y=state.candleSeries.priceToCoordinate(entryPrice);
         if(y!==null&&y!==undefined&&Number.isFinite(y))markerY=y;
       }
     }catch(_){}
@@ -905,7 +904,7 @@
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
     const now=Date.now();
-    // Keep the marker anchored at the captured bottom of the last candle for
+    // Keep the marker anchored at the captured last-candle close/entry level for
     // the whole countdown, then leave it visible for 3 more seconds.
     // Never rebuild the layer on each tick: that caused visible flashing.
     for(let i=expiryTrades.length-1;i>=0;i--){
@@ -948,12 +947,12 @@
       const countdown=node.querySelector(".gtxTradeCountdown");
       if(!Number.isFinite(Number(t.markerY))){
         // Legacy/server-synced markers without a captured click coordinate get
-        // one initial position, then remain frozen just like manual markers.
+        // one initial position at the latest candle's end/close level, then freeze.
         let y=null;
         const last=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
-        const low=last&&Number(last.l);
-        if(state.candleSeries&&Number.isFinite(low)&&low>0){
-          try{y=state.candleSeries.priceToCoordinate(low);}catch(_){}
+        const close=last&&Number(last.c);
+        if(state.candleSeries&&Number.isFinite(close)&&close>0){
+          try{y=state.candleSeries.priceToCoordinate(close);}catch(_){}
         }
         if(y===null||y===undefined||!Number.isFinite(y)||y<12||y>layer.clientHeight-12)
           y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
