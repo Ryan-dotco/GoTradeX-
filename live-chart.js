@@ -897,7 +897,7 @@
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
     const now=Date.now();
-    // Keep the marker attached to the original candle body edge throughout the trade,
+    // Keep the entry marker pinned to its original candle and exact entry price throughout the trade,
     // then leave it visible for 3 more seconds.
     // Never rebuild the layer on each tick: that caused visible flashing.
     for(let i=expiryTrades.length-1;i>=0;i--){
@@ -938,9 +938,9 @@
       const line=node.querySelector(".gtxTradeEntryLine");
       const tag=node.querySelector(".gtxTradeTag");
       const countdown=node.querySelector(".gtxTradeCountdown");
-      // Resolve the saved candle timestamp on every chart update. The marker
-      // remains attached to that candle's body edge and naturally follows zoom,
-      // scroll, and movement of the original candle; newer candles never steal it.
+      // Resolve the original candle timestamp on every chart update. The marker
+      // follows that candle horizontally through zoom/scroll, while its entry-price
+      // level stays fixed; newer candles never steal it.
       let anchorTime=Number(t.markerTime);
       let anchorPrice=Number(t.markerPrice||t.entryPrice);
       let candleIndex=-1;
@@ -956,24 +956,22 @@
         return;
       }
       if(candleIndex>=0){
-        const anchorCandle=state.candles[candleIndex];
-        // Anchor to the CENTER of the candle body, not its close/wick edge.
-        // The midpoint follows the body as open/close values change, so the
-        // marker never gets left attached to a wick when the body moves away.
-        const bodyOpen=Number(anchorCandle.o),bodyClose=Number(anchorCandle.c);
-        anchorPrice=(bodyOpen+bodyClose)/2;
+        // Keep the entry at the exact trade-entry price captured on BUY/SELL.
+        // Do not recalculate it from the candle body or wick as live ticks arrive:
+        // the horizontal price level and original candle identity stay fixed
+        // for the life of this trade.
+        anchorPrice=Number(t.markerPrice);
+        if(!Number.isFinite(anchorPrice))anchorPrice=Number(t.entryPrice);
         if(!Number.isFinite(anchorPrice)){
           node.style.display="none";
           return;
         }
-        t.markerPrice=anchorPrice;
-        t.markerTime=anchorTime;
       }else if(!hasCandleAnchor&&state.candles.length){
-        // Legacy/server markers without a saved candle identity are anchored
-        // exactly once to the center of the current body; never rebind later.
+        // Legacy/server markers without an original candle identity are pinned
+        // once to the current candle and its saved entry price.
         const last=state.candles[state.candles.length-1];
         anchorTime=Math.floor(Number(last.t)/1000);
-        anchorPrice=(Number(last.o)+Number(last.c))/2;
+        anchorPrice=Number(t.markerPrice||t.entryPrice);
         t.markerTime=anchorTime;
         t.markerPrice=anchorPrice;
       }
@@ -990,8 +988,8 @@
       }
       node.style.display="";
       const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
-      // timeToCoordinate is the candle center. Start the marker line there,
-      // so it originates inside the body rather than at the wick/body edge.
+      // timeToCoordinate is the original candle center. Start the fixed entry-price
+      // line there so it remains visibly connected to the original candle.
       const bodyCenterX=x;
       const tagLeft=Math.max(bodyCenterX+barSpacing*0.5+8,plotRight-148);
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-bodyCenterX)+"px";
