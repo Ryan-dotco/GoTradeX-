@@ -930,7 +930,6 @@
       const create=()=>rememberIntent(side,nextTradeSource);
       // Bind directly to the actual controls so other document-level handlers
       // cannot swallow the marker-creation event.
-      button.addEventListener("pointerdown",create,true);
       button.addEventListener("click",create,true);
     }
     function bindTradeButtons(){
