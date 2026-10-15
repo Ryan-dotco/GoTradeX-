@@ -78,7 +78,7 @@
       ".gtxLWCSelect{box-sizing:border-box;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
-      "#gtxLWCExpiryLayer{display:block;position:absolute;inset:0;z-index:10;overflow:hidden;pointer-events:none}"+
+      "#gtxLWCExpiryLayer{display:block!important;position:absolute!important;inset:0!important;z-index:2147483000!important;overflow:hidden!important;pointer-events:none!important;visibility:visible!important;opacity:1!important}"+
       ".gtxTradeEntryLine{position:absolute;height:2px;min-width:1px;transform:translateY(-50%);opacity:.96}"+
       ".gtxTradeEntryLine.buy{background:#22c58b;box-shadow:0 0 5px rgba(34,197,139,.28)}"+
       ".gtxTradeEntryLine.sell{background:#f16b70;box-shadow:0 0 5px rgba(241,107,112,.28)}"+
@@ -904,12 +904,11 @@
       const x2=plotRight;
       const line=document.createElement("div");
       line.className="gtxTradeEntryLine "+(t.side==="SELL"?"sell":"buy");
-      line.style.left=x1+"px";line.style.top=y+"px";line.style.width=Math.max(1,x2-x1)+"px";
+      line.style.cssText="position:absolute;display:block;visibility:visible;opacity:.96;z-index:1;height:2px;min-width:1px;transform:translateY(-50%);left:"+x1+"px;top:"+y+"px;width:"+Math.max(1,x2-x1)+"px";
       layer.appendChild(line);
       const tag=document.createElement("div");
       tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
-      tag.style.top=y+"px";
-      tag.style.left=Math.max(2,Math.min(plotRight-140,x2-130))+"px";
+      tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+Math.max(2,Math.min(plotRight-140,x2-160))+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";tag.appendChild(ab);}
       const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label+" "+t.side;tag.appendChild(label);
       const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.expiryAt-now);tag.appendChild(countdown);
