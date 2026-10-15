@@ -733,20 +733,13 @@
     const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
     const latest=lastCandle?Number(lastCandle.c):NaN;
     const livePrice=Number(state.price);
-    const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
-    // Capture the last candle's live end/close level at the exact button press,
-    // not its lower wick. Freeze this pixel coordinate so subsequent candle
-    // movement cannot drag the trade-entry marker up or down.
-    let markerY=null;
-    try{
-      if(state.candleSeries&&Number.isFinite(entryPrice)&&entryPrice>0){
-        const y=state.candleSeries.priceToCoordinate(entryPrice);
-        if(y!==null&&y!==undefined&&Number.isFinite(y))markerY=y;
-      }
-    }catch(_){}
-    const layer=document.getElementById("gtxLWCExpiryLayer");
-    if(markerY===null&&layer)markerY=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
-    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerY,amount:null,expiryAt,marker:null};
+    const entryPrice=Number.isFinite(latest)&&latest>0?latest:(Number.isFinite(livePrice)&&livePrice>0?livePrice:null);
+    // Anchor to the original candle's body edge, in chart data coordinates:
+    // bullish candle = body top (close); bearish candle = body bottom (close).
+    // Keep its candle time so zoom/scroll can reposition the same anchor.
+    const markerTime=lastCandle&&Number.isFinite(Number(lastCandle.t))?Math.floor(Number(lastCandle.t)/1000):null;
+    const markerPrice=entryPrice;
+    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerPrice,amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
@@ -755,7 +748,7 @@
     // The server response will confirm/update it; a rejected order removes it.
     intent.marker={
       id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:now,expiryAt,
-      entryPrice:intent.entryPrice,markerY:intent.markerY,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
+      entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
     expiryTrades.push(intent.marker);
@@ -874,7 +867,7 @@
     const days=Math.floor(hours/24);
     return days+"d "+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
   }
-  // The trade marker itself stays visible for 30 full seconds after expiry.
+  // Keep the trade marker visible for 3 seconds after expiry.
   // Do not replace it with a separate result card during this retention window.
   function addResultCard(trade,now){
     if(!trade||trade.resultCardQueued)return;
@@ -904,8 +897,8 @@
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
     const now=Date.now();
-    // Keep the marker anchored at the captured last-candle close/entry level for
-    // the whole countdown, then leave it visible for 3 more seconds.
+    // Keep the marker attached to the original candle body edge throughout the trade,
+    // then leave it visible for 3 more seconds.
     // Never rebuild the layer on each tick: that caused visible flashing.
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
@@ -945,23 +938,44 @@
       const line=node.querySelector(".gtxTradeEntryLine");
       const tag=node.querySelector(".gtxTradeTag");
       const countdown=node.querySelector(".gtxTradeCountdown");
-      if(!Number.isFinite(Number(t.markerY))){
-        // Legacy/server-synced markers without a captured click coordinate get
-        // one initial position at the latest candle's end/close level, then freeze.
-        let y=null;
-        const last=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
-        const close=last&&Number(last.c);
-        if(state.candleSeries&&Number.isFinite(close)&&close>0){
-          try{y=state.candleSeries.priceToCoordinate(close);}catch(_){}
-        }
-        if(y===null||y===undefined||!Number.isFinite(y)||y<12||y>layer.clientHeight-12)
-          y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
-        t.markerY=y;
+      // Resolve the saved candle timestamp on every chart update. The marker
+      // remains attached to that candle's body edge and naturally follows zoom,
+      // scroll, and movement of the original candle; newer candles never steal it.
+      let anchorTime=Number(t.markerTime);
+      let anchorPrice=Number(t.markerPrice||t.entryPrice);
+      let candleIndex=-1;
+      if(Number.isFinite(anchorTime)&&state.candles.length){
+        candleIndex=state.candles.findIndex(c=>Math.floor(Number(c.t)/1000)===anchorTime);
       }
-      // Keep the same chart position through candle updates and rerenders.
-      const y=t.markerY;
-      const tagLeft=Math.max(8,plotRight-148);
-      line.style.left="24px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-27)+"px";
+      if(candleIndex>=0){
+        const anchorCandle=state.candles[candleIndex];
+        const open=Number(anchorCandle.o),close=Number(anchorCandle.c);
+        // The close edge is the top of a bullish body and bottom of a bearish body.
+        anchorPrice=close;
+        t.markerPrice=close;
+        t.markerTime=anchorTime;
+      }
+      let x=null,y=null;
+      try{
+        if(state.chart&&Number.isFinite(anchorTime))x=state.chart.timeScale().timeToCoordinate(anchorTime);
+        if(state.candleSeries&&Number.isFinite(anchorPrice))y=state.candleSeries.priceToCoordinate(anchorPrice);
+      }catch(_){}
+      // If a legacy/server marker has no candle anchor, bind it once to the
+      // latest candle close and keep the resulting candle identity.
+      if((x===null||x===undefined||!Number.isFinite(x))&&(state.candles.length)){
+        const last=state.candles[state.candles.length-1];
+        anchorTime=Math.floor(Number(last.t)/1000);anchorPrice=Number(last.c);
+        try{x=state.chart.timeScale().timeToCoordinate(anchorTime);y=state.candleSeries.priceToCoordinate(anchorPrice)}catch(_){}
+        t.markerTime=anchorTime;t.markerPrice=anchorPrice;
+      }
+      if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)){
+        y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
+        x=24;
+      }
+      const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
+      const bodyRight=x+Math.max(3,barSpacing*0.42);
+      const tagLeft=Math.max(bodyRight+8,plotRight-148);
+      line.style.left=bodyRight+"px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-bodyRight)+"px";
       line.style.background=t.side==="SELL"?"#f16b70":"#22c58b";
       tag.style.left=tagLeft+"px";tag.style.top=y+"px";tag.style.background=t.side==="SELL"?"#b72d43":"#087d5b";
       const label=tag.querySelector(".gtxTradeAssetLabel");
