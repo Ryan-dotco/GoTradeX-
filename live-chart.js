@@ -855,7 +855,7 @@
   }
   function addResultCard(trade,now){
     if(resultCards.some(c=>c.id===trade.id))return;
-    resultCards.push({id:trade.id,trade,createdAt:now,removeAt:now+5000});
+    resultCards.push({id:trade.id,trade,createdAt:now,showAt:now+3000,removeAt:now+7000});
   }
   function renderResultCard(layer,card){
     const trade=card.trade,raw=trade.raw||{};
@@ -892,12 +892,12 @@
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
       if(now>=t.expiryAt&&!t.completed){t.completed=true;t.completedAt=now;addResultCard(t,now);}
-      if(t.completed&&now-(t.completedAt||now)>5000)expiryTrades.splice(i,1);
+      if(t.completed&&now-(t.completedAt||now)>3000)expiryTrades.splice(i,1);
     }
     for(let i=resultCards.length-1;i>=0;i--)if(now>=resultCards[i].removeAt)resultCards.splice(i,1);
     layer.replaceChildren();
     const plotRight=Math.max(20,layer.clientWidth-70);
-    expiryTrades.filter(t=>!t.completed).forEach(t=>{
+    expiryTrades.filter(t=>!t.completed||now-(t.completedAt||now)<3000).forEach(t=>{
       let y=null;
       if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
         try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
@@ -925,10 +925,10 @@
       tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+Math.max(2,Math.min(plotRight-140,x2-160))+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";tag.appendChild(ab);}
       const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label+" "+t.side;tag.appendChild(label);
-      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.expiryAt-now);tag.appendChild(countdown);
+      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.completed?0:t.expiryAt-now);tag.appendChild(countdown);
       layer.appendChild(tag);
     });
-    resultCards.forEach(card=>renderResultCard(layer,card));
+    resultCards.filter(card=>now>=card.showAt).forEach(card=>renderResultCard(layer,card));
   }
   function observeTradeMarkers(){
     if(state.markersInstalled)return;
