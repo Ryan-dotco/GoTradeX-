@@ -730,10 +730,24 @@
   function rememberIntent(side,source){
     const now=Date.now();
     const expiryAt=now+selectedExpirySeconds()*1000;
-    const latest=state.candles&&state.candles.length?Number(state.candles[state.candles.length-1].c):NaN;
+    const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+    const latest=lastCandle?Number(lastCandle.c):NaN;
     const livePrice=Number(state.price);
     const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
-    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,amount:null,expiryAt,marker:null};
+    // Capture the bottom of the most recent candle at the exact button press.
+    // Store the screen coordinate now; later candle ticks and chart zoom/scroll
+    // must not recalculate or drag this marker.
+    let markerY=null;
+    try{
+      const candleLow=lastCandle&&Number(lastCandle.l);
+      if(state.candleSeries&&Number.isFinite(candleLow)&&candleLow>0){
+        const y=state.candleSeries.priceToCoordinate(candleLow);
+        if(y!==null&&y!==undefined&&Number.isFinite(y))markerY=y;
+      }
+    }catch(_){}
+    const layer=document.getElementById("gtxLWCExpiryLayer");
+    if(markerY===null&&layer)markerY=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
+    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerY,amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
@@ -742,7 +756,7 @@
     // The server response will confirm/update it; a rejected order removes it.
     intent.marker={
       id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:now,expiryAt,
-      entryPrice:intent.entryPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
+      entryPrice:intent.entryPrice,markerY:intent.markerY,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
     expiryTrades.push(intent.marker);
@@ -891,12 +905,12 @@
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
     const now=Date.now();
-    // Keep the marker anchored in one position for the whole trade countdown,
-    // then leave the same line and tag visible together for 30 more seconds.
+    // Keep the marker anchored at the captured bottom of the last candle for
+    // the whole countdown, then leave it visible for 3 more seconds.
     // Never rebuild the layer on each tick: that caused visible flashing.
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
-      if(now>=Number(t.expiryAt)+30000){
+      if(now>=Number(t.expiryAt)+3000){
         if(t.markerNode&&t.markerNode.parentNode)t.markerNode.parentNode.removeChild(t.markerNode);
         expiryTrades.splice(i,1);
       }
@@ -932,10 +946,14 @@
       const line=node.querySelector(".gtxTradeEntryLine");
       const tag=node.querySelector(".gtxTradeTag");
       const countdown=node.querySelector(".gtxTradeCountdown");
-      if(!t.markerY){
+      if(!Number.isFinite(Number(t.markerY))){
+        // Legacy/server-synced markers without a captured click coordinate get
+        // one initial position, then remain frozen just like manual markers.
         let y=null;
-        if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
-          try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
+        const last=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+        const low=last&&Number(last.l);
+        if(state.candleSeries&&Number.isFinite(low)&&low>0){
+          try{y=state.candleSeries.priceToCoordinate(low);}catch(_){}
         }
         if(y===null||y===undefined||!Number.isFinite(y)||y<12||y>layer.clientHeight-12)
           y=Math.max(28,Math.min(layer.clientHeight-28,Math.round(layer.clientHeight*0.58)));
