@@ -831,7 +831,7 @@
     completed.forEach(raw=>{
       const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
       const trade=expiryTrades.find(t=>t.serverId===id||t.id===id);
-      if(trade){trade.raw=raw;if(!trade.completed){trade.completed=true;trade.completedAt=Date.now();}addResultCard(trade,trade.completedAt||Date.now());}
+      if(trade){trade.raw=raw;if(!trade.completed){trade.completed=true;trade.completedAt=Date.now();}addResultCard(trade,Date.now());}
     });
     renderExpiryMarkers();
   }
@@ -865,7 +865,8 @@
     if(!hasProfit&&!hasReturn)return;
     const existing=resultCards.find(c=>c.id===trade.id);
     if(existing){existing.trade=trade;return;}
-    resultCards.push({id:trade.id,trade,createdAt:now,showAt:now+3000,removeAt:now+7000});
+    const showAt=Math.max(now,Number(trade.completedAt)||now)+3000;
+    resultCards.push({id:trade.id,trade,createdAt:now,showAt,removeAt:showAt+4000});
   }
   function renderResultCard(layer,card){
     const trade=card.trade,raw=trade.raw||{};
