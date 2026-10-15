@@ -755,7 +755,8 @@
     for(let i=pendingTradeIntents.length-1;i>=0;i--){
       const it=pendingTradeIntents[i];
       if(it.side===String(side||"").toUpperCase()&&now-it.at<30000){
-        if(it.marker){const idx=expiryTrades.indexOf(it.marker);if(idx>=0)expiryTrades.splice(idx,1);}
+        // Keep the marker on screen after the button interaction ends. Its normal expiry
+        // lifecycle removes it after the 30-second post-expiry grace period.
         pendingTradeIntents.splice(i,1);
         break;
       }
@@ -829,7 +830,7 @@
     completed.forEach(raw=>{
       const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
       const trade=expiryTrades.find(t=>t.serverId===id||t.id===id);
-      if(trade){trade.raw=raw;trade.completed=true;trade.completedAt=Date.now();addResultCard(trade,trade.completedAt);}
+      if(trade){trade.raw=raw;if(!trade.completed){trade.completed=true;trade.completedAt=Date.now();}addResultCard(trade,trade.completedAt||Date.now());}
     });
     renderExpiryMarkers();
   }
@@ -855,7 +856,7 @@
   }
   function addResultCard(trade,now){
     if(resultCards.some(c=>c.id===trade.id))return;
-    resultCards.push({id:trade.id,trade,createdAt:now,showAt:now+3000,removeAt:now+7000});
+    resultCards.push({id:trade.id,trade,createdAt:now,showAt:now+30000,removeAt:now+34000});
   }
   function renderResultCard(layer,card){
     const trade=card.trade,raw=trade.raw||{};
@@ -892,12 +893,12 @@
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
       if(now>=t.expiryAt&&!t.completed){t.completed=true;t.completedAt=now;addResultCard(t,now);}
-      if(t.completed&&now-(t.completedAt||now)>3000)expiryTrades.splice(i,1);
+      if(t.completed&&now-(t.completedAt||now)>=30000)expiryTrades.splice(i,1);
     }
     for(let i=resultCards.length-1;i>=0;i--)if(now>=resultCards[i].removeAt)resultCards.splice(i,1);
     layer.replaceChildren();
     const plotRight=Math.max(20,layer.clientWidth-70);
-    expiryTrades.filter(t=>!t.completed||now-(t.completedAt||now)<3000).forEach(t=>{
+    expiryTrades.filter(t=>!t.completed||now-(t.completedAt||now)<30000).forEach(t=>{
       let y=null;
       if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
         try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
