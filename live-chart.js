@@ -944,7 +944,7 @@
       let anchorTime=Number(t.markerTime);
       let anchorPrice=Number(t.markerPrice||t.entryPrice);
       let candleIndex=-1;
-      const hasCandleAnchor=Number.isFinite(anchorTime);
+      const hasCandleAnchor=t.markerTime!==null&&t.markerTime!==undefined&&t.markerTime!==""&&Number.isFinite(anchorTime);
       if(hasCandleAnchor&&state.candles.length){
         candleIndex=state.candles.findIndex(c=>Math.floor(Number(c.t)/1000)===anchorTime);
       }
