@@ -680,13 +680,20 @@
 
   function selectedExpirySeconds(){
     const values={"5 Seconds":5,"1 Minute":60,"3 Minutes":180,"5 Minutes":300,"15 Minutes":900,"30 Minutes":1800,"1 Hour":3600,"4 Hours":14400,"1 Day":86400};
-    // Read the visible selector first so the chart countdown matches the trade control.
-    const visible=String(document.getElementById("timeBtn")?.textContent||"").trim().replace(/\\s+/g," ");
+    // Strip the dropdown chevron before mapping the exact visible selection.
+    const visible=String(document.getElementById("timeBtn")?.textContent||"")
+      .replace(/[▾▼]/g,"").trim().replace(/\s+/g," ");
     if(values[visible])return values[visible];
-    try{const saved=localStorage.getItem("gotradex_trade_expiration");if(values[saved])return values[saved]}catch(_){}
-    const m=visible.match(/(\\d+)\\s*(Seconds?|Minutes?|Hours?|Days?)/i);
-    if(m){const n=Number(m[1]),u=m[2].toLowerCase();return n*(u.startsWith("second")?1:u.startsWith("minute")?60:u.startsWith("hour")?3600:86400)}
-    return 5;
+    try{
+      const saved=String(localStorage.getItem("gotradex_trade_expiration")||"").trim();
+      if(values[saved])return values[saved];
+    }catch(_){}
+    const m=visible.match(/(\d+)\s*(Seconds?|Minutes?|Hours?|Days?)/i);
+    if(m){
+      const n=Number(m[1]),u=m[2].toLowerCase();
+      return n*(u.startsWith("second")?1:u.startsWith("minute")?60:u.startsWith("hour")?3600:86400);
+    }
+    return 300;
   }
   function selectedAssetFlag(){
     const label=String(state.assetLabel||state.symbol||"BTC/USD").replace(/\s+OTC$/i,"").trim();
@@ -894,7 +901,7 @@
     }
     layer.replaceChildren();
     const plotRight=Math.max(20,layer.clientWidth-70);
-    expiryTrades.filter(t=>!t.completed||now-(t.completedAt||now)<3000).forEach(t=>{
+    expiryTrades.forEach(t=>{
       let y=null;
       if(Number.isFinite(Number(t.entryPrice))&&Number(t.entryPrice)>0){
         try{y=state.candleSeries&&state.candleSeries.priceToCoordinate(Number(t.entryPrice));}catch(_){}
@@ -922,7 +929,7 @@
       tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+tagLeft+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";tag.appendChild(ab);}
       const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;tag.appendChild(label);
-      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.completed?0:Math.max(0,t.expiryAt-now));tag.appendChild(countdown);
+      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));tag.appendChild(countdown);
       layer.appendChild(tag);
     });
     // No separate centered result overlay: the countdown page stays at the line's right end.
