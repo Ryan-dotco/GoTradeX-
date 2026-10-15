@@ -204,6 +204,38 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
 
 <link rel="stylesheet" href="style.css?v=20261014main1">
 <link rel="stylesheet" href="security-portal.css?v=20261014main1">
+
+<style id="gtx-autobot-account-polish">
+/* Appearance-only refinement scoped to the AutoBot Account drawer. */
+#userAutoBotDrawer .panel{box-sizing:border-box;width:min(100%,520px);padding:18px 16px 22px;overflow-x:hidden}
+#userAutoBotDrawer h2{margin:8px 0 16px;font-size:21px;line-height:1.25;letter-spacing:.1px}
+#userAutoBotDrawer .userAutoBotCard{box-sizing:border-box;padding:16px;margin:0 0 12px;border-radius:15px;background:linear-gradient(155deg,#0c2746 0%,#091b31 100%);border:1px solid #25486d;box-shadow:0 8px 22px rgba(0,0,0,.14)}
+#userAutoBotDrawer .userAutoBotStatus{min-width:0;flex-wrap:wrap;row-gap:8px;padding-bottom:13px;border-bottom:1px solid rgba(137,169,203,.18)}
+#userAutoBotDrawer .userAutoBotStatus>div{display:flex;align-items:center;min-width:0}
+#userAutoBotDrawer .userAutoBotStatus strong{font-size:13px;line-height:1.35;letter-spacing:.35px}
+#userAutoBotDrawer #userAutoBotUpdated{font-size:10px;line-height:1.4}
+#userAutoBotDrawer .userAutoBotDot{flex:0 0 8px;width:8px;height:8px;margin-right:8px;box-shadow:0 0 0 4px rgba(54,194,117,.12)}
+#userAutoBotDrawer .userAutoBotGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}
+#userAutoBotDrawer .userAutoBotStat{box-sizing:border-box;min-width:0;min-height:79px;padding:12px;border-radius:11px;background:rgba(16,41,69,.86);border-color:#2a4b6d}
+#userAutoBotDrawer .userAutoBotStat span{font-size:10px;line-height:1.35;letter-spacing:.1px}
+#userAutoBotDrawer .userAutoBotStat strong{overflow-wrap:anywhere;font-size:clamp(15px,4vw,19px);line-height:1.25;font-variant-numeric:tabular-nums;margin-top:7px}
+#userAutoBotDrawer .userAutoBotActions{gap:10px;margin-top:13px}
+#userAutoBotDrawer .userAutoBotAction{box-sizing:border-box;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #315477;border-radius:10px;font-size:12px;line-height:1.3;white-space:normal}
+#userAutoBotDrawer .userAutoBotAction.primary{border-color:#247bd0;background:linear-gradient(135deg,#2186e8,#176fca);box-shadow:0 4px 12px rgba(23,111,202,.2)}
+#userAutoBotDrawer .userAutoBotNotice{box-sizing:border-box;margin-top:12px;padding:13px;border:1px solid #294766;border-radius:12px;background:#0a2038;font-size:11px;line-height:1.6}
+#userAutoBotDrawer .userAutoBotNote{margin-top:12px;padding:0 2px;font-size:10px;line-height:1.65}
+#userAutoBotDrawer #userAutoBotMessage{min-height:18px;margin-top:10px;line-height:1.45;overflow-wrap:anywhere}
+#userAutoBotDrawer .userAutoBotAction:focus-visible{outline:2px solid #8bc5ff;outline-offset:3px}
+@media(max-width:380px){
+ #userAutoBotDrawer .panel{padding:15px 12px 20px}
+ #userAutoBotDrawer .userAutoBotCard{padding:12px}
+ #userAutoBotDrawer .userAutoBotGrid{gap:7px}
+ #userAutoBotDrawer .userAutoBotStat{padding:10px;min-height:73px}
+ #userAutoBotDrawer .userAutoBotActions{gap:7px}
+ #userAutoBotDrawer .userAutoBotAction{padding:9px 7px;font-size:11px}
+}
+</style>
+
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
