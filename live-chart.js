@@ -830,7 +830,18 @@
     completed.forEach(raw=>{
       const id=String(raw&& (raw.id||raw.trade_id||raw.tradeId)||"");
       const trade=expiryTrades.find(t=>t.serverId===id||t.id===id);
-      if(trade){trade.raw=raw;if(!trade.completed){trade.completed=true;trade.completedAt=Date.now();}addResultCard(trade,Date.now());}
+      if(!trade)return;
+      const terminal=String(raw.result||raw.status||raw.outcome||"").toUpperCase();
+      const hasCloseTime=!!(raw.closed_at||raw.closedAt||raw.completed_at||raw.completedAt||raw.settled_at||raw.settledAt);
+      // Some sync responses include recent/open rows together. Never end the marker
+      // just because a row appeared in recent/history: require a terminal status
+      // and an actual close timestamp or the expected expiration time.
+      if(!["WIN","WON","LOSS","LOST","DRAW","TIE","EXPIRED","CLOSED","COMPLETED","SETTLED"].includes(terminal))return;
+      const finishedAt=parseTimestamp(raw.closed_at||raw.closedAt||raw.completed_at||raw.completedAt||raw.settled_at||raw.settledAt,Date.now());
+      if(Date.now()<trade.expiryAt&&!hasCloseTime)return;
+      trade.raw=raw;
+      if(!trade.completed){trade.completed=true;trade.completedAt=Math.max(finishedAt,trade.entryAt);}
+      addResultCard(trade,trade.completedAt);
     });
     renderExpiryMarkers();
   }
@@ -886,7 +897,8 @@
     const now=Date.now();
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
-      if(now>=t.expiryAt&&!t.completed){t.completed=true;t.completedAt=now;addResultCard(t,now);}
+      // Reaching zero only stops the countdown; it does not remove the marker.
+      // Keep the entry line visible until the server confirms the trade is finished.
       if(t.completed&&now-(t.completedAt||now)>=3000)expiryTrades.splice(i,1);
     }
     for(let i=resultCards.length-1;i>=0;i--)if(now>=resultCards[i].removeAt)resultCards.splice(i,1);
@@ -920,7 +932,7 @@
       tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+Math.max(2,Math.min(plotRight-140,x2-160))+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
       if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";tag.appendChild(ab);}
       const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;tag.appendChild(label);
-      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.completed?0:t.expiryAt-now);tag.appendChild(countdown);
+      const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.completed?0:Math.max(0,t.expiryAt-now));tag.appendChild(countdown);
       layer.appendChild(tag);
     });
     resultCards.filter(card=>now>=card.showAt&&now<card.removeAt).forEach(card=>renderResultCard(layer,card));
