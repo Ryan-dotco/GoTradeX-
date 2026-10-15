@@ -854,10 +854,32 @@
     const days=Math.floor(hours/24);
     return days+"d "+String(hours%24).padStart(2,"0")+":"+String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0");
   }
-  // Profit/result badges are intentionally disabled while the chart marker system is being reset.
-  // The chat/chart stays clean; no static or repeating profit badge is created.
-  function addResultCard(trade,now){return;}
-  function renderResultCard(layer,card){return;}
+  // Result is deliberately delayed until the entry marker has been visible for 3 seconds
+  // after expiry. The result card then remains for 5 seconds and removes itself.
+  function addResultCard(trade,now){
+    if(!trade||trade.resultCardQueued)return;
+    trade.resultCardQueued=true;
+    const raw=trade.raw||{};
+    const valueCandidates=[raw.profit,raw.net_profit,raw.pnl,raw.profit_loss,raw.profit_amount,raw.return_amount];
+    let amount=null;
+    for(const v of valueCandidates){const n=Number(v);if(v!==null&&v!==undefined&&v!==""&&Number.isFinite(n)){amount=n;break;}}
+    const status=String(raw.result||raw.status||raw.outcome||"").toUpperCase();
+    const card={id:"gtx-result-"+trade.id,trade,amount,status,showAt:(trade.completedAt||now)+3000,removeAt:(trade.completedAt||now)+8000};
+    resultCards.push(card);
+  }
+  function renderResultCard(layer,card){
+    const el=document.createElement("div");
+    el.className="gtxTradeResultCard";
+    el.style.cssText="position:absolute;z-index:8;left:50%;top:50%;transform:translate(-50%,-50%);min-width:150px;max-width:calc(100% - 24px);padding:14px 18px;border-radius:12px;background:#0b2038;border:1px solid #2b5279;color:#fff;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.38);font:800 13px/1.4 system-ui";
+    const title=document.createElement("div");title.textContent="TRADE RESULT";title.style.cssText="font-size:10px;letter-spacing:.12em;color:#9eb9d6;margin-bottom:5px";
+    const asset=document.createElement("div");asset.textContent=(card.trade.asset?.label||"ASSET");asset.style.cssText="font-size:12px;margin-bottom:6px";
+    const amount=document.createElement("div");
+    const n=card.amount;
+    amount.textContent=n===null?"Trade finished":(n>0?"+":"")+(Number.isFinite(n)?n.toFixed(2):"");
+    amount.style.cssText="font-size:22px;color:"+(n===null?"#fff":n>0?"#22c58b":n<0?"#f16b70":"#fff");
+    const status=document.createElement("div");status.textContent=card.status&&card.status!=="OPEN"?card.status:"EXPIRED";status.style.cssText="font-size:10px;color:#9eb9d6;margin-top:4px";
+    el.append(title,asset,amount,status);layer.appendChild(el);
+  }
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
@@ -896,8 +918,8 @@
       const tag=document.createElement("div");
       tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
       tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);top:"+y+"px;left:"+Math.max(2,Math.min(plotRight-140,x2-160))+"px;padding:4px 6px;border-radius:5px;color:#fff;background:"+(t.side==="SELL"?"#b72d43":"#087d5b")+";border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)";
-      if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";tag.appendChild(ab);}
-      const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label+" "+t.side;tag.appendChild(label);
+      if(t.source==="AB"){const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";tag.appendChild(ab);}
+      const label=document.createElement("span");label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;tag.appendChild(label);
       const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.textContent=formatRemaining(t.completed?0:t.expiryAt-now);tag.appendChild(countdown);
       layer.appendChild(tag);
     });
