@@ -79,10 +79,10 @@
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
       "#gtxLWCExpiryLayer{position:absolute;inset:0;z-index:10;overflow:hidden;pointer-events:none}"+
-      ".gtxExpirySolid{position:absolute;top:24px;bottom:28px;width:4px;background:#ffd400;transform:translateX(-50%);box-shadow:0 0 2px #ffd400;pointer-events:none}"+
-      ".gtxExpiryTarget{position:absolute;top:0;bottom:28px;width:0;border-left:3px dotted #ffd400;pointer-events:none}"+
-      ".gtxExpiryFlag{position:absolute;top:4px;min-height:20px;display:flex;align-items:center;gap:4px;padding:3px 6px 3px 5px;background:#ffd400;color:#101820;border:1px solid #fff0a6;border-radius:0 4px 4px 0;font:900 10px/1 system-ui;white-space:nowrap;box-shadow:0 1px 4px #0009;pointer-events:none}"+
-      ".gtxExpiryFlag.preview{background:#facc15;color:#111827}"+
+      ".gtxExpirySolid{position:absolute;top:24px;bottom:28px;width:1px;background:#ffd400;transform:translateX(-50%);pointer-events:none}"+
+      ".gtxExpiryTarget{position:absolute;top:0;bottom:28px;width:0;border-left:1px dotted #ffd400;pointer-events:none}"+
+      ".gtxExpiryFlag{position:absolute;top:5px;transform:translateX(-50%);display:block;padding:0;margin:0;background:transparent;color:inherit;border:0;border-radius:0;box-shadow:none;font:14px/1 system-ui;white-space:nowrap;pointer-events:none}"+
+      ".gtxExpiryFlag.preview{background:transparent;border:0;box-shadow:none}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
       "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
@@ -719,18 +719,19 @@
     const all=expiryTrades.concat(expiryPreview?[expiryPreview]:[]);
     layer.replaceChildren();
     all.forEach(t=>{
-      const x=coordinateForTimestamp(t.entryAt);
+      // Thin solid marker follows the right edge of the currently forming chart candle.
+      // The dotted marker measures the selected expiration duration into the future.
+      const candleEdgeAt=bucket(Date.now(),Number(state.sec)||300)+((Number(state.sec)||300)*1000);
+      const x=coordinateForTimestamp(candleEdgeAt);
       const targetX=coordinateForTimestamp(t.expiryAt);
       if(x===null||x===undefined)return;
       const line=document.createElement("div");
       line.className="gtxExpirySolid";
-      line.style.left=(x+2)+"px";
+      line.style.left=x+"px";
       const flag=document.createElement("div");
       flag.className="gtxExpiryFlag"+(t.preview?" preview":"");
       flag.style.left=x+"px";
-      flag.textContent=(t.asset&&t.asset.flag?t.asset.flag+" ":"")+(t.asset&&t.asset.label?t.asset.label:"ASSET");
-      if(t.side)flag.textContent+=" · "+t.side;
-      if(t.preview)flag.textContent+=" · PREVIEW";
+      flag.textContent=t.asset&&t.asset.flag?t.asset.flag:"🏳️";
       line.style.display="block";
       layer.appendChild(line);
       layer.appendChild(flag);
