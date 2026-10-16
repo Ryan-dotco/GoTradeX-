@@ -47,7 +47,7 @@ create or replace function public.deriv_demo_bridge_db(p_action text, p_data jso
 returns jsonb
 language plpgsql
 security definer
-set search_path = public, private, pg_temp
+set search_path = ''
 as $function$
 declare
   r jsonb;
