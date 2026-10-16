@@ -75,3 +75,9 @@ Added (source only; not deployed):
 - The deployed function's existing private tables (`private.deriv_oauth_states_v2`, `private.deriv_connections_v2`, and other private connection tables) were reported by Supabase tooling as having RLS disabled. This is a separate high-priority exposure to review. I have not automatically altered those live tables because enabling RLS without a reviewed access plan can break existing service access.
 - Before deploying, review the draft against the current Deriv Options API schema and test callback, account-type rejection, duplicate idempotency keys, provider rejection, timeout-after-buy, and confirmed contract status in a demo account.
 - Runtime compilation/tests and actual demo-account verification are still pending. No production changes, paid services, or real-money orders were made.
+
+
+### Additional pre-deployment checks
+- The draft currently uses the existing Deriv OAuth client ID but a new redirect URI ending in `/functions/v1/deriv-demo-bridge`. Confirm that this exact URI is registered/allowed in the Deriv application before deployment. If not, OAuth will fail; do not deploy or alter the existing callback blindly.
+- The current deployed OAuth function remains untouched. Its old installation-ID connection records are not automatically migrated or trusted by the new bridge.
+- The function source was reviewed from GitHub after commit, but it has not been compiled with Deno or exercised against a provider WebSocket in this environment.
