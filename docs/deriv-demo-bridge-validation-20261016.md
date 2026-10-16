@@ -16,10 +16,10 @@ Scope: source review, official-documentation comparison, and local mocked guard 
 
 ## Findings / blockers
 
-1. **OAuth callback registration is not verified.** The draft uses `https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-demo-bridge`; the deployed function currently uses `https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-oauth`. Deriv requires the redirect URI to match a registered callback exactly. Do not deploy or change the existing OAuth callback until the new URI is confirmed in the Deriv application settings.
+1. **OAuth callback registration is now confirmed by the user's screenshot.** Both `https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-oauth` and `https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-demo-bridge` appear in the Deriv app's registered Redirect URLs. The new bridge is still not deployed.
 2. **Main app auth client is not exposed as one clear shared client.** The main `index.html` creates multiple Supabase clients in separate sections. The adapter now supports explicit client injection, but it is not wired into the app. Before wiring, select/reuse the actual signed-in GoTradeX client deliberately; do not assume an unrelated global is the correct session.
 3. **Migration and function are a coordinated pair.** The function calls `public.deriv_demo_bridge_db`, which only exists after the draft migration is applied. Neither has been applied/deployed. Do not deploy the function alone.
-4. **Provider execution remains unverified.** No Deriv demo OAuth session was available in this validation pass. The actual account response shape, active-symbol response shape, proposal response, buy response, and contract-status response still need a demo-account integration test.
+4. **Provider execution remains unverified.** No Deriv demo OAuth session was used in this pass. The official REST schema confirms account listing returns `data` as an array and account fields include `account_id`, `status` (`active`/`inactive`), and `account_type` (`demo`/`real`). The OTP response is documented as `data.url`. Proposal and buy are WebSocket operations, but their runtime response shapes, active-symbol compatibility, and contract-status response still need a demo-session integration test.
 5. **Expiry and recovery:** the draft stores refresh tokens but does not implement refresh; when the access token expires it asks the user to reconnect. Unknown outcomes after a buy submission remain locked against automatic retries, which is safer than risking duplicate contracts.
 6. **Runtime verification is incomplete.** This environment has not compiled the function with Deno or run it against Deriv's WebSocket. Source inspection is not a substitute for runtime testing.
 
@@ -32,7 +32,9 @@ Scope: source review, official-documentation comparison, and local mocked guard 
 - Orders require CALL/PUT, positive bounded stake, duration bounds, USD currency, and an idempotency key.
 - Duplicate keys are rejected. If a buy may have reached Deriv but the response is uncertain, the execution is recorded as UNKNOWN and is not automatically retried.
 - The bridge confirms only when Deriv returns a contract ID; this is not treated as a settled result or profit.
-- The migration draft enables RLS and revokes public/anon/authenticated access on its new private tables; the RPC is intended to be service-role-only.
+- Compared the one-shot `proposal_open_contract` request with Deriv's current schema: `subscribe` is optional and, if supplied, only `1` is allowed. Removed the unsupported `subscribe: 0` field and added a regression assertion.
+- The migration draft enables RLS and revokes public/anon/authenticated access on its new private tables; the RPC checks for the `service_role` claim and grants execute only to `service_role`.
+- Tightened the security-definer RPC to use an empty `search_path`, avoiding reliance on a mutable schema search path.
 
 ## Mock test results
 
@@ -62,9 +64,9 @@ These are mocked/unit checks, not proof of actual Supabase RPC behavior or provi
 
 ## Next safe sequence
 
-1. In the Deriv developer dashboard, confirm that this exact URI is registered for the OAuth client used by GoTradeX: `https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-demo-bridge`. If it is not registered, do not deploy or edit the existing callback; decide on the callback change deliberately.
-2. Add a mocked test harness for callback state, demo-only account rejection, invalid OTP URL rejection, duplicate idempotency keys, provider rejection, and timeout-after-buy.
-3. Review and apply the migration only after an explicit go-ahead and a coordinated deployment plan.
+1. Complete the full repository test suite and compile/type-check the Edge Function in a Deno-compatible environment; this has not been run in this pass.
+2. Review the migration diff, including the empty `search_path`, before any database action.
+3. Apply the migration only after an explicit go-ahead and a coordinated deployment plan.
 4. Deploy the function only after the migration exists and callback registration is confirmed.
 5. Test connect/status/accounts first with a Deriv demo account. Only after those pass, test a minimal demo contract and verify the provider's contract ID/status.
 6. Wire the adapter into the UI only after those checks pass and the correct existing Supabase auth client is identified.
