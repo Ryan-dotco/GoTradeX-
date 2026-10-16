@@ -70,6 +70,8 @@ test("production bridge source retains state consumption, unique reservation, an
   assert.match(source, /if\s*\(!reservation\.created\)/);
   assert.match(source, /status:\s*classifyUncertainExecution\(buySent\)/);
   assert.match(source, /locked against retry to prevent duplicate contracts/i);
+  assert.match(source, /proposal_open_contract:\s*1,\s*contract_id:\s*Number\(contractId\)\s*\}/);
+  assert.doesNotMatch(source, /proposal_open_contract:\s*1,\s*contract_id:\s*Number\(contractId\),\s*subscribe:\s*0/);
 });
 
 test("draft database migration locks down service-only RPC and uses an empty search_path", async () => {
