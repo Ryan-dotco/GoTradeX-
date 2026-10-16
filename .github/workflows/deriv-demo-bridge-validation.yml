@@ -1,0 +1,31 @@
+name: Deriv demo bridge validation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/functions/deriv-demo-bridge/**"
+      - "supabase/migrations/202610160001_deriv_demo_bridge_secure_binding.sql"
+      - "tests/**"
+      - ".github/workflows/deriv-demo-bridge-validation.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  edge-function-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Deriv demo bridge and local module graph
+        run: deno check supabase/functions/deriv-demo-bridge/index.ts
+  repository-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run repository Node test suite
+        run: node --test
