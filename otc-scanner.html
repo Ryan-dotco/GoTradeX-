@@ -17,13 +17,13 @@
 <label class="field" for="assetSelect">Asset shown in the screenshot</label><select id="assetSelect"><option>EUR/USD OTC</option><option>GBP/USD OTC</option><option>USD/JPY OTC</option><option>BTC/USDT</option><option>XRP/USDT</option><option>Other / not sure</option></select>
 <div class="actions"><button class="primary" id="analyzeBtn" disabled>Get the Signal</button><button id="clearBtn">Clear capture</button></div><div class="status" id="status" role="status">Ready. Upload a chart image or start the camera.</div>
 <div class="notice">This is a visual chart-assistance prototype. Screenshot colors and OCR cannot verify live market prices or guarantee a BUY/SELL outcome. Treat any estimate as unverified and do not use it as a live-trading instruction.</div></section>
-<aside class="card"><h2>Scan result</h2><div class="result"><div class="muted">VISUAL ESTIMATE</div><div id="signal" class="signal wait">WAIT</div><div id="reason" class="muted">Capture a chart, then run a scan.</div><div class="metrics"><div class="metric"><small>Asset</small><strong id="resultAsset">—</strong></div><div class="metric"><small>OCR text found</small><strong id="ocrCount">0 chars</strong></div><div class="metric"><small>Green pixels</small><strong id="greenPct">—</strong></div><div class="metric"><small>Red pixels</small><strong id="redPct">—</strong></div></div><div id="ocrText" class="muted" style="margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere"></div></div>
+<aside class="card"><h2>Scan result</h2><div class="result"><div class="muted">VISUAL ESTIMATE</div><div id="signal" class="signal wait">WAIT</div><div id="reason" class="muted">Capture a chart, then run a scan.</div><div class="metrics"><div class="metric"><small>Asset</small><strong id="resultAsset">—</strong></div><div class="metric"><small>Detected timeframe</small><strong id="resultTimeframe">Not detected</strong></div><div class="metric"><small>Visible trading time</small><strong id="resultTime">Not detected</strong></div><div class="metric"><small>Setup / pattern</small><strong id="resultSetup">Not confirmed</strong></div><div class="metric"><small>Visual evidence score</small><strong id="resultConfidence">—</strong></div><div class="metric"><small>Chart text read</small><strong id="ocrCount">0 chars</strong></div><div class="metric"><small>Green pixels</small><strong id="greenPct">—</strong></div><div class="metric"><small>Red pixels</small><strong id="redPct">—</strong></div></div><div style="margin-top:12px;border-top:1px solid #1e4263;padding-top:10px"><strong>Trade plan</strong><div class="metrics"><div class="metric"><small>Entry</small><strong id="resultEntry">Not reliably readable</strong></div><div class="metric"><small>Stop loss</small><strong id="resultStop">Not calculated</strong></div><div class="metric"><small>TP1</small><strong id="resultTP1">Not calculated</strong></div><div class="metric"><small>TP2</small><strong id="resultTP2">Not calculated</strong></div><div class="metric"><small>TP3</small><strong id="resultTP3">Not calculated</strong></div><div class="metric"><small>Expiry / interval</small><strong id="resultExpiry">Not detected</strong></div></div></div><div style="margin-top:12px"><strong>Why this result?</strong><div id="resultWhy" class="muted" style="margin-top:5px">Run a scan to see the evidence.</div></div><div id="ocrText" class="muted" style="margin-top:10px;white-space:pre-wrap;overflow-wrap:anywhere"></div></div>
 <h2 style="margin-top:16px">Recent scans on this device</h2><div id="history" class="history"><div class="muted">No scans recorded.</div></div><button id="clearHistory" class="wide" type="button">Clear scan history</button></aside>
 </div></div>
 <script>
 (function(){
 'use strict';
-const $=id=>document.getElementById(id);let stream=null,imageReady=false,scanCount=0;
+const $=id=>document.getElementById(id);let stream=null,imageReady=false;
 const historyKey='gtx_otc_scanner_history_v1';
 function setStatus(t){$('status').textContent=t}
 function setImage(src){$('chartImage').src=src;$('chartImage').classList.remove('hidden');$('camera').classList.add('hidden');$('emptyHint').classList.add('hidden');imageReady=true;$('analyzeBtn').disabled=false}
@@ -39,57 +39,19 @@ function colorCounts(img){const c=document.createElement('canvas'),w=240,h=Math.
 function getHistory(){try{return JSON.parse(localStorage.getItem(historyKey)||'[]')}catch(e){return []}}
 function renderHistory(){const items=getHistory();$('history').innerHTML=items.length?items.slice(0,12).map(x=>'<div class="history-item"><strong>'+escapeHtml(x.signal)+'</strong> · '+escapeHtml(x.asset)+'<br><span class="muted">'+escapeHtml(x.time)+' · visual estimate</span></div>').join(''):'<div class="muted">No scans recorded.</div>'}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function detectTimeframe(text){const t=String(text||'').toUpperCase();const m=t.match(/\\b(1\\s?S|5\\s?S|15\\s?S|30\\s?S|1\\s?M|2\\s?M|3\\s?M|5\\s?M|10\\s?M|15\\s?M|30\\s?M|1\\s?H|2\\s?H|4\\s?H|1\\s?D|1\\s?W)\\b/);return m?m[0].replace(/\\s/g,''):'Not detected'}
+function detectVisibleTime(text){const t=String(text||'');const m=t.match(/\\b(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?\\b/);if(m)return m[0];const d=t.match(/\\b\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}\\b/);return d?d[0]:'Not detected'}
+function setReport(id,value){const n=$(id);if(n)n.textContent=value}
+function makeAnalysis(ocr,cc){const diff=cc.green-cc.red,mag=Math.abs(diff),timeframe=detectTimeframe(ocr),visibleTime=detectVisibleTime(ocr);let signal='WAIT',setup='No confirmed pattern',confidence=0,why=[];if(mag>=0.65){signal=diff>0?'BUY':'SELL';confidence=Math.min(68,Math.round(50+mag*4));setup='Visual candle-color pressure (pattern unconfirmed)';why.push('The sampled screenshot contains '+(diff>0?'more green than red':'more red than green')+' pixels.');why.push('This is color evidence only; it does not prove a reversal, breakout, or continuation.')}else{why.push('Green/red color difference is too small for a directional estimate, so the result remains WAIT.')}if(timeframe==='Not detected')why.push('The timeframe label was not confidently read from the screenshot.');else why.push('OCR found a timeframe-like label: '+timeframe+'; verify it against the chart header.');if(visibleTime==='Not detected')why.push('No clear clock/date label was recognized.');else why.push('OCR recognized a possible visible time/date: '+visibleTime+'; confirm it visually.');why.push('A named setup such as Double Bottom is not assigned unless its structure can be reliably verified.');return{signal,setup,confidence,timeframe,visibleTime,why:why.join(' '),diff}}
 $('analyzeBtn').addEventListener('click',async()=>{
  if(!imageReady){setStatus('Please capture or upload a chart image first.');return}
- const img=$('chartImage');
- if(!img.complete||!img.naturalWidth){setStatus('Image is still loading. Please try again.');return}
- $('analyzeBtn').disabled=true;
- setStatus('Scanning image…');
- let ocr='',cc={green:0,red:0},signal='WAIT';
- try {
-   cc=colorCounts(img);
-   $('greenPct').textContent=cc.green.toFixed(1)+'%';
-   $('redPct').textContent=cc.red.toFixed(1)+'%';
-   $('resultAsset').textContent=$('assetSelect').value;
-   if(window.Tesseract&&typeof Tesseract.recognize==='function'){
-     setStatus('Reading chart text (visual scan will still finish if OCR is slow)…');
-     try {
-       const result=await Promise.race([
-         Tesseract.recognize(img.src,'eng'),
-         new Promise((_,reject)=>setTimeout(()=>reject(new Error('OCR timed out')),5000))
-       ]);
-       ocr=(result&&result.data&&result.data.text||'').trim();
-     } catch(ocrError) {
-       ocr='';
-     }
-   }
-   $('ocrCount').textContent=ocr.length+' chars';
-   $('ocrText').textContent=ocr?('Recognized text:\n'+ocr.slice(0,900)):'No readable text detected. The visual scan can still return WAIT.';
-   const diff=cc.green-cc.red;
-   let reason='The image did not show a clear color difference. WAIT means no directional estimate was produced.';
-   if(Math.abs(diff)>=0.65){
-     signal=diff>0?'BUY':'SELL';
-     reason='More '+(diff>0?'green':'red')+' pixels were detected in the screenshot. This is a crude color estimate, not market analysis.';
-   } else if(ocr.length>12) {
-     reason='Chart text was detected, but the visual color evidence is mixed. No directional estimate assigned.';
-   }
-   $('signal').textContent=signal;
-   $('signal').className='signal '+(signal==='BUY'?'buy':signal==='SELL'?'sell':'wait');
-   $('reason').textContent=reason;
-   const item={signal,asset:$('assetSelect').value,time:new Date().toLocaleString(),green:cc.green,red:cc.red};
-   try { const list=getHistory();list.unshift(item);localStorage.setItem(historyKey,JSON.stringify(list.slice(0,50)));renderHistory(); }
-   catch(storageError) { setStatus('Scan complete, but device history could not be saved.'); }
-   if(!/history could not be saved/.test($('status').textContent))setStatus('Scan complete. Displayed result is an unverified visual estimate.');
- } catch(error) {
-   $('signal').textContent='WAIT';
-   $('signal').className='signal wait';
-   $('reason').textContent='The image could not be analyzed. Please upload a clear chart screenshot and try again.';
-   $('ocrCount').textContent='0 chars';
-   $('ocrText').textContent='';
-   setStatus('Scan failed safely: '+(error&&error.message?error.message:'unknown image-processing error')+'. Try another screenshot.');
- } finally {
-   $('analyzeBtn').disabled=false;
- }
+ const img=$('chartImage');if(!img.complete||!img.naturalWidth){setStatus('Image is still loading. Please try again.');return}
+ $('analyzeBtn').disabled=true;setStatus('Scanning chart area and reading visible labels…');let ocr='',cc={green:0,red:0};
+ try{cc=colorCounts(img);setReport('greenPct',cc.green.toFixed(1)+'%');setReport('redPct',cc.red.toFixed(1)+'%');setReport('resultAsset',$('assetSelect').value);
+ if(window.Tesseract&&typeof Tesseract.recognize==='function'){setStatus('Reading timeframe and time labels (maximum 5 seconds)…');try{const result=await Promise.race([Tesseract.recognize(img.src,'eng'),new Promise((_,reject)=>setTimeout(()=>reject(new Error('OCR timed out')),5000))]);ocr=(result&&result.data&&result.data.text||'').trim()}catch(ocrError){ocr=''}}
+ setReport('ocrCount',ocr.length+' chars');setReport('ocrText',ocr?('Recognized chart text (check manually):\\n'+ocr.slice(0,1200)):'No readable chart text detected.');const a=makeAnalysis(ocr,cc);setReport('resultTimeframe',a.timeframe);setReport('resultTime',a.visibleTime);setReport('resultSetup',a.setup);setReport('resultConfidence',a.confidence?a.confidence+'/100 visual score':'Not scored');setReport('resultExpiry',a.timeframe==='Not detected'?'Not detected':a.timeframe+' chart interval');setReport('resultWhy',a.why);setReport('resultEntry','Not reliably readable');setReport('resultStop','Not calculated');setReport('resultTP1','Not calculated');setReport('resultTP2','Not calculated');setReport('resultTP3','Not calculated');$('signal').textContent=a.signal;$('signal').className='signal '+(a.signal==='BUY'?'buy':a.signal==='SELL'?'sell':'wait');$('reason').textContent=a.signal==='WAIT'?'No reliable direction could be established from this screenshot.':'Preliminary '+a.signal+' visual estimate only; confirm with actual candles and market data.';
+ const item={signal:a.signal,asset:$('assetSelect').value,time:new Date().toLocaleString(),green:cc.green,red:cc.red,timeframe:a.timeframe,setup:a.setup};try{const list=getHistory();list.unshift(item);localStorage.setItem(historyKey,JSON.stringify(list.slice(0,50)));renderHistory()}catch(storageError){}setStatus('Analysis complete. Read the reasoning and verify all labels; this is not a validated trading signal.');
+ }catch(error){$('signal').textContent='WAIT';$('signal').className='signal wait';$('reason').textContent='The image could not be analyzed. Please upload a clear chart screenshot and try again.';setStatus('Scan failed safely: '+(error&&error.message?error.message:'unknown image-processing error')+'. Try another screenshot.')}finally{$('analyzeBtn').disabled=false}
 });
 $('clearHistory').addEventListener('click',()=>{localStorage.removeItem(historyKey);renderHistory();setStatus('Local scan history cleared.')});renderHistory();
 })();
