@@ -81,3 +81,12 @@ Added (source only; not deployed):
 - The draft currently uses the existing Deriv OAuth client ID but a new redirect URI ending in `/functions/v1/deriv-demo-bridge`. Confirm that this exact URI is registered/allowed in the Deriv application before deployment. If not, OAuth will fail; do not deploy or alter the existing callback blindly.
 - The current deployed OAuth function remains untouched. Its old installation-ID connection records are not automatically migrated or trusted by the new bridge.
 - The function source was reviewed from GitHub after commit, but it has not been compiled with Deno or exercised against a provider WebSocket in this environment.
+
+
+## App connection adapter
+
+Added `deriv-demo-connection.js` as an isolated browser adapter exposing connect, status, accounts, disconnect, and demo-order methods. It requires an authenticated Supabase session and does not use an installation ID as identity. It is not included in `index.html` yet, so the existing UI remains unchanged. The bridge and migration remain source-only and are not deployed.
+
+## Existing connector notes
+
+The deployed `deriv-oauth` and `ctrader-oauth` still use installation IDs for connection lookups. The main page has a separate Bybit LIVE auth flow. Keep it separate from demo trading. No UI was changed and no provider order was submitted.
