@@ -23,3 +23,49 @@ function mount(){
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});else mount();
 })();
+
+// GoTradeX OTC AI Analyzer portal integration.
+// Isolated overlay: preserves the existing dashboard and its trading/chart controls.
+(function(){
+  const analyzerUrl="https://raw.githack.com/Ryan-dotco/GoTradeX-/main/otc-ai-scanner-test/index.html";
+  function installOtcAiPortal(){
+    const nav=document.querySelector(".gtxNavColumn");
+    if(nav && !nav.querySelector('[data-section="OTC AI Scanner Pro"]')){
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="option menuItem";
+      button.dataset.section="OTC AI Scanner Pro";
+      button.innerHTML='OTC AI Scanner Pro <span>›</span>';
+      const about=nav.querySelector('[data-section="About"]');
+      nav.insertBefore(button,about||nav.querySelector("#adminPortalMenuItem")||null);
+    }
+    if(!document.getElementById("gtxOtcAiOverlay")){
+      const overlay=document.createElement("div");
+      overlay.id="gtxOtcAiOverlay";
+      overlay.setAttribute("role","dialog");
+      overlay.setAttribute("aria-label","OTC AI Scanner Pro");
+      overlay.style.cssText="position:fixed;inset:0;z-index:2147483005;background:#020a1d;display:none;flex-direction:column";
+      overlay.innerHTML='<div style="height:48px;flex:0 0 48px;display:flex;align-items:center;gap:12px;padding:0 12px;background:#081b33;border-bottom:1px solid #23466d;color:#fff"><button id="gtxOtcAiBack" type="button" style="background:#163554;color:#fff;border:1px solid #315477;border-radius:8px;padding:7px 12px;font-weight:800">‹ Back to GoTradeX</button><strong style="font-size:13px">OTC AI Scanner Pro</strong></div><iframe title="GoTradeX OTC AI Scanner Pro" src="'+analyzerUrl+'" style="display:block;flex:1;width:100%;height:calc(100% - 48px);border:0;background:#020a1d" allow="camera; clipboard-read; clipboard-write"></iframe>';
+      document.body.appendChild(overlay);
+      const close=()=>{overlay.style.display="none";document.body.style.overflow="";};
+      overlay.querySelector("#gtxOtcAiBack").addEventListener("click",close);
+      document.addEventListener("keydown",e=>{if(e.key==="Escape"&&overlay.style.display!=="none")close();});
+    }
+  }
+  function openOtcAiPortal(){
+    installOtcAiPortal();
+    const overlay=document.getElementById("gtxOtcAiOverlay");
+    const menu=document.getElementById("menuDrawer");
+    if(menu)menu.classList.remove("open");
+    if(overlay){overlay.style.display="flex";document.body.style.overflow="hidden";}
+  }
+  document.addEventListener("click",function(e){
+    const b=e.target.closest('.menuItem[data-section="OTC AI Scanner Pro"]');
+    if(!b)return;
+    e.preventDefault();e.stopPropagation();
+    if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+    openOtcAiPortal();
+  },true);
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installOtcAiPortal,{once:true});
+  else installOtcAiPortal();
+})();
