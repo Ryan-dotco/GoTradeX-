@@ -1,26 +1,38 @@
 /* GoTradeX Deriv demo connection client.
  * Isolated test-branch adapter. Does not add UI or connect until explicitly called.
  * Requires an authenticated Supabase session and deployed deriv-demo-bridge function.
+ *
+ * Integration note: call configureSupabaseClient() with GoTradeX's existing authenticated
+ * Supabase client before using this adapter. The fallback client is for isolated testing
+ * only and should not be wired into the main app without an explicit auth-client decision.
  */
 (function (root) {
   "use strict";
   const SUPABASE_URL = "https://glffecggusetzklmyukv.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
   const ENDPOINT = SUPABASE_URL + "/functions/v1/deriv-demo-bridge";
-  let clientPromise = null;
+  let injectedClient = null;
+  let fallbackClientPromise = null;
 
   function client() {
-    if (!root.supabase || typeof root.supabase.createClient !== "function") {
-      throw new Error("Supabase client is unavailable.");
+    if (injectedClient && injectedClient.auth && typeof injectedClient.auth.getSession === "function") {
+      return Promise.resolve(injectedClient);
     }
-    if (!clientPromise) {
-      clientPromise = Promise.resolve(root.supabase.createClient(
+    const existing = root.GoTradeXDerivSupabaseClient || root.GoTradeXSupabaseClient || root.supabaseClient;
+    if (existing && existing.auth && typeof existing.auth.getSession === "function") {
+      return Promise.resolve(existing);
+    }
+    if (!root.supabase || typeof root.supabase.createClient !== "function") {
+      throw new Error("Supabase client is unavailable. Supply GoTradeX's authenticated client first.");
+    }
+    if (!fallbackClientPromise) {
+      fallbackClientPromise = Promise.resolve(root.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_PUBLISHABLE_KEY,
         { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
       ));
     }
-    return clientPromise;
+    return fallbackClientPromise;
   }
 
   async function sessionToken() {
@@ -56,6 +68,13 @@
   }
 
   const api = Object.freeze({
+    configureSupabaseClient(sb) {
+      if (!sb || !sb.auth || typeof sb.auth.getSession !== "function") {
+        throw new Error("Pass a valid authenticated Supabase client.");
+      }
+      injectedClient = sb;
+      return true;
+    },
     async connect() {
       const data = await request("start", "GET");
       if (!data.authorization_url) throw new Error("Deriv did not return an authorization URL.");
