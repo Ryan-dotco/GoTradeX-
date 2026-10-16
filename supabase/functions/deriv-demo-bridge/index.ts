@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { safeWsUrl, isAllowedDemoAccount, classifyUncertainExecution } from "./demo-bridge-guards.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -57,22 +58,6 @@ function asAccounts(payload: any): any[] {
   if (Array.isArray(payload?.data?.accounts)) return payload.data.accounts;
   if (Array.isArray(payload?.accounts)) return payload.accounts;
   return [];
-}
-function safeWsUrl(value: unknown) {
-  try {
-    const u = new URL(String(value || ""));
-    // Deriv's official OTP response includes ?otp=... on this exact demo endpoint.
-    // Reject credentials, custom ports, fragments, extra query parameters, and real/public paths.
-    const queryKeys = Array.from(u.searchParams.keys());
-    const validOtp = u.searchParams.get("otp");
-    return u.protocol === "wss:" &&
-      u.hostname === "api.derivws.com" &&
-      !u.username && !u.password && !u.port && !u.hash &&
-      u.pathname === "/trading/v1/options/ws/demo" &&
-      queryKeys.length === 1 && queryKeys[0] === "otp" &&
-      !!validOtp && validOtp.length >= 1
-      ? u.toString() : "";
-  } catch { return ""; }
 }
 async function wsRequest(ws: WebSocket, payload: Record<string, unknown>, reqId: number, timeoutMs = 12000): Promise<any> {
   return await new Promise((resolve, reject) => {
@@ -196,7 +181,7 @@ Deno.serve(async (req: Request) => {
         return json({ error: "Invalid demo order. Use CALL/PUT, USD stake, duration 5–86400 seconds, and a unique idempotency key." }, 400);
       }
       const account = accounts.find(a => String(a.account_id) === accountId);
-      if (!account || String(account.account_type).toLowerCase() !== "demo" || String(account.status || "active").toLowerCase() !== "active") {
+      if (!isAllowedDemoAccount(account, accountId)) {
         return json({ error: "Only an active Deriv demo account belonging to this OAuth user is permitted." }, 403);
       }
       const reservation = await db("reserve_execution", {
@@ -270,12 +255,12 @@ Deno.serve(async (req: Request) => {
       } catch (e) {
         await db("update_execution", {
           id: reservation.id, user_id: user.id,
-          status: buySent ? "UNKNOWN" : "REJECTED",
+          status: classifyUncertainExecution(buySent),
           details: { reason: e instanceof Error ? e.message : "execution_error" }
         });
         return json({
           error: buySent ? "Execution outcome is uncertain. The request is locked against retry to prevent duplicate contracts." : (e instanceof Error ? e.message : "Deriv demo request failed."),
-          execution_id: reservation.id, execution_status: buySent ? "UNKNOWN" : "REJECTED"
+          execution_id: reservation.id, execution_status: classifyUncertainExecution(buySent)
         }, buySent ? 202 : 502);
       } finally {
         try { ws?.close(); } catch { /* no-op */ }
