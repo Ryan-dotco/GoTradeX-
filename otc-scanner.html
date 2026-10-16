@@ -39,7 +39,58 @@ function colorCounts(img){const c=document.createElement('canvas'),w=240,h=Math.
 function getHistory(){try{return JSON.parse(localStorage.getItem(historyKey)||'[]')}catch(e){return []}}
 function renderHistory(){const items=getHistory();$('history').innerHTML=items.length?items.slice(0,12).map(x=>'<div class="history-item"><strong>'+escapeHtml(x.signal)+'</strong> · '+escapeHtml(x.asset)+'<br><span class="muted">'+escapeHtml(x.time)+' · visual estimate</span></div>').join(''):'<div class="muted">No scans recorded.</div>'}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-$('analyzeBtn').addEventListener('click',async()=>{if(!imageReady)return;const img=$('chartImage');if(!img.complete||!img.naturalWidth){setStatus('Image is still loading.');return}$('analyzeBtn').disabled=true;setStatus('Scanning image and reading visible chart text…');let ocr='';try{if(window.Tesseract&&Tesseract.recognize){const res=await Tesseract.recognize(img.src,'eng');ocr=(res.data&&res.data.text||'').trim()}else{setStatus('OCR library is unavailable; running visual-only scan…')}}catch(e){ocr='';}const cc=colorCounts(img);$('ocrCount').textContent=ocr.length+' chars';$('greenPct').textContent=cc.green.toFixed(1)+'%';$('redPct').textContent=cc.red.toFixed(1)+'%';$('resultAsset').textContent=$('assetSelect').value;$('ocrText').textContent=ocr?('Recognized text:\n'+ocr.slice(0,900)):'No readable text detected. Try a clearer screenshot.';let signal='WAIT',reason='The image does not provide a clear enough visual difference for a directional estimate.';const diff=cc.green-cc.red;if(Math.abs(diff)>=0.65){signal=diff>0?'BUY':'SELL';reason='The screenshot contains more '+(diff>0?'green':'red')+' pixels than the opposite color. This is only a crude image-color heuristic, not market analysis.'}else if(ocr.length>12){reason='Text was recognized, but color evidence is mixed. No directional estimate assigned.'}$('signal').textContent=signal;$('signal').className='signal '+(signal==='BUY'?'buy':signal==='SELL'?'sell':'wait');$('reason').textContent=reason;const item={signal,asset:$('assetSelect').value,time:new Date().toLocaleString(),green:cc.green,red:cc.red};const list=getHistory();list.unshift(item);localStorage.setItem(historyKey,JSON.stringify(list.slice(0,50)));scanCount++;renderHistory();setStatus('Scan complete. Result is an unverified visual estimate.');$('analyzeBtn').disabled=false});
+$('analyzeBtn').addEventListener('click',async()=>{
+ if(!imageReady){setStatus('Please capture or upload a chart image first.');return}
+ const img=$('chartImage');
+ if(!img.complete||!img.naturalWidth){setStatus('Image is still loading. Please try again.');return}
+ $('analyzeBtn').disabled=true;
+ setStatus('Scanning image…');
+ let ocr='',cc={green:0,red:0},signal='WAIT';
+ try {
+   cc=colorCounts(img);
+   $('greenPct').textContent=cc.green.toFixed(1)+'%';
+   $('redPct').textContent=cc.red.toFixed(1)+'%';
+   $('resultAsset').textContent=$('assetSelect').value;
+   if(window.Tesseract&&typeof Tesseract.recognize==='function'){
+     setStatus('Reading chart text (visual scan will still finish if OCR is slow)…');
+     try {
+       const result=await Promise.race([
+         Tesseract.recognize(img.src,'eng'),
+         new Promise((_,reject)=>setTimeout(()=>reject(new Error('OCR timed out')),5000))
+       ]);
+       ocr=(result&&result.data&&result.data.text||'').trim();
+     } catch(ocrError) {
+       ocr='';
+     }
+   }
+   $('ocrCount').textContent=ocr.length+' chars';
+   $('ocrText').textContent=ocr?('Recognized text:\n'+ocr.slice(0,900)):'No readable text detected. The visual scan can still return WAIT.';
+   const diff=cc.green-cc.red;
+   let reason='The image did not show a clear color difference. WAIT means no directional estimate was produced.';
+   if(Math.abs(diff)>=0.65){
+     signal=diff>0?'BUY':'SELL';
+     reason='More '+(diff>0?'green':'red')+' pixels were detected in the screenshot. This is a crude color estimate, not market analysis.';
+   } else if(ocr.length>12) {
+     reason='Chart text was detected, but the visual color evidence is mixed. No directional estimate assigned.';
+   }
+   $('signal').textContent=signal;
+   $('signal').className='signal '+(signal==='BUY'?'buy':signal==='SELL'?'sell':'wait');
+   $('reason').textContent=reason;
+   const item={signal,asset:$('assetSelect').value,time:new Date().toLocaleString(),green:cc.green,red:cc.red};
+   try { const list=getHistory();list.unshift(item);localStorage.setItem(historyKey,JSON.stringify(list.slice(0,50)));renderHistory(); }
+   catch(storageError) { setStatus('Scan complete, but device history could not be saved.'); }
+   if(!/history could not be saved/.test($('status').textContent))setStatus('Scan complete. Displayed result is an unverified visual estimate.');
+ } catch(error) {
+   $('signal').textContent='WAIT';
+   $('signal').className='signal wait';
+   $('reason').textContent='The image could not be analyzed. Please upload a clear chart screenshot and try again.';
+   $('ocrCount').textContent='0 chars';
+   $('ocrText').textContent='';
+   setStatus('Scan failed safely: '+(error&&error.message?error.message:'unknown image-processing error')+'. Try another screenshot.');
+ } finally {
+   $('analyzeBtn').disabled=false;
+ }
+});
 $('clearHistory').addEventListener('click',()=>{localStorage.removeItem(historyKey);renderHistory();setStatus('Local scan history cleared.')});renderHistory();
 })();
 </script></body></html>
