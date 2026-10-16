@@ -61,8 +61,17 @@ function asAccounts(payload: any): any[] {
 function safeWsUrl(value: unknown) {
   try {
     const u = new URL(String(value || ""));
-    return u.protocol === "wss:" && u.hostname === "api.derivws.com" &&
-      u.pathname === "/trading/v1/options/ws/demo" ? u.toString() : "";
+    // Deriv's official OTP response includes ?otp=... on this exact demo endpoint.
+    // Reject credentials, custom ports, fragments, extra query parameters, and real/public paths.
+    const queryKeys = Array.from(u.searchParams.keys());
+    const validOtp = u.searchParams.get("otp");
+    return u.protocol === "wss:" &&
+      u.hostname === "api.derivws.com" &&
+      !u.username && !u.password && !u.port && !u.hash &&
+      u.pathname === "/trading/v1/options/ws/demo" &&
+      queryKeys.length === 1 && queryKeys[0] === "otp" &&
+      !!validOtp && validOtp.length >= 1
+      ? u.toString() : "";
   } catch { return ""; }
 }
 async function wsRequest(ws: WebSocket, payload: Record<string, unknown>, reqId: number, timeoutMs = 12000): Promise<any> {
