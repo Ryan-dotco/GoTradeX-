@@ -25,6 +25,7 @@ test("only an active demo account matching the requested ID is allowed", () => {
   assert.equal(isAllowedDemoAccount(demo, "VRTC123"), true);
   assert.equal(isAllowedDemoAccount({ ...demo, account_type: "real" }, "VRTC123"), false);
   assert.equal(isAllowedDemoAccount({ ...demo, status: "disabled" }, "VRTC123"), false);
+  assert.equal(isAllowedDemoAccount({ account_id: "VRTC123", account_type: "demo" }, "VRTC123"), false, "missing status must not be assumed active");
   assert.equal(isAllowedDemoAccount(demo, "VRTC999"), false);
   assert.equal(isAllowedDemoAccount(null, "VRTC123"), false);
 });
