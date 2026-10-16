@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GoTradeX - All in One</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
+<script src="../market-data.js?v=20261016-scanner-feed-bridge"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Inter,Segoe UI,sans-serif}
 body{background:#020a1d;display:flex;justify-content:center;padding:12px}
@@ -180,18 +182,15 @@ let currentAsset=null,currentCandles=[],loadId=0,feedReady=false;
 const tfLabel=()=>({"60":"1m","300":"5m","900":"15m","1800":"30m","3600":"1h","14400":"4h","86400":"1d"})[tfSelect.value]||tfSelect.value;
 function showStatus(msg,kind){status.textContent=msg;status.className=kind||""}
 function timeframeForBybit(sec){return ({60:"1",180:"3",300:"5",900:"15",1800:"30",3600:"60",14400:"240",86400:"D"})[sec]}
-function loadBybit(symbol,sec){
- const interval=timeframeForBybit(sec);if(!interval)throw new Error("Unsupported Bybit timeframe");
- const url="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(symbol)+"&interval="+encodeURIComponent(interval)+"&limit=200";
- return fetch(url,{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error("Bybit HTTP "+r.status);const d=await r.json();if(d.retCode!==0||!Array.isArray(d.result&&d.result.list))throw new Error(d.retMsg||"No Bybit candles returned");return d.result.list.slice().reverse().map(k=>({time:Math.floor(Number(k[0])/1000),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])})).filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite))});
+async function loadBybit(symbol,sec){
+ const feeds=window.GoTradeXMarketFeeds;if(!feeds||typeof feeds.bybitHistory!=="function")throw new Error("GoTradeX Bybit feed registry is unavailable");
+ const rows=await feeds.bybitHistory(symbol,sec);
+ return (Array.isArray(rows)?rows:[]).map(c=>({time:Math.floor(Number(c.t)/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)})).filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite));
 }
-function loadDeriv(symbol,sec){
- return new Promise((resolve,reject)=>{let ws,done=false;const timer=setTimeout(()=>finish(new Error("Deriv history timed out")),12000);function finish(err,val){if(done)return;done=true;clearTimeout(timer);try{ws&&ws.close()}catch(_){}err?reject(err):resolve(val)}
- try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id=1089")}catch(e){finish(e);return}
- ws.onopen=()=>ws.send(JSON.stringify({ticks_history:symbol,adjust_start_time:1,count:200,end:"latest",granularity:sec,style:"candles"}));
- ws.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}if(d.error){finish(new Error(d.error.message||"Deriv rejected this symbol"));return}if(Array.isArray(d.candles)){const cs=d.candles.map(c=>({time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite));finish(null,cs)}};
- ws.onerror=()=>finish(new Error("Deriv public feed connection failed"));ws.onclose=()=>{if(!done)finish(new Error("Deriv connection closed before candles arrived"))};
- });
+async function loadDeriv(symbol,sec){
+ const feeds=window.GoTradeXMarketFeeds;if(!feeds||typeof feeds.derivCandleHistory!=="function")throw new Error("GoTradeX Deriv feed registry is unavailable");
+ const rows=await feeds.derivCandleHistory(symbol,sec);
+ return (Array.isArray(rows)?rows:[]).map(c=>({time:Math.floor(Number(c.t)/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)})).filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite));
 }
 function ema(values,period){if(values.length<period)return NaN;let v=values.slice(0,period).reduce((a,b)=>a+b,0)/period;const k=2/(period+1);for(let i=period;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){if(values.length<=period)return 50;let gain=0,loss=0;for(let i=values.length-period;i<values.length;i++){const d=values[i]-values[i-1];if(d>0)gain+=d;else loss-=d}if(loss===0)return 100;return 100-100/(1+gain/loss)}
