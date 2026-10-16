@@ -41,7 +41,14 @@ function openAdminScannerSection(){
 }
 function renderAdmin(){const enabled=localStorage.getItem('gtx_otc_scanner_enabled')!=='false';const state=document.getElementById('gtxScannerAdminState'),toggle=document.getElementById('gtxScannerToggle'),count=document.getElementById('gtxScannerAdminCount');if(state)state.textContent='Scanner menu: '+(enabled?'Enabled':'Disabled');if(toggle)toggle.textContent=enabled?'Disable trader entry':'Enable trader entry';if(count){let items=[];try{items=JSON.parse(localStorage.getItem('gtx_otc_scanner_history_v1')||'[]')}catch(e){}count.textContent=items.length+' scans recorded locally on this device.'}}
 function updateMenuVisibility(){const enabled=localStorage.getItem('gtx_otc_scanner_enabled')!=='false';const b=document.getElementById('gtxOtcScannerMenuEntry');if(b)b.style.display=enabled?'':'none'}
-function init(){insertDashboardEntry();insertAdminEntry();updateMenuVisibility();const admin=document.getElementById('adminPortalMenuItem');if(admin&&!admin.dataset.gtxScannerBound){admin.dataset.gtxScannerBound='1';admin.addEventListener('click',()=>setTimeout(insertAdminEntry,0))}}
+function syncScannerAssets(){
+ const buttons=Array.from(document.querySelectorAll('.searchableAsset'));const seen=new Set();const list=[];
+ buttons.forEach(b=>{const label=(b.querySelector('.gtxAssetName')?.textContent||b.textContent||'').trim().replace(/\\s+\\d+%$/,'');if(!label)return;const type=b.dataset.assetType||'';const key=label.toUpperCase()+'|'+type;if(seen.has(key))return;seen.add(key);list.push({label,type,base:label.replace(/\\s+OTC$/i,'')})});
+ if(list.length){try{localStorage.setItem('gtx_scanner_asset_catalog_v1',JSON.stringify(list));localStorage.setItem('gtx_scanner_asset_catalog_updated_v1',new Date().toISOString())}catch(_){} }
+ try{const pair=document.getElementById('bottomAssetPair')?.textContent?.trim();const mode=document.getElementById('bottomAssetMode')?.textContent?.trim();if(pair)localStorage.setItem('gotradex_asset_display',pair+(mode&&mode!=='LIVE'?' '+mode:''));if(mode)localStorage.setItem('gotradex_market_mode',mode)}catch(_){}
+}
+function init(){insertDashboardEntry();insertAdminEntry();updateMenuVisibility();syncScannerAssets();const admin=document.getElementById('adminPortalMenuItem');if(admin&&!admin.dataset.gtxScannerBound){admin.dataset.gtxScannerBound='1';admin.addEventListener('click',()=>setTimeout(insertAdminEntry,0))}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-new MutationObserver(()=>{insertDashboardEntry();insertAdminEntry();updateMenuVisibility()}).observe(document.documentElement,{childList:true,subtree:true});
+new MutationObserver(()=>{insertDashboardEntry();insertAdminEntry();updateMenuVisibility();syncScannerAssets()}).observe(document.documentElement,{childList:true,subtree:true});
+window.addEventListener('gotradex:asset-changed',syncScannerAssets);
 })();
