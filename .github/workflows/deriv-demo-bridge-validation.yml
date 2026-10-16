@@ -1,5 +1,7 @@
 name: Deriv demo bridge validation
 on:
+  push:
+    branches: [test/ai-otc-demo-execution-bridge-20261016]
   pull_request:
     branches: [main]
     paths:
