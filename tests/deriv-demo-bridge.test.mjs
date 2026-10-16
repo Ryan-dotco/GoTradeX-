@@ -71,3 +71,13 @@ test("production bridge source retains state consumption, unique reservation, an
   assert.match(source, /status:\s*classifyUncertainExecution\(buySent\)/);
   assert.match(source, /locked against retry to prevent duplicate contracts/i);
 });
+
+test("draft database migration locks down service-only RPC and uses an empty search_path", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/202610160001_deriv_demo_bridge_secure_binding.sql", import.meta.url), "utf8");
+  assert.match(migration, /set search_path = ''/i);
+  assert.match(migration, /jwt_role <> 'service_role'/);
+  assert.match(migration, /revoke all on function public\.deriv_demo_bridge_db\(text,jsonb\) from public, anon, authenticated/i);
+  assert.match(migration, /grant execute on function public\.deriv_demo_bridge_db\(text,jsonb\) to service_role/i);
+  assert.match(migration, /unique\(user_id, idempotency_key\)/i);
+  assert.match(migration, /enable row level security/i);
+});
