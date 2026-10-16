@@ -19,7 +19,7 @@ export function isAllowedDemoAccount(account, requestedAccountId) {
   return !!account &&
     String(account.account_id) === String(requestedAccountId) &&
     String(account.account_type).toLowerCase() === "demo" &&
-    String(account.status || "active").toLowerCase() === "active";
+    String(account.status || "").toLowerCase() === "active";
 }
 
 export function classifyUncertainExecution(buyWasSent) {
