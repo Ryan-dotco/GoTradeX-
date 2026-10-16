@@ -29,5 +29,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run repository Node test suite
-        run: node --test
+      - name: Run Deriv demo bridge Node tests
+        run: node --test tests/deriv-demo-bridge.test.mjs
