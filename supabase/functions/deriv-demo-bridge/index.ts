@@ -9,7 +9,7 @@ const REDIRECT_URI = "https://glffecggusetzklmyukv.supabase.co/functions/v1/deri
 const RETURN_URL = "https://ryan-dotco.github.io/GoTradeX-/";
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { autoRefreshToken: false, persistSession: false } });
 const cors = {
-  "Access-Control-Allow-Origin": "https://ryan-dotco.github.io",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Vary": "Origin"
