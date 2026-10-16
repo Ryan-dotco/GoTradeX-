@@ -162,15 +162,10 @@
     }
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
     if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
-    // Use the selected asset native symbol through the verified Twelve Data adapter.
-    // Do not substitute BTC candles for another market.
-    if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
-    if(t==="forex" && /^[A-Z]{3}\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    if(t==="stocks" && /^[A-Z]{1,6}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    // All listed non-crypto assets are candidates for verified Twelve Data discovery.
-    // The chart layer will confirm the exact provider symbol before rendering.
-    if(t==="commodities" || t==="metals" || t==="indices") return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    return {available:false,provider:"NONE",reason:"No verified native feed is configured for "+l+".",label:l,type:t};
+    // Zero-cost routing policy: only verified Bybit crypto and Deriv forex/OTC
+    // instruments may be marked available by this resolver. Do not silently route
+    // any other market through a paid/keyed provider or invent substitute prices.
+    return {available:false,provider:"NONE",reason:"No verified zero-cost Bybit/Deriv feed is configured for "+l+".",label:l,type:t};
   }
 
   async function twelveSearch(symbol){
