@@ -670,7 +670,8 @@
     // The yellow LIVE line follows the latest verified price, independently of fixed trade markers.
     if(!state.candleSeries||!state.chart)return;
     const last=state.candles.length?state.candles[state.candles.length-1]:null;
-    const price=Number.isFinite(Number(state.price))?Number(state.price):(last?Number(last.c):NaN);
+    const hasLivePrice=state.price!==null&&state.price!==undefined&&state.price!==""&&Number.isFinite(Number(state.price));
+    const price=hasLivePrice?Number(state.price):(last?Number(last.c):NaN);
     if(!Number.isFinite(price))return;
     const opts={
       price:price,
@@ -1141,6 +1142,8 @@
     }catch(_){}
     state.connectionId++;
     closeSocket();
+    if(state.currentPriceLine&&state.candleSeries){try{state.candleSeries.removePriceLine(state.currentPriceLine)}catch(_){}}
+    state.currentPriceLine=null;
     state.provider="";state.symbol="";state.assetLabel=pair;state.mode=m;state.type=t;
     state.candles=[];state.price=null;state.prev=null;state.connected=false;
     state.historyLoaded=false;state.initialRangeSet=false;state.lastAssetKey="";
