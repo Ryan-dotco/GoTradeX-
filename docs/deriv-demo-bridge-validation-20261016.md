@@ -1,7 +1,7 @@
 # Deriv Demo Bridge — Validation Pass
 Date: 2026-10-16
 Branch: `test/ai-otc-demo-execution-bridge-20261016`
-Scope: source review and official-documentation comparison only.
+Scope: source review, official-documentation comparison, and local mocked guard tests. No live provider/database actions.
 
 ## What was checked
 
@@ -10,6 +10,9 @@ Scope: source review and official-documentation comparison only.
 - Confirmed the documented demo WebSocket URL shape is `wss://api.derivws.com/trading/v1/options/ws/demo?otp=...`.
 - Tightened the source validator to require the exact demo endpoint and a single OTP query parameter; it rejects real/public endpoints, other hosts, credentials, ports, fragments, and extra query parameters.
 - Updated the browser adapter to accept an injected authenticated Supabase client, so a future integration can reuse GoTradeX's established session instead of necessarily creating another client.
+- Extracted pure demo-bridge guards into `supabase/functions/deriv-demo-bridge/demo-bridge-guards.mjs` so security decisions can be tested without Deno, Supabase, or Deriv.
+- Added Node built-in test cases at `tests/deriv-demo-bridge.test.mjs` for OAuth-state single use/expiry, demo-account restrictions, duplicate idempotency reservations, OTP URL rejection, and uncertain execution outcomes.
+- Ran the equivalent five pure/mock scenarios locally under Node v22.16.0: **5 passed, 0 failed**. The repository test also includes a source-invariant check; that sixth repository test has not been run against a local checkout because this environment could not clone GitHub. Source invariants were checked separately by fetching the branch files.
 
 ## Findings / blockers
 
@@ -31,6 +34,16 @@ Scope: source review and official-documentation comparison only.
 - The bridge confirms only when Deriv returns a contract ID; this is not treated as a settled result or profit.
 - The migration draft enables RLS and revokes public/anon/authenticated access on its new private tables; the RPC is intended to be service-role-only.
 
+## Mock test results
+
+- Demo WebSocket URL allowlist: pass for valid demo OTP URL; invalid host, path, scheme, credentials, port, fragment, and extra query parameter rejected.
+- Demo account guard: pass for active matching demo account; real, inactive, mismatched, and missing accounts rejected.
+- OAuth state model: pass for one-time consumption and expiry.
+- Idempotency model: pass for duplicate rejection within one user and key scoping between users.
+- Uncertain execution classification: pass; after buy submission is `UNKNOWN`, before buy submission is `REJECTED`.
+
+These are mocked/unit checks, not proof of actual Supabase RPC behavior or provider execution.
+
 ## Official documentation reviewed
 
 - Deriv OAuth 2.0 / PKCE: https://developers.deriv.com/docs/intro/oauth/
@@ -49,7 +62,7 @@ Scope: source review and official-documentation comparison only.
 
 ## Next safe sequence
 
-1. Confirm the exact callback URI is registered with Deriv.
+1. In the Deriv developer dashboard, confirm that this exact URI is registered for the OAuth client used by GoTradeX: `https://glffecggusetzklmyukv.supabase.co/functions/v1/deriv-demo-bridge`. If it is not registered, do not deploy or edit the existing callback; decide on the callback change deliberately.
 2. Add a mocked test harness for callback state, demo-only account rejection, invalid OTP URL rejection, duplicate idempotency keys, provider rejection, and timeout-after-buy.
 3. Review and apply the migration only after an explicit go-ahead and a coordinated deployment plan.
 4. Deploy the function only after the migration exists and callback registration is confirmed.
