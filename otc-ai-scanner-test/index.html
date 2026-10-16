@@ -144,5 +144,108 @@ const trades=[{pair:'SOL/USDT',type:'LONG',dir:'long',exit:'68.8301',entry:'68.1
 document.getElementById('tradeList').innerHTML=trades.map(t=>`<div class="item" style="border-left:3px solid ${t.dir==='long'?'#00e676':'#ff3d57'}"><div style="flex:1"><div style="font-weight:800;font-size:13px">${t.pair}</div><div style="color:#5a6a85;font-size:11px">Exit $${t.exit} Entry $${t.entry} ${t.lev} <span style="color:#00e676">${t.pct}</span><br>${t.date}</div></div><div style="color:#00e676;font-weight:800">${t.pnl}</div></div>`).join('');
 function copy(){navigator.clipboard.writeText(document.getElementById('entry').innerText); alert('Copied!')}
 </script>
+
+<!-- gtx-real-feed-bridge-v1 -->
+<style>
+.gtxScanLiveControls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin-top:9px}
+.gtxScanLiveControls select{min-width:0;width:100%;background:#0a152b;color:#d9e8ff;border:1px solid #1a2e5c;border-radius:9px;padding:9px;font-size:12px}
+#gtxScanFeedStatus{font-size:10px;color:#8fa9d0;margin-top:7px;line-height:1.4}
+#gtxScanFeedStatus.good{color:#00e676}#gtxScanFeedStatus.bad{color:#ff6579}
+</style>
+<script>
+(function(){
+"use strict";
+const assetGroups={"crypto":[{"label":"BTC/USDT","symbol":"BTCUSDT","kind":"crypto"}],"forex":[{"label":"EUR/USD","symbol":"frxEURUSD","kind":"forex"},{"label":"GBP/USD","symbol":"frxGBPUSD","kind":"forex"},{"label":"USD/JPY","symbol":"frxUSDJPY","kind":"forex"},{"label":"AUD/USD","symbol":"frxAUDUSD","kind":"forex"},{"label":"USD/CHF","symbol":"frxUSDCHF","kind":"forex"},{"label":"USD/CAD","symbol":"frxUSDCAD","kind":"forex"},{"label":"NZD/USD","symbol":"frxNZDUSD","kind":"forex"},{"label":"EUR/GBP","symbol":"frxEURGBP","kind":"forex"},{"label":"EUR/JPY","symbol":"frxEURJPY","kind":"forex"},{"label":"GBP/JPY","symbol":"frxGBPJPY","kind":"forex"},{"label":"EUR/CHF","symbol":"frxEURCHF","kind":"forex"},{"label":"AUD/JPY","symbol":"frxAUDJPY","kind":"forex"},{"label":"AUD/CAD","symbol":"frxAUDCAD","kind":"forex"},{"label":"AUD/CHF","symbol":"frxAUDCHF","kind":"forex"},{"label":"AUD/NZD","symbol":"frxAUDNZD","kind":"forex"},{"label":"CAD/JPY","symbol":"frxCADJPY","kind":"forex"},{"label":"CHF/JPY","symbol":"frxCHFJPY","kind":"forex"},{"label":"EUR/AUD","symbol":"frxEURAUD","kind":"forex"},{"label":"EUR/CAD","symbol":"frxEURCAD","kind":"forex"},{"label":"EUR/NZD","symbol":"frxEURNZD","kind":"forex"},{"label":"GBP/AUD","symbol":"frxGBPAUD","kind":"forex"},{"label":"GBP/CAD","symbol":"frxGBPCAD","kind":"forex"},{"label":"GBP/CHF","symbol":"frxGBPCHF","kind":"forex"},{"label":"GBP/NZD","symbol":"frxGBPNZD","kind":"forex"},{"label":"NZD/JPY","symbol":"frxNZDJPY","kind":"forex"},{"label":"NZD/CAD","symbol":"frxNZDCAD","kind":"forex"},{"label":"CAD/CHF","symbol":"frxCADCHF","kind":"forex"},{"label":"USD/SGD","symbol":"frxUSDSGD","kind":"forex"},{"label":"USD/HKD","symbol":"frxUSDHKD","kind":"forex"},{"label":"USD/MXN","symbol":"frxUSDMXN","kind":"forex"},{"label":"USD/ZAR","symbol":"frxUSDZAR","kind":"forex"},{"label":"EUR/ZAR","symbol":"frxEURZAR","kind":"forex"},{"label":"GBP/ZAR","symbol":"frxGBPZAR","kind":"forex"},{"label":"USD/TRY","symbol":"frxUSDTRY","kind":"forex"},{"label":"USD/NOK","symbol":"frxUSDNOK","kind":"forex"},{"label":"USD/SEK","symbol":"frxUSDSEK","kind":"forex"},{"label":"USD/DKK","symbol":"frxUSDDKK","kind":"forex"},{"label":"EUR/NOK","symbol":"frxEURNOK","kind":"forex"},{"label":"EUR/SEK","symbol":"frxEURSEK","kind":"forex"},{"label":"EUR/PLN","symbol":"frxEURPLN","kind":"forex"},{"label":"EUR/TRY","symbol":"frxEURTRY","kind":"forex"},{"label":"GBP/SGD","symbol":"frxGBPSGD","kind":"forex"},{"label":"USD/INR","symbol":"frxUSDINR","kind":"forex"},{"label":"USD/BRL","symbol":"frxUSDBRL","kind":"forex"},{"label":"USD/CNH","symbol":"frxUSDCNH","kind":"forex"},{"label":"USD/IDR","symbol":"frxUSDIDR","kind":"forex"}],"otc":[{"label":"US 500","symbol":"OTC_SPC","kind":"otc"},{"label":"US Tech 100","symbol":"OTC_NDX","kind":"otc"},{"label":"Wall Street 30","symbol":"OTC_DJI","kind":"otc"},{"label":"Hong Kong 50","symbol":"OTC_HSI","kind":"otc"},{"label":"Euro 50","symbol":"OTC_SX5E","kind":"otc"},{"label":"France 40","symbol":"OTC_FCHI","kind":"otc"},{"label":"Germany 40","symbol":"OTC_GDAXI","kind":"otc"},{"label":"Netherlands 25","symbol":"OTC_AEX","kind":"otc"},{"label":"Swiss 20","symbol":"OTC_SSMI","kind":"otc"},{"label":"UK 100","symbol":"OTC_FTSE","kind":"otc"}]};
+const $=id=>document.getElementById(id);
+const marketRoot=document.querySelector("#v-otc > div");
+if(!marketRoot||!window.LightweightCharts||typeof candle==="undefined")return;
+const row=document.createElement("div");row.className="gtxScanLiveControls";
+row.innerHTML='<select id="gtxScanAsset" aria-label="Market asset"></select><select id="gtxScanTf" aria-label="Chart timeframe"><option value="60">1m</option><option value="300" selected>5m</option><option value="900">15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>';
+const status=document.createElement("div");status.id="gtxScanFeedStatus";status.textContent="Market feed not loaded yet.";
+marketRoot.appendChild(row);marketRoot.appendChild(status);
+const assetSelect=$("gtxScanAsset"),tfSelect=$("gtxScanTf");
+function options(){
+  assetSelect.innerHTML="";
+  const live=document.createElement("optgroup");live.label="LIVE · Deriv forex";
+  assetGroups.forex.forEach(a=>{const o=document.createElement("option");o.value="forex|"+a.label;o.textContent=a.label+" · Deriv";live.appendChild(o)});
+  const crypto=document.createElement("optgroup");crypto.label="LIVE · Bybit crypto";
+  assetGroups.crypto.forEach(a=>{const o=document.createElement("option");o.value="crypto|"+a.label;o.textContent=a.label+" · Bybit";crypto.appendChild(o)});
+  const otc=document.createElement("optgroup");otc.label="OTC · Deriv indices";
+  assetGroups.otc.forEach(a=>{const o=document.createElement("option");o.value="otc|"+a.label;o.textContent=a.label+" · OTC";otc.appendChild(o)});
+  assetSelect.append(live,crypto,otc);assetSelect.value="forex|EUR/USD";
+}
+options();
+let currentAsset=null,currentCandles=[],loadId=0,feedReady=false;
+const tfLabel=()=>({"60":"1m","300":"5m","900":"15m","1800":"30m","3600":"1h","14400":"4h","86400":"1d"})[tfSelect.value]||tfSelect.value;
+function showStatus(msg,kind){status.textContent=msg;status.className=kind||""}
+function timeframeForBybit(sec){return ({60:"1",180:"3",300:"5",900:"15",1800:"30",3600:"60",14400:"240",86400:"D"})[sec]}
+function loadBybit(symbol,sec){
+ const interval=timeframeForBybit(sec);if(!interval)throw new Error("Unsupported Bybit timeframe");
+ const url="https://api.bybit.com/v5/market/kline?category=spot&symbol="+encodeURIComponent(symbol)+"&interval="+encodeURIComponent(interval)+"&limit=200";
+ return fetch(url,{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error("Bybit HTTP "+r.status);const d=await r.json();if(d.retCode!==0||!Array.isArray(d.result&&d.result.list))throw new Error(d.retMsg||"No Bybit candles returned");return d.result.list.slice().reverse().map(k=>({time:Math.floor(Number(k[0])/1000),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])})).filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite))});
+}
+function loadDeriv(symbol,sec){
+ return new Promise((resolve,reject)=>{let ws,done=false;const timer=setTimeout(()=>finish(new Error("Deriv history timed out")),12000);function finish(err,val){if(done)return;done=true;clearTimeout(timer);try{ws&&ws.close()}catch(_){}err?reject(err):resolve(val)}
+ try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id=1089")}catch(e){finish(e);return}
+ ws.onopen=()=>ws.send(JSON.stringify({ticks_history:symbol,adjust_start_time:1,count:200,end:"latest",granularity:sec,style:"candles"}));
+ ws.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}if(d.error){finish(new Error(d.error.message||"Deriv rejected this symbol"));return}if(Array.isArray(d.candles)){const cs=d.candles.map(c=>({time:Number(c.epoch),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})).filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite));finish(null,cs)}};
+ ws.onerror=()=>finish(new Error("Deriv public feed connection failed"));ws.onclose=()=>{if(!done)finish(new Error("Deriv connection closed before candles arrived"))};
+ });
+}
+function ema(values,period){if(values.length<period)return NaN;let v=values.slice(0,period).reduce((a,b)=>a+b,0)/period;const k=2/(period+1);for(let i=period;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
+function rsi(values,period=14){if(values.length<=period)return 50;let gain=0,loss=0;for(let i=values.length-period;i<values.length;i++){const d=values[i]-values[i-1];if(d>0)gain+=d;else loss-=d}if(loss===0)return 100;return 100-100/(1+gain/loss)}
+function fmt(v){return Number(v).toLocaleString(undefined,{maximumFractionDigits:8})}
+function analyzeReal(){
+ if(!currentCandles.length||!feedReady){showStatus("Load verified market candles before analysis.","bad");return}
+ if(currentCandles.length<35){showStatus("Not enough verified candles for a reliable technical check. No signal generated.","bad");return}
+ const closes=currentCandles.map(c=>c.close),last=closes[closes.length-1];
+ const fast=ema(closes,9),slow=ema(closes,21),momentum=(last-closes[closes.length-6])/closes[closes.length-6]*100,rv=rsi(closes);
+ let score=0,why=[];
+ if(fast>slow){score+=2;why.push("EMA 9 above EMA 21")}else if(fast<slow){score-=2;why.push("EMA 9 below EMA 21")}
+ if(rv>55&&rv<70){score++;why.push("RSI supports bullish momentum")}else if(rv<45&&rv>30){score--;why.push("RSI supports bearish momentum")}
+ if(momentum>0){score++;why.push("recent momentum positive")}else if(momentum<0){score--;why.push("recent momentum negative")}
+ const dir=score>=3?"BUY":score<=-3?"SELL":"WAIT";
+ document.querySelector(".buy").innerHTML='<div><big>'+(dir==="BUY"?"▲":dir==="SELL"?"▼":"—")+'</big><br>'+dir+'</div>';
+ const details=document.querySelector(".details");
+ details.innerHTML='<div><i>Asset:</i> <b>'+currentAsset.label+'</b></div><div><i>Time:</i> <b>'+tfLabel()+'</b></div><div><i>Entry:</i> <b id="entry">'+fmt(last)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+((momentum>0.05)?"Positive":(momentum< -0.05)?"Negative":"Flat")+'</b></div><div style="margin-top:4px;color:#8da7cc;font-size:10px">'+why.join(" · ")+'</div>';
+ document.querySelector(".buy").style.color=dir==="BUY"?"#00ff88":dir==="SELL"?"#ff3d57":"#f5c66a";
+ showStatus("Technical indicator result · "+currentAsset.provider+" verified candles. This is not a guaranteed prediction.","good");
+}
+async function reloadAndAnalyze(doAnalyze){
+ const id=++loadId;feedReady=false;currentCandles=[];showStatus("Connecting to market feed…");
+ $("signalBtn").disabled=true;
+ try{
+  const [kind,label]=assetSelect.value.split("|");
+  let asset;
+  if(kind==="crypto")asset=assetGroups.crypto.find(a=>a.label===label);
+  else if(kind==="forex")asset=assetGroups.forex.find(a=>a.label===label);
+  else asset=assetGroups.otc.find(a=>a.label===label);
+  if(!asset)throw new Error("Asset mapping not found");
+  const sec=Number(tfSelect.value);
+  const candles=kind==="crypto"?await loadBybit(asset.symbol,sec):await loadDeriv(asset.symbol,sec);
+  if(id!==loadId)return;
+  if(candles.length<35)throw new Error("Only "+candles.length+" valid candles returned; at least 35 are needed");
+  currentAsset={...asset,provider:kind==="crypto"?"Bybit": "Deriv"+(kind==="otc"?" OTC":"")};
+  currentCandles=candles;feedReady=true;
+  candle.setData(candles);chart.timeScale().fitContent();
+  document.querySelector(".pair-row").innerHTML='<div style="font-weight:800">'+asset.label+'</div><div style="font-size:10px;color:#5c7bb0">'+currentAsset.provider+' · '+(kind==="otc"?"OTC indices":kind==="crypto"?"Crypto":"Forex")+'</div>';
+  showStatus("LIVE · "+currentAsset.provider+" · "+candles.length+" verified candles · last close "+fmt(candles[candles.length-1].close),"good");
+  if(doAnalyze)analyzeReal();
+ }catch(e){if(id!==loadId)return;feedReady=false;currentCandles=[];candle.setData([]);showStatus("FEED UNAVAILABLE · "+e.message+" · No signal generated.","bad");document.querySelector(".buy").innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById("entry").textContent="—";}
+ finally{if(id===loadId)$("signalBtn").disabled=false}
+}
+assetSelect.addEventListener("change",()=>reloadAndAnalyze(false));tfSelect.addEventListener("change",()=>reloadAndAnalyze(false));
+$("signalBtn").onclick=()=>reloadAndAnalyze(true);
+document.querySelectorAll(".actRow .act")[0].onclick=()=>{const text="GoTradeX OTC AI Scanner Pro\n"+(currentAsset?currentAsset.label:"No asset") +"\n"+(document.querySelector(".buy").innerText||"WAIT")+"\n"+(document.querySelector(".details").innerText||"");if(navigator.share)navigator.share({title:"GoTradeX Signal",text}).catch(()=>{});else navigator.clipboard&&navigator.clipboard.writeText(text)};
+document.querySelectorAll(".actRow .act")[1].onclick=()=>{const text="GoTradeX OTC AI Scanner Pro\n"+(currentAsset?currentAsset.label:"No asset") +"\n"+(document.querySelector(".buy").innerText||"WAIT")+"\n"+(document.querySelector(".details").innerText||"");if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>showStatus("Signal details copied.","good")).catch(()=>showStatus("Copy is unavailable in this browser.","bad"));else showStatus("Copy is unavailable in this browser.","bad")};
+$("cam").addEventListener("change",()=>{if($("cam").files[0])showStatus("Image selected. Image-based AI requires the secured vision backend from Chart AI Lab; live market analysis is available below.","bad")});
+$("upl").addEventListener("change",()=>{if($("upl").files[0])showStatus("Image selected. Image-based AI requires the secured vision backend from Chart AI Lab; live market analysis is available below.","bad")});
+const sigList=$("sigList");if(sigList)sigList.innerHTML='<div class="item" style="color:#8fa9d0">No verified signal history yet. Results will appear here after analysis is connected to persistent history.</div>';
+const tradeList=$("tradeList");if(tradeList)tradeList.innerHTML='<div class="item" style="color:#8fa9d0">No trade history is connected to this scanner.</div>';
+// Load the default EUR/USD chart from a real Deriv history response; never use random candles.
+reloadAndAnalyze(false);
+})();
+</script>
+
 </body>
 </html>
