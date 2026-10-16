@@ -131,7 +131,7 @@ function go(id,el){
 }
 // CHART
 const chartEl=document.getElementById('chart');
-const chart=LightweightCharts.createChart(chartEl,{layout:{background:{color:'#07112a'},textColor:'#5a7ab5'},grid:{vertLines:{color:'#102040'},horzLines:{color:'#102040'}},width:chartEl.clientWidth,height:260,timeScale:{timeVisible:true}});
+const chart=LightweightCharts.createChart(chartEl,{layout:{background:{color:'#07112a'},textColor:'#5a7ab5'},grid:{vertLines:{color:'#102040'},horzLines:{color:'#102040'}},width:chartEl.clientWidth,height:260,rightPriceScale:{visible:true,borderVisible:true,borderColor:'#102040',minimumWidth:64,autoScale:true},timeScale:{timeVisible:true,visible:true}});
 const candle=chart.addCandlestickSeries({upColor:'#00e676',downColor:'#ff3d57',wickUpColor:'#00e676',wickDownColor:'#ff3d57',borderVisible:false});
 candle.setData([]); chart.timeScale().fitContent();
 // Live feed and real technical analysis are attached by the isolated bridge below.
@@ -172,7 +172,12 @@ function options(){
   assetSelect.append(live,crypto,otc);assetSelect.value="forex|EUR/USD";
 }
 options();
-let currentAsset=null,currentCandles=[],loadId=0,feedReady=false;
+let currentAsset=null,currentCandles=[],loadId=0,feedReady=false,liveSocket=null,liveReconnectTimer=null,resizeObserver=null;
+function stopLiveFeed(){if(liveReconnectTimer){clearTimeout(liveReconnectTimer);liveReconnectTimer=null}if(liveSocket){try{liveSocket.close()}catch(_){}liveSocket=null}}
+function candlePrecision(asset,last){if(asset&&asset.kind==='forex')return /JPY$/.test(asset.symbol)?3:5;if(!Number.isFinite(last))return 5;if(Math.abs(last)>=1000)return 2;if(Math.abs(last)>=1)return 4;return 6}
+function applyPriceScale(){const last=currentCandles.length?currentCandles[currentCandles.length-1].close:NaN;const precision=candlePrecision(currentAsset,last);candle.applyOptions({priceFormat:{type:'price',precision,minMove:Math.pow(10,-precision)},priceLineVisible:true,lastValueVisible:true});chart.applyOptions({rightPriceScale:{visible:true,autoScale:true,minimumWidth:64,borderVisible:true,borderColor:'#102040'}})}
+function applyLiveTick(price,timestamp){if(!feedReady||!currentAsset||!Number.isFinite(price)||price<=0)return;const sec=Number(tfSelect.value),t=Math.floor((Number(timestamp)||Date.now()/1000)/sec)*sec;if(!Number.isFinite(t))return;const last=currentCandles[currentCandles.length-1];if(!last)return;if(t<last.time)return;if(t===last.time){last.high=Math.max(last.high,price);last.low=Math.min(last.low,price);last.close=price;candle.update({time:last.time,open:last.open,high:last.high,low:last.low,close:last.close})}else{const next={time:t,open:last.close,high:Math.max(last.close,price),low:Math.min(last.close,price),close:price};currentCandles.push(next);if(currentCandles.length>1000)currentCandles.shift();candle.update(next)}applyPriceScale()}
+function startLiveFeed(asset,kind,sec){stopLiveFeed();const statusLive=()=>showStatus('LIVE · '+currentAsset.provider+' · streaming price ticks','good');if(kind==='crypto'){let ws;try{ws=new WebSocket('wss://stream.bybit.com/v5/public/spot')}catch(e){showStatus('LIVE HISTORY LOADED · Bybit stream could not start; waiting for a valid live connection.','bad');return}liveSocket=ws;ws.onopen=()=>{ws.send(JSON.stringify({op:'subscribe',args:['tickers.'+asset.symbol]}));showStatus('CONNECTED · waiting for Bybit live ticks','good')};ws.onmessage=e=>{try{const m=JSON.parse(String(e.data||'{}'));if(m.topic==='tickers.'+asset.symbol){const p=Number(m.data&&m.data.lastPrice);if(Number.isFinite(p)){applyLiveTick(p,Number(m.ts||Date.now())/1000);statusLive()}}}catch(_){}};ws.onerror=()=>{if(feedReady)showStatus('HISTORY LOADED · Bybit live stream unavailable; candles will not be fabricated.','bad')};ws.onclose=()=>{if(!feedReady||liveSocket!==ws)return;liveSocket=null;liveReconnectTimer=setTimeout(()=>{if(feedReady&&currentAsset&&currentAsset.symbol===asset.symbol)startLiveFeed(asset,kind,sec)},2500)};return}const feeds=window.GoTradeXMarketFeeds;if(!feeds||typeof feeds.derivSocket!=='function'){showStatus('HISTORY LOADED · Deriv live tick feed is unavailable.','bad');return}liveSocket=feeds.derivSocket(asset.symbol,tick=>{applyLiveTick(Number(tick.price),Number(tick.time)/1000);statusLive()},msg=>{if(/ERROR|RECONNECTING/.test(msg))showStatus(msg+' · existing candles retained','bad')})}
 const tfLabel=()=>({"60":"1m","300":"5m","900":"15m","1800":"30m","3600":"1h","14400":"4h","86400":"1d"})[tfSelect.value]||tfSelect.value;
 function showStatus(msg,kind){status.textContent=msg;status.className=kind||""}
 function timeframeForBybit(sec){return ({60:"1",180:"3",300:"5",900:"15",1800:"30",3600:"60",14400:"240",86400:"D"})[sec]}
@@ -210,7 +215,7 @@ function analyzeReal(){
  showStatus("Chart AI Lab technical rules · "+currentAsset.provider+" verified candles. Scores can be wrong; this is not a guarantee.","good");
 }
 async function reloadAndAnalyze(doAnalyze){
- const id=++loadId;feedReady=false;currentCandles=[];showStatus("Connecting to market feed…");
+ const id=++loadId;stopLiveFeed();feedReady=false;currentCandles=[];showStatus("Connecting to market feed…");
  $("signalBtn").disabled=true;
  try{
   const [kind,label]=assetSelect.value.split("|");
@@ -225,14 +230,16 @@ async function reloadAndAnalyze(doAnalyze){
   if(candles.length<35)throw new Error("Only "+candles.length+" valid candles returned; at least 35 are needed");
   currentAsset={...asset,provider:kind==="crypto"?"Bybit": "Deriv"+(kind==="otc"?" OTC":"")};
   currentCandles=candles;feedReady=true;
-  candle.setData(candles);chart.timeScale().fitContent();
+  candle.setData(candles);applyPriceScale();chart.applyOptions({width:chartEl.clientWidth,height:chartEl.clientHeight||260,rightPriceScale:{visible:true,autoScale:true,minimumWidth:64,borderVisible:true,borderColor:'#102040'}});chart.timeScale().fitContent();
+  startLiveFeed(asset,kind,sec);
   document.querySelector(".pair-row").innerHTML='<div style="font-weight:800">'+asset.label+'</div><div style="font-size:10px;color:#5c7bb0">'+currentAsset.provider+' · '+(kind==="otc"?"OTC indices":kind==="crypto"?"Crypto":"Forex")+'</div>';
   showStatus("LIVE · "+currentAsset.provider+" · "+candles.length+" verified candles · last close "+fmt(candles[candles.length-1].close),"good");
   if(doAnalyze)analyzeReal();
- }catch(e){if(id!==loadId)return;feedReady=false;currentCandles=[];candle.setData([]);showStatus("FEED UNAVAILABLE · "+e.message+" · No signal generated.","bad");document.querySelector(".buy").innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById("entry").textContent="—";}
+ }catch(e){if(id!==loadId)return;stopLiveFeed();feedReady=false;currentCandles=[];candle.setData([]);applyPriceScale();showStatus("FEED UNAVAILABLE · "+e.message+" · No signal generated.","bad");document.querySelector(".buy").innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById("entry").textContent="—";}
  finally{if(id===loadId)$("signalBtn").disabled=false}
 }
 assetSelect.addEventListener("change",()=>reloadAndAnalyze(false));tfSelect.addEventListener("change",()=>reloadAndAnalyze(false));
+if(typeof ResizeObserver!=="undefined"){resizeObserver=new ResizeObserver(()=>{const w=chartEl.clientWidth,h=chartEl.clientHeight||260;if(w>0&&h>0)chart.applyOptions({width:w,height:h,rightPriceScale:{visible:true,autoScale:true,minimumWidth:64,borderVisible:true,borderColor:"#102040"}})});resizeObserver.observe(chartEl)}else window.addEventListener("resize",()=>chart.applyOptions({width:chartEl.clientWidth,height:chartEl.clientHeight||260,rightPriceScale:{visible:true,autoScale:true,minimumWidth:64,borderVisible:true,borderColor:"#102040"}}));
 $("signalBtn").onclick=()=>reloadAndAnalyze(true);
 document.querySelectorAll(".actRow .act")[0].onclick=()=>{const text="GoTradeX OTC AI Scanner Pro\n"+(currentAsset?currentAsset.label:"No asset") +"\n"+(document.querySelector(".buy").innerText||"WAIT")+"\n"+(document.querySelector(".details").innerText||"");if(navigator.share)navigator.share({title:"GoTradeX Signal",text}).catch(()=>{});else navigator.clipboard&&navigator.clipboard.writeText(text)};
 document.querySelectorAll(".actRow .act")[1].onclick=()=>{const text="GoTradeX OTC AI Scanner Pro\n"+(currentAsset?currentAsset.label:"No asset") +"\n"+(document.querySelector(".buy").innerText||"WAIT")+"\n"+(document.querySelector(".details").innerText||"");if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>showStatus("Signal details copied.","good")).catch(()=>showStatus("Copy is unavailable in this browser.","bad"));else showStatus("Copy is unavailable in this browser.","bad")};
