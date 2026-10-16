@@ -67,6 +67,6 @@ test("production bridge source retains state consumption, unique reservation, an
   assert.match(source, /db\("consume_state",\s*\{\s*state_hash:/);
   assert.match(source, /db\("reserve_execution",/);
   assert.match(source, /if\s*\(!reservation\.created\)/);
-  assert.match(source, /status:\s*buySent\s*\?\s*"UNKNOWN"\s*:\s*"REJECTED"/);
+  assert.match(source, /status:\s*classifyUncertainExecution\(buySent\)/);
   assert.match(source, /locked against retry to prevent duplicate contracts/i);
 });
