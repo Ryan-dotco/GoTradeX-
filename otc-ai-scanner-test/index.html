@@ -159,6 +159,7 @@ const assetGroups={"crypto":[{"label":"BTC/USDT","symbol":"BTCUSDT","kind":"cryp
 const $=id=>document.getElementById(id);
 const marketRoot=document.querySelector("#v-otc > div");
 if(!marketRoot||!window.LightweightCharts||typeof candle==="undefined")return;
+candle.setData([]);document.querySelector(".buy").innerHTML="<div><big>—</big><br>WAIT</div>";document.getElementById("entry").textContent="—";
 const row=document.createElement("div");row.className="gtxScanLiveControls";
 row.innerHTML='<select id="gtxScanAsset" aria-label="Market asset"></select><select id="gtxScanTf" aria-label="Chart timeframe"><option value="60">1m</option><option value="300" selected>5m</option><option value="900">15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>';
 const status=document.createElement("div");status.id="gtxScanFeedStatus";status.textContent="Market feed not loaded yet.";
@@ -195,21 +196,25 @@ function loadDeriv(symbol,sec){
 function ema(values,period){if(values.length<period)return NaN;let v=values.slice(0,period).reduce((a,b)=>a+b,0)/period;const k=2/(period+1);for(let i=period;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){if(values.length<=period)return 50;let gain=0,loss=0;for(let i=values.length-period;i<values.length;i++){const d=values[i]-values[i-1];if(d>0)gain+=d;else loss-=d}if(loss===0)return 100;return 100-100/(1+gain/loss)}
 function fmt(v){return Number(v).toLocaleString(undefined,{maximumFractionDigits:8})}
+function smma(values,period){if(values.length<period)return NaN;let v=values.slice(0,period).reduce((a,b)=>a+b,0)/period;for(let i=period;i<values.length;i++)v=(v*(period-1)+values[i])/period;return v}
 function analyzeReal(){
- if(!currentCandles.length||!feedReady){showStatus("Load verified market candles before analysis.","bad");return}
- if(currentCandles.length<35){showStatus("Not enough verified candles for a reliable technical check. No signal generated.","bad");return}
- const closes=currentCandles.map(c=>c.close),last=closes[closes.length-1];
- const fast=ema(closes,9),slow=ema(closes,21),momentum=(last-closes[closes.length-6])/closes[closes.length-6]*100,rv=rsi(closes);
+ if(currentCandles.length<35||!feedReady){showStatus("At least 35 verified candles are required. No signal generated.","bad");return}
+ const c=currentCandles,cl=c.map(x=>x.close),last=cl[cl.length-1],e9=ema(cl,9),e21=ema(cl,21),rv=rsi(cl),e12=ema(cl,12),e26=ema(cl,26),mac=e12-e26;
+ const macdSeries=[];for(let i=25;i<cl.length;i++)macdSeries.push(ema(cl.slice(0,i+1),12)-ema(cl.slice(0,i+1),26));
+ const sig=ema(macdSeries,9),mom=(last-cl[cl.length-6])/cl[cl.length-6]*100;
+ const jaw=smma(cl,13),teeth=smma(cl,8),lips=smma(cl,5),ali=lips>teeth&&teeth>jaw?"Bullish alignment":lips<teeth&&teeth<jaw?"Bearish alignment":"Mixed alignment";
  let score=0,why=[];
- if(fast>slow){score+=2;why.push("EMA 9 above EMA 21")}else if(fast<slow){score-=2;why.push("EMA 9 below EMA 21")}
- if(rv>55&&rv<70){score++;why.push("RSI supports bullish momentum")}else if(rv<45&&rv>30){score--;why.push("RSI supports bearish momentum")}
- if(momentum>0){score++;why.push("recent momentum positive")}else if(momentum<0){score--;why.push("recent momentum negative")}
- const dir=score>=3?"BUY":score<=-3?"SELL":"WAIT";
- document.querySelector(".buy").innerHTML='<div><big>'+(dir==="BUY"?"▲":dir==="SELL"?"▼":"—")+'</big><br>'+dir+'</div>';
+ if(e9>e21){score+=2;why.push("EMA9 above EMA21")}else if(e9<e21){score-=2;why.push("EMA9 below EMA21")}
+ if(rv>55&&rv<70){score++;why.push("RSI supports bullish momentum")}else if(rv<45&&rv>30){score--;why.push("RSI supports bearish momentum")}else if(rv>=70||rv<=30)why.push("RSI in an extreme zone; caution");
+ if(mac>sig){score++;why.push("MACD above signal")}else if(mac<sig){score--;why.push("MACD below signal")}
+ if(mom>0){score++;why.push("five-candle momentum positive")}else if(mom<0){score--;why.push("five-candle momentum negative")}
+ if(ali==="Bullish alignment")score++;if(ali==="Bearish alignment")score--;
+ const dir=score>=3?"BUY":score<=-3?"SELL":"WAIT",high=Math.max(...c.slice(-20).map(x=>x.high)),low=Math.min(...c.slice(-20).map(x=>x.low));
+ document.querySelector(".buy").innerHTML="<div><big>"+(dir==="BUY"?"▲":dir==="SELL"?"▼":"—")+"</big><br>"+dir+"</div>";
  const details=document.querySelector(".details");
- details.innerHTML='<div><i>Asset:</i> <b>'+currentAsset.label+'</b></div><div><i>Time:</i> <b>'+tfLabel()+'</b></div><div><i>Entry:</i> <b id="entry">'+fmt(last)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+((momentum>0.05)?"Positive":(momentum< -0.05)?"Negative":"Flat")+'</b></div><div style="margin-top:4px;color:#8da7cc;font-size:10px">'+why.join(" · ")+'</div>';
+ details.innerHTML='<div><i>Asset:</i> <b>'+currentAsset.label+'</b></div><div><i>Time:</i> <b>'+tfLabel()+'</b></div><div><i>Entry:</i> <b id="entry">'+fmt(last)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+((mom>0.05)?"Positive":(mom< -0.05)?"Negative":"Flat")+'</b></div><div><i>Trend:</i> <b>'+(e9>e21?"Bullish":e9<e21?"Bearish":"Neutral")+'</b></div><div><i>RSI:</i> <b>'+fmt(rv)+'</b></div><div><i>MACD:</i> <b>'+fmt(mac)+' (signal '+fmt(sig)+')</b></div><div><i>Structure:</i> <b>'+ali+'</b></div><div style="margin-top:4px;color:#8da7cc;font-size:10px">'+why.join(" · ")+(dir==="WAIT"?" · Rules do not agree strongly enough for a directional signal.":" · Technical rule output only; not a probability or guarantee.")+'</div>';
  document.querySelector(".buy").style.color=dir==="BUY"?"#00ff88":dir==="SELL"?"#ff3d57":"#f5c66a";
- showStatus("Technical indicator result · "+currentAsset.provider+" verified candles. This is not a guaranteed prediction.","good");
+ showStatus("Chart AI Lab technical rules · "+currentAsset.provider+" verified candles. Scores can be wrong; this is not a guarantee.","good");
 }
 async function reloadAndAnalyze(doAnalyze){
  const id=++loadId;feedReady=false;currentCandles=[];showStatus("Connecting to market feed…");
