@@ -54,6 +54,7 @@ declare
   jwt_role text;
   v_user uuid;
   v_key text;
+  v_rows integer := 0;
 begin
   jwt_role := coalesce(
     current_setting('request.jwt.claim.role', true),
@@ -88,7 +89,8 @@ begin
     insert into private.deriv_demo_executions_v1(user_id,idempotency_key,account_id,symbol,contract_type,stake,duration)
     values(v_user,v_key,p_data->>'account_id',p_data->>'symbol',p_data->>'contract_type',(p_data->>'stake')::numeric,(p_data->>'duration')::integer)
     on conflict(user_id,idempotency_key) do nothing;
-    select jsonb_build_object('id',id,'status',status,'created_at',created_at,'contract_id',contract_id,'provider_status',provider_status)
+    get diagnostics v_rows = row_count;
+    select jsonb_build_object('id',id,'status',status,'created_at',created_at,'contract_id',contract_id,'provider_status',provider_status,'created',v_rows=1)
       into r from private.deriv_demo_executions_v1 where user_id=v_user and idempotency_key=v_key;
     return coalesce(r,'null'::jsonb);
   elsif p_action = 'update_execution' then
