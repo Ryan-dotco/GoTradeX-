@@ -62,11 +62,11 @@
     s.textContent=
       "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
-      ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
+      ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:84px;display:flex;align-items:flex-start;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:900 9px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
       ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
-      ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
+      ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0;max-width:100%;flex:0 1 auto}"+
       ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
       ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:relative}"+
@@ -87,8 +87,8 @@
       ".gtxTradeTag.sell{background:#b72d43;border:1px solid #f16b70}"+
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
-      ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
+      ".gtxLWCWatermark{position:absolute;z-index:2;right:84px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
+      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:82px;gap:3px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:100%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -598,7 +598,7 @@
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
     // Alternate chart styles are created only when selected from the single chart-style menu.
-    // No automatic green overlay or orange LIVE price-line is created.
+    // Preserve the original yellow LIVE price line; it tracks the verified latest price.
     state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
     state.currentPriceLine=null;
@@ -667,8 +667,27 @@
   }
 
   function updateCurrentPriceLine(){
-    // The candlestick series already supplies the current-price line and right-axis marker.
-    // Keep it separate from the fixed trade entry-price line.
+    // The yellow LIVE line follows the latest verified price, independently of fixed trade markers.
+    if(!state.candleSeries||!state.chart)return;
+    const last=state.candles.length?state.candles[state.candles.length-1]:null;
+    const price=Number.isFinite(Number(state.price))?Number(state.price):(last?Number(last.c):NaN);
+    if(!Number.isFinite(price))return;
+    const opts={
+      price:price,
+      color:"#facc15",
+      lineWidth:1,
+      lineStyle:window.LightweightCharts&&window.LightweightCharts.LineStyle?window.LightweightCharts.LineStyle.Solid:0,
+      axisLabelVisible:true,
+      title:"LIVE"
+    };
+    try{
+      if(state.currentPriceLine&&typeof state.currentPriceLine.applyOptions==="function"){
+        state.currentPriceLine.applyOptions(opts);
+      }else{
+        if(state.currentPriceLine){try{state.candleSeries.removePriceLine(state.currentPriceLine)}catch(_){}}
+        state.currentPriceLine=state.candleSeries.createPriceLine(opts);
+      }
+    }catch(_){}
   }
 
   const expiryTrades=[];
