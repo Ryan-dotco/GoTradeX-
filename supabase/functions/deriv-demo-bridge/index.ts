@@ -233,7 +233,7 @@ Deno.serve(async (req: Request) => {
 
         let contractStatus: any = null;
         try {
-          const statusMsg = await wsRequest(ws, { proposal_open_contract: 1, contract_id: Number(contractId), subscribe: 0 }, 4);
+          const statusMsg = await wsRequest(ws, { proposal_open_contract: 1, contract_id: Number(contractId) }, 4);
           contractStatus = statusMsg.proposal_open_contract || null;
         } catch { /* Contract ID is still the provider's accepted-contract reference. */ }
 
