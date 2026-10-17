@@ -46,6 +46,7 @@ function injectCSS(){var style=document.createElement("style");style.id="gtxScan
 document.head.appendChild(style)}
 function selectEl(id,items,value){var s=document.createElement("select");s.id=id;s.className="gtx-select";s.innerHTML=items.map(function(x){return '<option value="'+esc(x.value)+'" '+(x.value===value?"selected":"")+'>'+esc(x.label)+"</option>"}).join("");return s}
 function setupUI(){
+var uploadButtons=document.querySelectorAll("#v-otc .upBtn");if(uploadButtons[0]){uploadButtons[0].removeAttribute("onclick");uploadButtons[0].addEventListener("click",function(){$("cam").click()})}if(uploadButtons[1]){uploadButtons[1].removeAttribute("onclick");uploadButtons[1].addEventListener("click",function(){$("upl").click()})}
 var pair=document.querySelector("#v-otc .pair-row");
 if(pair){pair.innerHTML="";var wrap=document.createElement("div");wrap.style.cssText="font-weight:800;flex:1;min-width:0";var a=selectEl("assetSelect",assets.map(function(x){return {value:x.label,label:x.label}}),st.asset.label);a.style.width="100%";wrap.appendChild(a);var p=document.createElement("div");p.id="providerLabel";p.style.cssText="font-size:10px;color:#5c7bb0;white-space:nowrap";p.textContent="Deriv · Forex";pair.append(wrap,p);a.addEventListener("change",function(){st.asset=assets.filter(function(x){return x.label===a.value})[0]||assets[0];loadMarket()})}
 var controls=document.querySelector("#v-otc .ctrl-row");
