@@ -62,8 +62,16 @@ jobs:
             console.log('PASS: ' + label);
           }
           NODE
-      - name: Type-check secure bot delivery Edge Function
-        run: deno check supabase/functions/gotradex-alert-delivery/index.ts
+      - name: Type-check all changed Edge Functions
+        run: |
+          deno check supabase/functions/gotradex-alert-delivery/index.ts
+          deno check supabase/functions/gotradex-market-data/index.ts
+          deno check supabase/functions/gotradex-market-stream-worker/index.ts
+          deno check supabase/functions/gotradex-trade-engine/index.ts
+          deno check supabase/functions/gotradex-trade-scheduler/index.ts
+          deno check supabase/functions/gotradex-otc-engine/index.ts
+          deno check supabase/functions/gotradex-synthetic-market/index.ts
+          deno check supabase/functions/gotradex-market-ws/index.ts
       - name: Verify selected asset reaches the verified chart feed
         run: |
           node - <<'NODE'
@@ -71,7 +79,12 @@ jobs:
           const index = fs.readFileSync('index.html', 'utf8');
           const chart = fs.readFileSync('live-chart.js', 'utf8');
           const feed = fs.readFileSync('market-data.js', 'utf8');
+          const otcAdapter = fs.readFileSync('gotradex-otc-adapter.js', 'utf8');
           const pro = fs.readFileSync('gotradex-pro-engine.js', 'utf8');
+          const marketDataFunction = fs.readFileSync('supabase/functions/gotradex-market-data/index.ts', 'utf8');
+          const marketWorker = fs.readFileSync('supabase/functions/gotradex-market-stream-worker/index.ts', 'utf8');
+          const tradeEngine = fs.readFileSync('supabase/functions/gotradex-trade-engine/index.ts', 'utf8');
+          const tradeScheduler = fs.readFileSync('supabase/functions/gotradex-trade-scheduler/index.ts', 'utf8');
           const checks = [
             [/<script\b[^>]*src=["'][^"']*live-chart\.js(?:\?[^"']*)?["']/i.test(index), 'active live-chart script is referenced'],
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
@@ -79,7 +92,9 @@ jobs:
             [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
             [chart.includes('derivCandleHistory(') && chart.includes('derivSocket('), 'chart uses Deriv history and tick adapter'],
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
-            [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection']
+            [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection'],
+            [!(/api\.twelvedata\.com|TWELVE_DATA_API_KEY/i.test(feed + marketDataFunction + marketWorker + tradeEngine + tradeScheduler)), 'active feed and trade services do not call Twelve Data'],
+            [!(/gotradex-otc-engine|otc_prices|otc_candles|Math\.random/i.test(otcAdapter)), 'chart adapter cannot fall back to generated OTC data']
           ];
           for (const [ok, name] of checks) {
             if (!ok) throw new Error('FAILED: ' + name);
