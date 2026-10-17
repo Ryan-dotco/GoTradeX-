@@ -206,7 +206,7 @@ function sendTradeToMain(side){
 function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
 async function loadLatestOtcHistory(pair,sec){
  const supported=new Set(["EUR/USD OTC","GBP/USD OTC","USD/JPY OTC","AUD/USD OTC","USD/CAD OTC","USD/CHF OTC","NZD/USD OTC","AUD/NZD OTC","EUR/GBP OTC","EUR/JPY OTC","GBP/JPY OTC","USD/ZAR OTC"]);
- const tfMap={60:"1m",300:"5m",900:"15m",1800:"30m",3600:"1h",14400:"4h",86400:"1d",2592000:"1month"};
+ const tfMap={60:"1m",180:"1m",300:"5m",900:"15m",1800:"30m",3600:"1h",14400:"4h",86400:"1d",2592000:"1month"};
  if(!supported.has(pair))throw new Error("No OTC server-engine history is configured for "+pair+".");
  const tf=tfMap[Number(sec)];if(!tf)throw new Error("Unsupported OTC timeframe.");
  if(!window.supabase?.createClient)throw new Error("Supabase client is not loaded.");
@@ -218,8 +218,11 @@ async function loadLatestOtcHistory(pair,sec){
  const {data,error}=await sb.from("otc_candles").select("candle_time,open,high,low,close,volume")
   .eq("pair",pair).eq("timeframe",tf).order("candle_time",{ascending:false}).limit(500);
  if(error)throw new Error("OTC history read failed: "+error.message);
- return (data||[]).map(x=>({time:Math.floor(Date.parse(x.candle_time)/1000),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close)}))
+ const rows=(data||[]).map(x=>({time:Math.floor(Date.parse(x.candle_time)/1000),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close)}))
   .filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite)).reverse();
+ if(Number(sec)!==180)return rows;
+ const buckets=new Map();for(const x of rows){const t=Math.floor(x.time/180)*180;const b=buckets.get(t);if(!b)buckets.set(t,{time:t,open:x.open,high:x.high,low:x.low,close:x.close});else{b.high=Math.max(b.high,x.high);b.low=Math.min(b.low,x.low);b.close=x.close;}}
+ return [...buckets.values()].sort((a,b)=>a.time-b.time);
 }
 function getAdapter(){
  try{if(parent.GoTradeXOTCAdapter)return parent.GoTradeXOTCAdapter}catch(_){}
