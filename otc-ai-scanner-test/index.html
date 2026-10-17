@@ -85,9 +85,14 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
   <div class="view" id="v-alerts">
     <div class="top"><div class="top-icon">🔔</div><div><h3 style="color:#fff;font-size:14px">Chart Alerts</h3><p style="color:#6b86b3;font-size:11px">Set alerts, get notified, trade smarter</p></div></div>
     <div class="tabs"><div class="tab active">New Alert</div><div class="tab">Active Alerts</div><div class="tab">History</div></div>
-    <div class="card"><h4 style="font-size:12px;margin-bottom:8px">Create New Alert</h4><div style="display:flex;gap:8px"><div style="flex:1"><div class="label">Asset</div><div class="input">EUR/USD ⌄</div></div><div style="flex:1"><div class="label">Condition</div><div class="input">Price Above ⌄</div></div></div><div style="display:flex;gap:8px;margin-top:8px"><div style="flex:1"><div class="label">Price</div><div class="input">1.1050</div></div><div style="flex:1"><div class="label">Expiry</div><div class="input">1 hour ⌄</div></div></div><button class="setBtn">🔔 Set Alert</button></div>
-    <div style="padding:0 12px;color:#fff;font-size:12px">Active Alerts</div>
-    <div class="list"><div class="alertItem"><div class="ico up">↑</div><div style="font-size:12px"><div>EUR/USD</div><div style="color:#6b86b3">Price above 1.1050</div></div><div class="badge active">Active</div></div><div class="alertItem"><div class="ico down">↓</div><div style="font-size:12px"><div>BTC/USDT</div><div style="color:#6b86b3">Price below 83,000</div></div><div class="badge active">Active</div></div></div>
+    <div class="card"><h4 style="font-size:12px;margin-bottom:8px">Create New OTC Price Alert</h4>
+      <div style="display:flex;gap:8px"><div style="flex:1"><div class="label">Asset</div><select id="alertAsset" class="input" style="width:100%;color:#fff;background:#101e3a"><option>EUR/USD OTC</option><option>GBP/USD OTC</option><option>USD/JPY OTC</option><option>AUD/USD OTC</option><option>USD/CAD OTC</option><option>USD/CHF OTC</option><option>NZD/USD OTC</option></select></div>
+      <div style="flex:1"><div class="label">Condition</div><select id="alertCondition" class="input" style="width:100%;color:#fff;background:#101e3a"><option value="above">Price above</option><option value="below">Price below</option></select></div></div>
+      <div style="margin-top:8px"><div class="label">Target Price</div><input id="alertTarget" class="input" type="number" min="0" step="any" placeholder="Enter target price" style="width:100%;color:#fff;background:#101e3a;box-sizing:border-box"></div>
+      <div style="margin-top:8px"><div class="label">Expiry</div><select id="alertExpiry" class="input" style="width:100%;color:#fff;background:#101e3a"><option value="3600000">1 hour</option><option value="21600000">6 hours</option><option value="86400000">24 hours</option></select></div>
+      <button class="setBtn" id="setAlertBtn">🔔 Set Alert</button><div id="alertStatus" role="status" style="font-size:11px;color:#8da7cc;margin-top:8px">Alerts are monitored in this browser using verified OTC prices. Keep this page open; no server push is configured.</div></div>
+    <div style="padding:0 12px;color:#fff;font-size:12px">Your Active Alerts</div>
+    <div class="list" id="activeAlertsList"><div class="item" style="color:#8da7cc;font-size:12px">No active alerts.</div></div>
   </div>
 
   <!-- VIEW 3: PRICE ALERT SETTINGS -->
@@ -105,9 +110,9 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
 
   <!-- VIEW 5: TRADE HISTORY -->
   <div class="view" id="v-history">
-    <div style="padding:14px 16px;display:flex;justify-content:space-between"><h2 style="color:#fff">Trade History</h2><span style="color:#5a6a85;font-size:11px">50 closed trades</span></div>
-    <div class="stats"><div><div class="label">REALIZED P&L</div><b style="color:#00e676">+$410.54</b></div><div><div class="label">WIN RATE</div><b style="color:#fff">88%</b></div><div><div class="label">WINS / LOSS</div><b style="color:#fff">44 / 6</b></div></div>
-    <div class="list" id="tradeList" style="margin-top:10px"></div>
+    <div style="padding:14px 16px;display:flex;justify-content:space-between"><h2 style="color:#fff">Analyzer History</h2><span style="color:#5a6a85;font-size:11px">This device</span></div>
+    <div style="padding:0 14px 10px;color:#8da7cc;font-size:11px">Analysis records only; this screen does not execute trades or calculate realized P&amp;L.</div>
+    <div class="list" id="tradeList" style="margin-top:10px"><div class="item" style="color:#8da7cc;font-size:12px">No analysis history yet.</div></div>
   </div>
 
   <!-- BOTTOM NAV -->
@@ -216,12 +221,15 @@ signalButton.onclick=async function(){
   btn.disabled=false;btn.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span>';btn.title=dataStatus;
  },1000);
 };
-// SIGNAL HISTORY
-const sig=[{pair:'EUR/USD',type:'BUY',tf:'15m',date:'12:45',pct:'+87%',res:'WIN',dir:'up'},{pair:'BTC/USDT',type:'SELL',tf:'5m',date:'12:32',pct:'-100%',res:'LOSS',dir:'down'},{pair:'GBP/JPY',type:'BUY',tf:'15m',date:'12:20',pct:'+72%',res:'WIN',dir:'up'}];
-document.getElementById('sigList').innerHTML=sig.map(s=>`<div class="item"><div class="ico ${s.dir}">${s.dir==='up'?'↑':'↓'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${s.pair}</div><div style="color:#6b86b3;font-size:10px">${s.type} • ${s.tf} • ${s.date}</div></div><div style="color:${s.res==='WIN'?'#00ff88':'#ff3d57'};font-weight:700;font-size:12px">${s.pct}</div><div class="badge ${s.res==='WIN'?'active':''}" style="background:${s.res==='WIN'?'#0a3d1f':'#3a1120'};color:${s.res==='WIN'?'#00ff88':'#ff3d57'}">${s.res}</div></div>`).join('');
-// TRADE HISTORY
-const trades=[{pair:'SOL/USDT',type:'LONG',dir:'long',exit:'68.8301',entry:'68.1100',lev:'20x',pct:'+20.92%',date:'Jun 13 5:42 PM',pnl:'+$15.82'},{pair:'SOL/USDT',type:'LONG',dir:'long',exit:'68.6600',entry:'68.1100',lev:'20x',pct:'+16.02%',date:'Jun 13 5:41 PM',pnl:'+$16.91'},{pair:'ETH/USDT',type:'SHORT',dir:'short',exit:'1674.13',entry:'1675.14',lev:'10x',pct:'+0.6%',date:'Jun 13 2:04 PM',pnl:'+$1.19'}];
-document.getElementById('tradeList').innerHTML=trades.map(t=>`<div class="item" style="border-left:3px solid ${t.dir==='long'?'#00e676':'#ff3d57'}"><div style="flex:1"><div style="font-weight:800;font-size:13px">${t.pair}</div><div style="color:#5a6a85;font-size:11px">Exit $${t.exit} Entry $${t.entry} ${t.lev} <span style="color:#00e676">${t.pct}</span><br>${t.date}</div></div><div style="color:#00e676;font-weight:800">${t.pnl}</div></div>`).join('');
+// Persist only actual analyzer outputs; never seed fabricated signals or trade outcomes.
+const SIGNAL_HISTORY_KEY='gotradex_otc_analyzer_signal_history';
+function readSignalHistory(){try{const v=JSON.parse(localStorage.getItem(SIGNAL_HISTORY_KEY)||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}}
+function renderSignalHistory(){
+ const items=readSignalHistory();
+ document.getElementById('sigList').innerHTML=items.length?items.map(s=>`<div class="item"><div class="ico ${s.side==='BUY'?'up':s.side==='SELL'?'down':''}">${s.side==='BUY'?'↑':s.side==='SELL'?'↓':'—'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${s.pair}</div><div style="color:#6b86b3;font-size:10px">${s.side} • ${s.tf} • ${new Date(s.time).toLocaleString()}</div></div><div class="badge">${s.side==='WAIT'?'WAIT':'ANALYSIS'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No analyses recorded yet.</div>';
+ document.getElementById('tradeList').innerHTML=items.length?items.map(s=>`<div class="item"><div style="flex:1"><div style="font-weight:800;font-size:13px">${s.pair} — ${s.side}</div><div style="color:#8da7cc;font-size:11px">${new Date(s.time).toLocaleString()} · Entry ${s.entry}</div></div><div class="badge">${s.momentum||'—'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No analysis history yet. No trades or outcomes are fabricated.</div>';
+}
+renderSignalHistory();
 function getAnalysisText(){return document.querySelector('.details')?.innerText||'No analysis available'}
 function shareAnalysis(){const text=getAnalysisText();if(navigator.share)navigator.share({title:'GoTradeX OTC Analysis',text}).catch(()=>{});else copyAnalysis()}
 function copyAnalysis(){const text=getAnalysisText();if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>alert('Analysis copied')).catch(()=>alert('Copy unavailable'));else alert(text)}
