@@ -172,6 +172,7 @@ function getMarketMode(){try{return String(localStorage.getItem('gotradex_market
 function getAssetBase(){try{return String(localStorage.getItem('gotradex_asset_display')||'EUR/USD').replace(/\s+OTC$/i,'').trim()||'EUR/USD'}catch(_){return 'EUR/USD'}}
 function getAccountMode(){try{return String(localStorage.getItem('gotradex_account_mode')||'DEMO').toUpperCase()==='REAL'?'REAL':'DEMO'}catch(_){return 'DEMO'}}
 function getTradeExpiry(){try{const x=localStorage.getItem('gotradex_trade_expiration')||'5 Minutes';return mainExpiryOptions.includes(x)?x:'5 Minutes'}catch(_){return '5 Minutes'}}
+function getAssetType(asset){const a=String(asset||'').replace(/\s+OTC$/i,'').toUpperCase();if(['BTC/USD','BTC/USDT','ETH/USD','ETH/USDT','XRP/USD','SOL/USD'].includes(a))return 'crypto';if(['XAU/USD','XAG/USD'].includes(a))return 'metals';return 'forex'}
 function timeframeLabel(sec){return ({60:'1m',300:'5m',900:'15m',1800:'30m',3600:'1h',14400:'4h',86400:'1d'})[Number(sec)]||'15m'}
 function timeframeName(sec){return ({60:'1 Minute',300:'5 Minutes',900:'15 Minutes',1800:'30 Minutes',3600:'1 Hour',14400:'4 Hours',86400:'1 Day'})[Number(sec)]||'15 Minutes'}
 function timeframeSeconds(name){return ({'1 Minute':60,'3 Minutes':180,'5 Minutes':300,'15 Minutes':900,'30 Minutes':1800,'1 Hour':3600,'4 Hours':14400,'1 Day':86400})[String(name)]||900}
@@ -192,7 +193,7 @@ function syncControlsFromState(state={}){
  const source=document.getElementById('marketSourceLabel');if(source)source.textContent=mode==='OTC'?'OTC · synthetic server engine':'LIVE · broker feed required';
 }
 function sendAnalyzerSync(action){
- const msg={type:'GTX_ANALYZER_SYNC',marketMode:document.getElementById('marketMode')?.value||getMarketMode(),asset:document.getElementById('assetSelect')?.value||getAssetBase(),assetType:'forex',accountMode:document.getElementById('accountMode')?.value||getAccountMode(),expiration:document.getElementById('tradeExpiry')?.value||getTradeExpiry(),timeframe:Number(document.getElementById('chartTimeframe')?.value||900),chartTimeframe:timeframeName(Number(document.getElementById('chartTimeframe')?.value||900))};
+ const msg={type:'GTX_ANALYZER_SYNC',marketMode:document.getElementById('marketMode')?.value||getMarketMode(),asset:document.getElementById('assetSelect')?.value||getAssetBase(),assetType:getAssetType(document.getElementById('assetSelect')?.value||getAssetBase()),accountMode:document.getElementById('accountMode')?.value||getAccountMode(),expiration:document.getElementById('tradeExpiry')?.value||getTradeExpiry(),timeframe:Number(document.getElementById('chartTimeframe')?.value||900),chartTimeframe:timeframeName(Number(document.getElementById('chartTimeframe')?.value||900))};
  try{localStorage.setItem('gotradex_market_mode',msg.marketMode);localStorage.setItem('gotradex_asset_display',msg.asset);localStorage.setItem('gotradex_asset_type',msg.assetType);localStorage.setItem('gotradex_account_mode',msg.accountMode);localStorage.setItem('gotradex_trade_expiration',msg.expiration)}catch(_){}
  try{if(window.parent&&window.parent!==window)window.parent.postMessage({...msg,action:action||null},window.location.origin)}catch(_){}
  syncControlsFromState(msg);
