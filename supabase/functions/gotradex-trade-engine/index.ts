@@ -115,7 +115,8 @@ async function settleDue(userId:string){
   const settled=[];
   for(const t of (trades||[])){
     try{
-      const p=await priceFor(t.asset,t.provider,t.provider_symbol);
+      const resolved=DERIV_FX[String(t.asset||"").toUpperCase()] ? {provider:"DERIV",symbol:DERIV_FX[String(t.asset).toUpperCase()]} : {provider:t.provider,symbol:t.provider_symbol};
+      const p=await priceFor(t.asset,resolved.provider,resolved.symbol);
       const won=t.direction==="BUY" ? p.price>Number(t.entry_price) : p.price<Number(t.entry_price);
       const draw=p.price===Number(t.entry_price);
       const result=draw?"DRAW":won?"WON":"LOST";
