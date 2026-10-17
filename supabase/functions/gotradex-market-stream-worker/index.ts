@@ -6,7 +6,7 @@ declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")||"https://glffecggusetzklmyukv.supabase.co";
 const SERVICE=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
-const DERIV_APP_ID=Deno.env.get("DERIV_LEGACY_APP_ID")||"1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
+const DERIV_APP_ID="1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
 const RUN_MS=15000, MAX_TD=8;
 const SUBSCRIPTION_TTL_MS=24*60*60*1000;
