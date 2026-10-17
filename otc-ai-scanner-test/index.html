@@ -145,6 +145,23 @@ const resultSide=document.querySelector('.buy');
 const signalButton=document.getElementById('signalBtn');
 let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for OTC server-engine data';
 function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
+async function loadLatestOtcHistory(pair,sec){
+ const supported=new Set(["EUR/USD OTC","GBP/USD OTC","USD/JPY OTC","AUD/USD OTC","USD/CAD OTC","USD/CHF OTC","NZD/USD OTC","AUD/NZD OTC","EUR/GBP OTC","EUR/JPY OTC","GBP/JPY OTC","USD/ZAR OTC"]);
+ const tfMap={60:"1m",300:"5m",900:"15m",1800:"30m",3600:"1h",14400:"4h",86400:"1d",2592000:"1month"};
+ if(!supported.has(pair))throw new Error("No OTC server-engine history is configured for "+pair+".");
+ const tf=tfMap[Number(sec)];if(!tf)throw new Error("Unsupported OTC timeframe.");
+ if(!window.supabase?.createClient)throw new Error("Supabase client is not loaded.");
+ const sb=window.__GoTradeXAnalyzerReadClient||(window.__GoTradeXAnalyzerReadClient=window.supabase.createClient(
+  "https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",
+  {auth:{persistSession:true,autoRefreshToken:true}}
+ ));
+ // Fetch newest rows first, then reverse for Lightweight Charts chronological order.
+ const {data,error}=await sb.from("otc_candles").select("candle_time,open,high,low,close,volume")
+  .eq("pair",pair).eq("timeframe",tf).order("candle_time",{ascending:false}).limit(500);
+ if(error)throw new Error("OTC history read failed: "+error.message);
+ return (data||[]).map(x=>({time:Math.floor(Date.parse(x.candle_time)/1000),open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close)}))
+  .filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite)).reverse();
+}
 function getAdapter(){
  try{if(parent.GoTradeXOTCAdapter)return parent.GoTradeXOTCAdapter}catch(_){}
  if(window.GoTradeXOTCAdapter)return window.GoTradeXOTCAdapter;
@@ -220,9 +237,9 @@ async function loadVerifiedData(){
  resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';
  if(!adapter){dataStatus='OTC adapter unavailable in this session';signalButton.title=dataStatus;showDataStatus();return}
  try{
-  const hist=await adapter.history(pair,liveTf);
+  const hist=await loadLatestOtcHistory(pair,liveTf);
   if(!Array.isArray(hist)||hist.length<5)throw new Error('Not enough OTC server-engine candles for analysis');
-  data=hist.map(x=>({time:Math.floor(x.t/1000),open:x.o,high:x.h,low:x.l,close:x.c})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
+  data=hist;
   if(data.length<5)throw new Error('Verified candle data is incomplete');
   candle.setData(data);chart.timeScale().fitContent();
   const q=await adapter.price(pair);
