@@ -19,13 +19,13 @@ jobs:
           const vm = require('vm');
           const index = fs.readFileSync('index.html', 'utf8');
           const localFiles = new Set();
-          for (const match of index.matchAll(/<script\\b([^>]*)>/gi)) {
+          for (const match of index.matchAll(/<script\b([^>]*)>/gi)) {
             const attrs = match[1];
-            const src = attrs.match(/\\bsrc=["']([^"']+)["']/i);
+            const src = attrs.match(/\bsrc=["']([^"']+)["']/i);
             if (src) {
               const url = src[1];
-              if (/^(?:https?:)?\\/\\//i.test(url)) continue;
-              const path = url.split('?')[0].replace(/^\\.\\//, '');
+              if (/^(?:https?:)?\/\//i.test(url)) continue;
+              const path = url.split('?')[0].replace(/^\.\//, '');
               if (!fs.existsSync(path)) throw new Error('Missing local script: ' + path);
               localFiles.add(path);
             }
@@ -35,10 +35,10 @@ jobs:
             console.log('PASS: ' + path);
           }
           let inlineCount = 0;
-          for (const match of index.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)) {
+          for (const match of index.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
             const attrs = match[1];
-            if (/\\bsrc=/i.test(attrs)) continue;
-            const type = (attrs.match(/\\btype=["']([^"']+)["']/i) || [])[1] || '';
+            if (/\bsrc=/i.test(attrs)) continue;
+            const type = (attrs.match(/\btype=["']([^"']+)["']/i) || [])[1] || '';
             if (type && !/(?:java|ecma)script/i.test(type)) continue;
             const code = match[2].trim();
             if (!code) continue;
@@ -56,10 +56,10 @@ jobs:
           const feed = fs.readFileSync('market-data.js', 'utf8');
           const pro = fs.readFileSync('gotradex-pro-engine.js', 'utf8');
           const checks = [
-            [/<script\\b[^>]*src=["'][^"']*live-chart\\.js(?:\\?[^"']*)?["']/i.test(index), 'active live-chart script is referenced'],
+            [/<script\b[^>]*src=["'][^"']*live-chart\.js(?:\?[^"']*)?["']/i.test(index), 'active live-chart script is referenced'],
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
-            [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
-            [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\\\s+OTC$/i,"")'), 'asset symbol normalization'],
+            [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
+            [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
             [chart.includes('d.source!=="dashboard-assets"') && chart.includes('setAsset(d.label,d.type,d.mode)'), 'single dashboard-to-chart handoff'],
             [chart.includes('function connectDeriv()') && chart.includes('derivCandleHistory(f.symbol,state.sec)'), 'Deriv historical candle request'],
             [chart.includes('function historyReady()') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks') && chart.includes('Waiting for the first verified tick to build candles'), 'OTC waits for verified history/ticks instead of fabricating candles'],
