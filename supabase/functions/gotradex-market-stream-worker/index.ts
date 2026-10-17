@@ -19,19 +19,24 @@ async function activeSymbols(){
   admin.from("gotradex_market_subscriptions").select("symbol").gte("last_requested_at",cutoff),
   admin.from("gotradex_user_trades").select("asset,provider,provider_symbol").eq("result","OPEN").limit(100)
  ]);
+ if(subs.error)throw new Error("Subscription lookup failed: "+subs.error.message);
+ if(open.error)throw new Error("Open-trade lookup failed: "+open.error.message);
  const set=new Set<string>((subs.data||[]).map((x:any)=>String(x.symbol).toUpperCase()));
  for(const t of (open.data||[]))if(t.asset)set.add(String(t.asset).toUpperCase());
- const {data:reg}=await admin.from("gotradex_market_registry").select("symbol,provider,provider_symbol,asset,priority").eq("enabled",true).order("priority",{ascending:true});
+ const {data:reg,error:regError}=await admin.from("gotradex_market_registry").select("symbol,provider,provider_symbol,asset,priority").eq("enabled",true).order("priority",{ascending:true});
+ if(regError)throw new Error("Market registry lookup failed: "+regError.message);
  const rows=(reg||[]).filter((r:any)=>set.has(String(r.symbol).toUpperCase()));
  return{deriv:rows.filter((r:any)=>r.provider==="DERIV"),bybit:rows.filter((r:any)=>r.provider==="BYBIT")};
 }
 async function writeTick(r:any,price:number,ts=Date.now()){
  if(!Number.isFinite(price)||price<=0)return;
  const iso=new Date(ts>1e12?ts:ts*1000).toISOString(),now=new Date().toISOString();
- await Promise.all([
+ const results=await Promise.all([
   admin.from("gotradex_market_state").upsert({symbol:String(r.symbol).toUpperCase(),asset:r.asset,provider:r.provider,provider_symbol:r.provider_symbol,price,tick_at:iso,updated_at:now},{onConflict:"symbol"}),
   admin.from("gotradex_market_registry").update({last_price:price,last_tick_at:iso,last_error:null,updated_at:now}).eq("symbol",r.symbol)
  ]);
+ if(results[0].error)throw new Error("Market state upsert failed for "+r.symbol+": "+results[0].error.message);
+ if(results[1].error)throw new Error("Registry tick update failed for "+r.symbol+": "+results[1].error.message);
 }
 async function restPrice(r:any){
  try{
@@ -49,10 +54,12 @@ async function restPrice(r:any){
 function connectDeriv(rows:any[]){
  return new Promise<number>(resolve=>{
   if(!rows.length)return resolve(0);
-  const ws=new WebSocket("wss://ws.binaryws.com/websockets/v3");let count=0,done=false;
-  const finish=()=>{if(done)return;done=true;try{ws.close()}catch(_){}resolve(count)};
+  const ws=new WebSocket("wss://ws.binaryws.com/websockets/v3");let count=0,done=false,opened=false,sawTick=false;
+  const finish=()=>{if(done)return;done=true;clearTimeout(diagnosticTimer);try{ws.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
+  const diagnosticTimer=setTimeout(()=>{if(!sawTick){console.error("DERIV_NO_TICKS",JSON.stringify(rows.map((r:any)=>({symbol:r.symbol,provider_symbol:r.provider_symbol,opened:opened}))));Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"Deriv WebSocket returned no ticks; verify symbol and provider availability.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{})}},10000);
   ws.onopen=()=>{
+   opened=true;console.log("DERIV_WS_OPEN",rows.length);
    rows.forEach((r:any,i:number)=>{
     try{ws.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1}))}catch(_){}
    });
@@ -62,16 +69,16 @@ function connectDeriv(rows:any[]){
   ws.onmessage=e=>{
    try{
     const m=JSON.parse(String(e.data||"{}"));
-    if(m?.error)return;
+    if(m?.error){console.error("DERIV_PROVIDER_ERROR",String(m.error.message||"unknown"),String(m.error.code||""));return;}
     if(m?.msg_type==="tick"&&m?.tick){
       const sym=String(m.tick.symbol||"").toUpperCase();
       const row=rows.find((r:any)=>String(r.provider_symbol).toUpperCase()===sym);
       const price=Number(m.tick.quote),epoch=Number(m.tick.epoch);
-      if(row&&Number.isFinite(price)&&price>0){count++;writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch(()=>{})}
+      if(row&&Number.isFinite(price)&&price>0){count++;if(!sawTick){sawTick=true;clearTimeout(diagnosticTimer);console.log("DERIV_FIRST_TICK",row.symbol)}writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch((err:any)=>console.error("DERIV_WRITE_FAILED",row.symbol,String(err?.message||err)))}
     }
    }catch(_){}
   };
-  ws.onerror=()=>finish();ws.onclose=()=>{clearTimeout(timer);finish()};
+  ws.onerror=(e)=>{console.error("DERIV_WS_ERROR",String((e as any)?.message||"WebSocket error"));finish()};ws.onclose=()=>{clearTimeout(timer);if(!sawTick)console.error("DERIV_WS_CLOSED_BEFORE_TICK",rows.length);finish()};
  });
 }
 function connectBybit(rows:any[]){
@@ -94,6 +101,7 @@ async function pollLoop(active:any[],deadline:number){
 }
 async function runWorker(id:string){
  const active=await activeSymbols();
+ console.log("MARKET_WORKER_ACTIVE",{deriv:active.deriv.length,bybit:active.bybit.length});
  if(!active.deriv.length&&!active.bybit.length)return;
  const deadline=Date.now()+RUN_MS-5000;
  const wsPromise=Promise.all([connectDeriv(active.deriv),connectBybit(active.bybit)]);
