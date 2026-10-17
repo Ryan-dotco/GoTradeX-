@@ -70,7 +70,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   function analyzerFrame(){return document.querySelector("#gtxOtcAiOverlay iframe");}
   function currentMainState(){
     const read=(k,f)=>{try{return localStorage.getItem(k)||f}catch(_){return f}};
-    return {type:"GTX_MAIN_STATE",marketMode:read("gotradex_market_mode","LIVE").toUpperCase()==="OTC"?"OTC":"LIVE",asset:read("gotradex_asset_display","BTC/USD").replace(/\s+OTC$/i,""),assetType:read("gotradex_asset_type","forex"),accountMode:read("gotradex_account_mode","DEMO").toUpperCase()==="REAL"?"REAL":"DEMO",expiration:read("gotradex_trade_expiration","5 Minutes")};
+    return {type:"GTX_MAIN_STATE",marketMode:read("gotradex_market_mode","LIVE").toUpperCase()==="OTC"?"OTC":"LIVE",asset:read("gotradex_asset_display","BTC/USD").replace(/\s+OTC$/i,""),assetType:read("gotradex_asset_type","forex"),accountMode:read("gotradex_account_mode","DEMO").toUpperCase()==="REAL"?"REAL":"DEMO",expiration:read("gotradex_trade_expiration","5 Minutes"),chartTimeframe:read("gotradex_chart_timeframe","5 Minutes")};
   }
   function sendMainState(){
     const frame=analyzerFrame();if(!frame||!frame.contentWindow)return;
@@ -87,6 +87,8 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     if(typeof window.gtxSetMarketMode==="function")window.gtxSetMarketMode(mode);
     if(asset&&typeof window.gtxSetBottomAsset==="function")window.gtxSetBottomAsset(asset,type);
     if(allowedExpiry.includes(msg.expiration)&&window.GoTradeXTimeframeController&&typeof window.GoTradeXTimeframeController.set==="function")window.GoTradeXTimeframeController.set(msg.expiration,"analyzer");
+    const allowedChartTf=["1 Minute","3 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day"];
+    if(allowedChartTf.includes(msg.chartTimeframe)&&window.GoTradeXLiveChart&&typeof window.GoTradeXLiveChart.setTimeframe==="function")window.GoTradeXLiveChart.setTimeframe(msg.chartTimeframe);
     const account=String(msg.accountMode||"").toUpperCase()==="REAL"?"REAL":"DEMO";
     try{localStorage.setItem("gotradex_account_mode",account)}catch(_){}
     if(typeof window.setAccountMode==="function")try{window.setAccountMode(account)}catch(_){}
