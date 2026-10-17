@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@1";
+import WebSocketClient from "npm:ws@8.18.0";
 
 
 const json = (x: unknown, status = 200) =>
