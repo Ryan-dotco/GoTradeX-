@@ -81,4 +81,8 @@ where symbol in ('XAU/USD','XAG/USD');
 alter table public.gotradex_market_registry
   add constraint gotradex_market_registry_provider_check
   check (provider in ('BYBIT','DERIV'));
+
+-- gotradex_market_state is a current snapshot, not historical trade/candle data.
+-- Remove snapshots from the retired provider so stale prices cannot be shown as live.
+delete from public.gotradex_market_state where provider='TWELVE_DATA';
 commit;
