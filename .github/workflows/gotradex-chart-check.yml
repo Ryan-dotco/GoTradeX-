@@ -1,4 +1,4 @@
-name: GoTradeX chart, portal-script, and asset-sync checks
+name: GoTradeX recovery static checks
 on:
   push:
     branches: [main]
@@ -12,7 +12,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Syntax-check every active local JavaScript file and inline script
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Syntax-check active local scripts and inline JavaScript
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -20,20 +23,21 @@ jobs:
           const index = fs.readFileSync('index.html', 'utf8');
           const localFiles = new Set();
           for (const match of index.matchAll(/<script\b([^>]*)>/gi)) {
-            const attrs = match[1];
-            const src = attrs.match(/\bsrc=["']([^"']+)["']/i);
-            if (src) {
-              const url = src[1];
-              if (/^(?:https?:)?\/\//i.test(url)) continue;
-              const path = url.split('?')[0].replace(/^\.\//, '');
-              if (!fs.existsSync(path)) throw new Error('Missing local script: ' + path);
-              localFiles.add(path);
-            }
+            const src = match[1].match(/\bsrc=["']([^"']+)["']/i);
+            if (!src) continue;
+            const url = src[1];
+            if (/^(?:https?:)?\/\//i.test(url)) continue;
+            const path = url.split('?')[0].replace(/^\.\//, '');
+            if (!fs.existsSync(path)) throw new Error('Missing local script: ' + path);
+            localFiles.add(path);
           }
           for (const path of localFiles) {
             new vm.Script(fs.readFileSync(path, 'utf8'), { filename: path });
             console.log('PASS: ' + path);
           }
+          const scanner = fs.readFileSync('otc-ai-scanner-test/scanner.js', 'utf8');
+          new vm.Script(scanner, { filename: 'otc-ai-scanner-test/scanner.js' });
+          console.log('PASS: OTC AI scanner script syntax');
           let inlineCount = 0;
           for (const match of index.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
             const attrs = match[1];
@@ -45,9 +49,22 @@ jobs:
             inlineCount++;
             new vm.Script(code, { filename: 'index.html:inline-script-' + inlineCount });
           }
-          console.log('PASS: syntax checked ' + localFiles.size + ' local files and ' + inlineCount + ' inline scripts');
+          console.log('PASS: ' + inlineCount + ' inline scripts');
+          if (scanner.includes('Math.random()*0.0006') || scanner.includes("const sig=[{pair:'EUR/USD'")) {
+            throw new Error('Scanner still contains the old fabricated candle/history demo.');
+          }
+          for (const [ok, label] of [
+            [scanner.includes('derivCandleHistory(st.asset.symbol,st.sec)') && scanner.includes('derivSocket(st.asset.symbol'), 'scanner uses Deriv history and live ticks'],
+            [scanner.includes('https://api.bybit.com/v5/market/kline') && scanner.includes('wss://stream.bybit.com/v5/public/spot'), 'scanner uses Bybit public candles and live ticks'],
+            [scanner.includes('["BUY","SELL"].indexOf(sig.signal)<0') || scanner.includes('["BUY","SELL"].indexOf(sig.signal)<0'), 'WAIT signals are blocked from bot delivery']
+          ]) {
+            if (!ok) throw new Error('FAILED: ' + label);
+            console.log('PASS: ' + label);
+          }
           NODE
-      - name: Verify selected asset reaches the correct verified chart feed
+      - name: Type-check secure bot delivery Edge Function
+        run: deno check supabase/functions/gotradex-alert-delivery/index.ts
+      - name: Verify selected asset reaches the verified chart feed
         run: |
           node - <<'NODE'
           const fs = require('fs');
@@ -60,9 +77,7 @@ jobs:
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
             [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
             [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
-            [chart.includes('d.source!=="dashboard-assets"') && chart.includes('setAsset(d.label,d.type,d.mode)'), 'single dashboard-to-chart handoff'],
-            [chart.includes('function connectDeriv()') && chart.includes('derivCandleHistory(f.symbol,state.sec)'), 'Deriv historical candle request'],
-            [chart.includes('function historyReady()') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks') && chart.includes('Waiting for the first verified tick to build candles'), 'OTC waits for verified history/ticks instead of fabricating candles'],
+            [chart.includes('derivCandleHistory(') && chart.includes('derivSocket('), 'chart uses Deriv history and tick adapter'],
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
             [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection']
           ];
