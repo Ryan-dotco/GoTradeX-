@@ -8,7 +8,7 @@ const SERVICE=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
 const DERIV_APP_ID=Deno.env.get("DERIV_APP_ID")||"";
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
-const RUN_MS=105000, HANDOFF_MS=90000, MAX_TD=8;
+const RUN_MS=15000, MAX_TD=8;
 const SUBSCRIPTION_TTL_MS=24*60*60*1000;
 const DERIV_FX:Record<string,string>={
  "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
@@ -115,14 +115,13 @@ async function pollLoop(active:any[],deadline:number){
 }
 async function runWorker(id:string){
  const active=await activeSymbols();
- if(!active.td.length&&!active.bybit.length&&!active.deriv.length)return;
+ console.log("MARKET_WORKER_ACTIVE",{td:active.td.length,bybit:active.bybit.length,deriv:active.deriv.length});
+ if(!active.td.length&&!active.bybit.length&&!active.deriv.length)return {ticks:0,reason:"no active subscribed symbols"};
  const deadline=Date.now()+RUN_MS-5000;
  const wsPromise=Promise.all([connectTD(active.td),connectBybit(active.bybit),connectDeriv(active.deriv)]);
  await Promise.all([wsPromise,pollLoop([...active.td,...active.bybit],deadline)]);
  await renew(id);
- if(Date.now()-deadline<HANDOFF_MS){
-  fetch(SELF,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SERVICE,"apikey":SERVICE},body:JSON.stringify({handoff:true})}).catch(()=>{});
- }
+ return {ok:true,deriv:active.deriv.length,bybit:active.bybit.length,td:active.td.length};
 }
 Deno.serve(async req=>{
  if(req.method!=="POST")return json({ok:false,error:"POST required"},405);
@@ -130,7 +129,13 @@ Deno.serve(async req=>{
  const auth=req.headers.get("authorization")||"",api=req.headers.get("apikey")||"";
  if(auth!=="Bearer "+SERVICE&&api!==SERVICE)return json({ok:false,error:"Unauthorized"},401);
  const lock=await acquire();if(!lock.ok)return json({ok:true,skipped:true,reason:"another worker holds the lease"});
- EdgeRuntime.waitUntil(runWorker(lock.id).catch(async e=>{console.error("market worker",e);await release(lock.id)}));
- EdgeRuntime.waitUntil(new Promise<void>(resolve=>setTimeout(()=>{release(lock.id).finally(resolve)},RUN_MS)));
- return json({ok:true,started:true,worker_id:lock.id});
+ try{
+  const result=await runWorker(lock.id);
+  await release(lock.id);
+  return json({ok:true,completed:true,worker_id:lock.id,result});
+ }catch(e){
+  console.error("market worker",e);
+  await release(lock.id);
+  return json({ok:false,error:String((e as Error)?.message||e)},500);
+ }
 });
