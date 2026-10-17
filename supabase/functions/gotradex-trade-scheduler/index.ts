@@ -134,8 +134,8 @@ export default {
     for (const trade of trades) {
       const map = mapping(String(trade.asset || ""));
       if (!map) { failed++; continue; }
-      const provider = String(trade.provider || map.provider);
-      const symbol = String(trade.provider_symbol || map.symbol);
+      const provider = map.provider === "DERIV" ? "DERIV" : String(trade.provider || map.provider);
+      const symbol = map.provider === "DERIV" ? map.symbol : String(trade.provider_symbol || map.symbol);
       uniqueSymbols.set(provider+"|"+symbol,{provider,symbol});
     }
 
@@ -152,8 +152,8 @@ export default {
       const map = mapping(String(trade.asset || ""));
       if (!map) continue;
 
-      const provider = String(trade.provider || map.provider);
-      const symbol = String(trade.provider_symbol || map.symbol);
+      const provider = map.provider === "DERIV" ? "DERIV" : String(trade.provider || map.provider);
+      const symbol = map.provider === "DERIV" ? map.symbol : String(trade.provider_symbol || map.symbol);
       const key = provider+"|"+symbol;
       const p = priceCache.get(key);
       if (!p) continue;
