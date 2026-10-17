@@ -93,6 +93,11 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     if(msg.action==="BUY"||msg.action==="SELL"){
       const button=document.getElementById(msg.action.toLowerCase());
       if(button)button.click();
+      // DEMO uses the existing server-authoritative paper-trade runtime.
+      // REAL remains blocked unless a verified broker execution adapter is installed.
+      if(account==="DEMO"&&button&&window.GoTradeXServerRuntime&&typeof window.GoTradeXServerRuntime.open==="function"&&/showTradeFeedback/.test(String(button.onclick||""))){
+        window.GoTradeXServerRuntime.open(msg.action);
+      }
     }
     sendMainState();
   });
