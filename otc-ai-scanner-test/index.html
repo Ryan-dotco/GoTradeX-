@@ -29,10 +29,11 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
 .mode-toggle.otc{background:#122e52;border-color:#0a5bff;color:#8db9ff}
 .mode-toggle.demo{background:#182743;border-color:#45618b;color:#c3d5f3}
 .mode-toggle.real{background:#153b2b;border-color:#00a86b;color:#70ffc0}
-.account-market-toggle{display:flex;flex:0 0 auto;width:auto;padding:0;background:transparent;border:0;border-radius:0}
-.mode-cycle{display:block;width:auto;min-width:116px;min-height:32px;padding:5px 10px;border:2px solid #00e676;border-radius:9px;background:#153b2b;color:#70ffc0;font-size:11px;font-weight:900;letter-spacing:.2px;text-align:center;white-space:nowrap;cursor:pointer;box-shadow:0 0 0 1px rgba(0,230,118,.2),0 0 8px rgba(0,230,118,.12)}
-/* Keep the green status ring for all four account/market combinations. */
-.mode-cycle[data-market="OTC"]{background:#122e52;border-color:#00e676;color:#70ffc0;box-shadow:0 0 0 2px rgba(0,230,118,.22),0 0 12px rgba(0,230,118,.16)}
+.account-market-toggle{display:inline-flex;flex:0 0 auto;width:max-content;max-width:max-content;padding:0;background:transparent;border:0;border-radius:0}
+.mode-cycle{display:inline-flex;align-items:center;justify-content:center;width:max-content;min-width:0;max-width:max-content;min-height:24px;height:24px;padding:2px 6px;border:1.5px solid #00e676;border-radius:7px;background:#153b2b;color:#70ffc0;font-size:9px;line-height:1;font-weight:900;letter-spacing:0;text-align:center;white-space:nowrap;cursor:pointer;box-shadow:0 0 0 1px rgba(0,230,118,.16)}
+/* Account type controls the color: REAL green, DEMO red, in either market. */
+.mode-cycle[data-account="REAL"]{background:#153b2b;border-color:#00e676;color:#70ffc0;box-shadow:0 0 0 1px rgba(0,230,118,.18)}
+.mode-cycle[data-account="DEMO"]{background:#481b22;border-color:#ff334f;color:#ff7b8c;box-shadow:0 0 0 1px rgba(255,51,79,.18)}
 .mode-cycle:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .reveal-toggle{flex:1 1 0;width:0;min-width:0;min-height:36px;cursor:pointer;font-weight:800;text-align:center}
 .option-reveal{display:none!important;flex:1 1 100%!important;width:100%!important;min-height:36px}
@@ -222,7 +223,7 @@ function setSignalResult(side){currentSignal=['BUY','SELL'].includes(side)?side:
 function sendTradeToMain(side){if(!['BUY','SELL'].includes(side)||currentSignal!==side)return;sendAnalyzerSync(side);}
 function activateSignalResult(){if(currentSignal==='WAIT')return;sendTradeToMain(currentSignal)}
 resultSide.addEventListener('click',activateSignalResult);resultSide.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activateSignalResult()}});
-function updateAccountModeToggle(){const a=document.getElementById('accountMode'),m=document.getElementById('marketMode'),b=document.getElementById('accountMarketToggle');if(!a||!m||!b)return;const label=a.value+': '+m.value;b.textContent=label+' ↻';b.dataset.account=a.value;b.dataset.market=m.value;b.setAttribute('aria-label','Current mode '+label+'. Press to switch to the next account and market mode.');}
+function updateAccountModeToggle(){const a=document.getElementById('accountMode'),m=document.getElementById('marketMode'),b=document.getElementById('accountMarketToggle');if(!a||!m||!b)return;const label=a.value+'·'+m.value;b.textContent=label+' ↻';b.dataset.account=a.value;b.dataset.market=m.value;b.setAttribute('aria-label','Current mode '+label+'. Press to switch to the next account and market mode.');}
 function updateMarketModeToggle(){updateAccountModeToggle();}
 function updateTimeControlLabels(){const tf=document.getElementById('chartTimeframe'),ex=document.getElementById('tradeExpiry'),tb=document.getElementById('chartTimeframeToggle'),eb=document.getElementById('tradeExpiryToggle');if(tf&&tb)tb.textContent='TIMEFRAME · '+timeframeLabel(tf.value)+' ▾';if(ex&&eb)eb.textContent='TRADE EXPIRY · '+ex.value+' ▾';}
 function toggleOptionReveal(selectId,buttonId){const s=document.getElementById(selectId),b=document.getElementById(buttonId);if(!s||!b)return;const opening=!s.classList.contains('open');s.classList.toggle('open',opening);b.setAttribute('aria-expanded',String(opening));if(opening)s.focus();}
