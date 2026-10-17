@@ -180,10 +180,11 @@ Deno.serve(async (request: Request) => {
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     const user = await currentUser(token);
     if (!user) return json({ ok: false, error: "A valid signed-in GoTradeX session is required." }, 401, origin);
-    if (!(await isAdmin(user.id))) return json({ ok: false, error: "Only an authorized GoTradeX administrator may manage the global bot delivery connection." }, 403, origin);
-
     const body = await request.json().catch(() => ({}));
     const action = text(body?.action, 20).toLowerCase();
+    if (action === "save-config" && !(await isAdmin(user.id))) {
+      return json({ ok: false, error: "Only an authorized GoTradeX administrator may change global bot credentials." }, 403, origin);
+    }
     if (action === "status") {
       const secrets = await botSecrets();
       const channels = channelStatus(secrets);
