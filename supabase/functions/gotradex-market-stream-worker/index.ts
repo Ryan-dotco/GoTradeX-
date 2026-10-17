@@ -49,7 +49,7 @@ async function restPrice(r:any){
 function connectDeriv(rows:any[]){
  return new Promise<number>(resolve=>{
   if(!rows.length)return resolve(0);
-  const ws=new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public");let count=0,done=false;
+  const ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(Deno.env.get("DERIV_APP_ID")||"1089"));let count=0,done=false;
   const finish=()=>{if(done)return;done=true;try{ws.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
   ws.onopen=()=>{
