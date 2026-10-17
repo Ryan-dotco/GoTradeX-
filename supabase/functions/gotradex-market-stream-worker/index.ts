@@ -89,12 +89,19 @@ function connectBybit(rows:any[]){
 }
 async function connectDeriv(rows:any[]){
  if(!rows.length)return 0;
+ // Temporary transport diagnostic: capture the HTTP response that the WebSocket client hides on 400.
+ try {
+  const probe=await fetch("https://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID),{signal:AbortSignal.timeout(3000),headers:{"User-Agent":"GoTradeX-market-feed-diagnostic/1.0"}});
+  const probeBody=(await probe.text()).slice(0,500);
+  console.log("DERIV_HTTP_PROBE",JSON.stringify({status:probe.status,server:probe.headers.get("server"),contentType:probe.headers.get("content-type"),body:probeBody}));
+ } catch(e) { console.error("DERIV_HTTP_PROBE_FAILED",String((e as Error)?.message||e)); }
  return await new Promise<number>(resolve=>{
   let ws:WebSocket|null=null,count=0,done=false,opened=false;
   const diagnosticTimer=setTimeout(()=>{
    if(!count){
     console.error("DERIV_NO_TICKS",JSON.stringify(rows.map((r:any)=>({symbol:r.symbol,provider_symbol:r.provider_symbol,opened}))));
-    Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"Deriv WebSocket connected but returned no ticks within 5 seconds.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{});
+    const reason=opened?"Deriv WebSocket opened but returned no ticks within 5 seconds.":"Deriv WebSocket handshake failed before the connection opened (see DERIV_WS_ERROR / DERIV_HTTP_PROBE).";
+    Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:reason,updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{});
    }
   },5000);
   const finish=()=>{if(done)return;done=true;clearTimeout(timer);clearTimeout(diagnosticTimer);try{ws?.close()}catch(_){}resolve(count)};
