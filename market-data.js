@@ -228,8 +228,7 @@
     return {close(){}};
   }
 
-  const DERIV_APP_ID=String(window.GTX_DERIV_APP_ID||localStorage.getItem("gotradex_deriv_app_id")||"1089").trim();
-  const DERIV_WS="wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID);
+  const DERIV_WS="wss://ws.binaryws.com/websockets/v3";
 
   function derivCandleHistory(symbol,sec){
     touchMarketSubscription().catch(()=>{});
