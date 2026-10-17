@@ -58,7 +58,7 @@ async function derivPrice(symbol: string) {
       if (error) reject(error); else resolve(value!);
     };
     const timer = setTimeout(()=>finish(new Error("Deriv live price request timed out.")),8000);
-    try { ws = new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(Deno.env.get("DERIV_APP_ID")||"1089")); }
+    try { ws = new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public"); }
     catch (_) { finish(new Error("Deriv public WebSocket could not be opened.")); return; }
     ws.onopen = () => {
       try { ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1})); }
