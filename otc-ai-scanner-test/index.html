@@ -259,11 +259,6 @@ signalButton.onclick=async function(){
 // Persist only actual analyzer outputs; never seed fabricated signals or trade outcomes.
 const SIGNAL_HISTORY_KEY='gotradex_otc_analyzer_signal_history';
 function readSignalHistory(){try{const v=JSON.parse(localStorage.getItem(SIGNAL_HISTORY_KEY)||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}}
-function renderSignalHistory(){
- const items=readSignalHistory();
- document.getElementById('sigList').innerHTML=items.length?items.map(s=>`<div class="item"><div class="ico ${s.side==='BUY'?'up':s.side==='SELL'?'down':''}">${s.side==='BUY'?'↑':s.side==='SELL'?'↓':'—'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${s.pair}</div><div style="color:#6b86b3;font-size:10px">${s.side} • ${s.tf} • ${new Date(s.time).toLocaleString()}</div></div><div class="badge">${s.side==='WAIT'?'WAIT':'ANALYSIS'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No analyses recorded yet.</div>';
- document.getElementById('tradeList').innerHTML=items.length?items.map(s=>`<div class="item"><div style="flex:1"><div style="font-weight:800;font-size:13px">${s.pair} — ${s.side}</div><div style="color:#8da7cc;font-size:11px">${new Date(s.time).toLocaleString()} · Entry ${s.entry}</div></div><div class="badge">${s.momentum||'—'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No analysis history yet. No trades or outcomes are fabricated.</div>';
-}
 renderSignalHistory();
 
 // Browser-local price alerts. These do not claim server-side delivery or background monitoring.
