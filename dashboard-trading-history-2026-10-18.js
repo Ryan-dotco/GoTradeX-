@@ -177,7 +177,7 @@
       ".gtxTradeHistoryFooter{margin-top:10px;color:#8fa8c4;font-size:10px;flex-wrap:wrap}",
       ".gtxTradeHistoryEmpty{padding:28px 16px;margin-top:10px;text-align:center;background:#091f3a;border:1px dashed #315779;border-radius:12px}",
       ".gtxTradeHistoryEmpty strong{font-size:14px}.gtxTradeHistoryEmpty p{font-size:12px;line-height:1.6;color:#8fa8c4}",
-      "@media(max-width:380px){.gtxDashboardHistoryBtn{padding:7px;font-size:10px}.gtxTradeHistoryPanel{padding-left:10px;padding-right:10px}.gtxTradeHistoryDetails{gap:6px}.gtxTradeHistoryDetail{font-size:10px;padding:7px}}"
+      "@media(max-width:380px){.gtxTradeHistoryPanel{padding-left:10px;padding-right:10px}.gtxTradeHistoryDetails{gap:6px}.gtxTradeHistoryDetail{font-size:10px;padding:7px}}"
     ].join("");
     document.head.appendChild(style);
 
