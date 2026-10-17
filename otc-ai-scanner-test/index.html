@@ -86,7 +86,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <input type="file" id="cam" accept="image/*" capture="environment" hidden><input type="file" id="upl" accept="image/*" hidden>
       <div id="uploadedChartPreview" hidden style="margin-top:10px;padding:8px;border:1px solid #1b345e;border-radius:10px"><img id="uploadedChartImage" alt="Selected chart preview" style="display:block;max-width:100%;max-height:180px;margin:auto;border-radius:6px"><div id="uploadedChartNote" style="color:#8da7cc;font-size:10px;margin-top:6px">Preview only. AI vision analysis is disabled.</div></div>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
-      <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for OTC server-engine data. No signal is available yet.</div><div id="analysisMethodNote" style="margin-top:5px;color:#6b86b3;font-size:10px">Signal method: rule-based candle trend check. The separate AI vision endpoint is currently disabled; this is not AI inference.</div>
+      <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for OTC server-engine data. No signal is available yet.</div><div id="analysisMethodNote" style="margin-top:5px;color:#6b86b3;font-size:10px">Signal method: rule-based candle trend check. The separate AI vision endpoint is currently disabled; this is not AI inference.</div>
       <div class="ctrl-row" style="margin-top:10px"><button class="act" type="button" onclick="sendTradeToMain('SELL')" style="background:#7d1729;color:#fff;font-weight:800">SELL on Main</button><button class="act" type="button" onclick="sendTradeToMain('BUY')" style="background:#0b5b37;color:#fff;font-weight:800">BUY on Main</button></div>
       <div id="tradeBridgeStatus" role="status" style="margin-top:6px;color:#ffd98a;font-size:10px">Order handoff is connected to the main app's guarded controls; broker execution is not enabled.</div>
       <div class="actRow"><div class="act" onclick="shareAnalysis()">↗ Share</div><div class="act" onclick="copyAnalysis()">⎙ Copy</div><div class="act" onclick="analyzeAgain()">↻ Analyze Again</div></div>
@@ -165,7 +165,7 @@ function handleChartImage(file){
 }
 document.getElementById('cam').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
 document.getElementById('upl').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
-let livePrice=null, livePair='EUR/USD OTC', liveTf=900, liveProvider='', dataStatus='Waiting for shared market state';
+let livePrice=null, livePair='EUR/USD OTC', liveTf=900, liveProvider='', hasSyncedControls=false, dataStatus='Waiting for shared market state';
 const otcPairs=['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','AUD/NZD','EUR/GBP','EUR/JPY','GBP/JPY','USD/ZAR'];
 const mainExpiryOptions=['5 Seconds','1 Minute','3 Minutes','5 Minutes','15 Minutes','30 Minutes','1 Hour','4 Hours','1 Day'];
 function getMarketMode(){try{return String(localStorage.getItem('gotradex_market_mode')||'LIVE').toUpperCase()==='OTC'?'OTC':'LIVE'}catch(_){return 'LIVE'}}
@@ -188,7 +188,7 @@ function syncControlsFromState(state={}){
  const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);
  livePair=mode==='OTC'?asset+' OTC':asset;
  if(pairLabel)pairLabel.textContent=asset;
- if(previousPair!==livePair||previousTf!==liveTf){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';const detail=document.querySelector('.details');if(detail)detail.innerHTML='<div><i>Asset:</i> <b>'+asset+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>'+expiry+'</b></div><div><i>Momentum:</i> <b>—</b></div>';}
+ if(!hasSyncedControls||previousPair!==livePair||previousTf!==liveTf){hasSyncedControls=true;resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';const detail=document.querySelector('.details');if(detail)detail.innerHTML='<div><i>Asset:</i> <b>'+asset+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>'+expiry+'</b></div><div><i>Momentum:</i> <b>—</b></div>';}
  const source=document.getElementById('marketSourceLabel');if(source)source.textContent=mode==='OTC'?'OTC · synthetic server engine':'LIVE · broker feed required';
 }
 function sendAnalyzerSync(action){
