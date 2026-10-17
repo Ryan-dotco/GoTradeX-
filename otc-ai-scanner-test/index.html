@@ -131,18 +131,64 @@ function go(id,el){
 const chartEl=document.getElementById('chart');
 const chart=LightweightCharts.createChart(chartEl,{layout:{background:{color:'#07112a'},textColor:'#5a7ab5'},grid:{vertLines:{color:'#102040'},horzLines:{color:'#102040'}},width:chartEl.clientWidth,height:260,timeScale:{timeVisible:true}});
 const candle=chart.addCandlestickSeries({upColor:'#00e676',downColor:'#ff3d57',wickUpColor:'#00e676',wickDownColor:'#ff3d57',borderVisible:false});
-let t=Math.floor(Date.now()/1000)-5*3600; const data=[]; let p=1.0995;
-for(let i=0;i<80;i++){let dir=Math.random()>0.4?1:-1;let o=p;p+=dir*Math.random()*0.0006;let c=p;let h=Math.max(o,c)+Math.random()*0.0004;let l=Math.min(o,c)-Math.random()*0.0004;data.push({time:t+i*900,open:o,high:h,low:l,close:c})}
-candle.setData(data); chart.timeScale().fitContent();
-// SIGNAL BTN
-document.getElementById('signalBtn').onclick=function(){let c=5;this.innerHTML='Analyzing... '+c+'s';let iv=setInterval(()=>{c--;this.innerHTML='Analyzing... '+c+'s';if(c<=0){clearInterval(iv);this.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">Done ✓</span>';let buy=Math.random()>0.3;document.querySelector('.buy').innerHTML='<div><big>'+(buy?'▲':'▼')+'</big><br>'+(buy?'BUY':'SELL')+'</div>';document.getElementById('entry').innerText=(1.099+Math.random()*0.003).toFixed(4);setTimeout(()=>this.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span>',1500)}},1000)};
+let data=[];
+candle.setData([]); chart.timeScale().fitContent();
+const pairLabel=document.querySelector('.pair-row div');
+const resultSide=document.querySelector('.buy');
+const signalButton=document.getElementById('signalBtn');
+let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for verified OTC data';
+function getAdapter(){try{return parent.GoTradeXOTCAdapter||window.GoTradeXOTCAdapter||null}catch(_){return window.GoTradeXOTCAdapter||null}}
+function getSelectedPair(){try{let p=String(localStorage.getItem('gotradex_asset_display')||'').trim();if(!p)p=String(localStorage.getItem('gtx_pair')||'').trim();if(!/ OTC$/i.test(p))p+=' OTC';return p}catch(_){return 'EUR/USD OTC'}}
+function fmtPrice(n){return Number.isFinite(n)?n.toFixed(n<10?5:2):'—'}
+async function loadVerifiedData(){
+ const pair=getSelectedPair(), adapter=getAdapter();
+ livePair=pair; dataStatus='Connecting to verified OTC feed';
+ pairLabel.textContent=pair;
+ document.querySelector('.pair-row div:last-child').textContent='OTC · verifying feed';
+ document.getElementById('entry').textContent='—';
+ resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';
+ if(!adapter){dataStatus='OTC adapter unavailable in this session';signalButton.title=dataStatus;return}
+ try{
+  const hist=await adapter.history(pair,liveTf);
+  if(!Array.isArray(hist)||hist.length<5)throw new Error('Not enough verified OTC candles for analysis');
+  data=hist.map(x=>({time:Math.floor(x.t/1000),open:x.o,high:x.h,low:x.l,close:x.c})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
+  if(data.length<5)throw new Error('Verified candle data is incomplete');
+  candle.setData(data);chart.timeScale().fitContent();
+  try{const q=await adapter.price(pair);livePrice=q.price}catch(_){livePrice=data[data.length-1].close}
+  document.getElementById('entry').textContent=fmtPrice(livePrice);
+  document.querySelector('.pair-row div:last-child').textContent='OTC · verified data';
+  dataStatus='Verified OTC candles loaded'; signalButton.title=dataStatus;
+ }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'Verified OTC data unavailable';signalButton.title=dataStatus;resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
+}
+window.addEventListener('storage',e=>{if(e.key==='gotradex_asset_display'||e.key==='gtx_pair')loadVerifiedData()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadVerifiedData()});
+loadVerifiedData();
+signalButton.onclick=async function(){
+ const btn=this;btn.disabled=true;let remaining=5;btn.textContent='Verifying data… '+remaining+'s';
+ const iv=setInterval(async()=>{remaining--;btn.textContent='Verifying data… '+remaining+'s';if(remaining>0)return;clearInterval(iv);
+  try{
+   await loadVerifiedData();
+   if(data.length<5||!Number.isFinite(livePrice))throw new Error(dataStatus||'No verified market data');
+   const closes=data.slice(-8).map(x=>x.close), first=closes[0], last=closes[closes.length-1];
+   const ups=closes.slice(1).filter((v,i)=>v>closes[i]).length, downs=closes.slice(1).filter((v,i)=>v<closes[i]).length;
+   let side='WAIT', momentum='Mixed';
+   if(last>first&&ups>=5){side='BUY';momentum='Bullish';}
+   else if(last<first&&downs>=5){side='SELL';momentum='Bearish';}
+   resultSide.innerHTML='<div><big>'+(side==='BUY'?'▲':side==='SELL'?'▼':'—')+'</big><br>'+side+'</div>';
+   document.getElementById('entry').textContent=fmtPrice(livePrice);
+   const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>Verified OTC</b></div>';
+   if(side==='WAIT')dataStatus='No clear direction in verified candles; WAIT';
+  }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';}
+  btn.disabled=false;btn.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span>';btn.title=dataStatus;
+ },1000);
+};
 // SIGNAL HISTORY
 const sig=[{pair:'EUR/USD',type:'BUY',tf:'15m',date:'12:45',pct:'+87%',res:'WIN',dir:'up'},{pair:'BTC/USDT',type:'SELL',tf:'5m',date:'12:32',pct:'-100%',res:'LOSS',dir:'down'},{pair:'GBP/JPY',type:'BUY',tf:'15m',date:'12:20',pct:'+72%',res:'WIN',dir:'up'}];
 document.getElementById('sigList').innerHTML=sig.map(s=>`<div class="item"><div class="ico ${s.dir}">${s.dir==='up'?'↑':'↓'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${s.pair}</div><div style="color:#6b86b3;font-size:10px">${s.type} • ${s.tf} • ${s.date}</div></div><div style="color:${s.res==='WIN'?'#00ff88':'#ff3d57'};font-weight:700;font-size:12px">${s.pct}</div><div class="badge ${s.res==='WIN'?'active':''}" style="background:${s.res==='WIN'?'#0a3d1f':'#3a1120'};color:${s.res==='WIN'?'#00ff88':'#ff3d57'}">${s.res}</div></div>`).join('');
 // TRADE HISTORY
 const trades=[{pair:'SOL/USDT',type:'LONG',dir:'long',exit:'68.8301',entry:'68.1100',lev:'20x',pct:'+20.92%',date:'Jun 13 5:42 PM',pnl:'+$15.82'},{pair:'SOL/USDT',type:'LONG',dir:'long',exit:'68.6600',entry:'68.1100',lev:'20x',pct:'+16.02%',date:'Jun 13 5:41 PM',pnl:'+$16.91'},{pair:'ETH/USDT',type:'SHORT',dir:'short',exit:'1674.13',entry:'1675.14',lev:'10x',pct:'+0.6%',date:'Jun 13 2:04 PM',pnl:'+$1.19'}];
 document.getElementById('tradeList').innerHTML=trades.map(t=>`<div class="item" style="border-left:3px solid ${t.dir==='long'?'#00e676':'#ff3d57'}"><div style="flex:1"><div style="font-weight:800;font-size:13px">${t.pair}</div><div style="color:#5a6a85;font-size:11px">Exit $${t.exit} Entry $${t.entry} ${t.lev} <span style="color:#00e676">${t.pct}</span><br>${t.date}</div></div><div style="color:#00e676;font-weight:800">${t.pnl}</div></div>`).join('');
-function copy(){navigator.clipboard.writeText(document.getElementById('entry').innerText); alert('Copied!')}
+function copy(){const text=document.querySelector('.details')?.innerText||'No analysis available';if(navigator.share){navigator.share({title:'GoTradeX OTC Analysis',text}).catch(()=>{})}else if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(()=>alert('Analysis copied')).catch(()=>alert('Copy unavailable'))}else alert(text)}
 </script>
 </body>
 </html>
