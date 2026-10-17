@@ -332,8 +332,8 @@ async function loadVerifiedData(){
   if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000||q.time>Date.now()+60*1000)throw new Error('OTC price is stale or has no valid update time; waiting for a fresh server price.');
   livePrice=q.price;
   document.getElementById('entry').textContent=fmtPrice(livePrice);
-  document.querySelector('.pair-row div:last-child').textContent='OTC · verified data';
-  dataStatus='OTC server-engine candles and fresh price loaded'; signalButton.title=dataStatus;showDataStatus();startLiveSocket(pair,adapter);
+  document.querySelector('.pair-row div:last-child').textContent='OTC · synthetic source';
+  liveProvider='OTC_SYNTHETIC'; dataStatus='OTC synthetic server-engine candles and fresh price loaded'; signalButton.title=dataStatus;showDataStatus();startLiveSocket(pair,adapter);
  }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'OTC server-engine data unavailable';signalButton.title=dataStatus;showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
 }
 window.addEventListener('message',e=>{if(e.origin!==window.location.origin||!e.data||e.data.type!=='GTX_MAIN_STATE')return;syncControlsFromState(e.data);loadVerifiedData()});
