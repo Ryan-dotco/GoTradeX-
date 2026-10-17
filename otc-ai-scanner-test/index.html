@@ -29,11 +29,10 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
 .mode-toggle.otc{background:#122e52;border-color:#0a5bff;color:#8db9ff}
 .mode-toggle.demo{background:#182743;border-color:#45618b;color:#c3d5f3}
 .mode-toggle.real{background:#153b2b;border-color:#00a86b;color:#70ffc0}
-.account-market-toggle{display:flex;flex:1 1 100%;width:100%;gap:4px;padding:4px;background:#09162d;border:1px solid #1c335f;border-radius:12px}
-.mode-choice{flex:1 1 0;min-width:0;min-height:38px;padding:7px 2px;border:1px solid transparent;border-radius:8px;background:transparent;color:#9eb4d8;font-size:10px;font-weight:850;letter-spacing:-.1px;white-space:nowrap;cursor:pointer}
-.mode-choice[aria-pressed="true"]{background:#153b2b;border-color:#00a86b;color:#70ffc0;box-shadow:inset 0 0 0 1px rgba(0,168,107,.16)}
-.mode-choice[data-market="OTC"][aria-pressed="true"]{background:#122e52;border-color:#0a5bff;color:#8db9ff;box-shadow:inset 0 0 0 1px rgba(10,91,255,.16)}
-@media(max-width:360px){.mode-choice{font-size:9px;letter-spacing:-.3px;padding-left:0;padding-right:0}}
+.account-market-toggle{display:flex;flex:1 1 100%;width:100%;padding:4px;background:#09162d;border:1px solid #1c335f;border-radius:12px}
+.mode-cycle{display:block;width:100%;min-height:40px;padding:8px 12px;border:1px solid #00a86b;border-radius:8px;background:#153b2b;color:#70ffc0;font-size:12px;font-weight:900;letter-spacing:.3px;text-align:center;white-space:nowrap;cursor:pointer}
+.mode-cycle[data-market="OTC"]{background:#122e52;border-color:#0a5bff;color:#8db9ff}
+.mode-cycle:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .reveal-toggle{flex:1 1 0;width:0;min-width:0;min-height:36px;cursor:pointer;font-weight:800;text-align:center}
 .option-reveal{display:none!important;flex:1 1 100%!important;width:100%!important;min-height:36px}
 .option-reveal.open{display:block!important}
@@ -84,11 +83,8 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <div class="ctrl-row mode-row">
         <select id="marketMode" class="ctrl" aria-label="Market mode" style="display:none"><option value="LIVE">LIVE</option><option value="OTC">OTC</option></select>
         <select id="accountMode" class="ctrl" aria-label="Account mode" style="display:none"><option value="DEMO">DEMO</option><option value="REAL">REAL</option></select>
-        <div id="accountMarketToggle" class="account-market-toggle" role="group" aria-label="Account and market mode">
-          <button type="button" class="mode-choice" data-account="REAL" data-market="OTC" aria-pressed="false">REAL: OTC</button>
-          <button type="button" class="mode-choice" data-account="DEMO" data-market="OTC" aria-pressed="false">DEMO: OTC</button>
-          <button type="button" class="mode-choice" data-account="REAL" data-market="LIVE" aria-pressed="false">REAL: LIVE</button>
-          <button type="button" class="mode-choice" data-account="DEMO" data-market="LIVE" aria-pressed="false">DEMO: LIVE</button>
+        <div class="account-market-toggle">
+          <button id="accountMarketToggle" type="button" class="mode-cycle" aria-label="Cycle account and market mode" aria-live="polite">DEMO: LIVE ▾</button>
         </div>
       </div>
       <div class="ctrl-row">
@@ -225,11 +221,11 @@ function setSignalResult(side){currentSignal=['BUY','SELL'].includes(side)?side:
 function sendTradeToMain(side){if(!['BUY','SELL'].includes(side)||currentSignal!==side)return;sendAnalyzerSync(side);}
 function activateSignalResult(){if(currentSignal==='WAIT')return;sendTradeToMain(currentSignal)}
 resultSide.addEventListener('click',activateSignalResult);resultSide.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activateSignalResult()}});
-function updateAccountModeToggle(){const a=document.getElementById('accountMode'),m=document.getElementById('marketMode');if(!a||!m)return;document.querySelectorAll('#accountMarketToggle .mode-choice').forEach(b=>{const active=b.dataset.account===a.value&&b.dataset.market===m.value;b.setAttribute('aria-pressed',String(active));b.classList.toggle('active',active);});}
+function updateAccountModeToggle(){const a=document.getElementById('accountMode'),m=document.getElementById('marketMode'),b=document.getElementById('accountMarketToggle');if(!a||!m||!b)return;const label=a.value+': '+m.value;b.textContent=label+' ↻';b.dataset.account=a.value;b.dataset.market=m.value;b.setAttribute('aria-label','Current mode '+label+'. Press to switch to the next account and market mode.');}
 function updateMarketModeToggle(){updateAccountModeToggle();}
 function updateTimeControlLabels(){const tf=document.getElementById('chartTimeframe'),ex=document.getElementById('tradeExpiry'),tb=document.getElementById('chartTimeframeToggle'),eb=document.getElementById('tradeExpiryToggle');if(tf&&tb)tb.textContent='TIMEFRAME · '+timeframeLabel(tf.value)+' ▾';if(ex&&eb)eb.textContent='TRADE EXPIRY · '+ex.value+' ▾';}
 function toggleOptionReveal(selectId,buttonId){const s=document.getElementById(selectId),b=document.getElementById(buttonId);if(!s||!b)return;const opening=!s.classList.contains('open');s.classList.toggle('open',opening);b.setAttribute('aria-expanded',String(opening));if(opening)s.focus();}
-document.querySelectorAll('#accountMarketToggle .mode-choice').forEach(b=>b.addEventListener('click',()=>{const market=document.getElementById('marketMode'),account=document.getElementById('accountMode');market.value=b.dataset.market;account.value=b.dataset.account;updateAccountModeToggle();sendAnalyzerSync();loadVerifiedData();}));
+document.getElementById('accountMarketToggle')?.addEventListener('click',()=>{const market=document.getElementById('marketMode'),account=document.getElementById('accountMode');const sequence=[['REAL','OTC'],['DEMO','OTC'],['REAL','LIVE'],['DEMO','LIVE']];const current=sequence.findIndex(([a,m])=>a===account.value&&m===market.value);const next=sequence[(current+1)%sequence.length];account.value=next[0];market.value=next[1];updateAccountModeToggle();sendAnalyzerSync();loadVerifiedData();});
 document.getElementById('chartTimeframeToggle')?.addEventListener('click',()=>toggleOptionReveal('chartTimeframe','chartTimeframeToggle'));
 document.getElementById('tradeExpiryToggle')?.addEventListener('click',()=>toggleOptionReveal('tradeExpiry','tradeExpiryToggle'));
 document.getElementById('chartTimeframe')?.addEventListener('change',()=>{document.getElementById('chartTimeframe').classList.remove('open');document.getElementById('chartTimeframeToggle').setAttribute('aria-expanded','false');updateTimeControlLabels();});
