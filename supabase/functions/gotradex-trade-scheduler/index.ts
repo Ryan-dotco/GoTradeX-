@@ -7,52 +7,95 @@ const json = (x: unknown, status = 200) =>
   });
 
 const mapping = (asset: string) => {
-  const a = asset.toUpperCase();
+  const a = asset.toUpperCase().trim();
   const crypto: Record<string,string> = {
-    "BTC/USD":"BTCUSDT","ETH/USD":"ETHUSDT","XRP/USD":"XRPUSDT",
-    "SOL/USD":"SOLUSDT","ADA/USD":"ADAUSDT","DOGE/USD":"DOGEUSDT","LTC/USD":"LTCUSDT"
+    "BTC/USD":"BTCUSDT","ETH/USD":"ETHUSDT","XRP/USD":"XRPUSDT","SOL/USD":"SOLUSDT",
+    "ADA/USD":"ADAUSDT","DOGE/USD":"DOGEUSDT","LTC/USD":"LTCUSDT","BNB/USD":"BNBUSDT",
+    "AVAX/USD":"AVAXUSDT","DOT/USD":"DOTUSDT","LINK/USD":"LINKUSDT","TRX/USD":"TRXUSDT",
+    "TON/USD":"TONUSDT","ATOM/USD":"ATOMUSDT","UNI/USD":"UNIUSDT","BCH/USD":"BCHUSDT",
+    "ETC/USD":"ETCUSDT","XLM/USD":"XLMUSDT","NEAR/USD":"NEARUSDT","APT/USD":"APTUSDT",
+    "ARB/USD":"ARBUSDT","OP/USD":"OPUSDT","SUI/USD":"SUIUSDT","FIL/USD":"FILUSDT","ALGO/USD":"ALGOUSDT"
   };
   const fx: Record<string,string> = {
-    "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
-    "AUD/USD":"AUD/USD","USD/CAD":"USD/CAD","NZD/USD":"NZD/USD","EUR/GBP":"EUR/GBP",
-    "EUR/JPY":"EUR/JPY","GBP/JPY":"GBP/JPY","USD/ZAR":"USD/ZAR",
-    "XAU/USD":"XAU/USD","XAG/USD":"XAG/USD"
+    "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","USD/CHF":"frxUSDCHF",
+    "AUD/USD":"frxAUDUSD","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
+    "EUR/JPY":"frxEURJPY","GBP/JPY":"frxGBPJPY","EUR/CHF":"frxEURCHF","AUD/JPY":"frxAUDJPY",
+    "AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/NZD":"frxAUDNZD","CAD/JPY":"frxCADJPY",
+    "CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD",
+    "GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/NZD":"frxGBPNZD",
+    "NZD/JPY":"frxNZDJPY","NZD/CAD":"frxNZDCAD","CAD/CHF":"frxCADCHF","USD/SGD":"frxUSDSGD",
+    "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN","USD/ZAR":"frxUSDZAR","EUR/ZAR":"frxEURZAR",
+    "GBP/ZAR":"frxGBPZAR","USD/TRY":"frxUSDTRY","USD/NOK":"frxUSDNOK","USD/SEK":"frxUSDSEK",
+    "USD/DKK":"frxUSDDKK","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN",
+    "EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","USD/INR":"frxUSDINR","USD/BRL":"frxUSDBRL",
+    "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
+  };
+  const otc: Record<string,string> = {
+    "US 500 OTC":"OTC_SPC","US TECH 100 OTC":"OTC_NDX","WALL STREET 30 OTC":"OTC_DJI",
+    "HONG KONG 50 OTC":"OTC_HSI","EURO 50 OTC":"OTC_SX5E","FRANCE 40 OTC":"OTC_FCHI",
+    "GERMANY 40 OTC":"OTC_GDAXI","NETHERLANDS 25 OTC":"OTC_AEX","SWISS 20 OTC":"OTC_SSMI",
+    "UK 100 OTC":"OTC_FTSE"
   };
   if (crypto[a]) return { provider:"BYBIT", symbol:crypto[a] };
-  if (fx[a]) return { provider:"TWELVE_DATA", symbol:fx[a] };
+  if (otc[a]) return { provider:"DERIV", symbol:otc[a] };
+  if (fx[a]) return { provider:"DERIV", symbol:fx[a] };
   return null;
 };
 
+async function derivPrice(symbol: string) {
+  return await new Promise<{price:number,time:string}>((resolve,reject)=>{
+    let ws: WebSocket | null = null;
+    let done = false;
+    const finish = (error?: Error, value?: {price:number,time:string}) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { ws?.close(); } catch (_) {}
+      if (error) reject(error); else resolve(value!);
+    };
+    const timer = setTimeout(()=>finish(new Error("Deriv live price request timed out.")),8000);
+    try { ws = new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public"); }
+    catch (_) { finish(new Error("Deriv public WebSocket could not be opened.")); return; }
+    ws.onopen = () => {
+      try { ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1})); }
+      catch (_) { finish(new Error("Deriv history request could not be sent.")); }
+    };
+    ws.onmessage = event => {
+      try {
+        const data = JSON.parse(String(event.data));
+        if (data?.error) { finish(new Error(String(data.error.message || "Deriv rejected the symbol."))); return; }
+        const history = data?.history;
+        if (Array.isArray(history?.prices) && history.prices.length) {
+          const i = history.prices.length - 1;
+          const price = Number(history.prices[i]);
+          const epoch = Number(history.times?.[i]);
+          if (Number.isFinite(price) && price > 0) {
+            finish(undefined,{price,time:new Date(Number.isFinite(epoch)?epoch*1000:Date.now()).toISOString()});
+          }
+          return;
+        }
+        if (data?.msg_type === "tick" && data?.tick) {
+          const price = Number(data.tick.quote), epoch = Number(data.tick.epoch);
+          if (Number.isFinite(price) && price > 0) finish(undefined,{price,time:new Date(Number.isFinite(epoch)?epoch*1000:Date.now()).toISOString()});
+        }
+      } catch (_) {}
+    };
+    ws.onerror = () => finish(new Error("Deriv public feed connection failed."));
+    ws.onclose = () => { if (!done) finish(new Error("Deriv public feed closed before returning a price.")); };
+  });
+}
+
 async function priceFor(provider: string, symbol: string) {
   if (provider === "BYBIT") {
-    const r = await fetch(
-      "https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(symbol),
-      { cache:"no-store" }
-    );
-    if (!r.ok) throw new Error("Bybit price request failed.");
-    const d = await r.json();
-    const price = Number(d?.result?.list?.[0]?.lastPrice);
+    const response = await fetch("https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(symbol),{cache:"no-store"});
+    const data = await response.json().catch(()=>({}));
+    if (!response.ok || Number(data?.retCode)!==0) throw new Error(String(data?.retMsg||"Bybit price request failed."));
+    const price = Number(data?.result?.list?.[0]?.lastPrice);
     if (!Number.isFinite(price) || price <= 0) throw new Error("Bybit returned no live price.");
-    return { price, time:new Date().toISOString() };
+    return {price,time:new Date().toISOString()};
   }
-
-  if (provider === "TWELVE_DATA") {
-    const key = Deno.env.get("TWELVE_DATA_API_KEY") || "";
-    if (!key) throw new Error("TWELVE_DATA_API_KEY is not configured.");
-    const r = await fetch(
-      "https://api.twelvedata.com/price?symbol="+encodeURIComponent(symbol)+"&apikey="+encodeURIComponent(key),
-      { cache:"no-store" }
-    );
-    if (!r.ok) throw new Error("Twelve Data price request failed.");
-    const d = await r.json();
-    const price = Number(d?.price);
-    if (!Number.isFinite(price) || price <= 0) {
-      throw new Error(d?.message || "Twelve Data returned no live price.");
-    }
-    return { price, time:new Date().toISOString() };
-  }
-
-  throw new Error("Unsupported provider.");
+  if (provider === "DERIV") return await derivPrice(symbol);
+  throw new Error("Unsupported verified provider. Twelve Data and synthetic prices are disabled.");
 }
 
 export default {
