@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")||"https://glffecggusetzklmyukv.supabase.co";
 const SERVICE=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
