@@ -94,19 +94,26 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     if(typeof window.setAccountMode==="function")try{window.setAccountMode(account)}catch(_){}
     if(msg.action==="BUY"||msg.action==="SELL"){
       const button=document.getElementById(msg.action.toLowerCase());
-      if(account==="DEMO"){
-        // Open through the server-authoritative paper-trade runtime. Its server-sync
-        // event creates the chart trade marker only if the paper trade is accepted.
-        if(window.GoTradeXServerRuntime&&typeof window.GoTradeXServerRuntime.open==="function"){
-          window.GoTradeXServerRuntime.open(msg.action);
-        }else{
-          const status=document.getElementById("status");
-          if(status)status.textContent="DEMO order not opened: server trade runtime is unavailable.";
-        }
+      const market=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase();
+      const asset=String(localStorage.getItem("gotradex_asset_display")||msg.asset||"").replace(/\s+OTC$/i,"").trim().toUpperCase();
+      const supportedBybitDemoAssets=["BTC/USD","ETH/USD","XRP/USD","SOL/USD"];
+      let message="";
+      if(account==="REAL"){
+        message="Live broker execution is disabled until a verified broker execution adapter is connected. No real order or balance change has occurred.";
+      }else if(market!=="LIVE"){
+        message="OTC execution is not connected to the server trade engine. No paper trade or chart marker was created.";
+      }else if(!supportedBybitDemoAssets.includes(asset)){
+        message="This asset has no approved Bybit-only paper-trade mapping in the current runtime. No Twelve Data fallback was used and no trade was opened.";
+      }else if(window.GoTradeXServerRuntime&&typeof window.GoTradeXServerRuntime.open==="function"){
+        // Only supported LIVE crypto demo orders are submitted to the server runtime.
+        // The server's accepted trade event is what creates the chart marker.
+        window.GoTradeXServerRuntime.open(msg.action);
       }else{
-        // Do not create a chart trade marker when no broker order was submitted.
+        message="DEMO order not opened: server trade runtime is unavailable.";
+      }
+      if(message){
         const status=document.getElementById("status");
-        if(status){status.classList.add("trade-feedback");status.replaceChildren();const title=document.createElement("strong");title.textContent=msg.action+" NOT SUBMITTED • REAL • "+String(msg.asset||"selected asset");status.appendChild(title);const note=document.createElement("span");note.className="trade-feedback-note";note.textContent="Live broker execution is disabled until a verified broker execution adapter is connected. No real order or balance change has occurred.";status.appendChild(note);}
+        if(status){status.classList.add("trade-feedback");status.replaceChildren();const title=document.createElement("strong");title.textContent=msg.action+" NOT OPENED • "+account+" • "+market+" • "+asset;status.appendChild(title);const note=document.createElement("span");note.className="trade-feedback-note";note.textContent=message;status.appendChild(note);}
       }
     }
     sendMainState();
