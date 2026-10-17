@@ -94,11 +94,16 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     if(typeof window.setAccountMode==="function")try{window.setAccountMode(account)}catch(_){}
     if(msg.action==="BUY"||msg.action==="SELL"){
       const button=document.getElementById(msg.action.toLowerCase());
-      if(button)button.click();
-      // DEMO uses the existing server-authoritative paper-trade runtime.
-      // REAL remains blocked unless a verified broker execution adapter is installed.
-      if(account==="DEMO"&&button&&window.GoTradeXServerRuntime&&typeof window.GoTradeXServerRuntime.open==="function"&&/showTradeFeedback/.test(String(button.onclick||""))){
-        window.GoTradeXServerRuntime.open(msg.action);
+      if(account==="DEMO"){
+        if(button)button.click();
+        // DEMO uses the existing server-authoritative paper-trade runtime.
+        if(button&&window.GoTradeXServerRuntime&&typeof window.GoTradeXServerRuntime.open==="function"&&/showTradeFeedback/.test(String(button.onclick||""))){
+          window.GoTradeXServerRuntime.open(msg.action);
+        }
+      }else{
+        // Do not create a chart trade marker when no broker order was submitted.
+        const status=document.getElementById("status");
+        if(status){status.classList.add("trade-feedback");status.replaceChildren();const title=document.createElement("strong");title.textContent=msg.action+" NOT SUBMITTED • REAL • "+String(msg.asset||"selected asset");status.appendChild(title);const note=document.createElement("span");note.className="trade-feedback-note";note.textContent="Live broker execution is disabled until a verified broker execution adapter is connected. No real order or balance change has occurred.";status.appendChild(note);}
       }
     }
     sendMainState();
