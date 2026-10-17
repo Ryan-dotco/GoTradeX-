@@ -12,6 +12,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check the Supabase trade engine
+        run: deno check supabase/functions/gotradex-trade-engine/index.ts
       - name: Syntax check active chart and feed scripts
         run: |
           node --check live-chart.js
