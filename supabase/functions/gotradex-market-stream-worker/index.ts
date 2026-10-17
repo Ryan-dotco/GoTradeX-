@@ -97,7 +97,7 @@ async function runWorker(id:string){
  if(!active.deriv.length&&!active.bybit.length)return;
  const deadline=Date.now()+RUN_MS-5000;
  const wsPromise=Promise.all([connectDeriv(active.deriv),connectBybit(active.bybit)]);
- await Promise.all([wsPromise,pollLoop([...active.td,...active.bybit],deadline)]);
+ await Promise.all([wsPromise,pollLoop(active.bybit,deadline)]);
  await renew(id);
  if(Date.now()-deadline<HANDOFF_MS){
   fetch(SELF,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SERVICE,"apikey":SERVICE},body:JSON.stringify({handoff:true})}).catch(()=>{});
