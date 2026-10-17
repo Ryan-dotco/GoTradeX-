@@ -6,11 +6,11 @@ const json = (x: unknown, status = 200) =>
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
-const mapping = (asset: string) => {
+const mapping = (asset: string, marketMode: string) => {
   const a = asset.toUpperCase().trim();
   const crypto: Record<string,string> = {
-    "BTC/USD":"BTCUSDT","ETH/USD":"ETHUSDT","XRP/USD":"XRPUSDT","SOL/USD":"SOLUSDT",
-    "ADA/USD":"ADAUSDT","DOGE/USD":"DOGEUSDT","LTC/USD":"LTCUSDT","BNB/USD":"BNBUSDT",
+    "BTC/USD":"BTCUSDT","BTC/USDT":"BTCUSDT","ETH/USD":"ETHUSDT","ETH/USDT":"ETHUSDT","XRP/USD":"XRPUSDT","XRP/USDT":"XRPUSDT","SOL/USD":"SOLUSDT","SOL/USDT":"SOLUSDT",
+    "ADA/USD":"ADAUSDT","ADA/USDT":"ADAUSDT","DOGE/USD":"DOGEUSDT","DOGE/USDT":"DOGEUSDT","LTC/USD":"LTCUSDT","BNB/USD":"BNBUSDT",
     "AVAX/USD":"AVAXUSDT","DOT/USD":"DOTUSDT","LINK/USD":"LINKUSDT","TRX/USD":"TRXUSDT",
     "TON/USD":"TONUSDT","ATOM/USD":"ATOMUSDT","UNI/USD":"UNIUSDT","BCH/USD":"BCHUSDT",
     "ETC/USD":"ETCUSDT","XLM/USD":"XLMUSDT","NEAR/USD":"NEARUSDT","APT/USD":"APTUSDT",
@@ -36,8 +36,12 @@ const mapping = (asset: string) => {
     "GERMANY 40 OTC":"OTC_GDAXI","NETHERLANDS 25 OTC":"OTC_AEX","SWISS 20 OTC":"OTC_SSMI",
     "UK 100 OTC":"OTC_FTSE"
   };
+  if (marketMode === "OTC") {
+    const otcKey = a.endsWith(" OTC") ? a : a + " OTC";
+    return otc[otcKey] ? { provider:"DERIV", symbol:otc[otcKey] } : null;
+  }
+  if (a.endsWith(" OTC")) return null;
   if (crypto[a]) return { provider:"BYBIT", symbol:crypto[a] };
-  if (otc[a]) return { provider:"DERIV", symbol:otc[a] };
   if (fx[a]) return { provider:"DERIV", symbol:fx[a] };
   return null;
 };
@@ -142,7 +146,7 @@ export default {
     // One provider request per unique active symbol, not one request per trade.
     const uniqueSymbols = new Map<string,{provider:string,symbol:string}>();
     for (const trade of trades) {
-      const map = mapping(String(trade.asset || ""));
+      const map = mapping(String(trade.asset || ""),String(trade.market_mode || "LIVE"));
       if (!map) { failed++; continue; }
       const provider = String(trade.provider || map.provider);
       const symbol = String(trade.provider_symbol || map.symbol);
