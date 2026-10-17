@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import WebSocketClient from "npm:ws@8.18.0";
 
-const DERIV_APP_ID = "1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const PUBLISHABLE = (() => {
@@ -45,16 +45,19 @@ function twelveSymbol(asset:string){return asset.replace(/\s+/g," ").trim();}
 
 async function derivPrice(symbol:string){
   return await new Promise<{price:number,time:string}>((resolve,reject)=>{
-    let ws:WebSocket|null=null,done=false;
+    let ws:any=null,done=false;
     const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
     const timer=setTimeout(()=>finish(reject,new Error("Deriv price request timed out.")),8000);
-    try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID))}catch(e){finish(reject,e);return}
-    ws.onopen=()=>{try{ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}};
-    ws.onerror=()=>finish(reject,new Error("Deriv price connection failed."));
-    ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv price connection closed before a verified tick was received."))};
-    ws.onmessage=event=>{
+    try{
+      ws=new WebSocketClient("wss://api.derivws.com/trading/v1/options/ws/public",{
+        handshakeTimeout:7000,
+        headers:{"Origin":"https://app.deriv.com","User-Agent":"Mozilla/5.0 (compatible; GoTradeX/1.0; market-data)"}
+      });
+    }catch(e){finish(reject,e);return}
+    ws.on("open",()=>{try{ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}});
+    ws.on("message",(data:any)=>{
       try{
-        const d=JSON.parse(String(event.data||"{}"));
+        const d=JSON.parse(String(data||"{}"));
         if(d.error){finish(reject,new Error(String(d.error.message||"Deriv rejected the price request.")));return}
         if(d.msg_type==="history"&&Array.isArray(d.history?.prices)&&d.history.prices.length){
           const i=d.history.prices.length-1,p=Number(d.history.prices[i]),t=Number(d.history.times?.[i]);
@@ -62,7 +65,14 @@ async function derivPrice(symbol:string){
           finish(reject,new Error("Deriv returned no valid latest price."));
         }
       }catch{finish(reject,new Error("Could not parse Deriv price response."))}
-    };
+    });
+    ws.on("unexpected-response",(_request:any,response:any)=>{
+      let body="";
+      response.on("data",(chunk:any)=>{body+=String(chunk);if(body.length>500)body=body.slice(0,500)});
+      response.on("end",()=>finish(reject,new Error("Deriv price handshake rejected: HTTP "+response.statusCode+" "+body)));
+    });
+    ws.on("error",(e:any)=>finish(reject,new Error("Deriv price connection failed: "+String(e?.message||e))));
+    ws.on("close",()=>{if(!done)finish(reject,new Error("Deriv price connection closed before a verified tick was received."))});
   });
 }
 async function priceFor(asset:string,provider:string,providerSymbol:string){
