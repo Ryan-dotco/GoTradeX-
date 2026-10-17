@@ -1,6 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@1";
 
-const DERIV_APP_ID = "1089"; // Public read-only test ID while legacy app registration is resolved
 
 const json = (x: unknown, status = 200) =>
   new Response(JSON.stringify(x), {
@@ -34,30 +33,37 @@ const mapping = (asset: string) => {
 };
 
 async function derivPrice(symbol: string) {
-  if (!DERIV_APP_ID) throw new Error("DERIV_APP_ID is not configured on the server.");
   return await new Promise<{price:number,time:string}>((resolve,reject)=>{
-    let ws: WebSocket | null = null, done = false;
+    let ws:any=null,done=false;
     const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
     const timer=setTimeout(()=>finish(reject,new Error("Deriv price request timed out.")),8000);
-    try { ws = new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID)); }
-    catch(e) { finish(reject,e); return; }
-    ws.onopen=()=>{try{ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}));}catch(e){finish(reject,e)}};
-    ws.onerror=()=>finish(reject,new Error("Deriv price connection failed."));
-    ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv closed before returning a verified price."))};
-    ws.onmessage=event=>{
-      try {
-        const d=JSON.parse(String(event.data||"{}"));
-        if(d.error){finish(reject,new Error(String(d.error.message||"Deriv rejected the price request.")));return;}
+    try{
+      ws=new WebSocketClient("wss://api.derivws.com/trading/v1/options/ws/public",{
+        handshakeTimeout:7000,
+        headers:{"Origin":"https://app.deriv.com","User-Agent":"Mozilla/5.0 (compatible; GoTradeX/1.0; market-data)"}
+      });
+    }catch(e){finish(reject,e);return}
+    ws.on("open",()=>{try{ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}});
+    ws.on("message",(data:any)=>{
+      try{
+        const d=JSON.parse(String(data||"{}"));
+        if(d.error){finish(reject,new Error(String(d.error.message||"Deriv rejected the price request.")));return}
         if(d.msg_type==="history"&&Array.isArray(d.history?.prices)&&d.history.prices.length){
           const i=d.history.prices.length-1,price=Number(d.history.prices[i]),epoch=Number(d.history.times?.[i]);
-          if(Number.isFinite(price)&&price>0&&Number.isFinite(epoch)){finish(resolve,{price,time:new Date(epoch*1000).toISOString()});return;}
+          if(Number.isFinite(price)&&price>0&&Number.isFinite(epoch)){finish(resolve,{price,time:new Date(epoch*1000).toISOString()});return}
           finish(reject,new Error("Deriv returned no valid latest price."));
         }
-      } catch { finish(reject,new Error("Could not parse Deriv price response.")); }
-    };
+      }catch{finish(reject,new Error("Could not parse Deriv price response."))}
+    });
+    ws.on("unexpected-response",(_request:any,response:any)=>{
+      let body="";
+      response.on("data",(chunk:any)=>{body+=String(chunk);if(body.length>500)body=body.slice(0,500)});
+      response.on("end",()=>finish(reject,new Error("Deriv price handshake rejected: HTTP "+response.statusCode+" "+body)));
+    });
+    ws.on("error",(e:any)=>finish(reject,new Error("Deriv price connection failed: "+String(e?.message||e))));
+    ws.on("close",()=>{if(!done)finish(reject,new Error("Deriv closed before returning a verified price."))});
   });
 }
-
 async function priceFor(provider: string, symbol: string) {
   if (provider === "DERIV") return await derivPrice(symbol);
   if (provider === "BYBIT") {
