@@ -47,7 +47,9 @@
     if(tickMarkType===type.Year)return String(date.getUTCFullYear());
     if(tickMarkType===type.Month)return new Intl.DateTimeFormat("en-GB",{timeZone:"UTC",month:"short"}).format(date);
     if(tickMarkType===type.DayOfMonth)return pad(date.getUTCDate())+" "+new Intl.DateTimeFormat("en-GB",{timeZone:"UTC",month:"short"}).format(date);
-    return pad(date.getUTCHours())+":"+pad(date.getUTCMinutes());
+    const hh=pad(date.getUTCHours()),mm=pad(date.getUTCMinutes()),ss=pad(date.getUTCSeconds());
+    // Sub-minute candles must show seconds; minute/hour/day candles use minute labels.
+    return state.sec<60 ? hh+":"+mm+":"+ss : hh+":"+mm;
   }
   function feed(){return window.GoTradeXMarketFeeds}
   function selection(){
@@ -520,6 +522,8 @@
     // Chart timeframe is independent: never overwrite trade expiration.
     try{localStorage.setItem(CHART_KEY,tf)}catch(_){}
     const s=document.getElementById("gtxLWCChartTF");if(s)s.value=tf;
+    // Keep the bottom axis precise for 5s/10s/15s/30s candles.
+    if(state.chart)state.chart.applyOptions({timeScale:{secondsVisible:state.sec<60}});
     // Preferences can initialize before the chart is mounted. Boot will use the
     // saved interval; only reconnect an already-running chart when it truly changes.
     if(changed&&state.booted)connect();
@@ -582,7 +586,7 @@
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
       rightPriceScale:{visible:true,borderVisible:true,borderColor:"#31506d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
-      timeScale:{visible:true,borderVisible:true,borderColor:"#31506d",timeVisible:true,secondsVisible:false,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false,tickMarkFormatter:formatChartTime},
+      timeScale:{visible:true,borderVisible:true,borderColor:"#31506d",timeVisible:true,secondsVisible:state.sec<60,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false,tickMarkFormatter:formatChartTime},
       localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}},
       crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
       handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
