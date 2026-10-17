@@ -203,7 +203,7 @@ function syncControlsFromState(state={}){
  const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);updateTimeControlLabels();
  livePair=mode==='OTC'?asset+' OTC':asset;
  if(pairLabel)pairLabel.textContent=asset;
- if(!hasSyncedControls||previousPair!==livePair||previousTf!==liveTf){hasSyncedControls=true;setSignalResult('WAIT');document.getElementById('entry').textContent='—';const detail=document.querySelector('.details');if(detail)detail.innerHTML='<div><i>Asset:</i> <b>'+asset+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>'+expiry+'</b></div><div><i>Momentum:</i> <b>—</b></div>';}
+ if(!hasSyncedControls||previousPair!==livePair||previousTf!==liveTf){hasSyncedControls=true;setSignalResult('WAIT');const entryEl=document.getElementById('entry');if(entryEl)entryEl.textContent='—';const detail=document.querySelector('.details');if(detail)detail.innerHTML='<div><i>Asset:</i> <b>'+asset+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>'+expiry+'</b></div><div><i>Momentum:</i> <b>—</b></div>';}
  const source=document.getElementById('marketSourceLabel');if(source)source.textContent=mode==='OTC'?'OTC · synthetic server engine':'LIVE · broker feed required';
 }
 function sendAnalyzerSync(action){
