@@ -217,6 +217,7 @@ signalButton.onclick=async function(){
    document.getElementById('entry').textContent=fmtPrice(livePrice);
    const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>Verified OTC</b></div>';
    if(side==='WAIT')dataStatus='No clear direction in verified candles; WAIT';showDataStatus();
+   const history=readSignalHistory();history.unshift({pair:livePair,side,tf:'15m',time:Date.now(),entry:fmtPrice(livePrice),momentum});localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(history.slice(0,100)));renderSignalHistory();
   }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';showDataStatus();}
   btn.disabled=false;btn.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span>';btn.title=dataStatus;
  },1000);
@@ -230,6 +231,56 @@ function renderSignalHistory(){
  document.getElementById('tradeList').innerHTML=items.length?items.map(s=>`<div class="item"><div style="flex:1"><div style="font-weight:800;font-size:13px">${s.pair} — ${s.side}</div><div style="color:#8da7cc;font-size:11px">${new Date(s.time).toLocaleString()} · Entry ${s.entry}</div></div><div class="badge">${s.momentum||'—'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No analysis history yet. No trades or outcomes are fabricated.</div>';
 }
 renderSignalHistory();
+
+// Browser-local price alerts. These do not claim server-side delivery or background monitoring.
+const OTC_ALERTS_KEY='gotradex_otc_price_alerts';
+function readAlerts(){try{const a=JSON.parse(localStorage.getItem(OTC_ALERTS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
+function writeAlerts(a){localStorage.setItem(OTC_ALERTS_KEY,JSON.stringify(a))}
+function renderAlerts(){
+ const el=document.getElementById('activeAlertsList');if(!el)return;
+ const alerts=readAlerts().filter(a=>a.status==='active');
+ el.innerHTML=alerts.length?alerts.map(a=>`<div class="item"><div class="ico ${a.condition==='above'?'up':'down'}">${a.condition==='above'?'↑':'↓'}</div><div style="flex:1;font-size:12px"><div>${a.pair}</div><div style="color:#8da7cc">${a.condition==='above'?'Above':'Below'} ${a.target} · expires ${new Date(a.expiresAt).toLocaleTimeString()}</div></div><button type="button" class="badge" data-remove-alert="${a.id}" style="border:0;color:#fff;background:#273856;padding:6px 8px">Cancel</button></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No active alerts.</div>';
+}
+document.getElementById('setAlertBtn')?.addEventListener('click',async()=>{
+ const pair=document.getElementById('alertAsset').value,condition=document.getElementById('alertCondition').value,target=Number(document.getElementById('alertTarget').value),duration=Number(document.getElementById('alertExpiry').value),status=document.getElementById('alertStatus');
+ if(!Number.isFinite(target)||target<=0){status.textContent='Enter a valid target price.';return}
+ const adapter=getAdapter();if(!adapter){status.textContent='OTC data adapter is unavailable. Alert not created.';return}
+ try{
+  const q=await adapter.price(pair);
+  if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000||q.time>Date.now()+60*1000)throw new Error('Server price is stale; try again when a fresh OTC price is available.');
+  const alerts=readAlerts();alerts.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),pair,condition,target,createdAt:Date.now(),expiresAt:Date.now()+duration,status:'active'});
+  writeAlerts(alerts);renderAlerts();status.textContent='Alert saved on this device. Monitoring starts while this page remains open.';
+  document.getElementById('alertTarget').value='';
+ }catch(e){status.textContent=e?.message||'Could not verify a current OTC price. Alert not created.'}
+});
+document.getElementById('activeAlertsList')?.addEventListener('click',e=>{
+ const b=e.target.closest('[data-remove-alert]');if(!b)return;
+ writeAlerts(readAlerts().filter(a=>a.id!==b.dataset.removeAlert));renderAlerts();
+});
+async function checkPriceAlerts(){
+ const alerts=readAlerts();if(!alerts.some(a=>a.status==='active'))return;
+ const adapter=getAdapter();if(!adapter)return;
+ let changed=false;
+ for(const a of alerts){
+  if(a.status!=='active')continue;
+  if(Date.now()>=a.expiresAt){a.status='expired';changed=true;continue}
+  try{
+   const q=await adapter.price(a.pair);
+   if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000||q.time>Date.now()+60*1000)continue;
+   const hit=a.condition==='above'?q.price>=a.target:q.price<=a.target;
+   if(hit){
+    a.status='triggered';a.triggeredAt=Date.now();a.triggerPrice=q.price;changed=true;
+    const msg=a.pair+' reached '+q.price+' ('+(a.condition==='above'?'above':'below')+' '+a.target+').';
+    const st=document.getElementById('alertStatus');if(st)st.textContent=msg;
+    if('Notification' in window&&Notification.permission==='granted')new Notification('GoTradeX OTC price alert',{body:msg});
+   }
+  }catch(_){}
+ }
+ if(changed){writeAlerts(alerts);renderAlerts()}
+}
+renderAlerts();
+setInterval(checkPriceAlerts,30000);
+
 function getAnalysisText(){return document.querySelector('.details')?.innerText||'No analysis available'}
 function shareAnalysis(){const text=getAnalysisText();if(navigator.share)navigator.share({title:'GoTradeX OTC Analysis',text}).catch(()=>{});else copyAnalysis()}
 function copyAnalysis(){const text=getAnalysisText();if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>alert('Analysis copied')).catch(()=>alert('Copy unavailable'));else alert(text)}
