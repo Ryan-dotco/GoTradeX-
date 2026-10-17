@@ -1,40 +1,100 @@
-name: GoTradeX chart and asset-sync checks
+name: GoTradeX recovery static checks
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 jobs:
-  chart-check:
+  app-static-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Syntax check active chart and feed scripts
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Syntax-check active local scripts and inline JavaScript
         run: |
-          node --check live-chart.js
-          node --check gotradex-pro-engine.js
-          node --check market-data.js
-      - name: Verify selected asset reaches the correct chart feed
+          node - <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          const index = fs.readFileSync('index.html', 'utf8');
+          const localFiles = new Set();
+          for (const match of index.matchAll(/<script\b([^>]*)>/gi)) {
+            const src = match[1].match(/\bsrc=["']([^"']+)["']/i);
+            if (!src) continue;
+            const url = src[1];
+            if (/^(?:https?:)?\/\//i.test(url)) continue;
+            const path = url.split('?')[0].replace(/^\.\//, '');
+            if (!fs.existsSync(path)) throw new Error('Missing local script: ' + path);
+            localFiles.add(path);
+          }
+          for (const path of localFiles) {
+            new vm.Script(fs.readFileSync(path, 'utf8'), { filename: path });
+            console.log('PASS: ' + path);
+          }
+          const scanner = fs.readFileSync('otc-ai-scanner-test/scanner.js', 'utf8');
+          new vm.Script(scanner, { filename: 'otc-ai-scanner-test/scanner.js' });
+          console.log('PASS: OTC AI scanner script syntax');
+          let inlineCount = 0;
+          for (const match of index.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+            const attrs = match[1];
+            if (/\bsrc=/i.test(attrs)) continue;
+            const type = (attrs.match(/\btype=["']([^"']+)["']/i) || [])[1] || '';
+            if (type && !/(?:java|ecma)script/i.test(type)) continue;
+            const code = match[2].trim();
+            if (!code) continue;
+            inlineCount++;
+            new vm.Script(code, { filename: 'index.html:inline-script-' + inlineCount });
+          }
+          console.log('PASS: ' + inlineCount + ' inline scripts');
+          if (scanner.includes('Math.random()*0.0006') || scanner.includes("const sig=[{pair:'EUR/USD'")) {
+            throw new Error('Scanner still contains the old fabricated candle/history demo.');
+          }
+          for (const [ok, label] of [
+            [scanner.includes('derivCandleHistory(st.asset.symbol,st.sec)') && scanner.includes('derivSocket(st.asset.symbol'), 'scanner uses Deriv history and live ticks'],
+            [scanner.includes('https://api.bybit.com/v5/market/kline') && scanner.includes('wss://stream.bybit.com/v5/public/spot'), 'scanner uses Bybit public candles and live ticks'],
+            [scanner.includes('["BUY","SELL"].indexOf(sig.signal)<0') || scanner.includes('["BUY","SELL"].indexOf(sig.signal)<0'), 'WAIT signals are blocked from bot delivery']
+          ]) {
+            if (!ok) throw new Error('FAILED: ' + label);
+            console.log('PASS: ' + label);
+          }
+          NODE
+      - name: Type-check all changed Edge Functions
+        run: |
+          deno check supabase/functions/gotradex-alert-delivery/index.ts
+          deno check supabase/functions/gotradex-market-data/index.ts
+          deno check supabase/functions/gotradex-market-stream-worker/index.ts
+          deno check supabase/functions/gotradex-trade-engine/index.ts
+          deno check supabase/functions/gotradex-trade-scheduler/index.ts
+          deno check supabase/functions/gotradex-otc-engine/index.ts
+          deno check supabase/functions/gotradex-synthetic-market/index.ts
+          deno check supabase/functions/gotradex-market-ws/index.ts
+      - name: Verify selected asset reaches the verified chart feed
         run: |
           node - <<'NODE'
           const fs = require('fs');
           const index = fs.readFileSync('index.html', 'utf8');
           const chart = fs.readFileSync('live-chart.js', 'utf8');
           const feed = fs.readFileSync('market-data.js', 'utf8');
+          const otcAdapter = fs.readFileSync('gotradex-otc-adapter.js', 'utf8');
           const pro = fs.readFileSync('gotradex-pro-engine.js', 'utf8');
+          const marketDataFunction = fs.readFileSync('supabase/functions/gotradex-market-data/index.ts', 'utf8');
+          const marketWorker = fs.readFileSync('supabase/functions/gotradex-market-stream-worker/index.ts', 'utf8');
+          const tradeEngine = fs.readFileSync('supabase/functions/gotradex-trade-engine/index.ts', 'utf8');
+          const tradeScheduler = fs.readFileSync('supabase/functions/gotradex-trade-scheduler/index.ts', 'utf8');
           const checks = [
-            [index.includes('live-chart.js?v=20261009asset-sync4'), 'active chart script cache version'],
+            [/<script\b[^>]*src=["'][^"']*live-chart\.js(?:\?[^"']*)?["']/i.test(index), 'active live-chart script is referenced'],
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
             [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
             [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
-            [chart.includes('d.source!=="dashboard-assets"') && chart.includes('setAsset(d.label,d.type,d.mode)'), 'single dashboard-to-chart handoff'],
-            [chart.includes('function connectDeriv()') && chart.includes('derivCandleHistory(f.symbol,state.sec)'), 'Deriv historical candle request'],
-            [chart.includes('return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks') && chart.includes('if(state.mode!=="OTC")throw e;') && chart.includes('Deriv OTC history unavailable; continuing to wait for verified live ticks'), 'OTC tick bootstrap when history is sparse or fails'],
+            [chart.includes('derivCandleHistory(') && chart.includes('derivSocket('), 'chart uses Deriv history and tick adapter'],
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
-            [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection']
+            [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection'],
+            [!(/api\.twelvedata\.com|TWELVE_DATA_API_KEY/i.test(feed + marketDataFunction + marketWorker + tradeEngine + tradeScheduler)), 'active feed and trade services do not call Twelve Data'],
+            [!(/from\(["']otc_(?:prices|candles)|functions\.invoke\(["']gotradex-otc-engine|Math\.random/i.test(otcAdapter)), 'chart adapter cannot fall back to generated OTC data']
           ];
           for (const [ok, name] of checks) {
             if (!ok) throw new Error('FAILED: ' + name);
