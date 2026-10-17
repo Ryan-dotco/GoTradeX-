@@ -206,7 +206,7 @@ function startLiveSocket(pair,adapter){
  if(typeof adapter.socket!=='function'){dataStatus='OTC candles loaded; live price stream unavailable';showDataStatus();return}
  if(activeSocket&&socketPair===pair)return;
  if(activeSocket)activeSocket.close();activeSocket=null;socketPair=pair;
- adapter.socket(pair,tick=>applyLiveTick(tick,pair),(label,ok)=>{if(pair!==livePair)return;dataStatus=ok?'Connected to OTC server engine:'Live OTC price unavailable; waiting for fresh data';showDataStatus()})
+ adapter.socket(pair,tick=>applyLiveTick(tick,pair),(label,ok)=>{if(pair!==livePair)return;dataStatus=ok?'Connected to OTC server engine':'Live OTC price unavailable; waiting for fresh data';showDataStatus()})
  .then(sock=>{if(socketPair===pair)activeSocket=sock;else sock.close()})
  .catch(()=>{if(pair===livePair){dataStatus='Live OTC stream unavailable';showDataStatus()}});
 }
@@ -215,13 +215,13 @@ async function loadVerifiedData(){
  if(socketPair&&socketPair!==pair){activeSocket?.close();activeSocket=null;socketPair=''}
  livePair=pair; dataStatus='Connecting to OTC server engine';showDataStatus();
  pairLabel.textContent=pair;
- document.querySelector('.pair-row div:last-child').textContent='OTC · verifying feed';
+ document.querySelector('.pair-row div:last-child').textContent='OTC · server engine';
  document.getElementById('entry').textContent='—';
  resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';
  if(!adapter){dataStatus='OTC adapter unavailable in this session';signalButton.title=dataStatus;showDataStatus();return}
  try{
   const hist=await adapter.history(pair,liveTf);
-  if(!Array.isArray(hist)||hist.length<5)throw new Error('Not enough verified OTC candles for analysis');
+  if(!Array.isArray(hist)||hist.length<5)throw new Error('Not enough OTC server-engine candles for analysis');
   data=hist.map(x=>({time:Math.floor(x.t/1000),open:x.o,high:x.h,low:x.l,close:x.c})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
   if(data.length<5)throw new Error('Verified candle data is incomplete');
   candle.setData(data);chart.timeScale().fitContent();
@@ -250,7 +250,7 @@ signalButton.onclick=async function(){
    resultSide.innerHTML='<div><big>'+(side==='BUY'?'▲':side==='SELL'?'▼':'—')+'</big><br>'+side+'</div>';
    document.getElementById('entry').textContent=fmtPrice(livePrice);
    const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>OTC server engine (synthetic)</b></div>';
-   if(side==='WAIT')dataStatus='No clear direction in verified candles; WAIT';showDataStatus();
+   if(side==='WAIT')dataStatus='No clear direction in OTC candles; WAIT';showDataStatus();
    const history=readSignalHistory();history.unshift({pair:livePair,side,tf:'15m',time:Date.now(),entry:fmtPrice(livePrice),momentum});localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(history.slice(0,100)));renderSignalHistory();
   }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';showDataStatus();}
   btn.disabled=false;btn.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span>';btn.title=dataStatus;
