@@ -98,13 +98,20 @@ async function connectDeriv(rows:any[]){
  const appId=await resolveDerivAppId();
  if(!appId){await Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"DERIV_APP_ID is not configured in server settings.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol)));return 0;}
  return await new Promise<number>(resolve=>{
-  let ws:WebSocket|null=null,count=0,done=false;
-  const finish=()=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch(_){}resolve(count)};
+  let ws:WebSocket|null=null,count=0,done=false,opened=false;
+  const diagnosticTimer=setTimeout(()=>{
+   if(!count){
+    console.error("DERIV_NO_TICKS",JSON.stringify(rows.map((r:any)=>({symbol:r.symbol,provider_symbol:r.provider_symbol,opened}))));
+    Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"Deriv WebSocket connected but returned no ticks within 5 seconds.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{});
+   }
+  },5000);
+  const finish=()=>{if(done)return;done=true;clearTimeout(timer);clearTimeout(diagnosticTimer);try{ws?.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
-  try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId))}catch(_){finish();return}
-  ws.onopen=()=>{try{rows.forEach((r:any,i:number)=>ws?.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1})))}catch(_){finish()}};
-  ws.onmessage=e=>{try{const m=JSON.parse(String(e.data||"{}"));if(m.error){const failed=rows.find((r:any,i:number)=>Number(m.req_id)===i+1);if(failed)admin.from("gotradex_market_registry").update({last_error:String(m.error.message||"Deriv rejected tick subscription"),updated_at:new Date().toISOString()}).eq("symbol",failed.symbol).then(()=>{});return;}if(m.msg_type==="tick"&&m.tick){const sym=String(m.tick.symbol||""),row=rows.find((r:any)=>r.provider_symbol===sym),price=Number(m.tick.quote),epoch=Number(m.tick.epoch);if(row&&Number.isFinite(price)&&price>0){count++;writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch(()=>{})}}}catch(_){}};
-  ws.onerror=()=>finish();ws.onclose=()=>finish();
+  try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId))}catch(e){console.error("DERIV_WS_CREATE_FAILED",String(e));finish();return}
+  ws.onopen=()=>{opened=true;console.log("DERIV_WS_OPEN",rows.length);try{rows.forEach((r:any,i:number)=>ws?.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1})))}catch(e){console.error("DERIV_SUBSCRIBE_FAILED",String(e));finish()}};
+  ws.onmessage=e=>{try{const m=JSON.parse(String(e.data||"{}"));if(m.error){const failed=rows.find((r:any,i:number)=>Number(m.req_id)===i+1);console.error("DERIV_PROVIDER_ERROR",String(m.error.message||"unknown"),String(m.error.code||""));if(failed)admin.from("gotradex_market_registry").update({last_error:String(m.error.message||"Deriv rejected tick subscription"),updated_at:new Date().toISOString()}).eq("symbol",failed.symbol).then(()=>{});return;}if(m.msg_type==="tick"&&m.tick){const sym=String(m.tick.symbol||""),row=rows.find((r:any)=>r.provider_symbol===sym),price=Number(m.tick.quote),epoch=Number(m.tick.epoch);if(row&&Number.isFinite(price)&&price>0){count++;if(count===1)console.log("DERIV_FIRST_TICK",row.symbol);writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch((err:any)=>console.error("DERIV_WRITE_FAILED",row.symbol,String(err?.message||err)))}}}catch(e){console.error("DERIV_MESSAGE_PARSE_FAILED",String(e))}};
+  ws.onerror=(e)=>{console.error("DERIV_WS_ERROR",String((e as any)?.message||"WebSocket error"));finish()};
+  ws.onclose=()=>{if(!count)console.error("DERIV_WS_CLOSED_BEFORE_TICK",{rows:rows.length,opened});finish()};
  });
 }
 async function pollLoop(active:any[],deadline:number){
