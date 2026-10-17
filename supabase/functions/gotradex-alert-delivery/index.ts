@@ -10,6 +10,12 @@ const SERVICE_ROLE_KEY = (() => {
   catch (_) { return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""; }
 })();
 const ALLOWED_ORIGINS = new Set(["https://ryan-dotco.github.io", "https://raw.githack.com"]);
+const SECRET_NAMES = {
+  telegramToken: "gtx_telegram_bot_token",
+  telegramChatId: "gtx_telegram_chat_id",
+  whatsappPhone: "gtx_callmebot_phone",
+  whatsappApiKey: "gtx_callmebot_api_key"
+};
 
 const json = (body: unknown, status = 200, origin = "") => new Response(JSON.stringify(body), {
   status,
@@ -50,6 +56,49 @@ async function isAdmin(userId: string) {
   return Array.isArray(rows) && rows.some((row: { user_id?: string }) => row.user_id === userId);
 }
 
+async function vaultSecrets() {
+  if (!SERVICE_ROLE_KEY) return {};
+  const response = await fetch(SUPABASE_URL + "/rest/v1/rpc/gotradex_get_bot_secrets", {
+    method: "POST",
+    headers: { apikey: SERVICE_ROLE_KEY, Authorization: "Bearer " + SERVICE_ROLE_KEY, "Content-Type": "application/json" },
+    body: "{}",
+    cache: "no-store"
+  });
+  if (!response.ok) return {};
+  const value = await response.json().catch(() => ({}));
+  return value && typeof value === "object" ? value : {};
+}
+
+async function botSecrets() {
+  const vault = await vaultSecrets();
+  return {
+    telegramToken: text(vault[SECRET_NAMES.telegramToken] || Deno.env.get("GTX_TELEGRAM_BOT_TOKEN") || Deno.env.get("TELEGRAM_BOT_TOKEN"), 220),
+    telegramChatId: text(vault[SECRET_NAMES.telegramChatId] || Deno.env.get("GTX_TELEGRAM_CHAT_ID") || Deno.env.get("TELEGRAM_CHAT_ID"), 120),
+    whatsappPhone: text(vault[SECRET_NAMES.whatsappPhone] || Deno.env.get("GTX_CALLMEBOT_PHONE") || Deno.env.get("CALLMEBOT_PHONE"), 40),
+    whatsappApiKey: text(vault[SECRET_NAMES.whatsappApiKey] || Deno.env.get("GTX_CALLMEBOT_API_KEY") || Deno.env.get("CALLMEBOT_API_KEY"), 220)
+  };
+}
+
+async function storeBotSecret(name: string, value: string) {
+  if (!SERVICE_ROLE_KEY) throw new Error("Server-side secret storage is not configured.");
+  const response = await fetch(SUPABASE_URL + "/rest/v1/rpc/gotradex_store_bot_secret", {
+    method: "POST",
+    headers: { apikey: SERVICE_ROLE_KEY, Authorization: "Bearer " + SERVICE_ROLE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_name: name, p_value: value }),
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error("Could not securely save bot settings. Check the server-side Vault migration.");
+}
+
+function channelStatus(secrets: Record<string, string>) {
+  const telegram = Boolean(secrets.telegramToken && secrets.telegramChatId);
+  const whatsapp = Boolean(secrets.whatsappPhone && secrets.whatsappApiKey);
+  return {
+    telegram: { configured: telegram, ok: false, message: telegram ? "Telegram credentials are stored server-side." : "Telegram bot token or chat ID is not configured." },
+    whatsapp: { configured: whatsapp, ok: false, message: whatsapp ? "CallMeBot credentials are stored server-side." : "CallMeBot phone or API key is not configured." }
+  };
+}
+
 function signalMessage(signal: Record<string, unknown> | null, action: string) {
   if (action === "test") return "GoTradeX bot connection test. This is a test message, not a trade signal.";
   const direction = text(signal?.signal, 8).toUpperCase();
@@ -76,10 +125,10 @@ function signalMessage(signal: Record<string, unknown> | null, action: string) {
   ].join("\n");
 }
 
-async function sendTelegram(message: string) {
-  const token = Deno.env.get("GTX_TELEGRAM_BOT_TOKEN") || Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
-  const chatId = Deno.env.get("GTX_TELEGRAM_CHAT_ID") || Deno.env.get("TELEGRAM_CHAT_ID") || "";
-  if (!token || !chatId) return { configured: false, ok: false, message: "Telegram bot token or chat ID is missing from server secrets." };
+async function sendTelegram(message: string, secrets: Record<string, string>) {
+  const token = secrets.telegramToken || "";
+  const chatId = secrets.telegramChatId || "";
+  if (!token || !chatId) return { configured: false, ok: false, message: "Telegram bot token or chat ID is missing from secure settings." };
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 9000);
@@ -98,10 +147,10 @@ async function sendTelegram(message: string) {
   }
 }
 
-async function sendWhatsApp(message: string) {
-  const phone = Deno.env.get("GTX_CALLMEBOT_PHONE") || Deno.env.get("CALLMEBOT_PHONE") || "";
-  const apiKey = Deno.env.get("GTX_CALLMEBOT_API_KEY") || Deno.env.get("CALLMEBOT_API_KEY") || "";
-  if (!phone || !apiKey) return { configured: false, ok: false, message: "CallMeBot phone or API key is missing from server secrets." };
+async function sendWhatsApp(message: string, secrets: Record<string, string>) {
+  const phone = secrets.whatsappPhone || "";
+  const apiKey = secrets.whatsappApiKey || "";
+  if (!phone || !apiKey) return { configured: false, ok: false, message: "CallMeBot phone or API key is missing from secure settings." };
   try {
     const url = new URL("https://api.callmebot.com/whatsapp.php");
     url.searchParams.set("phone", phone);
@@ -131,16 +180,50 @@ Deno.serve(async (request: Request) => {
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     const user = await currentUser(token);
     if (!user) return json({ ok: false, error: "A valid signed-in GoTradeX session is required." }, 401, origin);
-    if (!(await isAdmin(user.id))) return json({ ok: false, error: "Only an authorized GoTradeX administrator may use the global bot delivery connection." }, 403, origin);
+    if (!(await isAdmin(user.id))) return json({ ok: false, error: "Only an authorized GoTradeX administrator may manage the global bot delivery connection." }, 403, origin);
 
     const body = await request.json().catch(() => ({}));
     const action = text(body?.action, 20).toLowerCase();
+    if (action === "status") {
+      const secrets = await botSecrets();
+      const channels = channelStatus(secrets);
+      const configured = channels.telegram.configured || channels.whatsapp.configured;
+      return json({ ok: true, configured, action, channels }, 200, origin);
+    }
+    if (action === "save-config") {
+      const config = body?.config && typeof body.config === "object" ? body.config : {};
+      const fields = [
+        ["telegramToken", SECRET_NAMES.telegramToken, 220],
+        ["telegramChatId", SECRET_NAMES.telegramChatId, 120],
+        ["whatsappPhone", SECRET_NAMES.whatsappPhone, 40],
+        ["whatsappApiKey", SECRET_NAMES.whatsappApiKey, 220]
+      ];
+      let saved = 0;
+      for (const [key, secretName, max] of fields as [string,string,number][]) {
+        const value = text(config[key], max);
+        if (!value) continue;
+        if (key === "whatsappPhone" && !/^\+?[0-9 ()-]{8,24}$/.test(value)) {
+          return json({ ok: false, error: "WhatsApp phone must include the country code and contain only digits, spaces, +, parentheses, or hyphens." }, 400, origin);
+        }
+        if (key === "telegramChatId" && !/^[A-Za-z0-9_@:-]{1,120}$/.test(value)) {
+          return json({ ok: false, error: "Telegram chat ID has an invalid format." }, 400, origin);
+        }
+        await storeBotSecret(secretName, value);
+        saved++;
+      }
+      const secrets = await botSecrets();
+      const channels = channelStatus(secrets);
+      return json({ ok: saved > 0, savedFields: saved, configured: channels.telegram.configured || channels.whatsapp.configured, action, channels,
+        error: saved ? null : "Enter at least one setting to save. Blank fields leave existing secrets unchanged." }, 200, origin);
+    }
     if (action !== "signal" && action !== "test") return json({ ok: false, error: "Unsupported delivery action." }, 400, origin);
+
     let message = "";
     try { message = signalMessage(body?.signal && typeof body.signal === "object" ? body.signal : null, action); }
     catch (error) { return json({ ok: false, error: error instanceof Error ? error.message : "Invalid signal." }, 400, origin); }
 
-    const results = await Promise.all([sendTelegram(message), sendWhatsApp(message)]);
+    const secrets = await botSecrets();
+    const results = await Promise.all([sendTelegram(message, secrets), sendWhatsApp(message, secrets)]);
     const channels = { telegram: results[0], whatsapp: results[1] };
     const delivered = results.some(result => result.ok);
     const configured = results.some(result => result.configured);
