@@ -79,6 +79,33 @@ async function botSecrets() {
   };
 }
 
+async function derivAppIdConfigured() {
+  if (!SERVICE_ROLE_KEY) return false;
+  const response = await fetch(SUPABASE_URL + "/rest/v1/gotradex_public_settings?select=key&key=eq.deriv_app_id&limit=1", {
+    headers: { apikey: SERVICE_ROLE_KEY, Authorization: "Bearer " + SERVICE_ROLE_KEY },
+    cache: "no-store"
+  });
+  if (!response.ok) return false;
+  const rows = await response.json().catch(() => []);
+  return Array.isArray(rows) && rows.some((row: { key?: string }) => row.key === "deriv_app_id");
+}
+
+async function storeDerivAppId(value: string) {
+  if (!SERVICE_ROLE_KEY) throw new Error("Server-side settings storage is not configured.");
+  const response = await fetch(SUPABASE_URL + "/rest/v1/gotradex_public_settings?on_conflict=key", {
+    method: "POST",
+    headers: {
+      apikey: SERVICE_ROLE_KEY,
+      Authorization: "Bearer " + SERVICE_ROLE_KEY,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal"
+    },
+    body: JSON.stringify({ key: "deriv_app_id", value, updated_at: new Date().toISOString() }),
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error("Could not save the Deriv app ID. Check the public settings migration.");
+}
+
 async function storeBotSecret(name: string, value: string) {
   if (!SERVICE_ROLE_KEY) throw new Error("Server-side secret storage is not configured.");
   const response = await fetch(SUPABASE_URL + "/rest/v1/rpc/gotradex_store_bot_secret", {
@@ -188,7 +215,8 @@ Deno.serve(async (request: Request) => {
       const secrets = await botSecrets();
       const channels = channelStatus(secrets);
       const configured = channels.telegram.configured || channels.whatsapp.configured;
-      return json({ ok: true, configured, action, channels }, 200, origin);
+      const derivAppIdConfiguredState = await derivAppIdConfigured();
+      return json({ ok: true, configured, derivAppIdConfigured: derivAppIdConfiguredState, action, channels }, 200, origin);
     }
     if (action === "save-config") {
       const config = body?.config && typeof body.config === "object" ? body.config : {};
@@ -199,6 +227,14 @@ Deno.serve(async (request: Request) => {
         ["whatsappApiKey", SECRET_NAMES.whatsappApiKey, 220]
       ];
       let saved = 0;
+      const derivAppId = text(config.derivAppId, 40);
+      if (derivAppId) {
+        if (!/^\\d{1,12}$/.test(derivAppId)) {
+          return json({ ok: false, error: "Deriv App ID must be the numeric ID issued when you register a Deriv application." }, 400, origin);
+        }
+        await storeDerivAppId(derivAppId);
+        saved++;
+      }
       for (const [key, secretName, max] of fields as [string,string,number][]) {
         const value = text(config[key], max);
         if (!value) continue;
@@ -213,7 +249,7 @@ Deno.serve(async (request: Request) => {
       }
       const secrets = await botSecrets();
       const channels = channelStatus(secrets);
-      return json({ ok: saved > 0, savedFields: saved, configured: channels.telegram.configured || channels.whatsapp.configured, action, channels,
+      return json({ ok: saved > 0, savedFields: saved, configured: channels.telegram.configured || channels.whatsapp.configured, derivAppIdConfigured: await derivAppIdConfigured(), action, channels,
         error: saved ? null : "Enter at least one setting to save. Blank fields leave existing secrets unchanged." }, 200, origin);
     }
     if (action !== "signal" && action !== "test") return json({ ok: false, error: "Unsupported delivery action." }, 400, origin);
