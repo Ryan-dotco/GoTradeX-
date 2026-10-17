@@ -70,7 +70,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
   function analyzerFrame(){return document.querySelector("#gtxOtcAiOverlay iframe");}
   function currentMainState(){
     const read=(k,f)=>{try{return localStorage.getItem(k)||f}catch(_){return f}};
-    return {type:"GTX_MAIN_STATE",marketMode:read("gotradex_market_mode","LIVE").toUpperCase()==="OTC"?"OTC":"LIVE",asset:read("gotradex_asset_display","BTC/USD").replace(/\\s+OTC$/i,""),assetType:read("gotradex_asset_type","forex"),accountMode:read("gotradex_account_mode","DEMO").toUpperCase()==="REAL"?"REAL":"DEMO",expiration:read("gotradex_trade_expiration","5 Minutes")};
+    return {type:"GTX_MAIN_STATE",marketMode:read("gotradex_market_mode","LIVE").toUpperCase()==="OTC"?"OTC":"LIVE",asset:read("gotradex_asset_display","BTC/USD").replace(/\s+OTC$/i,""),assetType:read("gotradex_asset_type","forex"),accountMode:read("gotradex_account_mode","DEMO").toUpperCase()==="REAL"?"REAL":"DEMO",expiration:read("gotradex_trade_expiration","5 Minutes")};
   }
   function sendMainState(){
     const frame=analyzerFrame();if(!frame||!frame.contentWindow)return;
@@ -82,7 +82,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     const msg=event.data;if(!msg||msg.type!=="GTX_ANALYZER_SYNC")return;
     const allowedExpiry=["5 Seconds","1 Minute","3 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day"];
     const mode=String(msg.marketMode||"").toUpperCase()==="OTC"?"OTC":"LIVE";
-    const asset=String(msg.asset||"").replace(/\\s+OTC$/i,"").trim();
+    const asset=String(msg.asset||"").replace(/\s+OTC$/i,"").trim();
     const type=String(msg.assetType||"forex").toLowerCase();
     if(typeof window.gtxSetMarketMode==="function")window.gtxSetMarketMode(mode);
     if(asset&&typeof window.gtxSetBottomAsset==="function")window.gtxSetBottomAsset(asset,type);
