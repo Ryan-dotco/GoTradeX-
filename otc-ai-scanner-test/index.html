@@ -66,7 +66,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
   <div class="view active" id="v-otc">
     <div style="padding:0 16px">
       <div class="label">MARKET</div>
-      <div class="pair-row"><div style="font-weight:800">OTC Asset</div><div style="font-size:10px;color:#5c7bb0">OTC · waiting for verified feed</div></div>
+      <div class="pair-row"><div style="font-weight:800">OTC Asset</div><div style="font-size:10px;color:#5c7bb0">OTC · server engine</div></div>
       <div class="ctrl-row"><div class="ctrl">◫ 15m ⌄</div><div class="ctrl">Candles · Volume ⌄</div></div>
     </div>
     <div id="chart"></div>
@@ -187,14 +187,14 @@ function getAdapter(){
   const tfMap={60:"1m",300:"5m",900:"15m",1800:"30m",3600:"1h",14400:"4h",86400:"1d",2592000:"1month"};
   return {
    async history(pair,sec){
-    if(!supported.has(pair))throw new Error("No verified OTC feed is configured for "+pair+".");
+    if(!supported.has(pair))throw new Error("No OTC server-engine feed is configured for "+pair+".");
     const tf=tfMap[Number(sec)];if(!tf)throw new Error("Unsupported OTC timeframe.");
     const {data,error}=await sb.from("otc_candles").select("candle_time,open,high,low,close,volume").eq("pair",pair).eq("timeframe",tf).order("candle_time",{ascending:true}).limit(500);
     if(error)throw new Error("OTC candle service unavailable: "+error.message);
     return (data||[]).map(x=>({t:Date.parse(x.candle_time),o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)})).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
    },
    async price(pair){
-    if(!supported.has(pair))throw new Error("No verified OTC price feed is configured for "+pair+".");
+    if(!supported.has(pair))throw new Error("No OTC server-engine price feed is configured for "+pair+".");
     const {data,error}=await sb.from("otc_prices").select("price,updated_at").eq("pair",pair).maybeSingle();
     if(error)throw new Error("OTC price service unavailable: "+error.message);
     if(!data||!Number.isFinite(Number(data.price)))throw new Error("No OTC price is available for "+pair+".");
