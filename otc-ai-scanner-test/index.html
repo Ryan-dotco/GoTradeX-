@@ -171,14 +171,47 @@ function getAdapter(){
     if(error)throw new Error("OTC price service unavailable: "+error.message);
     if(!data||!Number.isFinite(Number(data.price)))throw new Error("No OTC price is available for "+pair+".");
     return {price:Number(data.price),time:Date.parse(data.updated_at)};
+   },
+   async socket(pair,onTick,onStatus){
+    let stopped=false,busy=false;
+    const poll=async()=>{if(stopped||busy)return;busy=true;try{const q=await this.price(pair);if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000)throw new Error('Stale OTC price');if(!stopped){onTick(q);onStatus('OTC • LIVE PRICE',true)}}catch(_){if(!stopped)onStatus('OTC • WAITING',false)}finally{busy=false}};
+    await poll();const timer=setInterval(poll,5000);return {close(){stopped=true;clearInterval(timer)}};
    }
   };
  }catch(e){return null}
 }
 function getSelectedPair(){try{let p=String(localStorage.getItem('gotradex_asset_display')||'').trim();if(!p)p=String(localStorage.getItem('gtx_pair')||'').trim();if(!p)p='EUR/USD';if(!/ OTC$/i.test(p))p+=' OTC';return p}catch(_){return 'EUR/USD OTC'}}
 function fmtPrice(n){return Number.isFinite(n)?n.toFixed(n<10?5:2):'—'}
+let activeSocket=null, socketPair='';
+function applyLiveTick(tick,pair){
+ if(pair!==livePair||!Number.isFinite(Number(tick?.price)))return;
+ const p=Number(tick.price),ms=Number(tick.time),now=Number.isFinite(ms)?ms:Date.now();
+ if(now>Date.now()+60000||Date.now()-now>5*60*1000)return;
+ livePrice=p;
+ const entryEl=document.getElementById('entry');if(entryEl)entryEl.textContent=fmtPrice(p);
+ if(data.length){
+  const bucket=Math.floor(now/1000/liveTf)*liveTf,last=data[data.length-1];
+  if(bucket<last.time)return;
+  if(bucket===last.time){
+   const updated={time:bucket,open:last.open,high:Math.max(last.high,p),low:Math.min(last.low,p),close:p};
+   data[data.length-1]=updated;candle.update(updated);
+  }else{
+   const bar={time:bucket,open:last.close,high:Math.max(last.close,p),low:Math.min(last.close,p),close:p};
+   data.push(bar);if(data.length>500)data.shift();candle.update(bar);
+  }
+ }
+}
+function startLiveSocket(pair,adapter){
+ if(typeof adapter.socket!=='function'){dataStatus='Verified candles loaded; live price stream unavailable';showDataStatus();return}
+ if(activeSocket&&socketPair===pair)return;
+ if(activeSocket)activeSocket.close();activeSocket=null;socketPair=pair;
+ adapter.socket(pair,tick=>applyLiveTick(tick,pair),(label,ok)=>{if(pair!==livePair)return;dataStatus=ok?'Connected to '+label:'Live OTC price unavailable; waiting for fresh data';showDataStatus()})
+ .then(sock=>{if(socketPair===pair)activeSocket=sock;else sock.close()})
+ .catch(()=>{if(pair===livePair){dataStatus='Live OTC stream unavailable';showDataStatus()}});
+}
 async function loadVerifiedData(){
  const pair=getSelectedPair(), adapter=getAdapter();
+ if(socketPair&&socketPair!==pair){activeSocket?.close();activeSocket=null;socketPair=''}
  livePair=pair; dataStatus='Connecting to verified OTC feed';showDataStatus();
  pairLabel.textContent=pair;
  document.querySelector('.pair-row div:last-child').textContent='OTC · verifying feed';
@@ -196,7 +229,7 @@ async function loadVerifiedData(){
   livePrice=q.price;
   document.getElementById('entry').textContent=fmtPrice(livePrice);
   document.querySelector('.pair-row div:last-child').textContent='OTC · verified data';
-  dataStatus='Verified OTC candles loaded'; signalButton.title=dataStatus;showDataStatus();
+  dataStatus='Verified OTC candles and fresh price loaded'; signalButton.title=dataStatus;showDataStatus();startLiveSocket(pair,adapter);
  }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'Verified OTC data unavailable';signalButton.title=dataStatus;showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
 }
 window.addEventListener('storage',e=>{if(e.key==='gotradex_asset_display'||e.key==='gtx_pair')loadVerifiedData()});
