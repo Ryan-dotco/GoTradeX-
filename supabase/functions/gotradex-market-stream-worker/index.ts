@@ -7,7 +7,6 @@ declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")||"https://glffecggusetzklmyukv.supabase.co";
 const SERVICE=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
-const DERIV_APP_ID="1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
 const RUN_MS=15000, MAX_TD=8;
 const SUBSCRIPTION_TTL_MS=24*60*60*1000;
@@ -102,7 +101,7 @@ async function connectDeriv(rows:any[]){
   const finish=()=>{if(done)return;done=true;clearTimeout(timer);clearTimeout(diagnosticTimer);try{ws?.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
   try{
-   ws=new WebSocketClient("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID),{
+   ws=new WebSocketClient("wss://api.derivws.com/trading/v1/options/ws/public",{
     handshakeTimeout:8000,
     headers:{
      "Origin":"https://app.deriv.com",
