@@ -22,7 +22,14 @@ async function db(path:string,init:RequestInit={}){
   if(!r.ok) throw new Error(body||("Database request failed "+r.status));
   return body?JSON.parse(body):null;
 }
+async function getDerivAppId(){
+  const rows=await db("gotradex_public_settings?select=value&key=eq.deriv_app_id&limit=1");
+  const id=String(rows?.[0]?.value||"").trim();
+  return /^\d{1,12}$/.test(id)?id:"";
+}
 async function derivPrice(symbol:string){
+  const appId=await getDerivAppId();
+  if(!appId)throw new Error("Deriv App ID is not configured. An administrator must save a registered Deriv app ID in scanner integration settings.");
   return await new Promise<{price:number,time:string}>((resolve,reject)=>{
     let ws:WebSocket|null=null;
     let done=false;
@@ -31,7 +38,7 @@ async function derivPrice(symbol:string){
       if(error)reject(error);else resolve(value!);
     };
     const timer=setTimeout(()=>finish(new Error("Deriv live price request timed out.")),8000);
-    try{ws=new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089")}
+    try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId))}
     catch(_){finish(new Error("Deriv public WebSocket could not be opened."));return}
     ws.onopen=()=>{try{ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(_){finish(new Error("Deriv history request could not be sent."))}};
     ws.onmessage=event=>{
