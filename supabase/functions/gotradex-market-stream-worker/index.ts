@@ -7,7 +7,20 @@ const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
 const RUN_MS=105000, HANDOFF_MS=90000, MAX_TD=8;
 const SUBSCRIPTION_TTL_MS=24*60*60*1000;
-const DERIV_FX:Record<string,string>={"AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/JPY":"frxAUDJPY","AUD/NZD":"frxAUDNZD","AUD/USD":"frxAUDUSD","CAD/CHF":"frxCADCHF","CAD/JPY":"frxCADJPY","CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/CHF":"frxEURCHF","EUR/GBP":"frxEURGBP","EUR/JPY":"frxEURJPY","EUR/NZD":"frxEURNZD","EUR/USD":"frxEURUSD","GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/JPY":"frxGBPJPY","GBP/NZD":"frxGBPNZD","GBP/USD":"frxGBPUSD","NZD/CAD":"frxNZDCAD","NZD/CHF":"frxNZDCHF","NZD/JPY":"frxNZDJPY","NZD/USD":"frxNZDUSD","USD/CAD":"frxUSDCAD","USD/CHF":"frxUSDCHF","USD/JPY":"frxUSDJPY","USD/ZAR":"frxUSDZAR","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN","EUR/HUF":"frxEURHUF","EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","GBP/PLN":"frxGBPPLN","GBP/SEK":"frxGBPSEK","GBP/NOK":"frxGBPNOK","USD/SGD":"frxUSDSGD","USD/MXN":"frxUSDMXN","USD/PLN":"frxUSDPLN","USD/SEK":"frxUSDSEK","USD/NOK":"frxUSDNOK","USD/THB":"frxUSDTHB","USD/CNH":"frxUSDCNH","USD/HKD":"frxUSDHKD"};
+const DERIV_FX:Record<string,string>={
+ "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
+ "USD/CHF":"frxUSDCHF","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
+ "EUR/JPY":"frxEURJPY","GBP/JPY":"frxGBPJPY","EUR/CHF":"frxEURCHF","AUD/JPY":"frxAUDJPY",
+ "AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/NZD":"frxAUDNZD","CAD/JPY":"frxCADJPY",
+ "CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD",
+ "GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/NZD":"frxGBPNZD",
+ "NZD/JPY":"frxNZDJPY","NZD/CAD":"frxNZDCAD","CAD/CHF":"frxCADCHF","USD/SGD":"frxUSDSGD",
+ "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN","USD/ZAR":"frxUSDZAR","EUR/ZAR":"frxEURZAR",
+ "GBP/ZAR":"frxGBPZAR","USD/TRY":"frxUSDTRY","USD/NOK":"frxUSDNOK","USD/SEK":"frxUSDSEK",
+ "USD/DKK":"frxUSDDKK","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN",
+ "EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","USD/INR":"frxUSDINR","USD/BRL":"frxUSDBRL",
+ "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
+}
 const admin=createClient(SUPABASE_URL,SERVICE,{auth:{autoRefreshToken:false,persistSession:false}});
 const json=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
 
