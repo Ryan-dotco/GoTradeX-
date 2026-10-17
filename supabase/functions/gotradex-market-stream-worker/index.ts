@@ -90,7 +90,7 @@ function connectBybit(rows:any[]){
 function connectDeriv(rows:any[]){
  return new Promise<number>(resolve=>{
   if(!rows.length)return resolve(0);
-  if(!DERIV_APP_ID){Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"DERIV_APP_ID is not configured on the server.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).finally(()=>resolve(0));return;}
+  if(!DERIV_APP_ID){Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"DERIV_APP_ID is not configured on the server.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{}).finally(()=>resolve(0));return;}
   let ws:WebSocket|null=null,count=0,done=false;
   const finish=()=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
