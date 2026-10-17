@@ -9,6 +9,21 @@ const SERVICE_ROLE = (() => {
 })();
 const TWELVE_DATA_API_KEY = Deno.env.get("TWELVE_DATA_API_KEY") || "";
 
+const DERIV_FX:Record<string,string>={
+ "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
+ "USD/CHF":"frxUSDCHF","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
+ "EUR/JPY":"frxEURJPY","GBP/JPY":"frxGBPJPY","EUR/CHF":"frxEURCHF","AUD/JPY":"frxAUDJPY",
+ "AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/NZD":"frxAUDNZD","CAD/JPY":"frxCADJPY",
+ "CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD",
+ "GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/NZD":"frxGBPNZD",
+ "NZD/JPY":"frxNZDJPY","NZD/CAD":"frxNZDCAD","CAD/CHF":"frxCADCHF","USD/SGD":"frxUSDSGD",
+ "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN","USD/ZAR":"frxUSDZAR","EUR/ZAR":"frxEURZAR",
+ "GBP/ZAR":"frxGBPZAR","USD/TRY":"frxUSDTRY","USD/NOK":"frxUSDNOK","USD/SEK":"frxUSDSEK",
+ "USD/DKK":"frxUSDDKK","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN",
+ "EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","USD/INR":"frxUSDINR","USD/BRL":"frxUSDBRL",
+ "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
+};
+
 const json=(x:any,status=200)=>new Response(JSON.stringify(x),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization,content-type,apikey","Access-Control-Allow-Methods":"POST,OPTIONS"}});
 
 async function userFromToken(token:string){
@@ -24,6 +39,29 @@ async function db(path:string,init:RequestInit={}){
   return body?JSON.parse(body):null;
 }
 function twelveSymbol(asset:string){return asset.replace(/\s+/g," ").trim();}
+
+async function derivPrice(symbol:string){
+  return await new Promise<{price:number,time:string}>((resolve,reject)=>{
+    let ws:WebSocket|null=null,done=false;
+    const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
+    const timer=setTimeout(()=>finish(reject,new Error("Deriv price request timed out.")),8000);
+    try{ws=new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public")}catch(e){finish(reject,e);return}
+    ws.onopen=()=>{try{ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}};
+    ws.onerror=()=>finish(reject,new Error("Deriv price connection failed."));
+    ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv price connection closed before a verified tick was received."))};
+    ws.onmessage=event=>{
+      try{
+        const d=JSON.parse(String(event.data||"{}"));
+        if(d.error){finish(reject,new Error(String(d.error.message||"Deriv rejected the price request.")));return}
+        if(d.msg_type==="history"&&Array.isArray(d.history?.prices)&&d.history.prices.length){
+          const i=d.history.prices.length-1,p=Number(d.history.prices[i]),t=Number(d.history.times?.[i]);
+          if(Number.isFinite(p)&&p>0&&Number.isFinite(t)){finish(resolve,{price:p,time:new Date(t*1000).toISOString()});return}
+          finish(reject,new Error("Deriv returned no valid latest price."));
+        }
+      }catch{finish(reject,new Error("Could not parse Deriv price response."))}
+    };
+  });
+}
 async function priceFor(asset:string,provider:string,providerSymbol:string){
   if(provider==="BYBIT"){
     const r=await fetch("https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(providerSymbol),{cache:"no-store"});
@@ -32,6 +70,7 @@ async function priceFor(asset:string,provider:string,providerSymbol:string){
     if(!Number.isFinite(p)||p<=0) throw new Error("Bybit returned no live price.");
     return {price:p,time:new Date().toISOString()};
   }
+  if(provider==="DERIV") return await derivPrice(providerSymbol);
   if(provider==="TWELVE_DATA"){
     if(!TWELVE_DATA_API_KEY) throw new Error("TWELVE_DATA_API_KEY is not configured on the server.");
     const r=await fetch("https://api.twelvedata.com/price?symbol="+encodeURIComponent(twelveSymbol(providerSymbol))+"&apikey="+encodeURIComponent(TWELVE_DATA_API_KEY),{cache:"no-store"});
@@ -52,6 +91,7 @@ async function mapping(asset:string){
     "ARB/USD":"ARBUSDT","OP/USD":"OPUSDT","SUI/USD":"SUIUSDT","FIL/USD":"FILUSDT","ALGO/USD":"ALGOUSDT"
   };
   if(crypto[a]) return {provider:"BYBIT",symbol:crypto[a]};
+  if(DERIV_FX[a]) return {provider:"DERIV",symbol:DERIV_FX[a]};
   if(!TWELVE_DATA_API_KEY) return null;
   const aliases:Record<string,string>={
     "WTI OIL":"WTI/USD","BRENT OIL":"BRENT/USD","NATURAL GAS":"NATGAS/USD","COPPER":"HG1",
