@@ -213,7 +213,20 @@
     return Array.from(merged.values()).sort((a,b)=>a.t-b.t);
   }
 
+  async function touchMarketSubscription(){
+    try{
+      const selected=resolve();
+      if(!selected.available || !["DERIV","BYBIT"].includes(selected.provider)) return false;
+      const symbol=selected.mode==="OTC" ? selected.label+" OTC" : selected.label;
+      const sb=window.GoTradeXMarketSupabase || (window.GoTradeXMarketSupabase =
+        window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));
+      const {data,error}=await sb.rpc("gotradex_touch_market_subscription",{p_symbol:symbol});
+      return !error && data===true;
+    }catch(_){return false}
+  }
+
   async function bybitHistory(symbol,sec){
+    touchMarketSubscription().catch(()=>{});
     const tf=timeframeName(sec);
     if(!tf) return [];
     const requestTf=sec>2592000?"1 Month":tf;
@@ -304,6 +317,7 @@
   const DERIV_WS="wss://api.derivws.com/trading/v1/options/ws/public";
 
   function derivCandleHistory(symbol,sec){
+    touchMarketSubscription().catch(()=>{});
     return new Promise((resolve,reject)=>{
       if(!Number.isFinite(sec)||![5,10,15,30,60,120,300,900,1800,3600,14400,86400].includes(sec)) return resolve([]);
       let ws=null,done=false,timer=null;
@@ -386,6 +400,6 @@
   }
 
   window.GoTradeXMarketFeeds={
-    config:CFG,key,resolve,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
+    config:CFG,key,resolve,touchMarketSubscription,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
   };
 })();
