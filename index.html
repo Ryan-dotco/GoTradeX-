@@ -2330,7 +2330,7 @@ window.GoTradeXRefreshWallet=refreshWallet;window.GoTradeXAdminTransactions=admi
 (function(){
 function g(id){return document.getElementById(id)}
 function refreshAdminAgentAI(){
- const h=getAgentHistorySafe();
+ let h=[];try{const saved=JSON.parse(localStorage.getItem("gotradex_agent_history")||"[]");h=Array.isArray(saved)?saved:[]}catch(_){h=[]}
  if(g("adminAgentAIMessages"))g("adminAgentAIMessages").textContent=h.filter(x=>x?.role==="user").length;
  if(g("adminAgentAIState"))g("adminAgentAIState").textContent="READY";
  if(g("adminAgentAIStatus"))g("adminAgentAIStatus").textContent=h.length?"Conversation history is available on this device.":"No conversation history yet.";
