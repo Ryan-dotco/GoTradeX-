@@ -1,5 +1,7 @@
 import { withSupabase } from "npm:@supabase/server@1";
 
+const DERIV_APP_ID = Deno.env.get("DERIV_APP_ID") || "";
+
 const json = (x: unknown, status = 200) =>
   new Response(JSON.stringify(x), {
     status,
