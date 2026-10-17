@@ -46,7 +46,23 @@ const mapping = (asset: string, marketMode: string) => {
   return null;
 };
 
+async function getDerivAppId() {
+  const url = Deno.env.get("SUPABASE_URL") || "https://glffecggusetzklmyukv.supabase.co";
+  let serviceKey = "";
+  try { serviceKey = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}").default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""; }
+  catch (_) { serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""; }
+  if (!serviceKey) throw new Error("Server-side settings access is not configured.");
+  const response = await fetch(url + "/rest/v1/gotradex_public_settings?select=value&key=eq.deriv_app_id&limit=1", {
+    headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey }, cache: "no-store"
+  });
+  if (!response.ok) throw new Error("Could not read the registered Deriv App ID setting.");
+  const rows = await response.json().catch(() => []);
+  const id = String(rows?.[0]?.value || "").trim();
+  return /^\d{1,12}$/.test(id) ? id : "";
+}
 async function derivPrice(symbol: string) {
+  const appId = await getDerivAppId();
+  if (!appId) throw new Error("Deriv App ID is not configured. An administrator must save a registered Deriv app ID in scanner integration settings.");
   return await new Promise<{price:number,time:string}>((resolve,reject)=>{
     let ws: WebSocket | null = null;
     let done = false;
@@ -58,7 +74,7 @@ async function derivPrice(symbol: string) {
       if (error) reject(error); else resolve(value!);
     };
     const timer = setTimeout(()=>finish(new Error("Deriv live price request timed out.")),8000);
-    try { ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089"); }
+    try { ws = new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId)); }
     catch (_) { finish(new Error("Deriv public WebSocket could not be opened.")); return; }
     ws.onopen = () => {
       try { ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1})); }
