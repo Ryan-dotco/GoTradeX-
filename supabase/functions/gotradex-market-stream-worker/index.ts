@@ -111,7 +111,7 @@ async function connectDeriv(rows:any[]){
   }catch(e){console.error("DERIV_WS_CREATE_FAILED",String(e));finish();return}
   ws.on("open",()=>{
    opened=true;console.log("DERIV_WS_OPEN",rows.length);
-   try{rows.forEach((r:any,i:number)=>ws.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1})))}catch(e){console.error("DERIV_SUBSCRIBE_FAILED",String(e));finish()}
+   try{rows.forEach((r:any,i:number)=>ws.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1})));ws.send(JSON.stringify({ticks:"R_100",subscribe:1,req_id:999}));console.log("DERIV_TEST_TICK_SUBSCRIBED","R_100")}catch(e){console.error("DERIV_SUBSCRIBE_FAILED",String(e));finish()}
   });
   ws.on("message",(data:any)=>{
    try{
@@ -123,7 +123,9 @@ async function connectDeriv(rows:any[]){
      return;
     }
     if(m.msg_type==="tick"&&m.tick){
-     const sym=String(m.tick.symbol||""),row=rows.find((r:any)=>r.provider_symbol===sym),price=Number(m.tick.quote),epoch=Number(m.tick.epoch);
+     const sym=String(m.tick.symbol||""),price=Number(m.tick.quote),epoch=Number(m.tick.epoch);
+     if(Number(m.req_id)===999&&sym==="R_100"&&Number.isFinite(price)&&price>0){console.log("DERIV_TEST_TICK",JSON.stringify({symbol:sym,price,epoch}));return;}
+     const row=rows.find((r:any)=>r.provider_symbol===sym);
      if(row&&Number.isFinite(price)&&price>0){count++;if(count===1)console.log("DERIV_FIRST_TICK",row.symbol);writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch((err:any)=>console.error("DERIV_WRITE_FAILED",row.symbol,String(err?.message||err)))}
     }
    }catch(e){console.error("DERIV_MESSAGE_PARSE_FAILED",String(e))}
