@@ -76,7 +76,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <div class="up"><div class="upBtn" onclick="cam.click()">📷 Camera</div><div class="upBtn" onclick="upl.click()">☁️ Upload</div></div>
       <input type="file" id="cam" accept="image/*" capture="environment" hidden><input type="file" id="upl" accept="image/*" hidden>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
-      <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for verified OTC market data. No signal is available yet.</div>
+      <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for OTC server-engine data. No signal is available yet.</div><div id="analysisMethodNote" style="margin-top:5px;color:#6b86b3;font-size:10px">Signal method: rule-based candle trend check. The separate AI vision endpoint is currently disabled; this is not AI inference.</div>
       <div class="actRow"><div class="act" onclick="shareAnalysis()">↗ Share</div><div class="act" onclick="copyAnalysis()">⎙ Copy</div><div class="act" onclick="analyzeAgain()">↻ Analyze Again</div></div>
     </div>
   </div>
@@ -90,7 +90,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <div style="flex:1"><div class="label">Condition</div><select id="alertCondition" class="input" style="width:100%;color:#fff;background:#101e3a"><option value="above">Price above</option><option value="below">Price below</option></select></div></div>
       <div style="margin-top:8px"><div class="label">Target Price</div><input id="alertTarget" class="input" type="number" min="0" step="any" placeholder="Enter target price" style="width:100%;color:#fff;background:#101e3a;box-sizing:border-box"></div>
       <div style="margin-top:8px"><div class="label">Expiry</div><select id="alertExpiry" class="input" style="width:100%;color:#fff;background:#101e3a"><option value="3600000">1 hour</option><option value="21600000">6 hours</option><option value="86400000">24 hours</option></select></div>
-      <button class="setBtn" id="setAlertBtn">🔔 Set Alert</button><div id="alertStatus" role="status" style="font-size:11px;color:#8da7cc;margin-top:8px">Alerts are monitored in this browser using verified OTC prices. Keep this page open; no server push is configured.</div></div>
+      <button class="setBtn" id="setAlertBtn">🔔 Set Alert</button><div id="alertStatus" role="status" style="font-size:11px;color:#8da7cc;margin-top:8px">Alerts are monitored in this browser using fresh OTC server-engine prices. Keep this page open; no server push is configured.</div></div>
     <div style="padding:0 12px;color:#fff;font-size:12px">Your Active Alerts</div>
     <div class="list" id="activeAlertsList"><div class="item" style="color:#8da7cc;font-size:12px">No active alerts.</div></div>
   </div>
@@ -99,7 +99,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
   <div class="view" id="v-price">
     <div class="top"><div class="top-icon">◉</div><div><h3 style="color:#fff;font-size:14px">OTC Price Watch</h3><p style="color:#6b86b3;font-size:11px">Prices are shown only when the OTC feed returns a fresh server quote.</p></div></div>
     <div class="pList" id="otcWatchlist"><div class="pRow"><span>Loading supported OTC pairs…</span><span>WAIT</span></div></div>
-    <div style="padding:12px;color:#8da7cc;font-size:11px">This watchlist uses the verified OTC price table. Unsupported or stale quotes remain unavailable; no sample prices are displayed.</div>
+    <div style="padding:12px;color:#8da7cc;font-size:11px">This watchlist uses the OTC server-engine price table. Unsupported or stale quotes remain unavailable; no sample prices are displayed.</div>
   </div>
 
   <!-- VIEW 4: SIGNAL HISTORY -->
@@ -143,7 +143,7 @@ candle.setData([]); chart.timeScale().fitContent();
 const pairLabel=document.querySelector('.pair-row div');
 const resultSide=document.querySelector('.buy');
 const signalButton=document.getElementById('signalBtn');
-let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for verified OTC data';
+let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for OTC server-engine data';
 function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
 function getAdapter(){
  try{if(parent.GoTradeXOTCAdapter)return parent.GoTradeXOTCAdapter}catch(_){}
@@ -203,17 +203,17 @@ function applyLiveTick(tick,pair){
  }
 }
 function startLiveSocket(pair,adapter){
- if(typeof adapter.socket!=='function'){dataStatus='Verified candles loaded; live price stream unavailable';showDataStatus();return}
+ if(typeof adapter.socket!=='function'){dataStatus='OTC candles loaded; live price stream unavailable';showDataStatus();return}
  if(activeSocket&&socketPair===pair)return;
  if(activeSocket)activeSocket.close();activeSocket=null;socketPair=pair;
- adapter.socket(pair,tick=>applyLiveTick(tick,pair),(label,ok)=>{if(pair!==livePair)return;dataStatus=ok?'Connected to '+label:'Live OTC price unavailable; waiting for fresh data';showDataStatus()})
+ adapter.socket(pair,tick=>applyLiveTick(tick,pair),(label,ok)=>{if(pair!==livePair)return;dataStatus=ok?'Connected to OTC server engine:'Live OTC price unavailable; waiting for fresh data';showDataStatus()})
  .then(sock=>{if(socketPair===pair)activeSocket=sock;else sock.close()})
  .catch(()=>{if(pair===livePair){dataStatus='Live OTC stream unavailable';showDataStatus()}});
 }
 async function loadVerifiedData(){
  const pair=getSelectedPair(), adapter=getAdapter();
  if(socketPair&&socketPair!==pair){activeSocket?.close();activeSocket=null;socketPair=''}
- livePair=pair; dataStatus='Connecting to verified OTC feed';showDataStatus();
+ livePair=pair; dataStatus='Connecting to OTC server engine';showDataStatus();
  pairLabel.textContent=pair;
  document.querySelector('.pair-row div:last-child').textContent='OTC · verifying feed';
  document.getElementById('entry').textContent='—';
@@ -230,8 +230,8 @@ async function loadVerifiedData(){
   livePrice=q.price;
   document.getElementById('entry').textContent=fmtPrice(livePrice);
   document.querySelector('.pair-row div:last-child').textContent='OTC · verified data';
-  dataStatus='Verified OTC candles and fresh price loaded'; signalButton.title=dataStatus;showDataStatus();startLiveSocket(pair,adapter);
- }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'Verified OTC data unavailable';signalButton.title=dataStatus;showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
+  dataStatus='OTC server-engine candles and fresh price loaded'; signalButton.title=dataStatus;showDataStatus();startLiveSocket(pair,adapter);
+ }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'OTC server-engine data unavailable';signalButton.title=dataStatus;showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
 }
 window.addEventListener('storage',e=>{if(e.key==='gotradex_asset_display'||e.key==='gtx_pair')loadVerifiedData()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadVerifiedData()});
@@ -249,7 +249,7 @@ signalButton.onclick=async function(){
    else if(last<first&&downs>=5){side='SELL';momentum='Bearish';}
    resultSide.innerHTML='<div><big>'+(side==='BUY'?'▲':side==='SELL'?'▼':'—')+'</big><br>'+side+'</div>';
    document.getElementById('entry').textContent=fmtPrice(livePrice);
-   const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>Verified OTC</b></div>';
+   const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>OTC server engine (synthetic)</b></div>';
    if(side==='WAIT')dataStatus='No clear direction in verified candles; WAIT';showDataStatus();
    const history=readSignalHistory();history.unshift({pair:livePair,side,tf:'15m',time:Date.now(),entry:fmtPrice(livePrice),momentum});localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(history.slice(0,100)));renderSignalHistory();
   }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';showDataStatus();}
