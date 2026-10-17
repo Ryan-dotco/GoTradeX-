@@ -201,9 +201,9 @@
     try{
       const selected=resolve();
       if(!selected.available || !["DERIV","BYBIT"].includes(selected.provider)) return false;
+      if(selected.provider==="DERIV" && !(await getDerivAppId())) return false;
       const symbol=selected.mode==="OTC" ? selected.label+" OTC" : selected.label;
-      const sb=window.GoTradeXMarketSupabase || (window.GoTradeXMarketSupabase =
-        window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));
+      const sb=marketSupabaseClient();if(!sb)return false;
       const {data,error}=await sb.rpc("gotradex_touch_market_subscription",{p_symbol:symbol});
       return !error && data===true;
     }catch(_){return false}
@@ -228,11 +228,35 @@
     return {close(){}};
   }
 
-  const DERIV_WS="wss://ws.binaryws.com/websockets/v3?app_id=1089";
+  let DERIV_APP_ID_CACHE=String(window.GTX_DERIV_APP_ID||"").trim(),DERIV_APP_ID_PROMISE=null;
+  function marketSupabaseClient(){
+    if(window.GoTradeXMarketSupabase)return window.GoTradeXMarketSupabase;
+    if(!window.supabase||typeof window.supabase.createClient!=="function")return null;
+    window.GoTradeXMarketSupabase=window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}});
+    return window.GoTradeXMarketSupabase;
+  }
+  async function getDerivAppId(){
+    if(DERIV_APP_ID_CACHE)return DERIV_APP_ID_CACHE;
+    try{const saved=String(localStorage.getItem("gotradex_deriv_app_id")||"").trim();if(saved){DERIV_APP_ID_CACHE=saved;return saved}}catch(_){}
+    if(DERIV_APP_ID_PROMISE)return DERIV_APP_ID_PROMISE;
+    DERIV_APP_ID_PROMISE=(async()=>{
+      try{
+        const sb=marketSupabaseClient();if(!sb)return "";
+        const {data,error}=await sb.from("gotradex_public_settings").select("value").eq("key","deriv_app_id").maybeSingle();
+        if(!error&&data&&data.value){DERIV_APP_ID_CACHE=String(data.value).trim();window.GTX_DERIV_APP_ID=DERIV_APP_ID_CACHE}
+        return DERIV_APP_ID_CACHE;
+      }catch(_){return ""}
+      finally{DERIV_APP_ID_PROMISE=null}
+    })();
+    return DERIV_APP_ID_PROMISE;
+  }
+  function derivWsUrl(appId){return "wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId);}
 
   function derivCandleHistory(symbol,sec){
     touchMarketSubscription().catch(()=>{});
-    return new Promise((resolve,reject)=>{
+    return getDerivAppId().then(appId=>{
+      if(!appId)throw new Error("Deriv App ID is not configured. An administrator must save a registered Deriv app ID in the scanner integration settings.");
+      return new Promise((resolve,reject)=>{
       if(!Number.isFinite(sec)||![5,10,15,30,60,120,300,900,1800,3600,14400,86400].includes(sec)) return resolve([]);
       let ws=null,done=false,timer=null;
       const finish=(fn,value)=>{
@@ -240,7 +264,7 @@
         try{ws?.close()}catch(_){}
         fn(value);
       };
-      try{ws=new WebSocket(DERIV_WS)}catch(e){return reject(e)}
+      try{ws=new WebSocket(derivWsUrl(appId))}catch(e){return reject(e)}
       timer=setTimeout(()=>finish(reject,new Error("Deriv history request timed out.")),10000);
       ws.onopen=()=>{
         ws.send(JSON.stringify(sec<60?{ticks_history:symbol,end:"latest",count:1000,style:"ticks",req_id:1}:{ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}));
@@ -265,14 +289,18 @@
           }
         }catch(_){}
       };
+      });
     });
   }
 
   function derivSocket(symbol,onTick,onStatus){
     let stopped=false,ws=null,subId=null,reconnectTimer=null;
-    const connect=()=>{
+    const connect=async()=>{
       if(stopped)return;
-      try{ws=new WebSocket(DERIV_WS)}catch(e){onStatus("DERIV CONNECTION ERROR",false);return}
+      const appId=await getDerivAppId();
+      if(stopped)return;
+      if(!appId){onStatus("DERIV APP ID NOT CONFIGURED",false);return}
+      try{ws=new WebSocket(derivWsUrl(appId))}catch(e){onStatus("DERIV CONNECTION ERROR",false);return}
       onStatus("CONNECTING • DERIV",false);
       ws.onopen=()=>{
         if(stopped){try{ws.close()}catch(_){};return}
@@ -314,6 +342,6 @@
   }
 
   window.GoTradeXMarketFeeds={
-    config:CFG,key,resolve,touchMarketSubscription,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
+    config:CFG,key,resolve,getDerivAppId,touchMarketSubscription,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
   };
 })();
