@@ -35,7 +35,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
 .mode-cycle[data-account="REAL"]{background:#153b2b;border-color:#00e676;color:#70ffc0;box-shadow:0 0 0 1px rgba(0,230,118,.18)}
 .mode-cycle[data-account="DEMO"]{background:#481b22;border-color:#ff334f;color:#ff7b8c;box-shadow:0 0 0 1px rgba(255,51,79,.18)}
 .mode-cycle:focus-visible{outline:2px solid #fff;outline-offset:3px}
-.reveal-toggle{flex:1 1 0;width:0;min-width:0;min-height:36px;cursor:pointer;font-weight:800;text-align:center}
+.reveal-toggle{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:max-content;min-width:0;max-width:100%;height:24px;min-height:24px;padding:2px 6px;border-radius:7px;font-size:9px;line-height:1;font-weight:900;letter-spacing:0;white-space:nowrap;cursor:pointer;text-align:center}
 .option-reveal{display:none!important;flex:1 1 100%!important;width:100%!important;min-height:36px}
 .option-reveal.open{display:block!important}
 .analyzer{margin:12px;border:1px solid #1b345e;border-radius:18px;background:#0e1e3e;padding:14px;color:#fff}
@@ -93,11 +93,11 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
         <select id="assetSelect" class="ctrl" aria-label="Asset">
           <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option><option>AUD/NZD</option><option>EUR/GBP</option><option>EUR/JPY</option><option>GBP/JPY</option><option>USD/ZAR</option><option>BTC/USD</option><option>ETH/USD</option><option>XRP/USD</option><option>SOL/USD</option><option>XAU/USD</option><option>XAG/USD</option>
         </select>
-        <button id="chartTimeframeToggle" class="ctrl reveal-toggle" type="button" aria-expanded="false" aria-controls="chartTimeframe">TIMEFRAME · 15m ▾</button>
+        <button id="chartTimeframeToggle" class="ctrl reveal-toggle" type="button" aria-expanded="false" aria-controls="chartTimeframe">TF · 15m ▾</button>
         <select id="chartTimeframe" class="ctrl option-reveal" aria-label="Chart timeframe"><option value="60">1m</option><option value="180">3m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>
       </div>
       <div class="ctrl-row">
-        <button id="tradeExpiryToggle" class="ctrl reveal-toggle" type="button" aria-expanded="false" aria-controls="tradeExpiry">TRADE EXPIRY · 5 Minutes ▾</button>
+        <button id="tradeExpiryToggle" class="ctrl reveal-toggle" type="button" aria-expanded="false" aria-controls="tradeExpiry">EXP · 5m ▾</button>
         <select id="tradeExpiry" class="ctrl option-reveal" aria-label="Trade expiration"><option>1 Minute</option><option>3 Minutes</option><option>5 Minutes</option><option>15 Minutes</option><option>30 Minutes</option><option>1 Hour</option><option>4 Hours</option><option>1 Day</option></select>
       </div>
     </div>
@@ -225,7 +225,7 @@ function activateSignalResult(){if(currentSignal==='WAIT')return;sendTradeToMain
 resultSide.addEventListener('click',activateSignalResult);resultSide.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activateSignalResult()}});
 function updateAccountModeToggle(){const a=document.getElementById('accountMode'),m=document.getElementById('marketMode'),b=document.getElementById('accountMarketToggle');if(!a||!m||!b)return;const label=a.value+'·'+m.value;b.textContent=label+' ↻';b.dataset.account=a.value;b.dataset.market=m.value;b.setAttribute('aria-label','Current mode '+label+'. Press to switch to the next account and market mode.');}
 function updateMarketModeToggle(){updateAccountModeToggle();}
-function updateTimeControlLabels(){const tf=document.getElementById('chartTimeframe'),ex=document.getElementById('tradeExpiry'),tb=document.getElementById('chartTimeframeToggle'),eb=document.getElementById('tradeExpiryToggle');if(tf&&tb)tb.textContent='TIMEFRAME · '+timeframeLabel(tf.value)+' ▾';if(ex&&eb)eb.textContent='TRADE EXPIRY · '+ex.value+' ▾';}
+function updateTimeControlLabels(){const tf=document.getElementById('chartTimeframe'),ex=document.getElementById('tradeExpiry'),tb=document.getElementById('chartTimeframeToggle'),eb=document.getElementById('tradeExpiryToggle');if(tf&&tb)tb.textContent='TF · '+timeframeLabel(tf.value)+' ▾';if(ex&&eb){const v=ex.value.replace(' Minutes','m').replace(' Minute','m').replace(' Hours','h').replace(' Hour','h').replace(' Day','d');eb.textContent='EXP · '+v+' ▾';}}
 function toggleOptionReveal(selectId,buttonId){const s=document.getElementById(selectId),b=document.getElementById(buttonId);if(!s||!b)return;const opening=!s.classList.contains('open');s.classList.toggle('open',opening);b.setAttribute('aria-expanded',String(opening));if(opening)s.focus();}
 document.getElementById('accountMarketToggle')?.addEventListener('click',()=>{const market=document.getElementById('marketMode'),account=document.getElementById('accountMode');const sequence=[['REAL','OTC'],['DEMO','OTC'],['REAL','LIVE'],['DEMO','LIVE']];const current=sequence.findIndex(([a,m])=>a===account.value&&m===market.value);const next=sequence[(current+1)%sequence.length];account.value=next[0];market.value=next[1];updateAccountModeToggle();sendAnalyzerSync();loadVerifiedData();});
 document.getElementById('chartTimeframeToggle')?.addEventListener('click',()=>toggleOptionReveal('chartTimeframe','chartTimeframeToggle'));
