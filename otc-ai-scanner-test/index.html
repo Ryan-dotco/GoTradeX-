@@ -66,7 +66,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
   <div class="view active" id="v-otc">
     <div style="padding:0 16px">
       <div class="label">MARKET</div>
-      <div class="pair-row"><div style="font-weight:800">🇪🇺🇺🇸 EUR/USD ⌄</div><div style="font-size:10px;color:#5c7bb0">Deriv · Forex</div></div>
+      <div class="pair-row"><div style="font-weight:800">OTC Asset</div><div style="font-size:10px;color:#5c7bb0">OTC · waiting for verified feed</div></div>
       <div class="ctrl-row"><div class="ctrl">◫ 15m ⌄</div><div class="ctrl">Candles · Volume ⌄</div></div>
     </div>
     <div id="chart"></div>
@@ -77,7 +77,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <input type="file" id="cam" accept="image/*" capture="environment" hidden><input type="file" id="upl" accept="image/*" hidden>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
       <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for verified OTC market data. No signal is available yet.</div>
-      <div class="actRow"><div class="act" onclick="shareAnalysis()">↗ Share</div><div class="act" onclick="copyAnalysis()">⎙ Copy</div></div>
+      <div class="actRow"><div class="act" onclick="shareAnalysis()">↗ Share</div><div class="act" onclick="copyAnalysis()">⎙ Copy</div><div class="act" onclick="analyzeAgain()">↻ Analyze Again</div></div>
     </div>
   </div>
 
@@ -97,14 +97,15 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
 
   <!-- VIEW 3: PRICE ALERT SETTINGS -->
   <div class="view" id="v-price">
-    <div class="pList"><div class="pRow"><span>★ EURUSD</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ XAUUSD</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ USOil</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ USDJPY</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ GBPUSD</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ GBPJPY</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ AUDUSD</span><span>🔔 ⓘ ≡</span></div></div>
-    <div class="popup"><div style="font-size:12px;color:#8aa3c8;font-weight:700;margin-bottom:10px">🔔 Settings</div><div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#c2d3ef;font-size:11px"><label>Price rise to($) ≥1.11723</label><div style="display:flex;gap:8px"><div class="val">1.11730</div><div class="switch"></div></div></div><div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#c2d3ef;font-size:11px"><label>Price fall to($) ≤1.11623</label><div style="display:flex;gap:8px"><div class="val">1.11610</div><div class="switch"></div></div></div><div style="display:flex;justify-content:space-between;color:#c2d3ef;font-size:11px"><label>Daily changes exceeds(%)</label><div style="display:flex;gap:8px"><div class="val">0.012</div><div class="switch"></div></div></div><button class="save">Save</button></div>
+    <div class="top"><div class="top-icon">◉</div><div><h3 style="color:#fff;font-size:14px">OTC Price Watch</h3><p style="color:#6b86b3;font-size:11px">Prices are shown only when the OTC feed returns a fresh server quote.</p></div></div>
+    <div class="pList" id="otcWatchlist"><div class="pRow"><span>Loading supported OTC pairs…</span><span>WAIT</span></div></div>
+    <div style="padding:12px;color:#8da7cc;font-size:11px">This watchlist uses the verified OTC price table. Unsupported or stale quotes remain unavailable; no sample prices are displayed.</div>
   </div>
 
   <!-- VIEW 4: SIGNAL HISTORY -->
   <div class="view" id="v-signals">
     <div class="top"><div class="top-icon" style="background:#0a3d1f;color:#00ff88">〰️</div><div><h3 style="color:#fff;font-size:14px">Signal History</h3><p style="color:#6b86b3;font-size:11px">View past signals and results</p></div></div>
-    <div class="tabs"><div class="tab active">All Signals</div><div class="tab">Wins 24</div><div class="tab">Losses 11</div></div>
+    <div class="tabs"><div class="tab active" data-signal-filter="all">All Analyses</div><div class="tab" data-signal-filter="BUY">BUY</div><div class="tab" data-signal-filter="SELL">SELL</div><div class="tab" data-signal-filter="WAIT">WAIT</div></div>
     <div class="list" id="sigList"></div>
   </div>
 
@@ -314,6 +315,28 @@ async function checkPriceAlerts(){
 renderAlerts();
 setInterval(checkPriceAlerts,30000);
 
+let signalFilter='all';
+function renderSignalHistory(){
+ const items=readSignalHistory(),shown=signalFilter==='all'?items:items.filter(s=>s.side===signalFilter);
+ document.getElementById('sigList').innerHTML=shown.length?shown.map(s=>`<div class="item"><div class="ico ${s.side==='BUY'?'up':s.side==='SELL'?'down':''}">${s.side==='BUY'?'↑':s.side==='SELL'?'↓':'—'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${s.pair}</div><div style="color:#6b86b3;font-size:10px">${s.side} • ${s.tf} • ${new Date(s.time).toLocaleString()}</div></div><div class="badge">${s.side==='WAIT'?'WAIT':'ANALYSIS'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No matching analyses yet.</div>';
+ const all=items;
+ document.getElementById('tradeList').innerHTML=all.length?all.map(s=>`<div class="item"><div style="flex:1"><div style="font-weight:800;font-size:13px">${s.pair} — ${s.side}</div><div style="color:#8da7cc;font-size:11px">${new Date(s.time).toLocaleString()} · Entry ${s.entry}</div></div><div class="badge">${s.momentum||'—'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No analysis history yet. No trades or outcomes are fabricated.</div>';
+}
+document.querySelectorAll('[data-signal-filter]').forEach(tab=>tab.addEventListener('click',()=>{
+ signalFilter=tab.dataset.signalFilter;document.querySelectorAll('[data-signal-filter]').forEach(t=>t.classList.toggle('active',t===tab));renderSignalHistory();
+}));
+async function refreshWatchlist(){
+ const el=document.getElementById('otcWatchlist');if(!el)return;
+ const pairs=['EUR/USD OTC','GBP/USD OTC','USD/JPY OTC','AUD/USD OTC','USD/CAD OTC','USD/CHF OTC','NZD/USD OTC'],adapter=getAdapter();
+ if(!adapter){el.innerHTML='<div class="pRow"><span>OTC adapter unavailable</span><span>WAIT</span></div>';return}
+ const rows=await Promise.all(pairs.map(async pair=>{
+  try{const q=await adapter.price(pair);if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000||q.time>Date.now()+60*1000)throw new Error('stale');return {pair,price:fmtPrice(q.price),ok:true}}
+  catch(_){return {pair,price:'WAIT',ok:false}}
+ }));
+ el.innerHTML=rows.map(r=>`<div class="pRow"><span>${r.pair}</span><span style="color:${r.ok?'#00e676':'#8da7cc'}">${r.price}</span></div>`).join('');
+}
+function analyzeAgain(){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';dataStatus='Refreshing verified market data…';showDataStatus();loadVerifiedData().then(()=>signalButton.click())}
+refreshWatchlist();setInterval(refreshWatchlist,30000);
 function getAnalysisText(){return document.querySelector('.details')?.innerText||'No analysis available'}
 function shareAnalysis(){const text=getAnalysisText();if(navigator.share)navigator.share({title:'GoTradeX OTC Analysis',text}).catch(()=>{});else copyAnalysis()}
 function copyAnalysis(){const text=getAnalysisText();if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>alert('Analysis copied')).catch(()=>alert('Copy unavailable'));else alert(text)}
