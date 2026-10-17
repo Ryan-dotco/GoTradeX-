@@ -1,8 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://glffecggusetzklmyukv.supabase.co";
-const PUBLISHABLE_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const PUBLISHABLE_KEY = (() => {
+  try { return JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "{}").default || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || ""; }
+  catch (_) { return Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || ""; }
+})();
+const SERVICE_ROLE_KEY = (() => {
+  try { return JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}").default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""; }
+  catch (_) { return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""; }
+})();
 const ALLOWED_ORIGINS = new Set(["https://ryan-dotco.github.io", "https://raw.githack.com"]);
 
 const json = (body: unknown, status = 200, origin = "") => new Response(JSON.stringify(body), {
