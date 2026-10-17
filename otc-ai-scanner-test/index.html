@@ -196,11 +196,11 @@ function syncControlsFromState(state={}){
  let asset=String(state.asset||getAssetBase()).replace(/\s+OTC$/i,'').trim()||'EUR/USD';
  if(mode==='OTC'&&!otcPairs.includes(asset))asset='EUR/USD';
  const account=String(state.accountMode||getAccountMode()).toUpperCase()==='REAL'?'REAL':'DEMO';
- const expiry=String(state.expiration||getTradeExpiry());
+ const requestedExpiry=String(state.expiration||getTradeExpiry());const expiry=mainExpiryOptions.includes(requestedExpiry)?requestedExpiry:'5 Minutes';
  const mm=document.getElementById('marketMode'),as=document.getElementById('assetSelect'),am=document.getElementById('accountMode'),ex=document.getElementById('tradeExpiry');
  if(mm)mm.value=mode;if(as&&Array.from(as.options).some(o=>o.value===asset))as.value=asset;if(am)am.value=account;updateMarketModeToggle();updateAccountModeToggle();if(ex&&mainExpiryOptions.includes(expiry))ex.value=expiry;updateTimeControlLabels();
  liveTf=Number(state.timeframe||timeframeSeconds(state.chartTimeframe)||document.getElementById('chartTimeframe')?.value||900);
- const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);
+ const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);updateTimeControlLabels();
  livePair=mode==='OTC'?asset+' OTC':asset;
  if(pairLabel)pairLabel.textContent=asset;
  if(!hasSyncedControls||previousPair!==livePair||previousTf!==liveTf){hasSyncedControls=true;setSignalResult('WAIT');document.getElementById('entry').textContent='—';const detail=document.querySelector('.details');if(detail)detail.innerHTML='<div><i>Asset:</i> <b>'+asset+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>'+expiry+'</b></div><div><i>Momentum:</i> <b>—</b></div>';}
