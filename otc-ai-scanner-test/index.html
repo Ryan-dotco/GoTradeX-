@@ -21,8 +21,17 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
 .time{color:#5a7ab5;font-size:11px;padding:4px 16px;display:flex;justify-content:space-between}
 .label{font-size:10px;letter-spacing:1.2px;color:#6b86b3;font-weight:800}
 .pair-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:#fff}
-.ctrl-row{display:flex;gap:8px;margin-top:10px}
-.ctrl{background:#101e3a;border:1px solid #1c335f;border-radius:10px;padding:7px 8px;font-size:11px;color:#b0c4e8;min-width:0;max-width:100%}.ctrl-row select{flex:1 1 28%;width:1%;outline:none}.ctrl-row{flex-wrap:wrap}
+.ctrl-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ctrl{background:#101e3a;border:1px solid #1c335f;border-radius:10px;padding:9px 8px;font-size:11px;color:#b0c4e8;min-width:0;max-width:100%;outline:none}
+.ctrl-row select{flex:1 1 28%;width:1%}
+.mode-toggle{flex:1 1 0;width:0;min-width:0;height:36px;border-radius:10px;font-weight:900;letter-spacing:.4px;cursor:pointer;text-align:center}
+.mode-toggle.live{background:#182743;border-color:#45618b;color:#c3d5f3}
+.mode-toggle.otc{background:#122e52;border-color:#0a5bff;color:#8db9ff}
+.mode-toggle.demo{background:#182743;border-color:#45618b;color:#c3d5f3}
+.mode-toggle.real{background:#153b2b;border-color:#00a86b;color:#70ffc0}
+.reveal-toggle{flex:1 1 0;width:0;min-width:0;min-height:36px;cursor:pointer;font-weight:800;text-align:center}
+.option-reveal{display:none!important;flex:1 1 100%!important;width:100%!important;min-height:36px}
+.option-reveal.open{display:block!important}
 .analyzer{margin:12px;border:1px solid #1b345e;border-radius:18px;background:#0e1e3e;padding:14px;color:#fff}
 .ai{width:28px;height:28px;background:#0a5bff;border-radius:50%;display:grid;place-items:center;font-weight:900}
 .up{display:flex;gap:10px;margin-top:14px}
@@ -67,16 +76,22 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
     <div style="padding:0 16px">
       <div class="label">MARKET</div>
       <div class="pair-row"><div id="pairLabel" style="font-weight:800">EUR/USD</div><div id="marketSourceLabel" style="font-size:10px;color:#5c7bb0">Waiting for shared market</div></div>
+      <div class="ctrl-row mode-row">
+        <select id="marketMode" class="ctrl" aria-label="Market mode" style="display:none"><option value="LIVE">LIVE</option><option value="OTC">OTC</option></select>
+        <button id="marketModeToggle" class="ctrl mode-toggle live" type="button" aria-label="Toggle LIVE or OTC market" aria-pressed="false">LIVE ●</button>
+        <select id="accountMode" class="ctrl" aria-label="Account mode" style="display:none"><option value="DEMO">DEMO</option><option value="REAL">REAL</option></select>
+        <button id="accountModeToggle" class="ctrl mode-toggle demo" type="button" aria-label="Toggle DEMO or REAL account" aria-pressed="false">DEMO ●</button>
+      </div>
       <div class="ctrl-row">
-        <select id="marketMode" class="ctrl" aria-label="Market mode"><option value="LIVE">LIVE</option><option value="OTC">OTC</option></select>
         <select id="assetSelect" class="ctrl" aria-label="Asset">
           <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option><option>AUD/NZD</option><option>EUR/GBP</option><option>EUR/JPY</option><option>GBP/JPY</option><option>USD/ZAR</option><option>BTC/USD</option><option>ETH/USD</option><option>XRP/USD</option><option>SOL/USD</option><option>XAU/USD</option><option>XAG/USD</option>
         </select>
-        <select id="chartTimeframe" class="ctrl" aria-label="Chart timeframe"><option value="60">1m</option><option value="180">3m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>
+        <button id="chartTimeframeToggle" class="ctrl reveal-toggle" type="button" aria-expanded="false" aria-controls="chartTimeframe">TIMEFRAME · 15m ▾</button>
+        <select id="chartTimeframe" class="ctrl option-reveal" aria-label="Chart timeframe"><option value="60">1m</option><option value="180">3m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>
       </div>
       <div class="ctrl-row">
-        <select id="accountMode" class="ctrl" aria-label="Account mode" style="display:none"><option value="DEMO">DEMO</option><option value="REAL">REAL</option></select><button id="accountModeToggle" class="ctrl" type="button" aria-label="Toggle DEMO or REAL account" aria-pressed="false" style="flex:0 0 auto;min-width:82px;font-weight:900;border-radius:999px">DEMO ●</button>
-        <select id="tradeExpiry" class="ctrl" aria-label="Trade expiration"><option>5 Seconds</option><option>1 Minute</option><option>3 Minutes</option><option>5 Minutes</option><option>15 Minutes</option><option>30 Minutes</option><option>1 Hour</option><option>4 Hours</option><option>1 Day</option></select>
+        <button id="tradeExpiryToggle" class="ctrl reveal-toggle" type="button" aria-expanded="false" aria-controls="tradeExpiry">TRADE EXPIRY · 5 Minutes ▾</button>
+        <select id="tradeExpiry" class="ctrl option-reveal" aria-label="Trade expiration"><option>1 Minute</option><option>3 Minutes</option><option>5 Minutes</option><option>15 Minutes</option><option>30 Minutes</option><option>1 Hour</option><option>4 Hours</option><option>1 Day</option></select>
       </div>
     </div>
     <div id="chart"></div>
@@ -166,14 +181,14 @@ document.getElementById('cam').addEventListener('change',e=>handleChartImage(e.t
 document.getElementById('upl').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
 let livePrice=null, livePair='EUR/USD OTC', liveTf=900, liveProvider='', hasSyncedControls=false, currentSignal='WAIT', dataStatus='Waiting for shared market state';
 const otcPairs=['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','AUD/NZD','EUR/GBP','EUR/JPY','GBP/JPY','USD/ZAR'];
-const mainExpiryOptions=['5 Seconds','1 Minute','3 Minutes','5 Minutes','15 Minutes','30 Minutes','1 Hour','4 Hours','1 Day'];
+const mainExpiryOptions=['1 Minute','3 Minutes','5 Minutes','15 Minutes','30 Minutes','1 Hour','4 Hours','1 Day'];
 function getMarketMode(){try{return String(localStorage.getItem('gotradex_market_mode')||'LIVE').toUpperCase()==='OTC'?'OTC':'LIVE'}catch(_){return 'LIVE'}}
 function getAssetBase(){try{return String(localStorage.getItem('gotradex_asset_display')||'EUR/USD').replace(/\s+OTC$/i,'').trim()||'EUR/USD'}catch(_){return 'EUR/USD'}}
 function getAccountMode(){try{return String(localStorage.getItem('gotradex_account_mode')||'DEMO').toUpperCase()==='REAL'?'REAL':'DEMO'}catch(_){return 'DEMO'}}
 function getTradeExpiry(){try{const x=localStorage.getItem('gotradex_trade_expiration')||'5 Minutes';return mainExpiryOptions.includes(x)?x:'5 Minutes'}catch(_){return '5 Minutes'}}
 function getAssetType(asset){const a=String(asset||'').replace(/\s+OTC$/i,'').toUpperCase();if(['BTC/USD','BTC/USDT','ETH/USD','ETH/USDT','XRP/USD','SOL/USD'].includes(a))return 'crypto';if(['XAU/USD','XAG/USD'].includes(a))return 'metals';return 'forex'}
-function timeframeLabel(sec){return ({60:'1m',300:'5m',900:'15m',1800:'30m',3600:'1h',14400:'4h',86400:'1d'})[Number(sec)]||'15m'}
-function timeframeName(sec){return ({60:'1 Minute',300:'5 Minutes',900:'15 Minutes',1800:'30 Minutes',3600:'1 Hour',14400:'4 Hours',86400:'1 Day'})[Number(sec)]||'15 Minutes'}
+function timeframeLabel(sec){return ({60:'1m',180:'3m',300:'5m',900:'15m',1800:'30m',3600:'1h',14400:'4h',86400:'1d'})[Number(sec)]||'15m'}
+function timeframeName(sec){return ({60:'1 Minute',180:'3 Minutes',300:'5 Minutes',900:'15 Minutes',1800:'30 Minutes',3600:'1 Hour',14400:'4 Hours',86400:'1 Day'})[Number(sec)]||'15 Minutes'}
 function timeframeSeconds(name){return ({'1 Minute':60,'3 Minutes':180,'5 Minutes':300,'15 Minutes':900,'30 Minutes':1800,'1 Hour':3600,'4 Hours':14400,'1 Day':86400})[String(name)]||900}
 function syncControlsFromState(state={}){
  const previousPair=livePair,previousTf=liveTf;
@@ -183,7 +198,7 @@ function syncControlsFromState(state={}){
  const account=String(state.accountMode||getAccountMode()).toUpperCase()==='REAL'?'REAL':'DEMO';
  const expiry=String(state.expiration||getTradeExpiry());
  const mm=document.getElementById('marketMode'),as=document.getElementById('assetSelect'),am=document.getElementById('accountMode'),ex=document.getElementById('tradeExpiry');
- if(mm)mm.value=mode;if(as&&Array.from(as.options).some(o=>o.value===asset))as.value=asset;if(am)am.value=account;updateAccountModeToggle();if(ex&&mainExpiryOptions.includes(expiry))ex.value=expiry;
+ if(mm)mm.value=mode;if(as&&Array.from(as.options).some(o=>o.value===asset))as.value=asset;if(am)am.value=account;updateMarketModeToggle();updateAccountModeToggle();if(ex&&mainExpiryOptions.includes(expiry))ex.value=expiry;updateTimeControlLabels();
  liveTf=Number(state.timeframe||timeframeSeconds(state.chartTimeframe)||document.getElementById('chartTimeframe')?.value||900);
  const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);
  livePair=mode==='OTC'?asset+' OTC':asset;
@@ -201,8 +216,16 @@ function setSignalResult(side){currentSignal=['BUY','SELL'].includes(side)?side:
 function sendTradeToMain(side){if(!['BUY','SELL'].includes(side)||currentSignal!==side)return;sendAnalyzerSync(side);}
 function activateSignalResult(){if(currentSignal==='WAIT')return;sendTradeToMain(currentSignal)}
 resultSide.addEventListener('click',activateSignalResult);resultSide.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activateSignalResult()}});
-function updateAccountModeToggle(){const b=document.getElementById('accountModeToggle'),s=document.getElementById('accountMode');if(!b||!s)return;const real=s.value==='REAL';b.textContent=real?'REAL ●':'DEMO ●';b.setAttribute('aria-pressed',String(real));b.style.background=real?'#153b2b':'#182743';b.style.borderColor=real?'#00a86b':'#45618b';b.style.color=real?'#70ffc0':'#c3d5f3';}
+function updateAccountModeToggle(){const b=document.getElementById('accountModeToggle'),s=document.getElementById('accountMode');if(!b||!s)return;const real=s.value==='REAL';b.textContent=real?'REAL ●':'DEMO ●';b.setAttribute('aria-pressed',String(real));b.classList.toggle('real',real);b.classList.toggle('demo',!real);}
+function updateMarketModeToggle(){const b=document.getElementById('marketModeToggle'),s=document.getElementById('marketMode');if(!b||!s)return;const otc=s.value==='OTC';b.textContent=otc?'OTC ●':'LIVE ●';b.setAttribute('aria-pressed',String(otc));b.classList.toggle('otc',otc);b.classList.toggle('live',!otc);}
+function updateTimeControlLabels(){const tf=document.getElementById('chartTimeframe'),ex=document.getElementById('tradeExpiry'),tb=document.getElementById('chartTimeframeToggle'),eb=document.getElementById('tradeExpiryToggle');if(tf&&tb)tb.textContent='TIMEFRAME · '+timeframeLabel(tf.value)+' ▾';if(ex&&eb)eb.textContent='TRADE EXPIRY · '+ex.value+' ▾';}
+function toggleOptionReveal(selectId,buttonId){const s=document.getElementById(selectId),b=document.getElementById(buttonId);if(!s||!b)return;const opening=!s.classList.contains('open');s.classList.toggle('open',opening);b.setAttribute('aria-expanded',String(opening));if(opening)s.focus();}
+document.getElementById('marketModeToggle')?.addEventListener('click',()=>{const s=document.getElementById('marketMode');s.value=s.value==='LIVE'?'OTC':'LIVE';updateMarketModeToggle();sendAnalyzerSync();loadVerifiedData()});
 document.getElementById('accountModeToggle')?.addEventListener('click',()=>{const s=document.getElementById('accountMode');s.value=s.value==='DEMO'?'REAL':'DEMO';updateAccountModeToggle();sendAnalyzerSync();});
+document.getElementById('chartTimeframeToggle')?.addEventListener('click',()=>toggleOptionReveal('chartTimeframe','chartTimeframeToggle'));
+document.getElementById('tradeExpiryToggle')?.addEventListener('click',()=>toggleOptionReveal('tradeExpiry','tradeExpiryToggle'));
+document.getElementById('chartTimeframe')?.addEventListener('change',()=>{document.getElementById('chartTimeframe').classList.remove('open');document.getElementById('chartTimeframeToggle').setAttribute('aria-expanded','false');updateTimeControlLabels();});
+document.getElementById('tradeExpiry')?.addEventListener('change',()=>{document.getElementById('tradeExpiry').classList.remove('open');document.getElementById('tradeExpiryToggle').setAttribute('aria-expanded','false');updateTimeControlLabels();});
 function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
 async function loadLatestOtcHistory(pair,sec){
  const supported=new Set(["EUR/USD OTC","GBP/USD OTC","USD/JPY OTC","AUD/USD OTC","USD/CAD OTC","USD/CHF OTC","NZD/USD OTC","AUD/NZD OTC","EUR/GBP OTC","EUR/JPY OTC","GBP/JPY OTC","USD/ZAR OTC"]);
@@ -336,12 +359,12 @@ async function loadVerifiedData(){
  }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'OTC server-engine data unavailable';signalButton.title=dataStatus;showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
 }
 window.addEventListener('message',e=>{if(e.origin!==window.location.origin||!e.data||e.data.type!=='GTX_MAIN_STATE')return;syncControlsFromState(e.data);loadVerifiedData()});
-['marketMode','assetSelect','accountMode','tradeExpiry'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>{if(id==='marketMode'&&document.getElementById('marketMode').value==='OTC'&&!otcPairs.includes(document.getElementById('assetSelect').value))document.getElementById('assetSelect').value='EUR/USD';sendAnalyzerSync();loadVerifiedData()}));
+['marketMode','assetSelect','accountMode','tradeExpiry'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>{if(id==='marketMode'&&document.getElementById('marketMode').value==='OTC'&&!otcPairs.includes(document.getElementById('assetSelect').value))document.getElementById('assetSelect').value='EUR/USD';if(id==='marketMode')updateMarketModeToggle();if(id==='accountMode')updateAccountModeToggle();if(id==='tradeExpiry')updateTimeControlLabels();sendAnalyzerSync();loadVerifiedData()}));
 document.getElementById('chartTimeframe')?.addEventListener('change',()=>{liveTf=Number(document.getElementById('chartTimeframe').value)||900;sendAnalyzerSync();loadVerifiedData()});
 window.addEventListener('storage',e=>{if(['gotradex_asset_display','gtx_pair','gotradex_market_mode','gotradex_account_mode','gotradex_trade_expiration','gotradex_chart_timeframe'].includes(e.key)){syncControlsFromState();loadVerifiedData()}});
 setInterval(()=>{if(getMarketMode()==='LIVE'&&!document.hidden)loadLiveFromMainChart()},2000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadVerifiedData()});
-syncControlsFromState();loadVerifiedData();
+syncControlsFromState();updateMarketModeToggle();updateAccountModeToggle();updateTimeControlLabels();loadVerifiedData();
 signalButton.onclick=async function(){
  const btn=this;btn.disabled=true;setSignalResult('WAIT');let remaining=5;btn.textContent='Verifying data… '+remaining+'s';
  const iv=setInterval(async()=>{remaining--;btn.textContent='Verifying data… '+remaining+'s';if(remaining>0)return;clearInterval(iv);
