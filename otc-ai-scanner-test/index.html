@@ -169,13 +169,13 @@ let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for 
 const otcPairs=['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','AUD/NZD','EUR/GBP','EUR/JPY','GBP/JPY','USD/ZAR'];
 const mainExpiryOptions=['5 Seconds','1 Minute','3 Minutes','5 Minutes','15 Minutes','30 Minutes','1 Hour','4 Hours','1 Day'];
 function getMarketMode(){try{return String(localStorage.getItem('gotradex_market_mode')||'LIVE').toUpperCase()==='OTC'?'OTC':'LIVE'}catch(_){return 'LIVE'}}
-function getAssetBase(){try{return String(localStorage.getItem('gotradex_asset_display')||'EUR/USD').replace(/\\s+OTC$/i,'').trim()||'EUR/USD'}catch(_){return 'EUR/USD'}}
+function getAssetBase(){try{return String(localStorage.getItem('gotradex_asset_display')||'EUR/USD').replace(/\s+OTC$/i,'').trim()||'EUR/USD'}catch(_){return 'EUR/USD'}}
 function getAccountMode(){try{return String(localStorage.getItem('gotradex_account_mode')||'DEMO').toUpperCase()==='REAL'?'REAL':'DEMO'}catch(_){return 'DEMO'}}
 function getTradeExpiry(){try{const x=localStorage.getItem('gotradex_trade_expiration')||'5 Minutes';return mainExpiryOptions.includes(x)?x:'5 Minutes'}catch(_){return '5 Minutes'}}
 function timeframeLabel(sec){return ({60:'1m',300:'5m',900:'15m',1800:'30m',3600:'1h',14400:'4h',86400:'1d'})[Number(sec)]||'15m'}
 function syncControlsFromState(state={}){
  const mode=String(state.marketMode||getMarketMode()).toUpperCase()==='OTC'?'OTC':'LIVE';
- let asset=String(state.asset||getAssetBase()).replace(/\\s+OTC$/i,'').trim()||'EUR/USD';
+ let asset=String(state.asset||getAssetBase()).replace(/\s+OTC$/i,'').trim()||'EUR/USD';
  if(mode==='OTC'&&!otcPairs.includes(asset))asset='EUR/USD';
  const account=String(state.accountMode||getAccountMode()).toUpperCase()==='REAL'?'REAL':'DEMO';
  const expiry=String(state.expiration||getTradeExpiry());
