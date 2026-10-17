@@ -167,7 +167,8 @@ Deno.serve(async(req)=>{
       const updates=[];
       for(const t of (open||[])){
         try{
-          const p=await priceFor(t.asset,t.provider,t.provider_symbol);
+          const resolved=DERIV_FX[String(t.asset||"").toUpperCase()] ? {provider:"DERIV",symbol:DERIV_FX[String(t.asset).toUpperCase()]} : {provider:t.provider,symbol:t.provider_symbol};
+          const p=await priceFor(t.asset,resolved.provider,resolved.symbol);
           await db("gotradex_user_trades?id=eq."+t.id,{method:"PATCH",body:JSON.stringify({last_server_price:p.price,last_server_tick_at:p.time,client_last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString()})});
         }catch(e){console.error("tick",t.id,e);}
       }
