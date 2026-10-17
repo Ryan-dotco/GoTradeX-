@@ -251,6 +251,7 @@
     return DERIV_APP_ID_PROMISE;
   }
   function derivWsUrl(appId){return "wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId);}
+  function setDerivAppId(value){DERIV_APP_ID_CACHE=String(value||"").trim();DERIV_APP_ID_PROMISE=null;if(DERIV_APP_ID_CACHE)window.GTX_DERIV_APP_ID=DERIV_APP_ID_CACHE;}
 
   function derivCandleHistory(symbol,sec){
     touchMarketSubscription().catch(()=>{});
@@ -342,6 +343,6 @@
   }
 
   window.GoTradeXMarketFeeds={
-    config:CFG,key,resolve,getDerivAppId,touchMarketSubscription,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
+    config:CFG,key,resolve,getDerivAppId,setDerivAppId,touchMarketSubscription,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
   };
 })();
