@@ -257,6 +257,7 @@ signalButton.onclick=async function(){
  },1000);
 };
 // Persist only actual analyzer outputs; never seed fabricated signals or trade outcomes.
+let signalFilter='all';
 const SIGNAL_HISTORY_KEY='gotradex_otc_analyzer_signal_history';
 function readSignalHistory(){try{const v=JSON.parse(localStorage.getItem(SIGNAL_HISTORY_KEY)||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}}
 renderSignalHistory();
@@ -310,7 +311,6 @@ async function checkPriceAlerts(){
 renderAlerts();
 setInterval(checkPriceAlerts,30000);
 
-let signalFilter='all';
 function renderSignalHistory(){
  const items=readSignalHistory(),shown=signalFilter==='all'?items:items.filter(s=>s.side===signalFilter);
  document.getElementById('sigList').innerHTML=shown.length?shown.map(s=>`<div class="item"><div class="ico ${s.side==='BUY'?'up':s.side==='SELL'?'down':''}">${s.side==='BUY'?'↑':s.side==='SELL'?'↓':'—'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${s.pair}</div><div style="color:#6b86b3;font-size:10px">${s.side} • ${s.tf} • ${new Date(s.time).toLocaleString()}</div></div><div class="badge">${s.side==='WAIT'?'WAIT':'ANALYSIS'}</div></div>`).join(''):'<div class="item" style="color:#8da7cc;font-size:12px">No matching analyses yet.</div>';
