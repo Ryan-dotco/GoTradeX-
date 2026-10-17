@@ -7,6 +7,7 @@ const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
 const RUN_MS=105000, HANDOFF_MS=90000, MAX_TD=8;
 const SUBSCRIPTION_TTL_MS=24*60*60*1000;
+const DERIV_FX:Record<string,string>={"AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/JPY":"frxAUDJPY","AUD/NZD":"frxAUDNZD","AUD/USD":"frxAUDUSD","CAD/CHF":"frxCADCHF","CAD/JPY":"frxCADJPY","CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/CHF":"frxEURCHF","EUR/GBP":"frxEURGBP","EUR/JPY":"frxEURJPY","EUR/NZD":"frxEURNZD","EUR/USD":"frxEURUSD","GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/JPY":"frxGBPJPY","GBP/NZD":"frxGBPNZD","GBP/USD":"frxGBPUSD","NZD/CAD":"frxNZDCAD","NZD/CHF":"frxNZDCHF","NZD/JPY":"frxNZDJPY","NZD/USD":"frxNZDUSD","USD/CAD":"frxUSDCAD","USD/CHF":"frxUSDCHF","USD/JPY":"frxUSDJPY","USD/ZAR":"frxUSDZAR","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN","EUR/HUF":"frxEURHUF","EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","GBP/PLN":"frxGBPPLN","GBP/SEK":"frxGBPSEK","GBP/NOK":"frxGBPNOK","USD/SGD":"frxUSDSGD","USD/MXN":"frxUSDMXN","USD/PLN":"frxUSDPLN","USD/SEK":"frxUSDSEK","USD/NOK":"frxUSDNOK","USD/THB":"frxUSDTHB","USD/CNH":"frxUSDCNH","USD/HKD":"frxUSDHKD"};
 const admin=createClient(SUPABASE_URL,SERVICE,{auth:{autoRefreshToken:false,persistSession:false}});
 const json=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
 
@@ -23,8 +24,8 @@ async function activeSymbols(){
  const set=new Set<string>((subs.data||[]).map((x:any)=>String(x.symbol).toUpperCase()));
  for(const t of (open.data||[]))if(t.asset)set.add(String(t.asset).toUpperCase());
  const {data:reg}=await admin.from("gotradex_market_registry").select("symbol,provider,provider_symbol,asset,priority").eq("enabled",true).order("priority",{ascending:true});
- const rows=(reg||[]).filter((r:any)=>set.has(String(r.symbol).toUpperCase()));
- return{td:rows.filter((r:any)=>r.provider==="TWELVE_DATA").slice(0,MAX_TD),bybit:rows.filter((r:any)=>r.provider==="BYBIT")};
+ const rows=(reg||[]).filter((r:any)=>set.has(String(r.symbol).toUpperCase())).map((r:any)=>{const asset=String(r.asset||r.symbol||"").toUpperCase().replace(/\s+OTC$/,"").trim();const derivSymbol=DERIV_FX[asset];return derivSymbol?{...r,provider:"DERIV",provider_symbol:derivSymbol}:r;});
+ return{td:rows.filter((r:any)=>r.provider==="TWELVE_DATA").slice(0,MAX_TD),bybit:rows.filter((r:any)=>r.provider==="BYBIT"),deriv:rows.filter((r:any)=>r.provider==="DERIV")};
 }
 async function writeTick(r:any,price:number,ts=Date.now()){
  if(!Number.isFinite(price)||price<=0)return;
@@ -70,6 +71,18 @@ function connectBybit(rows:any[]){
   ws.onerror=()=>finish();ws.onclose=()=>{clearTimeout(timer);finish()};
  });
 }
+function connectDeriv(rows:any[]){
+ return new Promise<number>(resolve=>{
+  if(!rows.length)return resolve(0);
+  let ws:WebSocket|null=null,count=0,done=false;
+  const finish=()=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch(_){}resolve(count)};
+  const timer=setTimeout(finish,RUN_MS-5000);
+  try{ws=new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public")}catch(_){finish();return}
+  ws.onopen=()=>{try{rows.forEach((r:any,i:number)=>ws?.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1})))}catch(_){finish()}};
+  ws.onmessage=e=>{try{const m=JSON.parse(String(e.data||"{}"));if(m.error){const failed=rows.find((r:any,i:number)=>Number(m.req_id)===i+1);if(failed)admin.from("gotradex_market_registry").update({last_error:String(m.error.message||"Deriv rejected tick subscription"),updated_at:new Date().toISOString()}).eq("symbol",failed.symbol).then(()=>{});return;}if(m.msg_type==="tick"&&m.tick){const sym=String(m.tick.symbol||""),row=rows.find((r:any)=>r.provider_symbol===sym),price=Number(m.tick.quote),epoch=Number(m.tick.epoch);if(row&&Number.isFinite(price)&&price>0){count++;writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch(()=>{})}}}catch(_){}};
+  ws.onerror=()=>finish();ws.onclose=()=>finish();
+ });
+}
 async function pollLoop(active:any[],deadline:number){
  while(Date.now()<deadline){
   for(const r of active)await restPrice(r);
@@ -78,9 +91,9 @@ async function pollLoop(active:any[],deadline:number){
 }
 async function runWorker(id:string){
  const active=await activeSymbols();
- if(!active.td.length&&!active.bybit.length)return;
+ if(!active.td.length&&!active.bybit.length&&!active.deriv.length)return;
  const deadline=Date.now()+RUN_MS-5000;
- const wsPromise=Promise.all([connectTD(active.td),connectBybit(active.bybit)]);
+ const wsPromise=Promise.all([connectTD(active.td),connectBybit(active.bybit),connectDeriv(active.deriv)]);
  await Promise.all([wsPromise,pollLoop([...active.td,...active.bybit],deadline)]);
  await renew(id);
  if(Date.now()-deadline<HANDOFF_MS){
