@@ -4,168 +4,111 @@ const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json"
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store"
 };
+const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors });
+const cleanSymbol = (v: unknown) => String(v || "").trim().toUpperCase().replace(/[^A-Z0-9/._:-]/g, "").slice(0, 60);
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: cors });
+function aggregateCandles(rows: any[], seconds: number) {
+  const buckets = new Map<number, any>();
+  for (const row of rows) {
+    const time = Number(row.time), open = Number(row.open), high = Number(row.high);
+    const low = Number(row.low), close = Number(row.close), volume = Number(row.volume || 0);
+    if (![time, open, high, low, close].every(Number.isFinite)) continue;
+    const bucket = Math.floor(time / seconds) * seconds;
+    let candle = buckets.get(bucket);
+    if (!candle) candle = { time: bucket, open, high, low, close, volume: 0 };
+    candle.high = Math.max(candle.high, high);
+    candle.low = Math.min(candle.low, low);
+    candle.close = close;
+    candle.volume += Number.isFinite(volume) ? volume : 0;
+    buckets.set(bucket, candle);
+  }
+  return Array.from(buckets.values()).sort((a, b) => a.time - b.time).slice(-500);
 }
 
-const TD = "https://api.twelvedata.com";
-
-function cleanSymbol(v: unknown) {
-  return String(v || "").trim().toUpperCase().replace(/[^A-Z0-9/._:-]/g, "").slice(0, 60);
+async function bybitJson(path: string) {
+  const response = await fetch("https://api.bybit.com" + path, { cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || Number(data?.retCode) !== 0) {
+    throw new Error(String(data?.retMsg || "Bybit public market data is unavailable."));
+  }
+  return data;
 }
 
-function intervalFor(tf: string) {
+async function bybitPrice(symbol: string) {
+  const data = await bybitJson("/v5/market/tickers?category=spot&symbol=" + encodeURIComponent(symbol));
+  const price = Number(data?.result?.list?.[0]?.lastPrice);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Bybit returned no verified live price.");
+  return { ok: true, provider: "bybit", symbol, price, timestamp: Date.now() };
+}
+
+async function bybitCandles(symbol: string, timeframe: string) {
+  if (["5 Seconds", "10 Seconds", "15 Seconds", "30 Seconds"].includes(timeframe)) {
+    const data = await bybitJson("/v5/market/recent-trade?category=spot&symbol=" + encodeURIComponent(symbol) + "&limit=1000");
+    const trades = Array.isArray(data?.result?.list) ? data.result.list.slice().reverse() : [];
+    const seconds = timeframe === "5 Seconds" ? 5 : timeframe === "10 Seconds" ? 10 : timeframe === "15 Seconds" ? 15 : 30;
+    const buckets = new Map<number, any>();
+    for (const trade of trades) {
+      const ts = Number(trade.time), price = Number(trade.price), volume = Number(trade.size || 0);
+      if (!Number.isFinite(ts) || !Number.isFinite(price) || price <= 0) continue;
+      const time = Math.floor(ts / 1000 / seconds) * seconds;
+      let candle = buckets.get(time);
+      if (!candle) candle = { time, open: price, high: price, low: price, close: price, volume: 0 };
+      candle.high = Math.max(candle.high, price);
+      candle.low = Math.min(candle.low, price);
+      candle.close = price;
+      candle.volume += Number.isFinite(volume) ? volume : 0;
+      buckets.set(time, candle);
+    }
+    const candles = Array.from(buckets.values()).sort((a, b) => a.time - b.time).slice(-220);
+    if (!candles.length) throw new Error("Bybit returned no verified recent trades for " + symbol + ".");
+    return { ok: true, provider: "bybit", symbol, timeframe, candles };
+  }
+
   const map: Record<string, string> = {
-    "5 Seconds": "1min", "10 Seconds": "1min", "15 Seconds": "1min", "30 Seconds": "1min",
-    "1 Minute": "1min", "2 Minutes": "1min", "5 Minutes": "5min",
-    "15 Minutes": "15min", "30 Minutes": "30min", "1 Hour": "1h",
-    "4 Hours": "4h", "1 Day": "1day", "1 Month": "1month",
-    "3 Months": "1month", "6 Months": "1month", "1 Year": "1month"
+    "1 Minute": "1", "2 Minutes": "2", "3 Minutes": "3", "5 Minutes": "5",
+    "15 Minutes": "15", "30 Minutes": "30", "1 Hour": "60", "4 Hours": "240", "1 Day": "D"
   };
-  return map[tf] || "1min";
+  let interval = map[timeframe];
+  let aggregateSeconds = 0;
+  if (timeframe === "2 Minutes") { interval = "1"; aggregateSeconds = 120; }
+  if (!interval) throw new Error("Unsupported Bybit candle timeframe: " + timeframe + ".");
+  const data = await bybitJson("/v5/market/kline?category=spot&symbol=" + encodeURIComponent(symbol) + "&interval=" + interval + "&limit=500");
+  const rows = Array.isArray(data?.result?.list) ? data.result.list.slice().reverse() : [];
+  let candles = rows.map((x: any[]) => ({
+    time: Math.floor(Number(x[0]) / 1000), open: Number(x[1]), high: Number(x[2]),
+    low: Number(x[3]), close: Number(x[4]), volume: Number(x[5] || 0)
+  })).filter((x: any) => Number.isFinite(x.time) && [x.open, x.high, x.low, x.close].every(Number.isFinite) && x.close > 0);
+  if (aggregateSeconds) candles = aggregateCandles(candles, aggregateSeconds);
+  if (!candles.length) throw new Error("Bybit returned no verified historical candles for " + symbol + ".");
+  return { ok: true, provider: "bybit", symbol, timeframe, candles };
 }
 
-function symbolFor(assetType: string, symbol: string) {
-  const s = cleanSymbol(symbol);
-  if (assetType === "forex") {
-    const raw = s.replace(/[^A-Z]/g, "");
-    if (raw.length === 6) return raw.slice(0, 3) + "/" + raw.slice(3);
-  }
-  if (assetType === "indices") {
-    const map: Record<string, string> = {
-      US30: "DJI", US500: "SPX", NAS100: "NDX", UK100: "FTSE", GER40: "DAX",
-      FRA40: "CAC", JPN225: "N225", AUS200: "ASX", HK50: "HSI", EU50: "STOXX50E", SA40: "JTOPI"
-    };
-    return map[s] || s;
-  }
-  if (assetType === "commodities" || assetType === "metals") {
-    const map: Record<string, string> = {
-      "WTI OIL":"WTI/USD","BRENT OIL":"BRENT/USD","NATURAL GAS":"NATGAS/USD",
-      "COPPER":"HG1","PLATINUM":"XPT/USD","PALLADIUM":"XPD/USD"
-    };
-    return map[s] || s;
-  }
-  return s;
-}
-
-async function td(path: string, params: Record<string, string>) {
-  const key = Deno.env.get("TWELVE_DATA_API_KEY") || "";
-  if (!key) throw new Error("TWELVE_DATA_API_KEY is not configured on the GoTradeX server.");
-  const q = new URLSearchParams({ ...params, apikey: key });
-  const r = await fetch(TD + path + "?" + q.toString(), { cache: "no-store" });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok || String(d?.status || "").toLowerCase() === "error" || d?.code) {
-    throw new Error(String(d?.message || "Market-data provider request failed."));
-  }
-  return d;
-}
-
-function valuesToCandles(values: any[]) {
-  return values.map(v => ({
-    time: Math.floor(Date.parse(String(v.datetime || "")) / 1000),
-    open: Number(v.open), high: Number(v.high), low: Number(v.low),
-    close: Number(v.close), volume: Number(v.volume || 0)
-  })).filter(x => Number.isFinite(x.time) && [x.open, x.high, x.low, x.close].every(Number.isFinite))
-    .sort((a, b) => a.time - b.time);
-}
-
-Deno.serve(async req => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json({ error: "POST required" }, 405);
+Deno.serve(async request => {
+  if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (request.method !== "POST") return json({ ok: false, error: "POST required." }, 405);
   try {
-    const body = await req.json().catch(() => ({}));
-    const action = String(body.action || "chart").toLowerCase();
-    const configured = Boolean(Deno.env.get("TWELVE_DATA_API_KEY"));
-    if (action === "diagnose") return json({
-      ok: configured, provider: "twelve_data", apiKeyConfigured: configured,
-      coverage: ["forex", "stocks", "indices"],
-      message: configured ? "Market-data provider configured." : "Add TWELVE_DATA_API_KEY to Supabase Edge Function secrets."
-    });
-    const assetType = String(body.assetType || "").toLowerCase();
-    const symbol = symbolFor(assetType, String(body.symbol || ""));
-    const tf = String(body.timeframe || "1 Minute");
-    if (!symbol) return json({ ok: false, error: "A valid market symbol is required." }, 400);
-    if (action === "price") {
-      if (!configured) return json({
-        ok: false, provider: "twelve_data",
-        error: "TWELVE_DATA_API_KEY is not configured on the GoTradeX server.",
-        configurationRequired: true
-      }, 503);
-      const params: Record<string, string> = { symbol };
-      // Twelve Data does not accept the instrument "type" selector for forex pairs.
-      const d = await td("/price", params);
-      return json({ ok: true, provider: "twelve_data", symbol, assetType, price: Number(d?.price), timestamp: Date.now() });
+    const body = await request.json().catch(() => ({}));
+    const action = String(body?.action || "chart").toLowerCase();
+    if (action === "diagnose") {
+      return json({ ok: true, provider: "Bybit + Deriv public feeds", credentialsRequired: false,
+        message: "This endpoint serves Bybit public crypto data. Supported forex and verified OTC indices use Deriv public feeds directly." });
     }
-    if (action === "chart") {
-      // Crypto is served directly by Bybit from this trusted server adapter.
-      // This keeps exchange credentials/API traffic off the client and prevents
-      // the frontend from calling an unsupported bybit_chart action.
-      if (assetType === "crypto") {
-        const bybitSymbol = cleanSymbol(symbol).replace("/", "");
-        if (!/^[A-Z0-9]+$/.test(bybitSymbol)) throw new Error("Invalid Bybit crypto symbol.");
-        if (["5 Seconds", "10 Seconds", "15 Seconds", "30 Seconds"].includes(tf)) {
-          const u = "https://api.bybit.com/v5/market/recent-trade?category=spot&symbol=" +
-            encodeURIComponent(bybitSymbol) + "&limit=1000";
-          const r = await fetch(u, { cache: "no-store" });
-          const d = await r.json().catch(() => ({}));
-          if (!r.ok || Number(d?.retCode) !== 0) {
-            throw new Error(String(d?.retMsg || "Bybit recent trades unavailable."));
-          }
-          const trades = Array.isArray(d?.result?.list) ? d.result.list.slice().reverse() : [];
-          const sec = tf === "5 Seconds" ? 5 : tf === "10 Seconds" ? 10 : tf === "15 Seconds" ? 15 : 30;
-          const buckets = new Map<string, any>();
-          for (const x of trades) {
-            const ts = Number(x.time), p = Number(x.price), v = Number(x.size || 0);
-            if (!Number.isFinite(ts) || !Number.isFinite(p)) continue;
-            const b = Math.floor(ts / 1000 / sec) * sec;
-            let c = buckets.get(String(b));
-            if (!c) c = { time: b, open: p, high: p, low: p, close: p, volume: 0 };
-            c.high = Math.max(c.high, p); c.low = Math.min(c.low, p); c.close = p;
-            c.volume += Number.isFinite(v) ? v : 0;
-            buckets.set(String(b), c);
-          }
-          const candles = Array.from(buckets.values()).sort((a, b) => a.time - b.time).slice(-220);
-          if (!candles.length) throw new Error("No verified Bybit trade history was returned for " + bybitSymbol + ".");
-          return json({ ok: true, provider: "bybit", symbol: bybitSymbol, assetType, timeframe: tf, candles });
-        }
-        const bybitIntervals: Record<string, string> = {
-          "1 Minute":"1","2 Minutes":"2","5 Minutes":"5","15 Minutes":"15","30 Minutes":"30",
-          "1 Hour":"60","4 Hours":"240","1 Day":"D"
-        };
-        const interval = bybitIntervals[tf];
-        if (!interval) throw new Error("Bybit does not provide a native candle interval for " + tf + ".");
-        const u = "https://api.bybit.com/v5/market/kline?category=spot&symbol=" +
-          encodeURIComponent(bybitSymbol) + "&interval=" + interval + "&limit=500";
-        const r = await fetch(u, { cache: "no-store" });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok || Number(d?.retCode) !== 0) {
-          throw new Error(String(d?.retMsg || "Bybit historical candles unavailable."));
-        }
-        const rows = Array.isArray(d?.result?.list) ? d.result.list.slice().reverse() : [];
-        const candles = rows.map((x: any[]) => ({
-          time: Math.floor(Number(x[0]) / 1000),
-          open: Number(x[1]), high: Number(x[2]), low: Number(x[3]), close: Number(x[4]), volume: Number(x[5] || 0)
-        })).filter((x: any) => Number.isFinite(x.time) && [x.open,x.high,x.low,x.close].every(Number.isFinite));
-        if (!candles.length) throw new Error("No verified Bybit historical candles were returned for " + bybitSymbol + ".");
-        return json({ ok: true, provider: "bybit", symbol: bybitSymbol, assetType, timeframe: tf, candles });
-      }
-
-      if (!configured) return json({
-        ok: false, provider: "twelve_data",
-        error: "TWELVE_DATA_API_KEY is not configured on the GoTradeX server.",
-        configurationRequired: true
-      }, 503);
-      const interval = intervalFor(tf);
-      const params: Record<string, string> = { symbol, interval, outputsize: "500" };
-      // Forex symbols are passed natively as BASE/QUOTE; no type parameter is used.
-      const d = await td("/time_series", params);
-      const candles = valuesToCandles(Array.isArray(d?.values) ? d.values : []);
-      if (!candles.length) throw new Error("No candles were returned for " + symbol + ".");
-      return json({ ok: true, provider: "twelve_data", symbol, assetType, timeframe: tf, interval, candles });
+    if (action === "lookup") {
+      return json({ ok: false, provider: "NONE", error: "Automatic symbol discovery is disabled. Use the verified asset registry." }, 409);
     }
+    const assetType = String(body?.assetType || "").toLowerCase();
+    if (assetType !== "crypto") {
+      return json({ ok: false, provider: "NONE", error: "No verified Bybit crypto mapping applies. Forex and verified OTC indices must use the Deriv feed; unsupported assets are not substituted or fabricated." }, 409);
+    }
+    const symbol = cleanSymbol(body?.symbol).replace("/", "");
+    if (!/^[A-Z0-9]{5,20}$/.test(symbol) || !symbol.endsWith("USDT")) {
+      return json({ ok: false, provider: "NONE", error: "A verified USDT spot symbol is required." }, 400);
+    }
+    if (action === "price") return json(await bybitPrice(symbol));
+    if (action === "chart") return json(await bybitCandles(symbol, String(body?.timeframe || "1 Minute")));
     return json({ ok: false, error: "Unsupported market-data action." }, 400);
   } catch (error) {
     console.error("gotradex-market-data provider failure:", error);
