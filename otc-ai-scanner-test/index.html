@@ -86,7 +86,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
     <div class="top"><div class="top-icon">🔔</div><div><h3 style="color:#fff;font-size:14px">Chart Alerts</h3><p style="color:#6b86b3;font-size:11px">Set alerts, get notified, trade smarter</p></div></div>
     <div class="tabs"><div class="tab active">New Alert</div><div class="tab">Active Alerts</div><div class="tab">History</div></div>
     <div class="card"><h4 style="font-size:12px;margin-bottom:8px">Create New OTC Price Alert</h4>
-      <div style="display:flex;gap:8px"><div style="flex:1"><div class="label">Asset</div><select id="alertAsset" class="input" style="width:100%;color:#fff;background:#101e3a"><option>EUR/USD OTC</option><option>GBP/USD OTC</option><option>USD/JPY OTC</option><option>AUD/USD OTC</option><option>USD/CAD OTC</option><option>USD/CHF OTC</option><option>NZD/USD OTC</option></select></div>
+      <div style="display:flex;gap:8px"><div style="flex:1"><div class="label">Asset</div><select id="alertAsset" class="input" style="width:100%;color:#fff;background:#101e3a"><option>EUR/USD OTC</option><option>GBP/USD OTC</option><option>USD/JPY OTC</option><option>AUD/USD OTC</option><option>USD/CAD OTC</option><option>USD/CHF OTC</option><option>NZD/USD OTC</option><option>AUD/NZD OTC</option><option>EUR/GBP OTC</option><option>EUR/JPY OTC</option><option>GBP/JPY OTC</option><option>USD/ZAR OTC</option></select></div>
       <div style="flex:1"><div class="label">Condition</div><select id="alertCondition" class="input" style="width:100%;color:#fff;background:#101e3a"><option value="above">Price above</option><option value="below">Price below</option></select></div></div>
       <div style="margin-top:8px"><div class="label">Target Price</div><input id="alertTarget" class="input" type="number" min="0" step="any" placeholder="Enter target price" style="width:100%;color:#fff;background:#101e3a;box-sizing:border-box"></div>
       <div style="margin-top:8px"><div class="label">Expiry</div><select id="alertExpiry" class="input" style="width:100%;color:#fff;background:#101e3a"><option value="3600000">1 hour</option><option value="21600000">6 hours</option><option value="86400000">24 hours</option></select></div>
@@ -156,7 +156,7 @@ function getAdapter(){
    "https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",
    {auth:{persistSession:true,autoRefreshToken:true}}
   ));
-  const supported=new Set(["EUR/USD OTC","GBP/USD OTC","USD/JPY OTC","AUD/USD OTC","USD/CAD OTC","USD/CHF OTC","NZD/USD OTC"]);
+  const supported=new Set(["EUR/USD OTC","GBP/USD OTC","USD/JPY OTC","AUD/USD OTC","USD/CAD OTC","USD/CHF OTC","NZD/USD OTC","AUD/NZD OTC","EUR/GBP OTC","EUR/JPY OTC","GBP/JPY OTC","USD/ZAR OTC"]);
   const tfMap={60:"1m",300:"5m",900:"15m",1800:"30m",3600:"1h",14400:"4h",86400:"1d",2592000:"1month"};
   return {
    async history(pair,sec){
@@ -322,7 +322,7 @@ document.querySelectorAll('[data-signal-filter]').forEach(tab=>tab.addEventListe
 }));
 async function refreshWatchlist(){
  const el=document.getElementById('otcWatchlist');if(!el)return;
- const pairs=['EUR/USD OTC','GBP/USD OTC','USD/JPY OTC','AUD/USD OTC','USD/CAD OTC','USD/CHF OTC','NZD/USD OTC'],adapter=getAdapter();
+ const pairs=['EUR/USD OTC','GBP/USD OTC','USD/JPY OTC','AUD/USD OTC','USD/CAD OTC','USD/CHF OTC','NZD/USD OTC','AUD/NZD OTC','EUR/GBP OTC','EUR/JPY OTC','GBP/JPY OTC','USD/ZAR OTC'],adapter=getAdapter();
  if(!adapter){el.innerHTML='<div class="pRow"><span>OTC adapter unavailable</span><span>WAIT</span></div>';return}
  const rows=await Promise.all(pairs.map(async pair=>{
   try{const q=await adapter.price(pair);if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000||q.time>Date.now()+60*1000)throw new Error('stale');return {pair,price:fmtPrice(q.price),ok:true}}
