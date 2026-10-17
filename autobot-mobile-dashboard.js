@@ -27,7 +27,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 // GoTradeX OTC AI Analyzer portal integration.
 // Isolated overlay: preserves the existing dashboard and its trading/chart controls.
 (function(){
-  const analyzerUrl="https://raw.githack.com/Ryan-dotco/GoTradeX-/main/otc-ai-scanner-test/index.html";
+  const analyzerUrl=new URL("otc-ai-scanner-test/index.html",window.location.href).href;
   function installOtcAiPortal(){
     const nav=document.querySelector(".gtxNavColumn");
     if(nav && !nav.querySelector('[data-section="OTC AI Scanner Pro"]')){
