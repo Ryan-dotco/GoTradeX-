@@ -1,6 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+// Supabase Edge Runtime provides this global at execution time; declare it for Deno type-checking.
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")||"https://glffecggusetzklmyukv.supabase.co";
 const SERVICE=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
