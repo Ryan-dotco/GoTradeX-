@@ -22,7 +22,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
 .label{font-size:10px;letter-spacing:1.2px;color:#6b86b3;font-weight:800}
 .pair-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:#fff}
 .ctrl-row{display:flex;gap:8px;margin-top:10px}
-.ctrl{background:#101e3a;border:1px solid #1c335f;border-radius:10px;padding:7px 12px;font-size:12px;color:#b0c4e8}
+.ctrl{background:#101e3a;border:1px solid #1c335f;border-radius:10px;padding:7px 8px;font-size:11px;color:#b0c4e8;min-width:0;max-width:100%}.ctrl-row select{flex:1 1 28%;width:1%;outline:none}.ctrl-row{flex-wrap:wrap}
 .analyzer{margin:12px;border:1px solid #1b345e;border-radius:18px;background:#0e1e3e;padding:14px;color:#fff}
 .ai{width:28px;height:28px;background:#0a5bff;border-radius:50%;display:grid;place-items:center;font-weight:900}
 .up{display:flex;gap:10px;margin-top:14px}
@@ -66,8 +66,18 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
   <div class="view active" id="v-otc">
     <div style="padding:0 16px">
       <div class="label">MARKET</div>
-      <div class="pair-row"><div style="font-weight:800">OTC Asset</div><div style="font-size:10px;color:#5c7bb0">OTC · server engine</div></div>
-      <div class="ctrl-row"><div class="ctrl">◫ 15m ⌄</div><div class="ctrl">Candles · Volume ⌄</div></div>
+      <div class="pair-row"><div id="pairLabel" style="font-weight:800">EUR/USD</div><div id="marketSourceLabel" style="font-size:10px;color:#5c7bb0">Waiting for shared market</div></div>
+      <div class="ctrl-row">
+        <select id="marketMode" class="ctrl" aria-label="Market mode"><option value="LIVE">LIVE</option><option value="OTC">OTC</option></select>
+        <select id="assetSelect" class="ctrl" aria-label="Asset">
+          <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option><option>AUD/NZD</option><option>EUR/GBP</option><option>EUR/JPY</option><option>GBP/JPY</option><option>USD/ZAR</option><option>BTC/USD</option><option>ETH/USD</option><option>XRP/USD</option><option>SOL/USD</option><option>XAU/USD</option><option>XAG/USD</option>
+        </select>
+        <select id="chartTimeframe" class="ctrl" aria-label="Chart timeframe"><option value="60">1m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>
+      </div>
+      <div class="ctrl-row">
+        <select id="accountMode" class="ctrl" aria-label="Account mode"><option value="DEMO">DEMO account</option><option value="REAL">REAL account</option></select>
+        <select id="tradeExpiry" class="ctrl" aria-label="Trade expiration"><option>5 Seconds</option><option>1 Minute</option><option>3 Minutes</option><option>5 Minutes</option><option>15 Minutes</option><option>30 Minutes</option><option>1 Hour</option><option>4 Hours</option><option>1 Day</option></select>
+      </div>
     </div>
     <div id="chart"></div>
     <div class="analyzer">
@@ -77,6 +87,8 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <div id="uploadedChartPreview" hidden style="margin-top:10px;padding:8px;border:1px solid #1b345e;border-radius:10px"><img id="uploadedChartImage" alt="Selected chart preview" style="display:block;max-width:100%;max-height:180px;margin:auto;border-radius:6px"><div id="uploadedChartNote" style="color:#8da7cc;font-size:10px;margin-top:6px">Preview only. AI vision analysis is disabled.</div></div>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
       <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for OTC server-engine data. No signal is available yet.</div><div id="analysisMethodNote" style="margin-top:5px;color:#6b86b3;font-size:10px">Signal method: rule-based candle trend check. The separate AI vision endpoint is currently disabled; this is not AI inference.</div>
+      <div class="ctrl-row" style="margin-top:10px"><button class="act" type="button" onclick="sendTradeToMain('SELL')" style="background:#7d1729;color:#fff;font-weight:800">SELL on Main</button><button class="act" type="button" onclick="sendTradeToMain('BUY')" style="background:#0b5b37;color:#fff;font-weight:800">BUY on Main</button></div>
+      <div id="tradeBridgeStatus" role="status" style="margin-top:6px;color:#ffd98a;font-size:10px">Order handoff is connected to the main app's guarded controls; broker execution is not enabled.</div>
       <div class="actRow"><div class="act" onclick="shareAnalysis()">↗ Share</div><div class="act" onclick="copyAnalysis()">⎙ Copy</div><div class="act" onclick="analyzeAgain()">↻ Analyze Again</div></div>
     </div>
   </div>
@@ -140,7 +152,7 @@ const chart=LightweightCharts.createChart(chartEl,{layout:{background:{color:'#0
 const candle=chart.addCandlestickSeries({upColor:'#00e676',downColor:'#ff3d57',wickUpColor:'#00e676',wickDownColor:'#ff3d57',borderVisible:false});
 let data=[];
 candle.setData([]); chart.timeScale().fitContent();
-const pairLabel=document.querySelector('.pair-row div');
+const pairLabel=document.getElementById('pairLabel');
 const resultSide=document.querySelector('.buy');
 const signalButton=document.getElementById('signalBtn');
 function handleChartImage(file){
@@ -153,7 +165,39 @@ function handleChartImage(file){
 }
 document.getElementById('cam').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
 document.getElementById('upl').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
-let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for OTC server-engine data';
+let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for shared market state';
+const otcPairs=['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','AUD/NZD','EUR/GBP','EUR/JPY','GBP/JPY','USD/ZAR'];
+const mainExpiryOptions=['5 Seconds','1 Minute','3 Minutes','5 Minutes','15 Minutes','30 Minutes','1 Hour','4 Hours','1 Day'];
+function getMarketMode(){try{return String(localStorage.getItem('gotradex_market_mode')||'LIVE').toUpperCase()==='OTC'?'OTC':'LIVE'}catch(_){return 'LIVE'}}
+function getAssetBase(){try{return String(localStorage.getItem('gotradex_asset_display')||'EUR/USD').replace(/\\s+OTC$/i,'').trim()||'EUR/USD'}catch(_){return 'EUR/USD'}}
+function getAccountMode(){try{return String(localStorage.getItem('gotradex_account_mode')||'DEMO').toUpperCase()==='REAL'?'REAL':'DEMO'}catch(_){return 'DEMO'}}
+function getTradeExpiry(){try{const x=localStorage.getItem('gotradex_trade_expiration')||'5 Minutes';return mainExpiryOptions.includes(x)?x:'5 Minutes'}catch(_){return '5 Minutes'}}
+function timeframeLabel(sec){return ({60:'1m',300:'5m',900:'15m',1800:'30m',3600:'1h',14400:'4h',86400:'1d'})[Number(sec)]||'15m'}
+function syncControlsFromState(state={}){
+ const mode=String(state.marketMode||getMarketMode()).toUpperCase()==='OTC'?'OTC':'LIVE';
+ const asset=String(state.asset||getAssetBase()).replace(/\\s+OTC$/i,'').trim()||'EUR/USD';
+ const account=String(state.accountMode||getAccountMode()).toUpperCase()==='REAL'?'REAL':'DEMO';
+ const expiry=String(state.expiration||getTradeExpiry());
+ const mm=document.getElementById('marketMode'),as=document.getElementById('assetSelect'),am=document.getElementById('accountMode'),ex=document.getElementById('tradeExpiry');
+ if(mm)mm.value=mode;if(as&&Array.from(as.options).some(o=>o.value===asset))as.value=asset;if(am)am.value=account;if(ex&&mainExpiryOptions.includes(expiry))ex.value=expiry;
+ liveTf=Number(state.timeframe||document.getElementById('chartTimeframe')?.value||900);
+ const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);
+ livePair=mode==='OTC'?asset+' OTC':asset;
+ if(pairLabel)pairLabel.textContent=asset;
+ const source=document.getElementById('marketSourceLabel');if(source)source.textContent=mode==='OTC'?'OTC · synthetic server engine':'LIVE · broker feed required';
+}
+function sendAnalyzerSync(action){
+ const msg={type:'GTX_ANALYZER_SYNC',marketMode:document.getElementById('marketMode')?.value||getMarketMode(),asset:document.getElementById('assetSelect')?.value||getAssetBase(),assetType:'forex',accountMode:document.getElementById('accountMode')?.value||getAccountMode(),expiration:document.getElementById('tradeExpiry')?.value||getTradeExpiry(),timeframe:Number(document.getElementById('chartTimeframe')?.value||900)};
+ try{localStorage.setItem('gotradex_market_mode',msg.marketMode);localStorage.setItem('gotradex_asset_display',msg.asset);localStorage.setItem('gotradex_asset_type',msg.assetType);localStorage.setItem('gotradex_account_mode',msg.accountMode);localStorage.setItem('gotradex_trade_expiration',msg.expiration)}catch(_){}
+ try{if(window.parent&&window.parent!==window)window.parent.postMessage({...msg,action:action||null},window.location.origin)}catch(_){}
+ syncControlsFromState(msg);
+}
+function sendTradeToMain(side){
+ if(side!=='BUY'&&side!=='SELL')return;
+ sendAnalyzerSync(side);
+ const status=document.getElementById('tradeBridgeStatus');
+ if(status)status.textContent=side+' sent to the main app for the same '+(document.getElementById('marketMode')?.value||'LIVE')+' '+(document.getElementById('assetSelect')?.value||'EUR/USD')+'. The main app currently blocks broker submission; no real order or balance change has occurred.';
+}
 function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
 async function loadLatestOtcHistory(pair,sec){
  const supported=new Set(["EUR/USD OTC","GBP/USD OTC","USD/JPY OTC","AUD/USD OTC","USD/CAD OTC","USD/CHF OTC","NZD/USD OTC","AUD/NZD OTC","EUR/GBP OTC","EUR/JPY OTC","GBP/JPY OTC","USD/ZAR OTC"]);
@@ -208,7 +252,7 @@ function getAdapter(){
   };
  }catch(e){return null}
 }
-function getSelectedPair(){try{let p=String(localStorage.getItem('gotradex_asset_display')||'').trim();if(!p)p=String(localStorage.getItem('gtx_pair')||'').trim();if(!p)p='EUR/USD';if(!/ OTC$/i.test(p))p+=' OTC';return p}catch(_){return 'EUR/USD OTC'}}
+function getSelectedPair(){const base=getAssetBase();return getMarketMode()==='OTC'?base+' OTC':base}
 function fmtPrice(n){return Number.isFinite(n)?n.toFixed(n<10?5:2):'—'}
 let activeSocket=null, socketPair='';
 function applyLiveTick(tick,pair){
@@ -239,6 +283,11 @@ function startLiveSocket(pair,adapter){
 }
 async function loadVerifiedData(){
  const pair=getSelectedPair(), adapter=getAdapter();
+ if(getMarketMode()!=='OTC'){
+  if(activeSocket){activeSocket.close();activeSocket=null;}socketPair='';livePair=pair;data=[];livePrice=null;candle.setData([]);pairLabel.textContent=getAssetBase();
+  const source=document.getElementById('marketSourceLabel');if(source)source.textContent='LIVE · feed unavailable';
+  dataStatus='LIVE market selected. A verified LIVE chart-data adapter is not connected here; OTC data will not be substituted.';showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';return;
+ }
  if(socketPair&&socketPair!==pair){activeSocket?.close();activeSocket=null;socketPair=''}
  livePair=pair; dataStatus='Connecting to OTC server engine';showDataStatus();
  pairLabel.textContent=pair;
@@ -260,9 +309,12 @@ async function loadVerifiedData(){
   dataStatus='OTC server-engine candles and fresh price loaded'; signalButton.title=dataStatus;showDataStatus();startLiveSocket(pair,adapter);
  }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'OTC server-engine data unavailable';signalButton.title=dataStatus;showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
 }
-window.addEventListener('storage',e=>{if(e.key==='gotradex_asset_display'||e.key==='gtx_pair')loadVerifiedData()});
+window.addEventListener('message',e=>{if(e.origin!==window.location.origin||!e.data||e.data.type!=='GTX_MAIN_STATE')return;syncControlsFromState(e.data);loadVerifiedData()});
+['marketMode','assetSelect','accountMode','tradeExpiry'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>{if(id==='marketMode'&&document.getElementById('marketMode').value==='OTC'&&!otcPairs.includes(document.getElementById('assetSelect').value))document.getElementById('assetSelect').value='EUR/USD';sendAnalyzerSync();loadVerifiedData()}));
+document.getElementById('chartTimeframe')?.addEventListener('change',()=>{liveTf=Number(document.getElementById('chartTimeframe').value)||900;sendAnalyzerSync();loadVerifiedData()});
+window.addEventListener('storage',e=>{if(['gotradex_asset_display','gtx_pair','gotradex_market_mode','gotradex_account_mode','gotradex_trade_expiration'].includes(e.key)){syncControlsFromState();loadVerifiedData()}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadVerifiedData()});
-loadVerifiedData();
+syncControlsFromState();loadVerifiedData();
 signalButton.onclick=async function(){
  const btn=this;btn.disabled=true;let remaining=5;btn.textContent='Verifying data… '+remaining+'s';
  const iv=setInterval(async()=>{remaining--;btn.textContent='Verifying data… '+remaining+'s';if(remaining>0)return;clearInterval(iv);
@@ -276,7 +328,7 @@ signalButton.onclick=async function(){
    else if(last<first&&downs>=5){side='SELL';momentum='Bearish';}
    resultSide.innerHTML='<div><big>'+(side==='BUY'?'▲':side==='SELL'?'▼':'—')+'</big><br>'+side+'</div>';
    document.getElementById('entry').textContent=fmtPrice(livePrice);
-   const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>OTC server engine (synthetic)</b></div>';
+   const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>'+(document.getElementById('tradeExpiry')?.value||getTradeExpiry())+'</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>OTC server engine (synthetic)</b></div>';
    if(side==='WAIT')dataStatus='No clear direction in OTC candles; WAIT';showDataStatus();
    const history=readSignalHistory();history.unshift({pair:livePair,side,tf:'15m',time:Date.now(),entry:fmtPrice(livePrice),momentum});localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(history.slice(0,100)));renderSignalHistory();
   }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';showDataStatus();}
