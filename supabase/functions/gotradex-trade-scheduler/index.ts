@@ -1,4 +1,6 @@
 import { withSupabase } from "npm:@supabase/server@1";
+import WebSocketClient from "npm:ws@8.18.0";
+
 
 const json = (x: unknown, status = 200) =>
   new Response(JSON.stringify(x), {
@@ -13,17 +15,58 @@ const mapping = (asset: string) => {
     "SOL/USD":"SOLUSDT","ADA/USD":"ADAUSDT","DOGE/USD":"DOGEUSDT","LTC/USD":"LTCUSDT"
   };
   const fx: Record<string,string> = {
-    "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
-    "AUD/USD":"AUD/USD","USD/CAD":"USD/CAD","NZD/USD":"NZD/USD","EUR/GBP":"EUR/GBP",
-    "EUR/JPY":"EUR/JPY","GBP/JPY":"GBP/JPY","USD/ZAR":"USD/ZAR",
-    "XAU/USD":"XAU/USD","XAG/USD":"XAG/USD"
+    "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
+    "USD/CHF":"frxUSDCHF","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
+    "EUR/JPY":"frxEURJPY","GBP/JPY":"frxGBPJPY","EUR/CHF":"frxEURCHF","AUD/JPY":"frxAUDJPY",
+    "AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/NZD":"frxAUDNZD","CAD/JPY":"frxCADJPY",
+    "CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD",
+    "GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/NZD":"frxGBPNZD",
+    "NZD/JPY":"frxNZDJPY","NZD/CAD":"frxNZDCAD","CAD/CHF":"frxCADCHF","USD/SGD":"frxUSDSGD",
+    "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN","USD/ZAR":"frxUSDZAR","EUR/ZAR":"frxEURZAR",
+    "GBP/ZAR":"frxGBPZAR","USD/TRY":"frxUSDTRY","USD/NOK":"frxUSDNOK","USD/SEK":"frxUSDSEK",
+    "USD/DKK":"frxUSDDKK","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN",
+    "EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","USD/INR":"frxUSDINR","USD/BRL":"frxUSDBRL",
+    "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
   };
   if (crypto[a]) return { provider:"BYBIT", symbol:crypto[a] };
-  if (fx[a]) return { provider:"TWELVE_DATA", symbol:fx[a] };
+  if (fx[a]) return { provider:"DERIV", symbol:fx[a] };
   return null;
 };
 
+async function derivPrice(symbol: string) {
+  return await new Promise<{price:number,time:string}>((resolve,reject)=>{
+    let ws:any=null,done=false;
+    const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
+    const timer=setTimeout(()=>finish(reject,new Error("Deriv price request timed out.")),8000);
+    try{
+      ws=new WebSocketClient("wss://api.derivws.com/trading/v1/options/ws/public",{
+        handshakeTimeout:7000,
+        headers:{"Origin":"https://app.deriv.com","User-Agent":"Mozilla/5.0 (compatible; GoTradeX/1.0; market-data)"}
+      });
+    }catch(e){finish(reject,e);return}
+    ws.on("open",()=>{try{ws.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}});
+    ws.on("message",(data:any)=>{
+      try{
+        const d=JSON.parse(String(data||"{}"));
+        if(d.error){finish(reject,new Error(String(d.error.message||"Deriv rejected the price request.")));return}
+        if(d.msg_type==="history"&&Array.isArray(d.history?.prices)&&d.history.prices.length){
+          const i=d.history.prices.length-1,price=Number(d.history.prices[i]),epoch=Number(d.history.times?.[i]);
+          if(Number.isFinite(price)&&price>0&&Number.isFinite(epoch)){finish(resolve,{price,time:new Date(epoch*1000).toISOString()});return}
+          finish(reject,new Error("Deriv returned no valid latest price."));
+        }
+      }catch{finish(reject,new Error("Could not parse Deriv price response."))}
+    });
+    ws.on("unexpected-response",(_request:any,response:any)=>{
+      let body="";
+      response.on("data",(chunk:any)=>{body+=String(chunk);if(body.length>500)body=body.slice(0,500)});
+      response.on("end",()=>finish(reject,new Error("Deriv price handshake rejected: HTTP "+response.statusCode+" "+body)));
+    });
+    ws.on("error",(e:any)=>finish(reject,new Error("Deriv price connection failed: "+String(e?.message||e))));
+    ws.on("close",()=>{if(!done)finish(reject,new Error("Deriv closed before returning a verified price."))});
+  });
+}
 async function priceFor(provider: string, symbol: string) {
+  if (provider === "DERIV") return await derivPrice(symbol);
   if (provider === "BYBIT") {
     const r = await fetch(
       "https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(symbol),
@@ -101,8 +144,8 @@ export default {
     for (const trade of trades) {
       const map = mapping(String(trade.asset || ""));
       if (!map) { failed++; continue; }
-      const provider = String(trade.provider || map.provider);
-      const symbol = String(trade.provider_symbol || map.symbol);
+      const provider = map.provider === "DERIV" ? "DERIV" : String(trade.provider || map.provider);
+      const symbol = map.provider === "DERIV" ? map.symbol : String(trade.provider_symbol || map.symbol);
       uniqueSymbols.set(provider+"|"+symbol,{provider,symbol});
     }
 
@@ -119,8 +162,8 @@ export default {
       const map = mapping(String(trade.asset || ""));
       if (!map) continue;
 
-      const provider = String(trade.provider || map.provider);
-      const symbol = String(trade.provider_symbol || map.symbol);
+      const provider = map.provider === "DERIV" ? "DERIV" : String(trade.provider || map.provider);
+      const symbol = map.provider === "DERIV" ? map.symbol : String(trade.provider_symbol || map.symbol);
       const key = provider+"|"+symbol;
       const p = priceCache.get(key);
       if (!p) continue;

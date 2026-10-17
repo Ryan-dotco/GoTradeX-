@@ -12,6 +12,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check server trade pricing and settlement
+        run: |
+          deno check supabase/functions/gotradex-trade-engine/index.ts
+          deno check supabase/functions/gotradex-trade-scheduler/index.ts
+          deno check supabase/functions/gotradex-market-stream-worker/index.ts
       - name: Syntax check active chart and feed scripts
         run: |
           node --check live-chart.js
@@ -25,16 +33,22 @@ jobs:
           const chart = fs.readFileSync('live-chart.js', 'utf8');
           const feed = fs.readFileSync('market-data.js', 'utf8');
           const pro = fs.readFileSync('gotradex-pro-engine.js', 'utf8');
+          const tradeEngine = fs.readFileSync('supabase/functions/gotradex-trade-engine/index.ts', 'utf8');
+          const tradeScheduler = fs.readFileSync('supabase/functions/gotradex-trade-scheduler/index.ts', 'utf8');
+          const marketWorker = fs.readFileSync('supabase/functions/gotradex-market-stream-worker/index.ts', 'utf8');
           const checks = [
-            [index.includes('live-chart.js?v=20261009asset-sync4'), 'active chart script cache version'],
+            [(index.match(/<script\b[^>]*\bsrc=["'][^"']*live-chart\.js(?:\?[^"']*)?["'][^>]*>/gi) || []).length === 1, 'exactly one active live-chart.js script reference (cache version independent)'],
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
             [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
             [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
             [chart.includes('d.source!=="dashboard-assets"') && chart.includes('setAsset(d.label,d.type,d.mode)'), 'single dashboard-to-chart handoff'],
             [chart.includes('function connectDeriv()') && chart.includes('derivCandleHistory(f.symbol,state.sec)'), 'Deriv historical candle request'],
-            [chart.includes('return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks') && chart.includes('if(state.mode!=="OTC")throw e;') && chart.includes('Deriv OTC history unavailable; continuing to wait for verified live ticks'), 'OTC tick bootstrap when history is sparse or fails'],
+            [chart.includes('return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12') && chart.includes('No usable OTC history returned. Waiting for verified Deriv ticks to build the chart') && chart.includes('const socket=feed().derivSocket(f.symbol') && chart.includes('waiting for the first verified tick to build candles'), 'OTC tick bootstrap when history is sparse or fails'],
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
-            [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection']
+            [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection'],
+            [tradeEngine.includes('const DERIV_FX:Record<string,string>') && tradeEngine.includes('if(provider==="DERIV") return await derivPrice(providerSymbol)') && tradeEngine.includes('if(DERIV_FX[a]) return {provider:"DERIV",symbol:DERIV_FX[a]}'), 'server trade engine routes verified forex prices to Deriv'],
+            [tradeScheduler.includes('if (fx[a]) return { provider:"DERIV", symbol:fx[a] }') && tradeScheduler.includes('if (provider === "DERIV") return await derivPrice(symbol)'), 'server scheduler settles verified forex trades using Deriv'],
+            [marketWorker.includes('const DERIV_FX:Record<string,string>') && marketWorker.includes('provider:"DERIV",provider_symbol:derivSymbol') && marketWorker.includes('function connectDeriv(rows:any[])') && marketWorker.includes('connectDeriv(active.deriv)'), 'market stream worker routes verified forex subscriptions through Deriv ticks']
           ];
           for (const [ok, name] of checks) {
             if (!ok) throw new Error('FAILED: ' + name);

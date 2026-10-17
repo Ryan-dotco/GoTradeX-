@@ -1,12 +1,29 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import WebSocketClient from "npm:ws@8.18.0";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")||"https://glffecggusetzklmyukv.supabase.co";
 const SERVICE=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const TD_KEY=Deno.env.get("TWELVE_DATA_API_KEY")||"";
 const SELF=SUPABASE_URL+"/functions/v1/gotradex-market-stream-worker";
-const RUN_MS=105000, HANDOFF_MS=90000, MAX_TD=8;
+const RUN_MS=15000, MAX_TD=8;
 const SUBSCRIPTION_TTL_MS=24*60*60*1000;
+const DERIV_FX:Record<string,string>={
+ "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
+ "USD/CHF":"frxUSDCHF","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
+ "EUR/JPY":"frxEURJPY","GBP/JPY":"frxGBPJPY","EUR/CHF":"frxEURCHF","AUD/JPY":"frxAUDJPY",
+ "AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/NZD":"frxAUDNZD","CAD/JPY":"frxCADJPY",
+ "CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD",
+ "GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/NZD":"frxGBPNZD",
+ "NZD/JPY":"frxNZDJPY","NZD/CAD":"frxNZDCAD","CAD/CHF":"frxCADCHF","USD/SGD":"frxUSDSGD",
+ "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN","USD/ZAR":"frxUSDZAR","EUR/ZAR":"frxEURZAR",
+ "GBP/ZAR":"frxGBPZAR","USD/TRY":"frxUSDTRY","USD/NOK":"frxUSDNOK","USD/SEK":"frxUSDSEK",
+ "USD/DKK":"frxUSDDKK","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN",
+ "EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","USD/INR":"frxUSDINR","USD/BRL":"frxUSDBRL",
+ "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
+}
 const admin=createClient(SUPABASE_URL,SERVICE,{auth:{autoRefreshToken:false,persistSession:false}});
 const json=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
 
@@ -23,8 +40,8 @@ async function activeSymbols(){
  const set=new Set<string>((subs.data||[]).map((x:any)=>String(x.symbol).toUpperCase()));
  for(const t of (open.data||[]))if(t.asset)set.add(String(t.asset).toUpperCase());
  const {data:reg}=await admin.from("gotradex_market_registry").select("symbol,provider,provider_symbol,asset,priority").eq("enabled",true).order("priority",{ascending:true});
- const rows=(reg||[]).filter((r:any)=>set.has(String(r.symbol).toUpperCase()));
- return{td:rows.filter((r:any)=>r.provider==="TWELVE_DATA").slice(0,MAX_TD),bybit:rows.filter((r:any)=>r.provider==="BYBIT")};
+ const rows=(reg||[]).filter((r:any)=>set.has(String(r.symbol).toUpperCase())).map((r:any)=>{const asset=String(r.asset||r.symbol||"").toUpperCase().replace(/\s+OTC$/,"").trim();const derivSymbol=DERIV_FX[asset];return derivSymbol?{...r,provider:"DERIV",provider_symbol:derivSymbol}:r;});
+ return{td:rows.filter((r:any)=>r.provider==="TWELVE_DATA").slice(0,MAX_TD),bybit:rows.filter((r:any)=>r.provider==="BYBIT"),deriv:rows.filter((r:any)=>r.provider==="DERIV")};
 }
 async function writeTick(r:any,price:number,ts=Date.now()){
  if(!Number.isFinite(price)||price<=0)return;
@@ -70,6 +87,57 @@ function connectBybit(rows:any[]){
   ws.onerror=()=>finish();ws.onclose=()=>{clearTimeout(timer);finish()};
  });
 }
+async function connectDeriv(rows:any[]){
+ if(!rows.length)return 0;
+ return await new Promise<number>(resolve=>{
+  let ws:any=null,count=0,done=false,opened=false;
+  const diagnosticTimer=setTimeout(()=>{
+   if(!count){
+    console.error("DERIV_NO_TICKS",JSON.stringify(rows.map((r:any)=>({symbol:r.symbol,provider_symbol:r.provider_symbol,opened}))));
+    const reason=opened?"Deriv WebSocket opened but returned no ticks within 5 seconds.":"Deriv WebSocket handshake failed before open; inspect DERIV_WS_REJECTED / DERIV_WS_ERROR.";
+    Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:reason,updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{});
+   }
+  },5000);
+  const finish=()=>{if(done)return;done=true;clearTimeout(timer);clearTimeout(diagnosticTimer);try{ws?.close()}catch(_){}resolve(count)};
+  const timer=setTimeout(finish,RUN_MS-5000);
+  try{
+   ws=new WebSocketClient("wss://api.derivws.com/trading/v1/options/ws/public",{
+    handshakeTimeout:8000,
+    headers:{
+     "Origin":"https://app.deriv.com",
+     "User-Agent":"Mozilla/5.0 (compatible; GoTradeX/1.0; market-data)"
+    }
+   });
+  }catch(e){console.error("DERIV_WS_CREATE_FAILED",String(e));finish();return}
+  ws.on("open",()=>{
+   opened=true;console.log("DERIV_WS_OPEN",rows.length);
+   try{rows.forEach((r:any,i:number)=>ws.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1})));}catch(e){console.error("DERIV_SUBSCRIBE_FAILED",String(e));finish()}
+  });
+  ws.on("message",(data:any)=>{
+   try{
+    const m=JSON.parse(String(data||"{}"));
+    if(m.error){
+     const failed=rows.find((r:any,i:number)=>Number(m.req_id)===i+1);
+     console.error("DERIV_PROVIDER_ERROR",String(m.error.message||"unknown"),String(m.error.code||""));
+     if(failed)admin.from("gotradex_market_registry").update({last_error:String(m.error.message||"Deriv rejected tick subscription"),updated_at:new Date().toISOString()}).eq("symbol",failed.symbol).then(()=>{});
+     return;
+    }
+    if(m.msg_type==="tick"&&m.tick){
+     const sym=String(m.tick.symbol||""),price=Number(m.tick.quote),epoch=Number(m.tick.epoch);
+     const row=rows.find((r:any)=>r.provider_symbol===sym);
+     if(row&&Number.isFinite(price)&&price>0){count++;if(count===1)console.log("DERIV_FIRST_TICK",row.symbol);writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch((err:any)=>console.error("DERIV_WRITE_FAILED",row.symbol,String(err?.message||err)))}
+    }
+   }catch(e){console.error("DERIV_MESSAGE_PARSE_FAILED",String(e))}
+  });
+  ws.on("unexpected-response",(_request:any,response:any)=>{
+   let body="";
+   response.on("data",(chunk:any)=>{body+=String(chunk);if(body.length>1000)body=body.slice(0,1000)});
+   response.on("end",()=>console.error("DERIV_WS_REJECTED",JSON.stringify({status:response.statusCode,statusMessage:response.statusMessage,server:response.headers?.server,contentType:response.headers?.["content-type"],body})));
+  });
+  ws.on("error",(e:any)=>{console.error("DERIV_WS_ERROR",String(e?.message||e));finish()});
+  ws.on("close",()=>{if(!count)console.error("DERIV_WS_CLOSED_BEFORE_TICK",{rows:rows.length,opened});finish()});
+ });
+}
 async function pollLoop(active:any[],deadline:number){
  while(Date.now()<deadline){
   for(const r of active)await restPrice(r);
@@ -78,14 +146,13 @@ async function pollLoop(active:any[],deadline:number){
 }
 async function runWorker(id:string){
  const active=await activeSymbols();
- if(!active.td.length&&!active.bybit.length)return;
+ console.log("MARKET_WORKER_ACTIVE",{td:active.td.length,bybit:active.bybit.length,deriv:active.deriv.length});
+ if(!active.td.length&&!active.bybit.length&&!active.deriv.length)return {ticks:0,reason:"no active subscribed symbols"};
  const deadline=Date.now()+RUN_MS-5000;
- const wsPromise=Promise.all([connectTD(active.td),connectBybit(active.bybit)]);
+ const wsPromise=Promise.all([connectTD(active.td),connectBybit(active.bybit),connectDeriv(active.deriv)]);
  await Promise.all([wsPromise,pollLoop([...active.td,...active.bybit],deadline)]);
  await renew(id);
- if(Date.now()-deadline<HANDOFF_MS){
-  fetch(SELF,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+SERVICE,"apikey":SERVICE},body:JSON.stringify({handoff:true})}).catch(()=>{});
- }
+ return {ok:true,deriv:active.deriv.length,bybit:active.bybit.length,td:active.td.length};
 }
 Deno.serve(async req=>{
  if(req.method!=="POST")return json({ok:false,error:"POST required"},405);
@@ -93,7 +160,13 @@ Deno.serve(async req=>{
  const auth=req.headers.get("authorization")||"",api=req.headers.get("apikey")||"";
  if(auth!=="Bearer "+SERVICE&&api!==SERVICE)return json({ok:false,error:"Unauthorized"},401);
  const lock=await acquire();if(!lock.ok)return json({ok:true,skipped:true,reason:"another worker holds the lease"});
- EdgeRuntime.waitUntil(runWorker(lock.id).catch(async e=>{console.error("market worker",e);await release(lock.id)}));
- EdgeRuntime.waitUntil(new Promise<void>(resolve=>setTimeout(()=>{release(lock.id).finally(resolve)},RUN_MS)));
- return json({ok:true,started:true,worker_id:lock.id});
+ try{
+  const result=await runWorker(lock.id);
+  await release(lock.id);
+  return json({ok:true,completed:true,worker_id:lock.id,result});
+ }catch(e){
+  console.error("market worker",e);
+  await release(lock.id);
+  return json({ok:false,error:String((e as Error)?.message||e)},500);
+ }
 });
