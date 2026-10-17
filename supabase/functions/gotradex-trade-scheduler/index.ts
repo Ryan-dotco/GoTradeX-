@@ -1,6 +1,6 @@
 import { withSupabase } from "npm:@supabase/server@1";
 
-const DERIV_APP_ID = Deno.env.get("DERIV_LEGACY_APP_ID") || "1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
+const DERIV_APP_ID = "1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
 
  
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://glffecggusetzklmyukv.supabase.co";
