@@ -76,7 +76,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <input type="file" id="cam" accept="image/*" capture="environment" hidden><input type="file" id="upl" accept="image/*" hidden>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
       <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for verified OTC market data. No signal is available yet.</div>
-      <div class="actRow"><div class="act" onclick="copy()">↗ Share</div><div class="act" onclick="copy()">⎙ Copy</div></div>
+      <div class="actRow"><div class="act" onclick="shareAnalysis()">↗ Share</div><div class="act" onclick="copyAnalysis()">⎙ Copy</div></div>
     </div>
   </div>
 
@@ -189,7 +189,9 @@ document.getElementById('sigList').innerHTML=sig.map(s=>`<div class="item"><div 
 // TRADE HISTORY
 const trades=[{pair:'SOL/USDT',type:'LONG',dir:'long',exit:'68.8301',entry:'68.1100',lev:'20x',pct:'+20.92%',date:'Jun 13 5:42 PM',pnl:'+$15.82'},{pair:'SOL/USDT',type:'LONG',dir:'long',exit:'68.6600',entry:'68.1100',lev:'20x',pct:'+16.02%',date:'Jun 13 5:41 PM',pnl:'+$16.91'},{pair:'ETH/USDT',type:'SHORT',dir:'short',exit:'1674.13',entry:'1675.14',lev:'10x',pct:'+0.6%',date:'Jun 13 2:04 PM',pnl:'+$1.19'}];
 document.getElementById('tradeList').innerHTML=trades.map(t=>`<div class="item" style="border-left:3px solid ${t.dir==='long'?'#00e676':'#ff3d57'}"><div style="flex:1"><div style="font-weight:800;font-size:13px">${t.pair}</div><div style="color:#5a6a85;font-size:11px">Exit $${t.exit} Entry $${t.entry} ${t.lev} <span style="color:#00e676">${t.pct}</span><br>${t.date}</div></div><div style="color:#00e676;font-weight:800">${t.pnl}</div></div>`).join('');
-function copy(){const text=document.querySelector('.details')?.innerText||'No analysis available';if(navigator.share){navigator.share({title:'GoTradeX OTC Analysis',text}).catch(()=>{})}else if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(()=>alert('Analysis copied')).catch(()=>alert('Copy unavailable'))}else alert(text)}
+function getAnalysisText(){return document.querySelector('.details')?.innerText||'No analysis available'}
+function shareAnalysis(){const text=getAnalysisText();if(navigator.share)navigator.share({title:'GoTradeX OTC Analysis',text}).catch(()=>{});else copyAnalysis()}
+function copyAnalysis(){const text=getAnalysisText();if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>alert('Analysis copied')).catch(()=>alert('Copy unavailable'));else alert(text)}
 </script>
 </body>
 </html>
