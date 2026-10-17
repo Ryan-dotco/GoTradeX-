@@ -75,7 +75,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <div class="up"><div class="upBtn" onclick="cam.click()">📷 Camera</div><div class="upBtn" onclick="upl.click()">☁️ Upload</div></div>
       <input type="file" id="cam" accept="image/*" capture="environment" hidden><input type="file" id="upl" accept="image/*" hidden>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
-      <div class="result" id="res"><div class="buy"><div><big>▲</big><br>BUY</div></div><div class="details"><div><i>Asset:</i> <b>EUR/USD</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">1.1005</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>Strong</b></div></div></div>
+      <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for verified OTC market data. No signal is available yet.</div>
       <div class="actRow"><div class="act" onclick="copy()">↗ Share</div><div class="act" onclick="copy()">⎙ Copy</div></div>
     </div>
   </div>
@@ -137,17 +137,18 @@ const pairLabel=document.querySelector('.pair-row div');
 const resultSide=document.querySelector('.buy');
 const signalButton=document.getElementById('signalBtn');
 let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for verified OTC data';
+function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
 function getAdapter(){try{return parent.GoTradeXOTCAdapter||window.GoTradeXOTCAdapter||null}catch(_){return window.GoTradeXOTCAdapter||null}}
 function getSelectedPair(){try{let p=String(localStorage.getItem('gotradex_asset_display')||'').trim();if(!p)p=String(localStorage.getItem('gtx_pair')||'').trim();if(!/ OTC$/i.test(p))p+=' OTC';return p}catch(_){return 'EUR/USD OTC'}}
 function fmtPrice(n){return Number.isFinite(n)?n.toFixed(n<10?5:2):'—'}
 async function loadVerifiedData(){
  const pair=getSelectedPair(), adapter=getAdapter();
- livePair=pair; dataStatus='Connecting to verified OTC feed';
+ livePair=pair; dataStatus='Connecting to verified OTC feed';showDataStatus();
  pairLabel.textContent=pair;
  document.querySelector('.pair-row div:last-child').textContent='OTC · verifying feed';
  document.getElementById('entry').textContent='—';
  resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';
- if(!adapter){dataStatus='OTC adapter unavailable in this session';signalButton.title=dataStatus;return}
+ if(!adapter){dataStatus='OTC adapter unavailable in this session';signalButton.title=dataStatus;showDataStatus();return}
  try{
   const hist=await adapter.history(pair,liveTf);
   if(!Array.isArray(hist)||hist.length<5)throw new Error('Not enough verified OTC candles for analysis');
@@ -157,8 +158,8 @@ async function loadVerifiedData(){
   try{const q=await adapter.price(pair);livePrice=q.price}catch(_){livePrice=data[data.length-1].close}
   document.getElementById('entry').textContent=fmtPrice(livePrice);
   document.querySelector('.pair-row div:last-child').textContent='OTC · verified data';
-  dataStatus='Verified OTC candles loaded'; signalButton.title=dataStatus;
- }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'Verified OTC data unavailable';signalButton.title=dataStatus;resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
+  dataStatus='Verified OTC candles loaded'; signalButton.title=dataStatus;showDataStatus();
+ }catch(e){data=[];candle.setData([]);livePrice=null;dataStatus=e?.message||'Verified OTC data unavailable';signalButton.title=dataStatus;showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';}
 }
 window.addEventListener('storage',e=>{if(e.key==='gotradex_asset_display'||e.key==='gtx_pair')loadVerifiedData()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadVerifiedData()});
@@ -177,8 +178,8 @@ signalButton.onclick=async function(){
    resultSide.innerHTML='<div><big>'+(side==='BUY'?'▲':side==='SELL'?'▼':'—')+'</big><br>'+side+'</div>';
    document.getElementById('entry').textContent=fmtPrice(livePrice);
    const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>Verified OTC</b></div>';
-   if(side==='WAIT')dataStatus='No clear direction in verified candles; WAIT';
-  }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';}
+   if(side==='WAIT')dataStatus='No clear direction in verified candles; WAIT';showDataStatus();
+  }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';showDataStatus();}
   btn.disabled=false;btn.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span>';btn.title=dataStatus;
  },1000);
 };
