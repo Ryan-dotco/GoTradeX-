@@ -8,6 +8,7 @@ const SERVICE_ROLE = (() => {
   try { return JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}").default || ""; } catch { return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""; }
 })();
 const TWELVE_DATA_API_KEY = Deno.env.get("TWELVE_DATA_API_KEY") || "";
+const DERIV_APP_ID = Deno.env.get("DERIV_APP_ID") || "";
 
 const DERIV_FX:Record<string,string>={
  "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
@@ -41,11 +42,12 @@ async function db(path:string,init:RequestInit={}){
 function twelveSymbol(asset:string){return asset.replace(/\s+/g," ").trim();}
 
 async function derivPrice(symbol:string){
+  if(!DERIV_APP_ID) throw new Error("DERIV_APP_ID is not configured on the server.");
   return await new Promise<{price:number,time:string}>((resolve,reject)=>{
     let ws:WebSocket|null=null,done=false;
     const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
     const timer=setTimeout(()=>finish(reject,new Error("Deriv price request timed out.")),8000);
-    try{ws=new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public")}catch(e){finish(reject,e);return}
+    try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID))}catch(e){finish(reject,e);return}
     ws.onopen=()=>{try{ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}};
     ws.onerror=()=>finish(reject,new Error("Deriv price connection failed."));
     ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv price connection closed before a verified tick was received."))};
