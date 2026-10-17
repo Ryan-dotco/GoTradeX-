@@ -163,7 +163,7 @@ export default {
     }
 
     for (const trade of trades) {
-      const map = mapping(String(trade.asset || ""));
+      const map = mapping(String(trade.asset || ""),String(trade.market_mode || "LIVE"));
       if (!map) continue;
 
       const provider = String(trade.provider || map.provider);
