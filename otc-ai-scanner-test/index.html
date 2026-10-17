@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GoTradeX - All in One</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Inter,Segoe UI,sans-serif}
@@ -138,8 +139,38 @@ const resultSide=document.querySelector('.buy');
 const signalButton=document.getElementById('signalBtn');
 let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for verified OTC data';
 function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
-function getAdapter(){try{return parent.GoTradeXOTCAdapter||window.GoTradeXOTCAdapter||null}catch(_){return window.GoTradeXOTCAdapter||null}}
-function getSelectedPair(){try{let p=String(localStorage.getItem('gotradex_asset_display')||'').trim();if(!p)p=String(localStorage.getItem('gtx_pair')||'').trim();if(!/ OTC$/i.test(p))p+=' OTC';return p}catch(_){return 'EUR/USD OTC'}}
+function getAdapter(){
+ try{if(parent.GoTradeXOTCAdapter)return parent.GoTradeXOTCAdapter}catch(_){}
+ if(window.GoTradeXOTCAdapter)return window.GoTradeXOTCAdapter;
+ // Standalone test link: use the same read-only OTC tables as the main-app adapter.
+ // This is a fallback for testing the analyzer page by itself, not a second data source.
+ try{
+  if(!window.supabase?.createClient)return null;
+  const sb=window.__GoTradeXAnalyzerReadClient||(window.__GoTradeXAnalyzerReadClient=window.supabase.createClient(
+   "https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",
+   {auth:{persistSession:true,autoRefreshToken:true}}
+  ));
+  const supported=new Set(["EUR/USD OTC","GBP/USD OTC","USD/JPY OTC","AUD/USD OTC","USD/CAD OTC","USD/CHF OTC","NZD/USD OTC"]);
+  const tfMap={60:"1m",300:"5m",900:"15m",1800:"30m",3600:"1h",14400:"4h",86400:"1d",2592000:"1month"};
+  return {
+   async history(pair,sec){
+    if(!supported.has(pair))throw new Error("No verified OTC feed is configured for "+pair+".");
+    const tf=tfMap[Number(sec)];if(!tf)throw new Error("Unsupported OTC timeframe.");
+    const {data,error}=await sb.from("otc_candles").select("candle_time,open,high,low,close,volume").eq("pair",pair).eq("timeframe",tf).order("candle_time",{ascending:true}).limit(500);
+    if(error)throw new Error("OTC candle service unavailable: "+error.message);
+    return (data||[]).map(x=>({t:Date.parse(x.candle_time),o:Number(x.open),h:Number(x.high),l:Number(x.low),c:Number(x.close),v:Number(x.volume||0)})).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
+   },
+   async price(pair){
+    if(!supported.has(pair))throw new Error("No verified OTC price feed is configured for "+pair+".");
+    const {data,error}=await sb.from("otc_prices").select("price,updated_at").eq("pair",pair).maybeSingle();
+    if(error)throw new Error("OTC price service unavailable: "+error.message);
+    if(!data||!Number.isFinite(Number(data.price)))throw new Error("No OTC price is available for "+pair+".");
+    return {price:Number(data.price),time:Date.parse(data.updated_at)};
+   }
+  };
+ }catch(e){return null}
+}
+function getSelectedPair(){try{let p=String(localStorage.getItem('gotradex_asset_display')||'').trim();if(!p)p=String(localStorage.getItem('gtx_pair')||'').trim();if(!p)p='EUR/USD';if(!/ OTC$/i.test(p))p+=' OTC';return p}catch(_){return 'EUR/USD OTC'}}
 function fmtPrice(n){return Number.isFinite(n)?n.toFixed(n<10?5:2):'—'}
 async function loadVerifiedData(){
  const pair=getSelectedPair(), adapter=getAdapter();
@@ -155,7 +186,9 @@ async function loadVerifiedData(){
   data=hist.map(x=>({time:Math.floor(x.t/1000),open:x.o,high:x.h,low:x.l,close:x.c})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
   if(data.length<5)throw new Error('Verified candle data is incomplete');
   candle.setData(data);chart.timeScale().fitContent();
-  try{const q=await adapter.price(pair);livePrice=q.price}catch(_){livePrice=data[data.length-1].close}
+  const q=await adapter.price(pair);
+  if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000||q.time>Date.now()+60*1000)throw new Error('OTC price is stale or has no valid update time; waiting for a fresh server price.');
+  livePrice=q.price;
   document.getElementById('entry').textContent=fmtPrice(livePrice);
   document.querySelector('.pair-row div:last-child').textContent='OTC · verified data';
   dataStatus='Verified OTC candles loaded'; signalButton.title=dataStatus;showDataStatus();
