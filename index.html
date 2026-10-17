@@ -1128,7 +1128,7 @@ syncGtxKenglyVisibility();
       }
       return;
     }
-    if(adminPage && (b.matches("[id$='Back'],[id$='Close'],#adminBack,#adminClose") || /^(back|close|back to admin portal)$/i.test((b.textContent||"").trim()))){
+    if((adminPage || b.closest("#adminDrawer")) && (b.matches("[id$='Back'],[id$='Close'],#adminBack,#adminClose") || /^(back|close|back to admin portal)$/i.test((b.textContent||"").trim()))){
       e.preventDefault();e.stopImmediatePropagation();
       if(adminSection){
         document.querySelectorAll(".adminSection").forEach(s=>{s.classList.remove("open");s.style.display="none"});
@@ -1137,7 +1137,7 @@ syncGtxKenglyVisibility();
         document.getElementById("adminDrawer")?.classList.remove("open");
       } else if(b.id==="adminMenuBtn") {
         document.getElementById("adminDrawer")?.classList.add("open");
-      } else if(b.id==="adminClose") {
+      } else if(b.id==="adminClose" || b.closest("#adminDrawer")) {
         document.getElementById("adminDrawer")?.classList.remove("open");
       } else {
         closeToTrading();
