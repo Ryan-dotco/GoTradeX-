@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+const DERIV_APP_ID = Deno.env.get("DERIV_LEGACY_APP_ID") || "1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const PUBLISHABLE = (() => {
   try { return JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "{}").default || ""; } catch { return Deno.env.get("SUPABASE_ANON_KEY") || ""; }
@@ -46,7 +48,7 @@ async function derivPrice(symbol:string){
     let ws:WebSocket|null=null,done=false;
     const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
     const timer=setTimeout(()=>finish(reject,new Error("Deriv price request timed out.")),8000);
-    try{ws=new WebSocket("wss://ws.binaryws.com/websockets/v3")}catch(e){finish(reject,e);return}
+    try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID))}catch(e){finish(reject,e);return}
     ws.onopen=()=>{try{ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}};
     ws.onerror=()=>finish(reject,new Error("Deriv price connection failed."));
     ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv price connection closed before a verified tick was received."))};
