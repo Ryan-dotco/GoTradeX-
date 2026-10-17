@@ -41,13 +41,19 @@ async function db(path:string,init:RequestInit={}){
 }
 function twelveSymbol(asset:string){return asset.replace(/\s+/g," ").trim();}
 
+async function getDerivAppId(){
+  if(DERIV_APP_ID)return DERIV_APP_ID;
+  const rows=await db("gotradex_public_settings?key=eq.deriv_app_id&select=value");
+  return String(rows?.[0]?.value||"").trim();
+}
 async function derivPrice(symbol:string){
-  if(!DERIV_APP_ID) throw new Error("DERIV_APP_ID is not configured on the server.");
+  const appId=await getDerivAppId();
+  if(!appId) throw new Error("DERIV_APP_ID is not configured in server settings.");
   return await new Promise<{price:number,time:string}>((resolve,reject)=>{
     let ws:WebSocket|null=null,done=false;
     const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
     const timer=setTimeout(()=>finish(reject,new Error("Deriv price request timed out.")),8000);
-    try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID))}catch(e){finish(reject,e);return}
+    try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId))}catch(e){finish(reject,e);return}
     ws.onopen=()=>{try{ws?.send(JSON.stringify({ticks_history:symbol,end:"latest",count:1,style:"ticks",req_id:1}))}catch(e){finish(reject,e)}};
     ws.onerror=()=>finish(reject,new Error("Deriv price connection failed."));
     ws.onclose=()=>{if(!done)finish(reject,new Error("Deriv price connection closed before a verified tick was received."))};
