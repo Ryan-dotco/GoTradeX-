@@ -19,6 +19,7 @@ jobs:
         run: |
           deno check supabase/functions/gotradex-trade-engine/index.ts
           deno check supabase/functions/gotradex-trade-scheduler/index.ts
+          deno check supabase/functions/gotradex-market-stream-worker/index.ts
       - name: Syntax check active chart and feed scripts
         run: |
           node --check live-chart.js
@@ -34,6 +35,7 @@ jobs:
           const pro = fs.readFileSync('gotradex-pro-engine.js', 'utf8');
           const tradeEngine = fs.readFileSync('supabase/functions/gotradex-trade-engine/index.ts', 'utf8');
           const tradeScheduler = fs.readFileSync('supabase/functions/gotradex-trade-scheduler/index.ts', 'utf8');
+          const marketWorker = fs.readFileSync('supabase/functions/gotradex-market-stream-worker/index.ts', 'utf8');
           const checks = [
             [(index.match(/<script\b[^>]*\bsrc=["'][^"']*live-chart\.js(?:\?[^"']*)?["'][^>]*>/gi) || []).length === 1, 'exactly one active live-chart.js script reference (cache version independent)'],
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
@@ -45,7 +47,8 @@ jobs:
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
             [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection'],
             [tradeEngine.includes('const DERIV_FX:Record<string,string>') && tradeEngine.includes('if(provider==="DERIV") return await derivPrice(providerSymbol)') && tradeEngine.includes('if(DERIV_FX[a]) return {provider:"DERIV",symbol:DERIV_FX[a]}'), 'server trade engine routes verified forex prices to Deriv'],
-            [tradeScheduler.includes('if (fx[a]) return { provider:"DERIV", symbol:fx[a] }') && tradeScheduler.includes('if (provider === "DERIV") return await derivPrice(symbol)'), 'server scheduler settles verified forex trades using Deriv']
+            [tradeScheduler.includes('if (fx[a]) return { provider:"DERIV", symbol:fx[a] }') && tradeScheduler.includes('if (provider === "DERIV") return await derivPrice(symbol)'), 'server scheduler settles verified forex trades using Deriv'],
+            [marketWorker.includes('const DERIV_FX:Record<string,string>') && marketWorker.includes('provider:"DERIV",provider_symbol:derivSymbol') && marketWorker.includes('function connectDeriv(rows:any[])') && marketWorker.includes('connectDeriv(active.deriv)'), 'market stream worker routes verified forex subscriptions through Deriv ticks']
           ];
           for (const [ok, name] of checks) {
             if (!ok) throw new Error('FAILED: ' + name);
