@@ -70,11 +70,11 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <div class="ctrl-row"><div class="ctrl">◫ 15m ⌄</div><div class="ctrl">Candles · Volume ⌄</div></div>
     </div>
     <div id="chart"></div>
-    <div class="time"><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span><span>14:00</span></div>
     <div class="analyzer">
       <div style="display:flex;gap:8px;align-items:center;font-weight:700"><div class="ai">AI</div>OTC AI Analyzer</div>
-      <div class="up"><div class="upBtn" onclick="cam.click()">📷 Camera</div><div class="upBtn" onclick="upl.click()">☁️ Upload</div></div>
+      <div class="up"><div class="upBtn" onclick="document.getElementById('cam').click()">📷 Camera</div><div class="upBtn" onclick="document.getElementById('upl').click()">☁️ Upload</div></div>
       <input type="file" id="cam" accept="image/*" capture="environment" hidden><input type="file" id="upl" accept="image/*" hidden>
+      <div id="uploadedChartPreview" hidden style="margin-top:10px;padding:8px;border:1px solid #1b345e;border-radius:10px"><img id="uploadedChartImage" alt="Selected chart preview" style="display:block;max-width:100%;max-height:180px;margin:auto;border-radius:6px"><div id="uploadedChartNote" style="color:#8da7cc;font-size:10px;margin-top:6px">Preview only. AI vision analysis is disabled.</div></div>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
       <div class="result" id="res"><div class="buy"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>—</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>—</b></div></div></div><div id="dataStatus" style="margin-top:8px;color:#8da7cc;font-size:11px" role="status">Waiting for OTC server-engine data. No signal is available yet.</div><div id="analysisMethodNote" style="margin-top:5px;color:#6b86b3;font-size:10px">Signal method: rule-based candle trend check. The separate AI vision endpoint is currently disabled; this is not AI inference.</div>
       <div class="actRow"><div class="act" onclick="shareAnalysis()">↗ Share</div><div class="act" onclick="copyAnalysis()">⎙ Copy</div><div class="act" onclick="analyzeAgain()">↻ Analyze Again</div></div>
@@ -143,6 +143,16 @@ candle.setData([]); chart.timeScale().fitContent();
 const pairLabel=document.querySelector('.pair-row div');
 const resultSide=document.querySelector('.buy');
 const signalButton=document.getElementById('signalBtn');
+function handleChartImage(file){
+ if(!file)return;
+ if(!file.type||!file.type.startsWith('image/')){dataStatus='Choose a valid chart image.';showDataStatus();return}
+ const reader=new FileReader();
+ reader.onload=()=>{document.getElementById('uploadedChartImage').src=String(reader.result||'');document.getElementById('uploadedChartPreview').hidden=false;document.getElementById('uploadedChartNote').textContent='Image preview loaded. The AI vision endpoint is disabled, so this image cannot be analyzed yet.';dataStatus='Image preview ready; AI vision analysis is unavailable.';showDataStatus()};
+ reader.onerror=()=>{dataStatus='Could not read the selected image.';showDataStatus()};
+ reader.readAsDataURL(file);
+}
+document.getElementById('cam').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
+document.getElementById('upl').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
 let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for OTC server-engine data';
 function showDataStatus(){const el=document.getElementById('dataStatus');if(el)el.textContent=dataStatus;}
 async function loadLatestOtcHistory(pair,sec){
