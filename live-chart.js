@@ -304,13 +304,13 @@
         state.connected=true;
         status("LIVE • BYBIT WEBSOCKET",true);
         notice("",false);
-        ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol]}));
+        ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol,"tickers."+state.symbol]}));
       };
       ws.onmessage=e=>{
         if(id!==state.connectionId)return;
         try{
           const j=JSON.parse(e.data);
-          if(Array.isArray(j.data))j.data.forEach(t=>addTick(Number(t.T||Date.now()),Number(t.p),Number(t.v)));
+          if(j.topic==="publicTrade."+state.symbol && Array.isArray(j.data)){j.data.forEach(t=>addTick(Number(t.T||j.ts||Date.now()),Number(t.p),Number(t.v)));}else if(j.topic==="tickers."+state.symbol && j.data && !Array.isArray(j.data)){const p=Number(j.data.lastPrice);if(Number.isFinite(p)&&p>0)addTick(Number(j.ts||Date.now()),p,0);}
         }catch(_){}
       };
       ws.onerror=()=>{
@@ -594,7 +594,7 @@
       upColor:"#22c55e",downColor:"#ef4444",
       borderUpColor:"#22c55e",borderDownColor:"#ef4444",
       wickUpColor:"#a7f3c2",wickDownColor:"#fca5a5",
-      priceLineVisible:false,lastValueVisible:false,
+      priceLineVisible:true,lastValueVisible:true,priceLineColor:"#f5c542",priceLineWidth:1,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
     // Alternate chart styles are created only when selected from the single chart-style menu.
