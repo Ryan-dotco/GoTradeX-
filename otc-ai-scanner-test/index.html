@@ -176,6 +176,7 @@ function timeframeLabel(sec){return ({60:'1m',300:'5m',900:'15m',1800:'30m',3600
 function timeframeName(sec){return ({60:'1 Minute',300:'5 Minutes',900:'15 Minutes',1800:'30 Minutes',3600:'1 Hour',14400:'4 Hours',86400:'1 Day'})[Number(sec)]||'15 Minutes'}
 function timeframeSeconds(name){return ({'1 Minute':60,'3 Minutes':180,'5 Minutes':300,'15 Minutes':900,'30 Minutes':1800,'1 Hour':3600,'4 Hours':14400,'1 Day':86400})[String(name)]||900}
 function syncControlsFromState(state={}){
+ const previousPair=livePair,previousTf=liveTf;
  const mode=String(state.marketMode||getMarketMode()).toUpperCase()==='OTC'?'OTC':'LIVE';
  let asset=String(state.asset||getAssetBase()).replace(/\s+OTC$/i,'').trim()||'EUR/USD';
  if(mode==='OTC'&&!otcPairs.includes(asset))asset='EUR/USD';
@@ -187,6 +188,7 @@ function syncControlsFromState(state={}){
  const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);
  livePair=mode==='OTC'?asset+' OTC':asset;
  if(pairLabel)pairLabel.textContent=asset;
+ if(previousPair!==livePair||previousTf!==liveTf){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';const detail=document.querySelector('.details');if(detail)detail.innerHTML='<div><i>Asset:</i> <b>'+asset+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b id="entry">—</b></div><div><i>Expiration:</i> <b>'+expiry+'</b></div><div><i>Momentum:</i> <b>—</b></div>';}
  const source=document.getElementById('marketSourceLabel');if(source)source.textContent=mode==='OTC'?'OTC · synthetic server engine':'LIVE · broker feed required';
 }
 function sendAnalyzerSync(action){
@@ -293,8 +295,8 @@ function loadLiveFromMainChart(){
   if(rows.length<5)return false;
   const lastTime=rows[rows.length-1].time,age=(Date.now()/1000)-lastTime;
   if(age>Math.max(600,liveTf*2))return false;
-  data=rows;livePair=selected;livePrice=Number(ps.price);liveProvider=provider;
-  candle.setData(data);chart.timeScale().fitContent();pairLabel.textContent=selected;
+  const firstLoad=livePair!==selected||!data.length;data=rows;livePair=selected;livePrice=Number(ps.price);liveProvider=provider;
+  candle.setData(data);if(firstLoad)chart.timeScale().fitContent();pairLabel.textContent=selected;
   document.getElementById('entry').textContent=fmtPrice(livePrice);
   const source=document.getElementById('marketSourceLabel');if(source)source.textContent='LIVE · '+provider;
   dataStatus='Using the main GoTradeX '+provider+' chart feed for '+selected+'.';showDataStatus();return true;
