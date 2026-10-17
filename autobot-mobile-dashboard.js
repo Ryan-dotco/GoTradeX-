@@ -57,7 +57,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     const overlay=document.getElementById("gtxOtcAiOverlay");
     const menu=document.getElementById("menuDrawer");
     if(menu)menu.classList.remove("open");
-    if(overlay){overlay.style.display="flex";document.body.style.overflow="hidden";}
+    if(overlay){overlay.style.display="flex";document.body.style.overflow="hidden";const frame=overlay.querySelector("iframe");if(frame&&!frame.dataset.gtxSyncBound){frame.dataset.gtxSyncBound="1";frame.addEventListener("load",sendMainState);}sendMainState();}
   }
   document.addEventListener("click",function(e){
     const b=e.target.closest('.menuItem[data-section="OTC AI Scanner Pro"]');
@@ -66,6 +66,37 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     if(e.stopImmediatePropagation)e.stopImmediatePropagation();
     openOtcAiPortal();
   },true);
+
+  function analyzerFrame(){return document.querySelector("#gtxOtcAiOverlay iframe");}
+  function currentMainState(){
+    const read=(k,f)=>{try{return localStorage.getItem(k)||f}catch(_){return f}};
+    return {type:"GTX_MAIN_STATE",marketMode:read("gotradex_market_mode","LIVE").toUpperCase()==="OTC"?"OTC":"LIVE",asset:read("gotradex_asset_display","BTC/USD").replace(/\\s+OTC$/i,""),assetType:read("gotradex_asset_type","forex"),accountMode:read("gotradex_account_mode","DEMO").toUpperCase()==="REAL"?"REAL":"DEMO",expiration:read("gotradex_trade_expiration","5 Minutes")};
+  }
+  function sendMainState(){
+    const frame=analyzerFrame();if(!frame||!frame.contentWindow)return;
+    try{frame.contentWindow.postMessage(currentMainState(),window.location.origin)}catch(_){}
+  }
+  window.addEventListener("message",function(event){
+    if(event.origin!==window.location.origin)return;
+    const frame=analyzerFrame();if(!frame||event.source!==frame.contentWindow)return;
+    const msg=event.data;if(!msg||msg.type!=="GTX_ANALYZER_SYNC")return;
+    const allowedExpiry=["5 Seconds","1 Minute","3 Minutes","5 Minutes","15 Minutes","30 Minutes","1 Hour","4 Hours","1 Day"];
+    const mode=String(msg.marketMode||"").toUpperCase()==="OTC"?"OTC":"LIVE";
+    const asset=String(msg.asset||"").replace(/\\s+OTC$/i,"").trim();
+    const type=String(msg.assetType||"forex").toLowerCase();
+    if(typeof window.gtxSetMarketMode==="function")window.gtxSetMarketMode(mode);
+    if(asset&&typeof window.gtxSetBottomAsset==="function")window.gtxSetBottomAsset(asset,type);
+    if(allowedExpiry.includes(msg.expiration)&&window.GoTradeXTimeframeController&&typeof window.GoTradeXTimeframeController.set==="function")window.GoTradeXTimeframeController.set(msg.expiration,"analyzer");
+    const account=String(msg.accountMode||"").toUpperCase()==="REAL"?"REAL":"DEMO";
+    try{localStorage.setItem("gotradex_account_mode",account)}catch(_){}
+    if(typeof window.setAccountMode==="function")try{window.setAccountMode(account)}catch(_){}
+    if(msg.action==="BUY"||msg.action==="SELL"){
+      const button=document.getElementById(msg.action.toLowerCase());
+      if(button)button.click();
+    }
+    sendMainState();
+  });
+  window.addEventListener("gotradex:asset-changed",sendMainState);
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installOtcAiPortal,{once:true});
   else installOtcAiPortal();
 })();
