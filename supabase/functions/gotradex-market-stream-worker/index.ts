@@ -54,7 +54,7 @@ async function restPrice(r:any){
 function connectDeriv(rows:any[]){
  return new Promise<number>(resolve=>{
   if(!rows.length)return resolve(0);
-  const ws=new WebSocket("wss://ws.binaryws.com/websockets/v3");let count=0,done=false,opened=false,sawTick=false;
+  const ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(Deno.env.get("DERIV_APP_ID")||"1089"));let count=0,done=false,opened=false,sawTick=false;
   const finish=()=>{if(done)return;done=true;clearTimeout(diagnosticTimer);try{ws.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
   const diagnosticTimer=setTimeout(()=>{if(!sawTick){console.error("DERIV_NO_TICKS",JSON.stringify(rows.map((r:any)=>({symbol:r.symbol,provider_symbol:r.provider_symbol,opened:opened}))));Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"Deriv WebSocket returned no ticks; verify symbol and provider availability.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{})}},10000);
@@ -78,7 +78,7 @@ function connectDeriv(rows:any[]){
     }
    }catch(_){}
   };
-  ws.onerror=(e)=>{console.error("DERIV_WS_ERROR",String((e as any)?.message||"WebSocket error"));finish()};ws.onclose=()=>{clearTimeout(timer);if(!sawTick)console.error("DERIV_WS_CLOSED_BEFORE_TICK",rows.length);finish()};
+  ws.onerror=(e)=>{console.error("DERIV_WS_ERROR",String((e as any)?.message||"WebSocket error"));Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"Deriv WebSocket connection failed. Verify the app ID and provider availability.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{});finish()};ws.onclose=()=>{clearTimeout(timer);if(!sawTick)console.error("DERIV_WS_CLOSED_BEFORE_TICK",rows.length);finish()};
  });
 }
 function connectBybit(rows:any[]){
