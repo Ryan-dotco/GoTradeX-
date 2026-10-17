@@ -175,7 +175,8 @@ function getTradeExpiry(){try{const x=localStorage.getItem('gotradex_trade_expir
 function timeframeLabel(sec){return ({60:'1m',300:'5m',900:'15m',1800:'30m',3600:'1h',14400:'4h',86400:'1d'})[Number(sec)]||'15m'}
 function syncControlsFromState(state={}){
  const mode=String(state.marketMode||getMarketMode()).toUpperCase()==='OTC'?'OTC':'LIVE';
- const asset=String(state.asset||getAssetBase()).replace(/\\s+OTC$/i,'').trim()||'EUR/USD';
+ let asset=String(state.asset||getAssetBase()).replace(/\\s+OTC$/i,'').trim()||'EUR/USD';
+ if(mode==='OTC'&&!otcPairs.includes(asset))asset='EUR/USD';
  const account=String(state.accountMode||getAccountMode()).toUpperCase()==='REAL'?'REAL':'DEMO';
  const expiry=String(state.expiration||getTradeExpiry());
  const mm=document.getElementById('marketMode'),as=document.getElementById('assetSelect'),am=document.getElementById('accountMode'),ex=document.getElementById('tradeExpiry');
@@ -330,7 +331,7 @@ signalButton.onclick=async function(){
    document.getElementById('entry').textContent=fmtPrice(livePrice);
    const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>'+(document.getElementById('tradeExpiry')?.value||getTradeExpiry())+'</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>OTC server engine (synthetic)</b></div>';
    if(side==='WAIT')dataStatus='No clear direction in OTC candles; WAIT';showDataStatus();
-   const history=readSignalHistory();history.unshift({pair:livePair,side,tf:'15m',time:Date.now(),entry:fmtPrice(livePrice),momentum});localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(history.slice(0,100)));renderSignalHistory();
+   const history=readSignalHistory();history.unshift({pair:livePair,side,tf:timeframeLabel(liveTf),expiration:document.getElementById('tradeExpiry')?.value||getTradeExpiry(),time:Date.now(),entry:fmtPrice(livePrice),momentum});localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(history.slice(0,100)));renderSignalHistory();
   }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';showDataStatus();}
   btn.disabled=false;btn.innerHTML='✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span>';btn.title=dataStatus;
  },1000);
