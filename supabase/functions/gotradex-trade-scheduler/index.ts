@@ -1,11 +1,40 @@
 import { withSupabase } from "npm:@supabase/server@1";
 
-const DERIV_APP_ID = "1089"; // Public read-only test ID; replace with a numeric legacy app ID when registered
+const DERIV_APP_ID = "1089"; // Public read-only test ID while legacy app registration is resolved
 
- 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://glffecggusetzklmyukv.supabase.co";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const json = (x: unknown, status = 200) =>
+  new Response(JSON.stringify(x), {
+    status,
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
+
+const mapping = (asset: string) => {
+  const a = asset.toUpperCase();
+  const crypto: Record<string,string> = {
+    "BTC/USD":"BTCUSDT","ETH/USD":"ETHUSDT","XRP/USD":"XRPUSDT",
+    "SOL/USD":"SOLUSDT","ADA/USD":"ADAUSDT","DOGE/USD":"DOGEUSDT","LTC/USD":"LTCUSDT"
+  };
+  const fx: Record<string,string> = {
+    "EUR/USD":"frxEURUSD","GBP/USD":"frxGBPUSD","USD/JPY":"frxUSDJPY","AUD/USD":"frxAUDUSD",
+    "USD/CHF":"frxUSDCHF","USD/CAD":"frxUSDCAD","NZD/USD":"frxNZDUSD","EUR/GBP":"frxEURGBP",
+    "EUR/JPY":"frxEURJPY","GBP/JPY":"frxGBPJPY","EUR/CHF":"frxEURCHF","AUD/JPY":"frxAUDJPY",
+    "AUD/CAD":"frxAUDCAD","AUD/CHF":"frxAUDCHF","AUD/NZD":"frxAUDNZD","CAD/JPY":"frxCADJPY",
+    "CHF/JPY":"frxCHFJPY","EUR/AUD":"frxEURAUD","EUR/CAD":"frxEURCAD","EUR/NZD":"frxEURNZD",
+    "GBP/AUD":"frxGBPAUD","GBP/CAD":"frxGBPCAD","GBP/CHF":"frxGBPCHF","GBP/NZD":"frxGBPNZD",
+    "NZD/JPY":"frxNZDJPY","NZD/CAD":"frxNZDCAD","CAD/CHF":"frxCADCHF","USD/SGD":"frxUSDSGD",
+    "USD/HKD":"frxUSDHKD","USD/MXN":"frxUSDMXN","USD/ZAR":"frxUSDZAR","EUR/ZAR":"frxEURZAR",
+    "GBP/ZAR":"frxGBPZAR","USD/TRY":"frxUSDTRY","USD/NOK":"frxUSDNOK","USD/SEK":"frxUSDSEK",
+    "USD/DKK":"frxUSDDKK","EUR/NOK":"frxEURNOK","EUR/SEK":"frxEURSEK","EUR/PLN":"frxEURPLN",
+    "EUR/TRY":"frxEURTRY","GBP/SGD":"frxGBPSGD","USD/INR":"frxUSDINR","USD/BRL":"frxUSDBRL",
+    "USD/CNH":"frxUSDCNH","USD/IDR":"frxUSDIDR"
+  };
+  if (crypto[a]) return { provider:"BYBIT", symbol:crypto[a] };
+  if (fx[a]) return { provider:"DERIV", symbol:fx[a] };
+  return null;
+};
+
 async function derivPrice(symbol: string) {
+  if (!DERIV_APP_ID) throw new Error("DERIV_APP_ID is not configured on the server.");
   return await new Promise<{price:number,time:string}>((resolve,reject)=>{
     let ws: WebSocket | null = null, done = false;
     const finish=(fn:(v:any)=>void,value:any)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch{}fn(value)};
