@@ -95,10 +95,13 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
     if(msg.action==="BUY"||msg.action==="SELL"){
       const button=document.getElementById(msg.action.toLowerCase());
       if(account==="DEMO"){
-        if(button)button.click();
-        // DEMO uses the existing server-authoritative paper-trade runtime.
-        if(button&&window.GoTradeXServerRuntime&&typeof window.GoTradeXServerRuntime.open==="function"&&/showTradeFeedback/.test(String(button.onclick||""))){
+        // Open through the server-authoritative paper-trade runtime. Its server-sync
+        // event creates the chart trade marker only if the paper trade is accepted.
+        if(window.GoTradeXServerRuntime&&typeof window.GoTradeXServerRuntime.open==="function"){
           window.GoTradeXServerRuntime.open(msg.action);
+        }else{
+          const status=document.getElementById("status");
+          if(status)status.textContent="DEMO order not opened: server trade runtime is unavailable.";
         }
       }else{
         // Do not create a chart trade marker when no broker order was submitted.
