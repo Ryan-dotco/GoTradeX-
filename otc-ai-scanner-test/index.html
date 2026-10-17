@@ -72,7 +72,7 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
         <select id="assetSelect" class="ctrl" aria-label="Asset">
           <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option><option>AUD/NZD</option><option>EUR/GBP</option><option>EUR/JPY</option><option>GBP/JPY</option><option>USD/ZAR</option><option>BTC/USD</option><option>ETH/USD</option><option>XRP/USD</option><option>SOL/USD</option><option>XAU/USD</option><option>XAG/USD</option>
         </select>
-        <select id="chartTimeframe" class="ctrl" aria-label="Chart timeframe"><option value="60">1m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>
+        <select id="chartTimeframe" class="ctrl" aria-label="Chart timeframe"><option value="60">1m</option><option value="180">3m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="1800">30m</option><option value="3600">1h</option><option value="14400">4h</option><option value="86400">1d</option></select>
       </div>
       <div class="ctrl-row">
         <select id="accountMode" class="ctrl" aria-label="Account mode"><option value="DEMO">DEMO account</option><option value="REAL">REAL account</option></select>
@@ -287,7 +287,7 @@ function startLiveSocket(pair,adapter){
 function loadLiveFromMainChart(){
  try{
   const ps=parent.GoTradeXLiveChart&&parent.GoTradeXLiveChart.state;
-  const selected=getAssetBase(),provider=String(ps?.provider||'').toUpperCase(),chartAsset=String(ps?.assetLabel||'').replace(/\\s+OTC$/i,'').trim();
+  const selected=getAssetBase(),provider=String(ps?.provider||'').toUpperCase(),chartAsset=String(ps?.assetLabel||'').replace(/\s+OTC$/i,'').trim();
   if(!ps||ps.mode!=='LIVE'||!ps.connected||!['BYBIT','DERIV'].includes(provider)||chartAsset!==selected||!Array.isArray(ps.candles)||ps.candles.length<5||!Number.isFinite(Number(ps.price)))return false;
   const rows=ps.candles.map(x=>({time:Math.floor((Number(x.t)>1e12?Number(x.t):Number(x.t)*1000)/1000),open:Number(x.o),high:Number(x.h),low:Number(x.l),close:Number(x.c)})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
   if(rows.length<5)return false;
