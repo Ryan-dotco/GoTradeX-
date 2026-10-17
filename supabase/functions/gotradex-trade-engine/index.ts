@@ -179,5 +179,5 @@ Deno.serve(async(req)=>{
       return json({ok:true,settled,server_time:new Date().toISOString()});
     }
     return json({ok:false,error:"Unknown action."},400);
-  }catch(e){ console.error(e); return json({ok:false,error:e?.message||"Server trade runtime failed."},500); }
+  }catch(e){ console.error(e); const message=e instanceof Error ? e.message : "Server trade runtime failed."; return json({ok:false,error:message},500); }
 });
