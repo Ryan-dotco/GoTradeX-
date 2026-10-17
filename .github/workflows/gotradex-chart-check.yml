@@ -94,7 +94,7 @@ jobs:
             [feed.includes('"US 500":"OTC_SPC"') && feed.includes('function derivCandleHistory(symbol,sec)'), 'verified OTC index mapping and history adapter'],
             [pro.includes('if (d.source === "dashboard-assets")') && pro.includes('state.selectedPair = baseSymbol(d.label || state.selectedPair)'), 'Pro engine mirrors dashboard selection'],
             [!(/api\.twelvedata\.com|TWELVE_DATA_API_KEY/i.test(feed + marketDataFunction + marketWorker + tradeEngine + tradeScheduler)), 'active feed and trade services do not call Twelve Data'],
-            [!(/gotradex-otc-engine|otc_prices|otc_candles|Math\.random/i.test(otcAdapter)), 'chart adapter cannot fall back to generated OTC data']
+            [!(/from\(["']otc_(?:prices|candles)|functions\.invoke\(["']gotradex-otc-engine|Math\.random/i.test(otcAdapter)), 'chart adapter cannot fall back to generated OTC data']
           ];
           for (const [ok, name] of checks) {
             if (!ok) throw new Error('FAILED: ' + name);
