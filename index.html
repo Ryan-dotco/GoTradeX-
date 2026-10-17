@@ -1112,6 +1112,38 @@ syncGtxKenglyVisibility();
   }
   window.addEventListener("click",function(e){
     const b=e.target.closest&&e.target.closest("button,a");if(!b)return;
+    /* Admin portal buttons must be handled before the generic global Back/Close
+       router, which otherwise closes the entire app for section-level controls. */
+    const adminSection=b.closest(".adminSection");
+    const adminPage=b.closest("#adminPage");
+    const adminSectionButton=b.closest("[data-admin-section]");
+    if(adminSectionButton && (adminPage || b.closest("#adminDrawer"))){
+      e.preventDefault();e.stopImmediatePropagation();
+      if(typeof window.gtxAdminOpenSection==="function"){
+        window.gtxAdminOpenSection(adminSectionButton.dataset.adminSection);
+      } else {
+        const map={"Overview":"adminOverview","Users":"adminUsers","Wallet & Transactions":"adminTransactions","Trading & Markets":"adminMarkets","AutoBot":"adminAutoBot","Agent AI":"adminAgentAI","My Team / Referrals":"adminReferrals","Fees & Subscriptions":"adminFees","Security & Permissions":"adminSecurity","Activity / Audit Log":"adminAudit","Identity Verification":"adminIdentityVerification","System Settings":"adminSystemSettings","Control Trade":"adminExecutionControl","Trade Control":"adminExecutionControl","Robot Control":"adminExecutionControl"};
+        const target=document.getElementById(map[adminSectionButton.dataset.adminSection]);
+        if(target){document.querySelectorAll(".adminSection").forEach(s=>{s.classList.remove("open");s.style.display="none"});target.classList.add("open");target.style.display="block";document.getElementById("adminPage")?.classList.add("open");document.getElementById("adminPage").style.display="block";document.getElementById("adminDrawer")?.classList.remove("open");}
+      }
+      return;
+    }
+    if(adminPage && (b.matches("[id$='Back'],[id$='Close'],#adminBack,#adminClose") || /^(back|close|back to admin portal)$/i.test((b.textContent||"").trim()))){
+      e.preventDefault();e.stopImmediatePropagation();
+      if(adminSection){
+        document.querySelectorAll(".adminSection").forEach(s=>{s.classList.remove("open");s.style.display="none"});
+        const page=document.getElementById("adminPage");if(page){page.classList.add("open");page.style.display="block";}
+        const overview=document.getElementById("adminOverview");if(overview){overview.classList.add("open");overview.style.display="block";if(typeof window.loadAdminOverview==="function"){try{window.loadAdminOverview()}catch(_){}}}
+        document.getElementById("adminDrawer")?.classList.remove("open");
+      } else if(b.id==="adminMenuBtn") {
+        document.getElementById("adminDrawer")?.classList.add("open");
+      } else if(b.id==="adminClose") {
+        document.getElementById("adminDrawer")?.classList.remove("open");
+      } else {
+        closeToTrading();
+      }
+      return;
+    }
     const current=activeLayer();
     const label=(b.textContent||"").trim().toLowerCase();
     const isBack=/back/.test(b.id||"")||label==="back"||label.startsWith("← back");
