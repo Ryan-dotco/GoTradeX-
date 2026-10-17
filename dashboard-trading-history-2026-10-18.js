@@ -137,23 +137,19 @@
     overlay.setAttribute("aria-hidden", "true");
   }
   function install() {
-    var pairbar = document.querySelector(".pairbarLeft");
-    if (pairbar && !document.getElementById("gtxDashboardHistoryBtn")) {
-      var button = document.createElement("button");
-      button.type = "button";
-      button.id = "gtxDashboardHistoryBtn";
-      button.className = "asset gtxDashboardHistoryBtn";
-      button.textContent = "History";
-      button.setAttribute("aria-label", "Open trading history");
-      button.addEventListener("click", open);
-      pairbar.appendChild(button);
+    var menuButton = document.querySelector('[data-profile-action="trading-history"]');
+    if (menuButton && !menuButton.dataset.gtxHistoryBound) {
+      menuButton.dataset.gtxHistoryBound = "true";
+      menuButton.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        open();
+      });
     }
     if (document.getElementById("gtxDashboardTradingHistory")) return;
     var style = document.createElement("style");
     style.id = "gtxDashboardTradingHistoryStyle";
     style.textContent = [
-      ".pairbarLeft{display:flex;align-items:center;gap:6px;min-width:0}",
-      ".gtxDashboardHistoryBtn{min-height:34px;padding:7px 10px;font-size:11px;font-weight:800;white-space:nowrap;touch-action:manipulation}",
       ".gtxTradeHistoryOverlay{position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.72);display:none;align-items:stretch;justify-content:center;color:#fff}",
       ".gtxTradeHistoryOverlay.open{display:flex}",
       ".gtxTradeHistoryPanel{width:100%;max-width:720px;height:100%;overflow:auto;background:#061426;padding:0 14px calc(18px + env(safe-area-inset-bottom));}",
