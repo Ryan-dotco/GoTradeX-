@@ -68,7 +68,7 @@
       ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
-      ".gtxLWCMarketLabel{display:block!important;order:0!important;position:static!important;box-sizing:border-box!important;font:800 7px/1 system-ui!important;color:#8ff0ae!important;letter-spacing:.02em!important;white-space:nowrap!important;padding:0!important;margin:0 0 2px 0!important;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}"+".gtxLWCDateTime{border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important}"+".gtxLWCDateTime #gtxLWCDate{order:1!important}"+".gtxLWCDateTime #gtxLWCClock{order:2!important}"+
+      ".gtxLWCMarketLabel{display:block!important;order:0!important;position:static!important;box-sizing:border-box!important;font:800 7px/1 system-ui!important;color:#8ff0ae!important;letter-spacing:.04em!important;text-transform:uppercase!important;white-space:nowrap!important;padding:0!important;margin:0 0 2px 0!important;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}"+".gtxLWCDateTime{border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important}"+".gtxLWCDateTime #gtxLWCDate{order:1!important}"+".gtxLWCDateTime #gtxLWCClock{order:2!important}"+
       ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:relative}"+
       ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
@@ -105,7 +105,7 @@
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
-        '<div class="gtxLWCDateTime" aria-label="Live BTCUSDT, current date and time"><span class="gtxLWCMarketLabel">Live BTCUSDT</span><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
+        '<div class="gtxLWCDateTime" aria-label="Selected market, current date and time"><span class="gtxLWCMarketLabel" id="gtxLWCMarketLabel">LIVE BTC/USDT</span><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
         '<div class="gtxLWCControl">'+
           '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
           '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
@@ -168,8 +168,12 @@
     const e=document.getElementById("gtxLWCNotice");if(e){e.textContent=t;e.hidden=!show}
   }
   function assetText(){
+    const mode=String(state.mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
+    const pair=String(state.assetLabel||"BTC/USDT").trim().toUpperCase();
+    const market=document.getElementById("gtxLWCMarketLabel");
     const a=document.getElementById("gtxLWCAsset");
-    if(a)a.textContent=(state.mode==="LIVE"?"LIVE":"OTC")+" • "+(state.assetLabel||"");
+    if(market)market.textContent=mode+" "+pair;
+    if(a)a.textContent=mode+" • "+pair;
   }
   function updateTypeButtons(){
     const labels={candle:"Candles",heikin:"Heikin Ashi",line:"Line",mountain:"Mountain"};
