@@ -54,12 +54,13 @@ async function restPrice(r:any){
 function connectDeriv(rows:any[]){
  return new Promise<number>(resolve=>{
   if(!rows.length)return resolve(0);
-  const ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(Deno.env.get("DERIV_APP_ID")||"1089"));let count=0,done=false,opened=false,sawTick=false;
+  const ws=new WebSocket("wss://api.derivws.com/trading/v1/options/ws/public");let count=0,done=false,opened=false,sawTick=false;
   const finish=()=>{if(done)return;done=true;clearTimeout(diagnosticTimer);try{ws.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
   const diagnosticTimer=setTimeout(()=>{if(!sawTick){console.error("DERIV_NO_TICKS",JSON.stringify(rows.map((r:any)=>({symbol:r.symbol,provider_symbol:r.provider_symbol,opened:opened}))));Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"Deriv WebSocket returned no ticks; verify symbol and provider availability.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{})}},10000);
   ws.onopen=()=>{
    opened=true;console.log("DERIV_WS_OPEN",rows.length);
+   try{ws.send(JSON.stringify({active_symbols:"brief",product_type:"basic",req_id:999}))}catch(_){}
    rows.forEach((r:any,i:number)=>{
     try{ws.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1}))}catch(_){}
    });
