@@ -87,14 +87,21 @@ function connectBybit(rows:any[]){
   ws.onerror=()=>finish();ws.onclose=()=>{clearTimeout(timer);finish()};
  });
 }
-function connectDeriv(rows:any[]){
- return new Promise<number>(resolve=>{
-  if(!rows.length)return resolve(0);
-  if(!DERIV_APP_ID){Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"DERIV_APP_ID is not configured on the server.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol))).catch(()=>{}).finally(()=>resolve(0));return;}
+async function resolveDerivAppId(){
+ if(DERIV_APP_ID)return DERIV_APP_ID;
+ const {data,error}=await admin.from("gotradex_public_settings").select("value").eq("key","deriv_app_id").maybeSingle();
+ if(error)console.error("DERIV_APP_ID_SETTING_READ_FAILED",error.message);
+ return String(data?.value||"").trim();
+}
+async function connectDeriv(rows:any[]){
+ if(!rows.length)return 0;
+ const appId=await resolveDerivAppId();
+ if(!appId){await Promise.all(rows.map((r:any)=>admin.from("gotradex_market_registry").update({last_error:"DERIV_APP_ID is not configured in server settings.",updated_at:new Date().toISOString()}).eq("symbol",r.symbol)));return 0;}
+ return await new Promise<number>(resolve=>{
   let ws:WebSocket|null=null,count=0,done=false;
   const finish=()=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch(_){}resolve(count)};
   const timer=setTimeout(finish,RUN_MS-5000);
-  try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(DERIV_APP_ID))}catch(_){finish();return}
+  try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId))}catch(_){finish();return}
   ws.onopen=()=>{try{rows.forEach((r:any,i:number)=>ws?.send(JSON.stringify({ticks:r.provider_symbol,subscribe:1,req_id:i+1})))}catch(_){finish()}};
   ws.onmessage=e=>{try{const m=JSON.parse(String(e.data||"{}"));if(m.error){const failed=rows.find((r:any,i:number)=>Number(m.req_id)===i+1);if(failed)admin.from("gotradex_market_registry").update({last_error:String(m.error.message||"Deriv rejected tick subscription"),updated_at:new Date().toISOString()}).eq("symbol",failed.symbol).then(()=>{});return;}if(m.msg_type==="tick"&&m.tick){const sym=String(m.tick.symbol||""),row=rows.find((r:any)=>r.provider_symbol===sym),price=Number(m.tick.quote),epoch=Number(m.tick.epoch);if(row&&Number.isFinite(price)&&price>0){count++;writeTick(row,price,Number.isFinite(epoch)?epoch*1000:Date.now()).catch(()=>{})}}}catch(_){}};
   ws.onerror=()=>finish();ws.onclose=()=>finish();
