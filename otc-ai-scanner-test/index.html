@@ -165,7 +165,7 @@ function handleChartImage(file){
 }
 document.getElementById('cam').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
 document.getElementById('upl').addEventListener('change',e=>handleChartImage(e.target.files?.[0]));
-let livePrice=null, livePair='EUR/USD OTC', liveTf=900, dataStatus='Waiting for shared market state';
+let livePrice=null, livePair='EUR/USD OTC', liveTf=900, liveProvider='', dataStatus='Waiting for shared market state';
 const otcPairs=['EUR/USD','GBP/USD','USD/JPY','AUD/USD','USD/CAD','USD/CHF','NZD/USD','AUD/NZD','EUR/GBP','EUR/JPY','GBP/JPY','USD/ZAR'];
 const mainExpiryOptions=['5 Seconds','1 Minute','3 Minutes','5 Minutes','15 Minutes','30 Minutes','1 Hour','4 Hours','1 Day'];
 function getMarketMode(){try{return String(localStorage.getItem('gotradex_market_mode')||'LIVE').toUpperCase()==='OTC'?'OTC':'LIVE'}catch(_){return 'LIVE'}}
@@ -173,6 +173,8 @@ function getAssetBase(){try{return String(localStorage.getItem('gotradex_asset_d
 function getAccountMode(){try{return String(localStorage.getItem('gotradex_account_mode')||'DEMO').toUpperCase()==='REAL'?'REAL':'DEMO'}catch(_){return 'DEMO'}}
 function getTradeExpiry(){try{const x=localStorage.getItem('gotradex_trade_expiration')||'5 Minutes';return mainExpiryOptions.includes(x)?x:'5 Minutes'}catch(_){return '5 Minutes'}}
 function timeframeLabel(sec){return ({60:'1m',300:'5m',900:'15m',1800:'30m',3600:'1h',14400:'4h',86400:'1d'})[Number(sec)]||'15m'}
+function timeframeName(sec){return ({60:'1 Minute',300:'5 Minutes',900:'15 Minutes',1800:'30 Minutes',3600:'1 Hour',14400:'4 Hours',86400:'1 Day'})[Number(sec)]||'15 Minutes'}
+function timeframeSeconds(name){return ({'1 Minute':60,'3 Minutes':180,'5 Minutes':300,'15 Minutes':900,'30 Minutes':1800,'1 Hour':3600,'4 Hours':14400,'1 Day':86400})[String(name)]||900}
 function syncControlsFromState(state={}){
  const mode=String(state.marketMode||getMarketMode()).toUpperCase()==='OTC'?'OTC':'LIVE';
  let asset=String(state.asset||getAssetBase()).replace(/\s+OTC$/i,'').trim()||'EUR/USD';
@@ -181,14 +183,14 @@ function syncControlsFromState(state={}){
  const expiry=String(state.expiration||getTradeExpiry());
  const mm=document.getElementById('marketMode'),as=document.getElementById('assetSelect'),am=document.getElementById('accountMode'),ex=document.getElementById('tradeExpiry');
  if(mm)mm.value=mode;if(as&&Array.from(as.options).some(o=>o.value===asset))as.value=asset;if(am)am.value=account;if(ex&&mainExpiryOptions.includes(expiry))ex.value=expiry;
- liveTf=Number(state.timeframe||document.getElementById('chartTimeframe')?.value||900);
+ liveTf=Number(state.timeframe||timeframeSeconds(state.chartTimeframe)||document.getElementById('chartTimeframe')?.value||900);
  const tf=document.getElementById('chartTimeframe');if(tf)tf.value=String(liveTf);
  livePair=mode==='OTC'?asset+' OTC':asset;
  if(pairLabel)pairLabel.textContent=asset;
  const source=document.getElementById('marketSourceLabel');if(source)source.textContent=mode==='OTC'?'OTC · synthetic server engine':'LIVE · broker feed required';
 }
 function sendAnalyzerSync(action){
- const msg={type:'GTX_ANALYZER_SYNC',marketMode:document.getElementById('marketMode')?.value||getMarketMode(),asset:document.getElementById('assetSelect')?.value||getAssetBase(),assetType:'forex',accountMode:document.getElementById('accountMode')?.value||getAccountMode(),expiration:document.getElementById('tradeExpiry')?.value||getTradeExpiry(),timeframe:Number(document.getElementById('chartTimeframe')?.value||900)};
+ const msg={type:'GTX_ANALYZER_SYNC',marketMode:document.getElementById('marketMode')?.value||getMarketMode(),asset:document.getElementById('assetSelect')?.value||getAssetBase(),assetType:'forex',accountMode:document.getElementById('accountMode')?.value||getAccountMode(),expiration:document.getElementById('tradeExpiry')?.value||getTradeExpiry(),timeframe:Number(document.getElementById('chartTimeframe')?.value||900),chartTimeframe:timeframeName(Number(document.getElementById('chartTimeframe')?.value||900))};
  try{localStorage.setItem('gotradex_market_mode',msg.marketMode);localStorage.setItem('gotradex_asset_display',msg.asset);localStorage.setItem('gotradex_asset_type',msg.assetType);localStorage.setItem('gotradex_account_mode',msg.accountMode);localStorage.setItem('gotradex_trade_expiration',msg.expiration)}catch(_){}
  try{if(window.parent&&window.parent!==window)window.parent.postMessage({...msg,action:action||null},window.location.origin)}catch(_){}
  syncControlsFromState(msg);
@@ -282,12 +284,30 @@ function startLiveSocket(pair,adapter){
  .then(sock=>{if(socketPair===pair)activeSocket=sock;else sock.close()})
  .catch(()=>{if(pair===livePair){dataStatus='Live OTC stream unavailable';showDataStatus()}});
 }
+function loadLiveFromMainChart(){
+ try{
+  const ps=parent.GoTradeXLiveChart&&parent.GoTradeXLiveChart.state;
+  const selected=getAssetBase(),provider=String(ps?.provider||'').toUpperCase(),chartAsset=String(ps?.assetLabel||'').replace(/\\s+OTC$/i,'').trim();
+  if(!ps||ps.mode!=='LIVE'||!ps.connected||!['BYBIT','DERIV'].includes(provider)||chartAsset!==selected||!Array.isArray(ps.candles)||ps.candles.length<5||!Number.isFinite(Number(ps.price)))return false;
+  const rows=ps.candles.map(x=>({time:Math.floor((Number(x.t)>1e12?Number(x.t):Number(x.t)*1000)/1000),open:Number(x.o),high:Number(x.h),low:Number(x.l),close:Number(x.c)})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
+  if(rows.length<5)return false;
+  const lastTime=rows[rows.length-1].time,age=(Date.now()/1000)-lastTime;
+  if(age>Math.max(600,liveTf*2))return false;
+  data=rows;livePair=selected;livePrice=Number(ps.price);liveProvider=provider;
+  candle.setData(data);chart.timeScale().fitContent();pairLabel.textContent=selected;
+  document.getElementById('entry').textContent=fmtPrice(livePrice);
+  const source=document.getElementById('marketSourceLabel');if(source)source.textContent='LIVE · '+provider;
+  dataStatus='Using the main GoTradeX '+provider+' chart feed for '+selected+'.';showDataStatus();return true;
+ }catch(_){return false}
+}
 async function loadVerifiedData(){
  const pair=getSelectedPair(), adapter=getAdapter();
  if(getMarketMode()!=='OTC'){
-  if(activeSocket){activeSocket.close();activeSocket=null;}socketPair='';livePair=pair;data=[];livePrice=null;candle.setData([]);pairLabel.textContent=getAssetBase();
-  const source=document.getElementById('marketSourceLabel');if(source)source.textContent='LIVE · feed unavailable';
-  dataStatus='LIVE market selected. A verified LIVE chart-data adapter is not connected here; OTC data will not be substituted.';showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';return;
+  if(activeSocket){activeSocket.close();activeSocket=null;}socketPair='';livePair=pair;liveProvider='';
+  if(loadLiveFromMainChart())return;
+  data=[];livePrice=null;candle.setData([]);pairLabel.textContent=getAssetBase();
+  const source=document.getElementById('marketSourceLabel');if(source)source.textContent='LIVE · waiting for main feed';
+  dataStatus='Waiting for the main chart to provide a fresh Bybit or Deriv feed for this exact asset. Twelve Data and OTC fallback candles are not used.';showDataStatus();resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';return;
  }
  if(socketPair&&socketPair!==pair){activeSocket?.close();activeSocket=null;socketPair=''}
  livePair=pair; dataStatus='Connecting to OTC server engine';showDataStatus();
@@ -313,7 +333,8 @@ async function loadVerifiedData(){
 window.addEventListener('message',e=>{if(e.origin!==window.location.origin||!e.data||e.data.type!=='GTX_MAIN_STATE')return;syncControlsFromState(e.data);loadVerifiedData()});
 ['marketMode','assetSelect','accountMode','tradeExpiry'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>{if(id==='marketMode'&&document.getElementById('marketMode').value==='OTC'&&!otcPairs.includes(document.getElementById('assetSelect').value))document.getElementById('assetSelect').value='EUR/USD';sendAnalyzerSync();loadVerifiedData()}));
 document.getElementById('chartTimeframe')?.addEventListener('change',()=>{liveTf=Number(document.getElementById('chartTimeframe').value)||900;sendAnalyzerSync();loadVerifiedData()});
-window.addEventListener('storage',e=>{if(['gotradex_asset_display','gtx_pair','gotradex_market_mode','gotradex_account_mode','gotradex_trade_expiration'].includes(e.key)){syncControlsFromState();loadVerifiedData()}});
+window.addEventListener('storage',e=>{if(['gotradex_asset_display','gtx_pair','gotradex_market_mode','gotradex_account_mode','gotradex_trade_expiration','gotradex_chart_timeframe'].includes(e.key)){syncControlsFromState();loadVerifiedData()}});
+setInterval(()=>{if(getMarketMode()==='LIVE'&&!document.hidden)loadLiveFromMainChart()},2000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadVerifiedData()});
 syncControlsFromState();loadVerifiedData();
 signalButton.onclick=async function(){
@@ -329,7 +350,7 @@ signalButton.onclick=async function(){
    else if(last<first&&downs>=5){side='SELL';momentum='Bearish';}
    resultSide.innerHTML='<div><big>'+(side==='BUY'?'▲':side==='SELL'?'▼':'—')+'</big><br>'+side+'</div>';
    document.getElementById('entry').textContent=fmtPrice(livePrice);
-   const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>'+(document.getElementById('tradeExpiry')?.value||getTradeExpiry())+'</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>OTC server engine (synthetic)</b></div>';
+   const detail=document.querySelector('.details');detail.innerHTML='<div><i>Asset:</i> <b>'+livePair.replace(/</g,'&lt;')+'</b></div><div><i>Time:</i> <b>'+timeframeLabel(liveTf)+'</b></div><div><i>Entry:</i> <b>'+fmtPrice(livePrice)+'</b></div><div><i>Expiration:</i> <b>'+(document.getElementById('tradeExpiry')?.value||getTradeExpiry())+'</b></div><div><i>Momentum:</i> <b>'+momentum+'</b></div><div><i>Data:</i> <b>'+(getMarketMode()==='OTC'?'OTC server engine (synthetic)':'Main chart '+liveProvider+' feed')+'</b></div>';
    if(side==='WAIT')dataStatus='No clear direction in OTC candles; WAIT';showDataStatus();
    const history=readSignalHistory();history.unshift({pair:livePair,side,tf:timeframeLabel(liveTf),expiration:document.getElementById('tradeExpiry')?.value||getTradeExpiry(),time:Date.now(),entry:fmtPrice(livePrice),momentum});localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(history.slice(0,100)));renderSignalHistory();
   }catch(e){resultSide.innerHTML='<div><big>—</big><br>WAIT</div>';document.getElementById('entry').textContent='—';dataStatus=e?.message||'Analysis unavailable';showDataStatus();}
