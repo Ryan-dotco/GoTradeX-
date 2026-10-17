@@ -35,7 +35,7 @@ jobs:
           const tradeEngine = fs.readFileSync('supabase/functions/gotradex-trade-engine/index.ts', 'utf8');
           const tradeScheduler = fs.readFileSync('supabase/functions/gotradex-trade-scheduler/index.ts', 'utf8');
           const checks = [
-            [(index.match(/<script\\b[^>]*\\bsrc=[\"'][^\"']*live-chart\\.js(?:\\?[^\"']*)?[\"'][^>]*>/gi) || []).length === 1, 'exactly one active live-chart.js script reference (cache version independent)'],
+            [(index.match(/<script\b[^>]*\bsrc=["'][^"']*live-chart\.js(?:\?[^"']*)?["'][^>]*>/gi) || []).length === 1, 'exactly one active live-chart.js script reference (cache version independent)'],
             [index.includes('function gtxSetBottomAsset(') && index.includes('source:"dashboard-assets"'), 'dashboard selection event'],
             [index.includes('function gtxOtcLabel(pair){return String(pair).replace(/\\s+OTC$/i,"")+" OTC";}'), 'OTC label normalization'],
             [index.includes('function gtxAssetSymbol(label){return String(label).replace(/\\s+OTC$/i,"")'), 'asset symbol normalization'],
