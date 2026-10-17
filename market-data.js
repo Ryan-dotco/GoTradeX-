@@ -1,8 +1,8 @@
 /* GoTradeX verified market-feed registry.
  * No synthetic prices. A feed is marked LIVE only after its provider confirms
  * the selected symbol/stream is available. Bybit Spot is the native crypto feed.
- * Twelve Data is the verified non-crypto adapter when a valid API key/feed access
- * is configured. Short candles are built only from real provider ticks.
+ * Deriv supplies verified forex and OTC-index feeds; Bybit supplies crypto.
+ * Unsupported symbols remain unavailable; no synthetic fallback candles are allowed.
  */
 (function(){
   "use strict";
