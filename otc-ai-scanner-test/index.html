@@ -248,7 +248,7 @@ document.getElementById('setAlertBtn')?.addEventListener('click',async()=>{
  try{
   const q=await adapter.price(pair);
   if(!Number.isFinite(q.time)||Date.now()-q.time>5*60*1000||q.time>Date.now()+60*1000)throw new Error('Server price is stale; try again when a fresh OTC price is available.');
-  const alerts=readAlerts();alerts.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),pair,condition,target,createdAt:Date.now(),expiresAt:Date.now()+duration,status:'active'});
+  const alerts=readAlerts();alerts.unshift({id:(window.crypto?.randomUUID?window.crypto.randomUUID():Date.now().toString(36)+'-'+String(alerts.length+1)),pair,condition,target,createdAt:Date.now(),expiresAt:Date.now()+duration,status:'active'});
   writeAlerts(alerts);renderAlerts();status.textContent='Alert saved on this device. Monitoring starts while this page remains open.';
   document.getElementById('alertTarget').value='';
  }catch(e){status.textContent=e?.message||'Could not verify a current OTC price. Alert not created.'}
