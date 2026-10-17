@@ -229,7 +229,7 @@ Deno.serve(async (request: Request) => {
       let saved = 0;
       const derivAppId = text(config.derivAppId, 40);
       if (derivAppId) {
-        if (!/^\\d{1,12}$/.test(derivAppId)) {
+        if (!/^\d{1,12}$/.test(derivAppId)) {
           return json({ ok: false, error: "Deriv App ID must be the numeric ID issued when you register a Deriv application." }, 400, origin);
         }
         await storeDerivAppId(derivAppId);
