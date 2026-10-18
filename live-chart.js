@@ -70,10 +70,10 @@
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex!important;flex:0 0 auto;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:3px!important;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;outline:0;box-shadow:none;border-radius:0;pointer-events:none;position:relative;z-index:12}"+
       ".gtxLWCDateTime #gtxLWCDate,.gtxLWCDateTime #gtxLWCClock{color:#f1f7ff!important;font-size:8px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}"+
-      ".gtxLWCTypePicker{position:relative;display:inline-flex;align-items:center;vertical-align:middle}"+
-      ".pairbarLeft .gtxLWCTypePicker{margin-left:5px;z-index:60;flex:0 0 auto}"+
-      ".pairbarLeft .gtxLWCTypeButton{height:26px;min-height:26px;padding:5px 7px;font-size:9px}"+
-      ".pairbarLeft .gtxLWCTypeMenu{left:0;right:auto;top:calc(100% + 5px)}"+
+      ".gtxLWCTypePicker{position:relative;display:inline-flex;align-items:center;gap:3px;vertical-align:middle;flex:0 0 auto}"+
+      ".pairbarLeft .gtxLWCTypePicker{margin-left:5px;z-index:60;flex:0 0 auto;max-width:calc(100vw - 60px);overflow-x:auto;scrollbar-width:none}"+
+      ".pairbarLeft .gtxLWCTypePicker::-webkit-scrollbar{display:none}"+
+      ".pairbarLeft .gtxLWCTypeOption{width:auto;min-height:26px;height:26px;padding:5px 6px;font-size:8px;border-radius:5px;flex:0 0 auto}"+
       ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
       ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:124px;padding:4px;background:#0b2036;border:1px solid var(--gtx-accent-border,#31597f);border-radius:7px;box-shadow:0 8px 24px #0009;z-index:9999;display:grid;gap:4px;visibility:visible;opacity:1}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
@@ -112,7 +112,12 @@
         '<div class="gtxLWCControl">'+
         '</div>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">LIVE WEBSOCKET • CONNECTING</span>'+
-        '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
+        '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker" role="group" aria-label="Chart style">'+
+          '<button class="gtxLWCTypeOption" type="button" data-chart-type="candle" aria-label="Candles">Candles</button>'+
+          '<button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" aria-label="Heikin Ashi">Heiken Ashi</button>'+
+          '<button class="gtxLWCTypeOption" type="button" data-chart-type="line" aria-label="Line chart">Line</button>'+
+          '<button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" aria-label="Mountain chart">Mountain</button>'+
+        '</div>'+
       '</div>'+
       '<div id="gtxLWCExpiryLayer" aria-hidden="true"></div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
@@ -141,15 +146,11 @@
     });
     if(tfTrigger&&tfMenu){tfTrigger.onclick=()=>{const open=tfMenu.hidden;tfMenu.hidden=!open;tfTrigger.setAttribute("aria-expanded",String(open));};document.addEventListener("click",e=>{if(!e.target.closest("#gtxLWCChartTFPicker")){tfMenu.hidden=true;tfTrigger.setAttribute("aria-expanded","false");}});}
     syncChartTFTrigger();
-    const typeButton=document.getElementById("gtxLWCTypeButton");
-    const typeMenu=document.getElementById("gtxLWCTypeMenu");
-    if(typeButton&&typeMenu){
-      typeButton.onclick=()=>{const open=typeMenu.hidden;typeMenu.hidden=!open;typeButton.setAttribute("aria-expanded",String(open));};
-      typeMenu.querySelectorAll("[data-chart-type]").forEach(option=>option.onclick=()=>{
+    const typePicker=document.getElementById("gtxLWCTypePicker");
+    if(typePicker){
+      typePicker.querySelectorAll("[data-chart-type]").forEach(option=>option.onclick=()=>{
         setChartType(option.dataset.chartType);
-        typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");
       });
-      document.addEventListener("click",e=>{if(!e.target.closest("#gtxLWCTypePicker")){typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");}});
     }
 
     try{
@@ -203,11 +204,10 @@
     }
   }
   function updateTypeButtons(){
-    const labels={candle:"Candles",heikin:"Heikin Ashi",line:"Line",mountain:"Mountain"};
-    const button=document.getElementById("gtxLWCTypeButton");
-    if(button)button.textContent=(labels[state.chartType]||"Candles")+" ▾";
-    document.querySelectorAll("#gtxLiveChart [data-chart-type]").forEach(b=>{
-      b.classList.toggle("active",b.dataset.chartType===state.chartType);
+    document.querySelectorAll("#gtxLWCTypePicker [data-chart-type]").forEach(b=>{
+      const active=b.dataset.chartType===state.chartType;
+      b.classList.toggle("active",active);
+      b.setAttribute("aria-pressed",String(active));
     });
     applyChartTypeVisibility();
   }
