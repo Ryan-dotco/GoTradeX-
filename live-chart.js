@@ -202,14 +202,10 @@
   function status(t,ok){
     const e=document.getElementById("gtxLWCStatus");if(!e)return;
     const raw=String(t||"").toUpperCase();
-    const asset=String(state.assetLabel||"").trim();
     const provider=String(state.provider||"").toUpperCase();
-    const isOTC=state.mode==="OTC";
-    const feed=provider==="BYBIT"||raw.includes("BYBIT")?"BYBIT":provider==="DERIV"||raw.includes("DERIV")?"DERIV":"FEED";
+    const isDeriv=state.mode==="OTC"||state.type!=="crypto"||provider==="DERIV"||raw.includes("DERIV");
     const failed=/ERROR|UNAVAILABLE|NO VERIFIED|FAILED|DISCONNECTED/.test(raw);
-    e.textContent=isOTC
-      ? "OTC FEED"+(asset?" • "+asset:"")+" • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING")
-      : "LIVE WEBSOCKET • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING");
+    e.textContent=(isDeriv?"DERIV":"BYBIT")+" "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING");
     e.style.color="#39ff14";
     e.style.border="0";e.style.outline="0";e.style.boxShadow="none";e.style.background="transparent";
   }
