@@ -105,7 +105,7 @@
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
-        '<div class="gtxLWCDateTime" aria-label="Selected market and current date/time"><div class="gtxLWCMarketTitleRow"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span><div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">1M</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Candle timeframe" hidden></div></div></div><div class="gtxLWCMarketRow"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
+        '<div class="gtxLWCDateTime" aria-label="Selected market and current date/time"><div class="gtxLWCMarketTitleRow"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span><div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">M1</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Candle timeframe" hidden></div></div></div><div class="gtxLWCMarketRow"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
         '<div class="gtxLWCControl">'+
           '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
         '</div>'+
@@ -119,7 +119,7 @@
 
     const tfTrigger=document.getElementById("gtxLWCChartTFTrigger");
     const tfMenu=document.getElementById("gtxLWCChartTFMenu");
-    const tfShort={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"1M","3 Minutes":"3M","5 Minutes":"5M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","4 Hours":"4H","1 Day":"1D"};
+    const tfShort={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"M1","3 Minutes":"3M","5 Minutes":"5M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","4 Hours":"4H","1 Day":"1D"};
     function syncChartTFTrigger(){if(tfTrigger)tfTrigger.textContent=tfShort[state.tf]||state.tf;}
     Object.keys(CFG.intervals).forEach(t=>{
       const o=document.createElement("button");
