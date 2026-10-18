@@ -20,7 +20,7 @@
 
   let state={
     tf:"1 Minute",sec:60,candles:[],price:null,prev:null,ws:null,
-    provider:"",symbol:"",assetLabel:"ETH/USD",mode:"LIVE",type:"crypto",
+    provider:"",symbol:"",assetLabel:"BTC/USD",mode:"LIVE",type:"crypto",
     connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
@@ -64,7 +64,7 @@
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:flex-start;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
-      ".gtxLWCAsset{display:block!important;height:auto!important;font:900 11px/1.2 system-ui!important;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0 0 3px 0!important;white-space:nowrap}"+
+      ".gtxLWCMarketTitleRow{display:flex;align-items:center;gap:9px;min-width:0}"+".gtxLWCAsset{display:block!important;height:auto!important;font:900 11px/1.2 system-ui!important;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0!important;white-space:nowrap}"+
       "@keyframes gtxFeedWhisper{0%,100%{transform:translateX(0);opacity:.82}50%{transform:translateX(-5px);opacity:1}}@media(prefers-reduced-motion:reduce){.gtxLWCStatus{animation:none!important}}"+
       ".gtxLWCStatus{position:absolute!important;right:78px!important;bottom:29px!important;z-index:20!important;display:inline-flex;align-items:center;font:900 9px/1.15 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;padding:0!important;margin:0;white-space:nowrap;text-transform:uppercase;pointer-events:none;animation:gtxFeedWhisper 2.8s ease-in-out infinite;transform-origin:right center}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
@@ -105,9 +105,8 @@
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
-        '<div class="gtxLWCDateTime" aria-label="Selected market and current date/time"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • ETH/USD</span><div class="gtxLWCMarketRow"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
+        '<div class="gtxLWCDateTime" aria-label="Selected market and current date/time"><div class="gtxLWCMarketTitleRow"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span><div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">1M</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Candle timeframe" hidden></div></div></div><div class="gtxLWCMarketRow"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
         '<div class="gtxLWCControl">'+
-          '<div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">1M</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Candle timeframe" hidden></div></div>'+
           '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
         '</div>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">LIVE WEBSOCKET • CONNECTING</span>'+
