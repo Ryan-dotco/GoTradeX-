@@ -70,7 +70,10 @@
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex!important;flex:0 0 auto;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:3px!important;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;outline:0;box-shadow:none;border-radius:0;pointer-events:none;position:relative;z-index:12}"+
       ".gtxLWCDateTime #gtxLWCDate,.gtxLWCDateTime #gtxLWCClock{color:#f1f7ff!important;font-size:8px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}"+
-      ".gtxLWCTypePicker{position:relative}"+
+      ".gtxLWCTypePicker{position:relative;display:inline-flex;align-items:center;vertical-align:middle}"+
+      ".pairbarLeft .gtxLWCTypePicker{margin-left:5px;z-index:60;flex:0 0 auto}"+
+      ".pairbarLeft .gtxLWCTypeButton{height:26px;min-height:26px;padding:5px 7px;font-size:9px}"+
+      ".pairbarLeft .gtxLWCTypeMenu{left:0;right:auto;top:calc(100% + 5px)}"+
       ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
       ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:124px;padding:4px;background:#0b2036;border:1px solid var(--gtx-accent-border,#31597f);border-radius:7px;box-shadow:0 8px 24px #0009;z-index:9999;display:grid;gap:4px;visibility:visible;opacity:1}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
@@ -107,7 +110,6 @@
       '<div class="gtxLWCHead">'+
         '<div class="gtxLWCDateTime" aria-label="Selected market and current date/time"><div class="gtxLWCMarketTitleRow"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span><div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">M1</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Candle timeframe" hidden></div></div></div><div class="gtxLWCMarketRow"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
         '<div class="gtxLWCControl">'+
-          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
         '</div>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">LIVE WEBSOCKET • CONNECTING</span>'+
       '</div>'+
@@ -115,6 +117,14 @@
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
+    /* Keep chart-style choices beside the real three-dot chart-tools button in the shared
+       pair bar, so the same control is visible in both DEMO and LIVE modes. */
+    const stylePicker=document.getElementById("gtxLWCTypePicker");
+    const moreButton=document.getElementById("marketMoreBtn");
+    const pairbarLeft=document.querySelector(".pairbarLeft");
+    if(stylePicker&&moreButton&&pairbarLeft&&stylePicker.parentNode!==pairbarLeft){
+      moreButton.insertAdjacentElement("afterend",stylePicker);
+    }
     try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
     const tfTrigger=document.getElementById("gtxLWCChartTFTrigger");
