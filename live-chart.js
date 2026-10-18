@@ -65,7 +65,8 @@
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:900 9px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
-      ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:800 9px/1 system-ui;color:#8ff0ae;background:#082014e8;border:1px solid #1f6c40;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
+      "@keyframes gtxFeedWhisper{0%,100%{transform:translateX(0);opacity:.82}50%{transform:translateX(-5px);opacity:1}}@media(prefers-reduced-motion:reduce){.gtxLWCStatus{animation:none!important}}"+
+      ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:auto;font:900 9px/1.15 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;padding:0!important;margin:0;white-space:nowrap;animation:gtxFeedWhisper 2.8s ease-in-out infinite;transform-origin:center}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
       ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
@@ -75,7 +76,7 @@
       ".gtxLWCTypeMenu[hidden]{display:none}"+
       ".gtxLWCTypeOption{box-sizing:border-box;display:block;width:100%;min-height:28px;border:1px solid var(--gtx-accent-border,#31597f);border-radius:4px;text-align:left;padding:6px 8px;background:#102945;color:var(--gtx-screen-text,#dcecff);font:800 10px/1.2 system-ui;white-space:nowrap;visibility:visible;opacity:1}"+
       ".gtxLWCTypeOption.active{background:var(--gtx-accent,#17436a);border-color:var(--gtx-accent-light,#8ff0ae);color:#fff}"+
-      ".gtxLWCSelect{box-sizing:border-box;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui}"+
+      ".gtxLWCSelect{box-sizing:border-box;height:26px;border:0;background:transparent;color:#39ff14;padding:5px 0;font:900 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
       "#gtxLWCExpiryLayer{display:block!important;position:absolute!important;inset:0!important;z-index:2147483000!important;overflow:hidden!important;pointer-events:none!important;visibility:visible!important;opacity:1!important}"+
@@ -88,7 +89,7 @@
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -119,9 +120,10 @@
     try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
+    const tfShort={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"1M","2 Minutes":"2M","3 Minutes":"3M","5 Minutes":"5M","10 Minutes":"10M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","2 Hours":"2H","4 Hours":"4H","1 Day":"1D"};
     Object.keys(CFG.intervals).forEach(t=>{
       const o=document.createElement("option");
-      o.value=t;o.textContent=t;
+      o.value=t;o.textContent=tfShort[t]||t;
       if(t===state.tf)o.selected=true;
       tfSelect.appendChild(o);
     });
@@ -160,8 +162,18 @@
 
   function status(t,ok){
     const e=document.getElementById("gtxLWCStatus");if(!e)return;
-    e.textContent=t;e.style.color=ok?"#8ff0ae":"#b5c7d8";
-    e.style.borderColor=ok?"#1f6c40":"#31506d";
+    const raw=String(t||"").toUpperCase();
+    const asset=String(state.assetLabel||"").trim();
+    const provider=String(state.provider||"").toUpperCase();
+    const isOTC=state.mode==="OTC";
+    const feed=provider==="BYBIT"||raw.includes("BYBIT")?"BYBIT":provider==="DERIV"||raw.includes("DERIV")?"DERIV":"FEED";
+    const failed=/ERROR|UNAVAILABLE|NO VERIFIED|FAILED|DISCONNECTED/.test(raw);
+    e.textContent=isOTC
+      ? "OTC FEED"+(asset?" • "+asset:"")+" • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING")
+      : (feed==="FEED"?"LIVE FEED":"LIVE "+feed)+(asset?" • "+asset:"")+" • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING");
+    e.style.color="#39ff14";
+    e.style.borderColor="transparent";
+    e.style.background="transparent";
   }
   function notice(t,show=true){
     const e=document.getElementById("gtxLWCNotice");if(e){e.textContent=t;e.hidden=!show}
