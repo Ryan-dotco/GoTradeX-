@@ -19,8 +19,8 @@
   const TYPE_KEY="gotradex_chart_type";
 
   let state={
-    tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
-    provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
+    tf:"1 Minute",sec:60,candles:[],price:null,prev:null,ws:null,
+    provider:"",symbol:"",assetLabel:"ETH/USD",mode:"LIVE",type:"crypto",
     connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
