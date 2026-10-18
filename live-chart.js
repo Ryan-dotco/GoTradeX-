@@ -69,7 +69,7 @@
       ".gtxLWCStatus{position:absolute!important;right:78px!important;bottom:29px!important;z-index:20!important;display:inline-flex;align-items:center;font:900 9px/1.15 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;padding:0!important;margin:0;white-space:nowrap;text-transform:uppercase;pointer-events:none;animation:gtxFeedWhisper 2.8s ease-in-out infinite;transform-origin:right center}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex!important;flex:0 0 auto;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:3px!important;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;outline:0;box-shadow:none;border-radius:0;pointer-events:none;position:relative;z-index:12}"+
-      ".gtxLWCDateTime #gtxLWCDate,.gtxLWCDateTime #gtxLWCClock{color:#f1f7ff!important;font-size:8px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}"+
+      ".gtxLWCMarketRow{display:flex!important;align-items:center!important;gap:8px!important;white-space:nowrap!important;flex-wrap:nowrap!important}.gtxLWCMarketRow #gtxLWCDate,.gtxLWCMarketRow #gtxLWCClock{display:inline-block!important;flex:0 0 auto!important;white-space:nowrap!important}.gtxLWCDateTime #gtxLWCDate,.gtxLWCDateTime #gtxLWCClock{color:#f1f7ff!important;font-size:8px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:fixed;left:0;top:0;display:grid;grid-template-columns:1fr 1fr;gap:2px;min-width:150px;max-width:calc(100vw - 12px);padding:5px;background:rgba(7,17,29,.97);z-index:99999;box-shadow:none!important;border:0!important;outline:0!important;border-radius:0}"+
       ".gtxLWCTypePicker[hidden]{display:none!important}"+
       ".pairbarLeft{position:relative}.pairbarLeft #marketMoreBtn{border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent!important}"+
@@ -195,8 +195,10 @@
     const dateEl=document.getElementById("gtxLWCDate");
     const clockEl=document.getElementById("gtxLWCClock");
     if(!dateEl||!clockEl)return;
-    dateEl.textContent=new Intl.DateTimeFormat("en-ZA",{weekday:"short",day:"2-digit",month:"short",year:"numeric",timeZone:"Africa/Johannesburg"}).format(now);
-    clockEl.textContent=new Intl.DateTimeFormat("en-ZA",{hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23",timeZone:"Africa/Johannesburg"}).format(now)+" SAST";
+    const dateParts=new Intl.DateTimeFormat("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric",timeZone:"Africa/Johannesburg"}).formatToParts(now);
+    const wanted=["weekday","day","month","year"];
+    dateEl.textContent=wanted.map(type=>dateParts.find(part=>part.type===type)?.value||"").join(" ");
+    clockEl.textContent=new Intl.DateTimeFormat("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23",timeZone:"Africa/Johannesburg"}).format(now);
   }
 
   function status(t,ok){
