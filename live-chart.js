@@ -72,7 +72,7 @@
       ".gtxLWCDateTime #gtxLWCDate,.gtxLWCDateTime #gtxLWCClock{color:#f1f7ff!important;font-size:8px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:absolute;left:0;top:calc(100% + 7px);display:grid;grid-template-columns:1fr 1fr;gap:2px;min-width:150px;padding:5px;background:rgba(7,17,29,.97);z-index:99999;box-shadow:0 8px 22px #0008;border:0;border-radius:0}"+
       ".gtxLWCTypePicker[hidden]{display:none!important}"+
-      ".pairbarLeft{position:relative}"+
+      ".pairbarLeft{position:relative}.pairbarLeft #marketMoreBtn{border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent!important}"+
       ".pairbarLeft .gtxLWCTypeOption{appearance:none;width:100%;min-height:30px;height:30px;padding:7px 9px;font-size:10px;text-align:left;border:0;border-radius:0;background:transparent;color:#dcecff;flex:0 0 auto}"+
       ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
       ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:124px;padding:4px;background:#0b2036;border:1px solid var(--gtx-accent-border,#31597f);border-radius:7px;box-shadow:0 8px 24px #0009;z-index:9999;display:grid;gap:4px;visibility:visible;opacity:1}"+
