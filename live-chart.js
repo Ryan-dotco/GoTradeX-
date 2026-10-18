@@ -70,10 +70,10 @@
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex!important;flex:0 0 auto;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:3px!important;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;outline:0;box-shadow:none;border-radius:0;pointer-events:none;position:relative;z-index:12}"+
       ".gtxLWCDateTime #gtxLWCDate,.gtxLWCDateTime #gtxLWCClock{color:#f1f7ff!important;font-size:8px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}"+
-      ".gtxLWCTypePicker{position:relative;display:inline-flex;align-items:center;gap:3px;vertical-align:middle;flex:0 0 auto}"+
-      ".pairbarLeft .gtxLWCTypePicker{margin-left:5px;z-index:60;flex:0 0 auto;max-width:calc(100vw - 60px);overflow-x:auto;scrollbar-width:none}"+
-      ".pairbarLeft .gtxLWCTypePicker::-webkit-scrollbar{display:none}"+
-      ".pairbarLeft .gtxLWCTypeOption{width:auto;min-height:26px;height:26px;padding:5px 6px;font-size:8px;border-radius:5px;flex:0 0 auto}"+
+      ".gtxLWCTypePicker{position:absolute;left:0;top:calc(100% + 7px);display:grid;grid-template-columns:1fr 1fr;gap:2px;min-width:150px;padding:5px;background:rgba(7,17,29,.97);z-index:99999;box-shadow:0 8px 22px #0008;border:0;border-radius:0}"+
+      ".gtxLWCTypePicker[hidden]{display:none!important}"+
+      ".pairbarLeft{position:relative}"+
+      ".pairbarLeft .gtxLWCTypeOption{appearance:none;width:100%;min-height:30px;height:30px;padding:7px 9px;font-size:10px;text-align:left;border:0;border-radius:0;background:transparent;color:#dcecff;flex:0 0 auto}"+
       ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
       ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:124px;padding:4px;background:#0b2036;border:1px solid var(--gtx-accent-border,#31597f);border-radius:7px;box-shadow:0 8px 24px #0009;z-index:9999;display:grid;gap:4px;visibility:visible;opacity:1}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
@@ -112,7 +112,7 @@
         '<div class="gtxLWCControl">'+
         '</div>'+
         '<span class="gtxLWCStatus" id="gtxLWCStatus">LIVE WEBSOCKET • CONNECTING</span>'+
-        '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker" role="group" aria-label="Chart style">'+
+        '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker" role="menu" aria-label="Chart style" hidden>'+
           '<button class="gtxLWCTypeOption" type="button" data-chart-type="candle" aria-label="Candles">Candles</button>'+
           '<button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" aria-label="Heikin Ashi">Heiken Ashi</button>'+
           '<button class="gtxLWCTypeOption" type="button" data-chart-type="line" aria-label="Line chart">Line</button>'+
@@ -123,13 +123,31 @@
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
-    /* Keep chart-style choices beside the real three-dot chart-tools button in the shared
-       pair bar, so the same control is visible in both DEMO and LIVE modes. */
+    /* The three-dot button owns a compact, borderless chart-style popover shared by DEMO/LIVE. */
     const stylePicker=document.getElementById("gtxLWCTypePicker");
     const moreButton=document.getElementById("marketMoreBtn");
     const pairbarLeft=document.querySelector(".pairbarLeft");
     if(stylePicker&&moreButton&&pairbarLeft&&stylePicker.parentNode!==pairbarLeft){
-      moreButton.insertAdjacentElement("afterend",stylePicker);
+      pairbarLeft.appendChild(stylePicker);
+    }
+    if(stylePicker&&moreButton&&!moreButton.dataset.gtxChartStyleBound){
+      moreButton.dataset.gtxChartStyleBound="1";
+      moreButton.setAttribute("aria-haspopup","menu");
+      moreButton.setAttribute("aria-expanded","false");
+      moreButton.addEventListener("click",e=>{
+        e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+        stylePicker.hidden=!stylePicker.hidden;
+        moreButton.setAttribute("aria-expanded",String(!stylePicker.hidden));
+      },true);
+      document.addEventListener("click",e=>{
+        if(!e.target.closest("#gtxLWCTypePicker")&&!e.target.closest("#marketMoreBtn")){
+          stylePicker.hidden=true;
+          moreButton.setAttribute("aria-expanded","false");
+        }
+      });
+      document.addEventListener("keydown",e=>{
+        if(e.key==="Escape"){stylePicker.hidden=true;moreButton.setAttribute("aria-expanded","false");}
+      });
     }
     try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
@@ -148,8 +166,14 @@
     syncChartTFTrigger();
     const typePicker=document.getElementById("gtxLWCTypePicker");
     if(typePicker){
-      typePicker.querySelectorAll("[data-chart-type]").forEach(option=>option.onclick=()=>{
-        setChartType(option.dataset.chartType);
+      typePicker.querySelectorAll("[data-chart-type]").forEach(option=>{
+        option.setAttribute("role","menuitem");
+        option.onclick=()=>{
+          setChartType(option.dataset.chartType);
+          typePicker.hidden=true;
+          const more=document.getElementById("marketMoreBtn");
+          if(more)more.setAttribute("aria-expanded","false");
+        };
       });
     }
 
