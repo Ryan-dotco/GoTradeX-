@@ -62,21 +62,21 @@
     s.textContent=
       "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
-      ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
+      ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:flex-start;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
-      ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:900 9px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
+      ".gtxLWCAsset{display:block!important;height:auto!important;font:900 11px/1.2 system-ui!important;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0 0 3px 0!important;white-space:nowrap}"+
       "@keyframes gtxFeedWhisper{0%,100%{transform:translateX(0);opacity:.82}50%{transform:translateX(-5px);opacity:1}}@media(prefers-reduced-motion:reduce){.gtxLWCStatus{animation:none!important}}"+
-      ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:auto;font:900 9px/1.15 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;padding:0!important;margin:0;white-space:nowrap;animation:gtxFeedWhisper 2.8s ease-in-out infinite;transform-origin:center}"+
-      ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
-      ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
-      ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
+      ".gtxLWCStatus{position:absolute!important;right:78px!important;bottom:29px!important;z-index:20!important;display:inline-flex;align-items:center;font:900 9px/1.15 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;padding:0!important;margin:0;white-space:nowrap;text-transform:uppercase;pointer-events:none;animation:gtxFeedWhisper 2.8s ease-in-out infinite;transform-origin:right center}"+
+      ".gtxLWCControl{margin-left:auto;display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
+      ".gtxLWCDateTime{display:flex!important;flex:0 0 auto;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:3px!important;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;outline:0;box-shadow:none;border-radius:0;pointer-events:none;position:relative;z-index:12}"+
+      ".gtxLWCDateTime #gtxLWCDate,.gtxLWCDateTime #gtxLWCClock{color:#f1f7ff!important;font-size:8px!important;line-height:1.2!important;font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:relative}"+
       ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
       ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:124px;padding:4px;background:#0b2036;border:1px solid var(--gtx-accent-border,#31597f);border-radius:7px;box-shadow:0 8px 24px #0009;z-index:9999;display:grid;gap:4px;visibility:visible;opacity:1}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
       ".gtxLWCTypeOption{box-sizing:border-box;display:block;width:100%;min-height:28px;border:1px solid var(--gtx-accent-border,#31597f);border-radius:4px;text-align:left;padding:6px 8px;background:#102945;color:var(--gtx-screen-text,#dcecff);font:800 10px/1.2 system-ui;white-space:nowrap;visibility:visible;opacity:1}"+
       ".gtxLWCTypeOption.active{background:var(--gtx-accent,#17436a);border-color:var(--gtx-accent-light,#8ff0ae);color:#fff}"+
-      ".gtxLWCSelect{box-sizing:border-box;height:26px;border:0;background:transparent;color:#39ff14;padding:5px 0;font:900 9px/1 system-ui}"+
+      ".gtxLWCChartTFPicker{position:relative;display:inline-flex;align-items:center;pointer-events:auto;z-index:50}"+".gtxLWCChartTFTrigger{appearance:none!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent!important;color:#facc15!important;padding:0!important;margin:0!important;font:900 11px/1.2 system-ui!important;min-width:0!important;min-height:0!important;height:auto!important;cursor:pointer!important}"+".gtxLWCChartTFMenu{position:absolute;left:0;top:calc(100% + 7px);min-width:118px;max-height:55vh;overflow:auto;display:grid;gap:0;padding:4px;background:#0b2036;border:1px solid #31506d;border-radius:6px;box-shadow:0 8px 24px #0009;z-index:99999}"+".gtxLWCChartTFMenu[hidden]{display:none}"+".gtxLWCChartTFOption{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:3px;padding:7px 9px;color:#dcecff;font:700 10px/1.2 system-ui;cursor:pointer}"+".gtxLWCChartTFOption.active{color:#facc15;background:#172e43}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
       "#gtxLWCExpiryLayer{display:block!important;position:absolute!important;inset:0!important;z-index:2147483000!important;overflow:hidden!important;pointer-events:none!important;visibility:visible!important;opacity:1!important}"+
@@ -105,13 +105,12 @@
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
-        '<div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
+        '<div class="gtxLWCDateTime" aria-label="Selected market and current date/time"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • ETH/USD</span><div class="gtxLWCMarketRow"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
         '<div class="gtxLWCControl">'+
-          '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
-          '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
+          '<div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">1M</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Candle timeframe" hidden></div></div>'+
           '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
-          '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
         '</div>'+
+        '<span class="gtxLWCStatus" id="gtxLWCStatus">LIVE WEBSOCKET • CONNECTING</span>'+
       '</div>'+
       '<div id="gtxLWCExpiryLayer" aria-hidden="true"></div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
@@ -119,15 +118,19 @@
     chartHost.replaceChildren(box);
     try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
-    const tfSelect=document.getElementById("gtxLWCChartTF");
-    const tfShort={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"1M","2 Minutes":"2M","3 Minutes":"3M","5 Minutes":"5M","10 Minutes":"10M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","2 Hours":"2H","4 Hours":"4H","1 Day":"1D"};
+    const tfTrigger=document.getElementById("gtxLWCChartTFTrigger");
+    const tfMenu=document.getElementById("gtxLWCChartTFMenu");
+    const tfShort={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"1M","3 Minutes":"3M","5 Minutes":"5M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","4 Hours":"4H","1 Day":"1D"};
+    function syncChartTFTrigger(){if(tfTrigger)tfTrigger.textContent=tfShort[state.tf]||state.tf;}
     Object.keys(CFG.intervals).forEach(t=>{
-      const o=document.createElement("option");
-      o.value=t;o.textContent=tfShort[t]||t;
-      if(t===state.tf)o.selected=true;
-      tfSelect.appendChild(o);
+      const o=document.createElement("button");
+      o.type="button";o.className="gtxLWCChartTFOption";o.textContent=t;o.dataset.timeframe=t;o.setAttribute("role","menuitem");
+      if(t===state.tf)o.classList.add("active");
+      o.onclick=()=>{setTimeframe(t);syncChartTFTrigger();tfMenu.hidden=true;tfTrigger.setAttribute("aria-expanded","false");tfMenu.querySelectorAll(".gtxLWCChartTFOption").forEach(x=>x.classList.toggle("active",x.dataset.timeframe===t));};
+      tfMenu.appendChild(o);
     });
-    tfSelect.onchange=()=>setTimeframe(tfSelect.value);
+    if(tfTrigger&&tfMenu){tfTrigger.onclick=()=>{const open=tfMenu.hidden;tfMenu.hidden=!open;tfTrigger.setAttribute("aria-expanded",String(open));};document.addEventListener("click",e=>{if(!e.target.closest("#gtxLWCChartTFPicker")){tfMenu.hidden=true;tfTrigger.setAttribute("aria-expanded","false");}});}
+    syncChartTFTrigger();
     const typeButton=document.getElementById("gtxLWCTypeButton");
     const typeMenu=document.getElementById("gtxLWCTypeMenu");
     if(typeButton&&typeMenu){
@@ -141,7 +144,7 @@
 
     try{
       const saved=localStorage.getItem(CHART_KEY);
-      if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];tfSelect.value=saved}
+      if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];syncChartTFTrigger();tfMenu.querySelectorAll(".gtxLWCChartTFOption").forEach(x=>x.classList.toggle("active",x.dataset.timeframe===saved));}
       const savedType=localStorage.getItem(TYPE_KEY);
       if(["candle","heikin","line","mountain"].includes(savedType))state.chartType=savedType;
     }catch(_){}
@@ -170,17 +173,24 @@
     const failed=/ERROR|UNAVAILABLE|NO VERIFIED|FAILED|DISCONNECTED/.test(raw);
     e.textContent=isOTC
       ? "OTC FEED"+(asset?" • "+asset:"")+" • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING")
-      : (feed==="FEED"?"LIVE FEED":"LIVE "+feed)+(asset?" • "+asset:"")+" • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING");
+      : "LIVE WEBSOCKET • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING");
     e.style.color="#39ff14";
-    e.style.borderColor="transparent";
-    e.style.background="transparent";
+    e.style.border="0";e.style.outline="0";e.style.boxShadow="none";e.style.background="transparent";
   }
   function notice(t,show=true){
     const e=document.getElementById("gtxLWCNotice");if(e){e.textContent=t;e.hidden=!show}
   }
   function assetText(){
     const a=document.getElementById("gtxLWCAsset");
-    if(a)a.textContent=(state.mode==="LIVE"?"LIVE":"OTC")+" • "+(state.assetLabel||"");
+    if(a){
+      const raw=String(state.assetLabel||state.symbol||"ETH/USD").trim().toUpperCase();
+      a.textContent=(state.mode==="LIVE"?"LIVE ":"OTC ")+raw;
+      a.style.setProperty("color","#39ff14","important");
+      a.style.setProperty("background","transparent","important");
+      a.style.setProperty("border","0","important");
+      a.style.setProperty("outline","0","important");
+      a.style.setProperty("box-shadow","none","important");
+    }
   }
   function updateTypeButtons(){
     const labels={candle:"Candles",heikin:"Heikin Ashi",line:"Line",mountain:"Mountain"};
