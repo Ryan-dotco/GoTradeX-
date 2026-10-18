@@ -33,3 +33,14 @@ Status: READ-ONLY SOURCE REVIEW. This document records observations from the mai
 ## Audit limits
 
 This is a scoped source review, not a complete security audit of every Edge Function or SQL function. The relevant RPC implementations, grants, RLS policies, owner identity source, isolated backend availability, and all deployment paths must be confirmed before implementation. No production change is authorized by this document.
+
+## Read-only database verification of selected authorization controls
+
+A read-only SQL inspection was performed against the active Supabase project. No SQL writes were run.
+
+- `public.gotradex_admin_list_users()` is `SECURITY DEFINER`, has an empty `search_path` setting, and explicitly checks that `auth.uid()` exists in `public.admin_users` before returning user records.
+- The inspected function was executable by `authenticated` and not executable by `anon` at the time of the check.
+- `public.gotradex_security_status()` was also executable by `authenticated` and not by `anon`; its definition scopes returned profile security fields to `p.id = auth.uid()` and requires a non-null authenticated user.
+- The `public.admin_users` table had an RLS SELECT policy named `Admins can view own admin record`, restricted to the authenticated user whose `auth.uid()` matches `user_id`.
+- These results support preserving existing backend checks, but do not establish the owner-lock itself. The new project-lock authorization must use a separate owner allowlist and dedicated credential/approval records. Do not change the existing admin membership or withdrawal PIN.
+
