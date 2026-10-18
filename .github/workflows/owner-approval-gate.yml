@@ -1,0 +1,45 @@
+name: Owner approval gate (prototype)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  owner-approval:
+    name: owner-approval-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require owner review for the exact current commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = 'Ryan-dotco';
+            const { owner: repoOwner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            if (!pr || pr.base.ref !== 'main') {
+              core.setFailed('No eligible pull request targeting main.');
+              return;
+            }
+
+            // Fail closed: approval must come from the configured owner account
+            // and must be attached to the exact current PR head commit.
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: repoOwner, repo, pull_number: pr.number, per_page: 100
+            });
+            const headSha = pr.head.sha;
+            const ownerApproval = reviews
+              .filter(r => r.user?.login === owner && r.state === 'APPROVED' && r.commit_id === headSha)
+              .sort((a, b) => new Date(b.submitted_at || 0) - new Date(a.submitted_at || 0))[0];
+
+            if (!ownerApproval) {
+              core.setFailed(`BLOCKED: ${owner} must approve the exact current head commit (${headSha}). A new commit requires a new approval.`);
+              return;
+            }
+
+            core.notice(`Owner approval found for exact head ${headSha}.`);
+            core.notice('This is a prototype check. Repository rules must require this check before merge.');
