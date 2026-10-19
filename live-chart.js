@@ -767,7 +767,7 @@
       state.currentPriceLine=state.candleSeries.createPriceLine({
         price:raw,
         color:"#facc15",
-        lineWidth:1,
+        lineWidth:2,
         lineStyle:0,
         axisLabelVisible:true,
         axisLabelColor:"#facc15",
