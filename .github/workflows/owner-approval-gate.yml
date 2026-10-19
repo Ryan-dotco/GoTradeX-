@@ -1,0 +1,97 @@
+name: Owner approval gate (prototype)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+    branches: [main]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  owner-approval:
+    name: owner-approval-gate
+    if: github.event_name == 'pull_request' || github.event_name == 'pull_request_review'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require SHA-bound owner authorization review and exact path scope
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Authenticates approval through the owner's GitHub account.
+            // This does not independently verify a PIN or protect a compromised account.
+            const ownerLogin = 'Ryan-dotco';
+            const ownerId = 312410773;
+            const { owner, repo } = context.repo;
+            const eventPr = context.payload.pull_request;
+            const pullNumber = eventPr?.number ?? null;
+
+            if (!pullNumber) {
+              core.setFailed('BLOCKED: event is not an eligible pull request.');
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner, repo, pull_number: pullNumber
+            });
+            if (pr.base.ref !== 'main') {
+              core.setFailed('BLOCKED: pull request must target main.');
+              return;
+            }
+            const headSha = pr.head.sha;
+
+            const [reviews, files] = await Promise.all([
+              github.paginate(github.rest.pulls.listReviews, {
+                owner, repo, pull_number: pr.number, per_page: 100
+              }),
+              github.paginate(github.rest.pulls.listFiles, {
+                owner, repo, pull_number: pr.number, per_page: 100
+              })
+            ]);
+
+            const changedPaths = files.map(f => f.filename).sort();
+            if (changedPaths.length === 0) {
+              core.setFailed('BLOCKED: no changed paths were found.');
+              return;
+            }
+
+            function parseApproval(body) {
+              const lines = String(body || '').split(/\r?\n/).map(s => s.trim());
+              const match = /^OWNER-APPROVE ([0-9a-f]{40})$/i.exec(lines[0] || '');
+              if (!match || lines[1] !== 'SCOPE:') return null;
+              const paths = lines.slice(2).filter(Boolean).map(line => {
+                if (!line.startsWith('- ')) return null;
+                return line.slice(2).trim();
+              });
+              if (paths.length === 0 || paths.some(p => !p) || new Set(paths).size !== paths.length) return null;
+              return { sha: match[1].toLowerCase(), paths: paths.sort() };
+            }
+
+            // The PR author may not approve their own PR on GitHub. A COMMENTED review is
+            // accepted as the owner's scoped authorization; a separate trusted reviewer
+            // must still provide the repository's required approving review.
+            const approvals = reviews
+              .filter(r => r.user?.login === ownerLogin && r.user?.id === ownerId)
+              .filter(r => ['APPROVED', 'COMMENTED'].includes(r.state) && Boolean(r.submitted_at))
+              .filter(r => String(r.commit_id || '').toLowerCase() === headSha.toLowerCase())
+              .map(r => ({ review: r, parsed: parseApproval(r.body) }))
+              .filter(x => x.parsed && x.parsed.sha === headSha.toLowerCase())
+              .sort((a, b) => new Date(b.review.submitted_at || 0) - new Date(a.review.submitted_at || 0));
+
+            const exactApproval = approvals.find(x =>
+              JSON.stringify(x.parsed.paths) === JSON.stringify(changedPaths)
+            );
+
+            if (!exactApproval) {
+              core.setFailed(
+                `BLOCKED: owner approval must name the exact current head ${headSha} and list every changed path exactly under SCOPE.`
+              );
+              return;
+            }
+
+            core.notice(`Owner authorization review verified for current head ${headSha}.`);
+            core.notice(`Approved path count: ${changedPaths.length}; no merge was performed.`);
