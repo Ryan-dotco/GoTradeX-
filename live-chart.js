@@ -20,7 +20,7 @@
 
   let state={
     tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
-    provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
+    provider:"",symbol:"",assetLabel:"EUR/USD",mode:"LIVE",type:"forex",
     connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
@@ -137,7 +137,7 @@
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
-        '<div class="gtxLWCDateTime" aria-label="Selected market"><div class="gtxLWCMarketRow"><span class="gtxLWCMarketLabel" id="gtxLWCMarketLabel">LIVE BTC/USD</span><div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">5M ⌄</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Chart candle timeframe" hidden></div></div></div><div class="gtxLWCDateClock"><span id="gtxLWCDate"></span><span id="gtxLWCClock"></span></div></div>'+
+        '<div class="gtxLWCDateTime" aria-label="Selected market"><div class="gtxLWCMarketRow"><span class="gtxLWCMarketLabel" id="gtxLWCMarketLabel">LIVE EUR/USD</span><div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">5M ⌄</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Chart candle timeframe" hidden></div></div></div><div class="gtxLWCDateClock"><span id="gtxLWCDate"></span><span id="gtxLWCClock"></span></div></div>'+
         '<div class="gtxLWCControl">'+
           '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candlestick ⌄</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candlestick</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
         '</div></div>'+ '<span class="gtxLWCStatus" id="gtxLWCStatus">Feed connecting</span>'+
@@ -256,7 +256,7 @@
   }
   function assetText(){
     const mode=String(state.mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
-    const pair=String(state.assetLabel||"BTC/USDT").trim().toUpperCase();
+    const pair=String(state.assetLabel||"EUR/USD").trim().toUpperCase();
     const displayPair=pair;
     const market=document.getElementById("gtxLWCMarketLabel");
     if(market){market.textContent=mode+" "+displayPair;market.style.color="#22c55e";market.style.fontWeight="800";}
@@ -1218,7 +1218,7 @@
   }
 
   function setAsset(label,type,mode){
-    const pair=String(label||"BTC/USD").replace(/\s+OTC$/i,"").trim()||"BTC/USD";
+    const pair=String(label||"EUR/USD").replace(/\s+OTC$/i,"").trim()||"BTC/USD";
     const m=String(mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
     const t=String(type||"crypto").toLowerCase();
     try{
