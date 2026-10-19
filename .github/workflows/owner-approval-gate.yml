@@ -4,6 +4,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, edited]
     branches: [main]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -13,6 +15,7 @@ permissions:
 jobs:
   owner-approval:
     name: owner-approval-gate
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request != null
     runs-on: ubuntu-latest
     steps:
       - name: Require SHA-bound owner comment and exact path scope
@@ -24,16 +27,23 @@ jobs:
             const ownerLogin = 'Ryan-dotco';
             const ownerId = 312410773;
             const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
             const eventPr = context.payload.pull_request;
+            const pullNumber = eventPr?.number ??
+              (issue?.pull_request ? issue.number : null);
 
-            if (!eventPr || eventPr.base.ref !== 'main') {
-              core.setFailed('BLOCKED: no eligible pull request targeting main.');
+            if (!pullNumber) {
+              core.setFailed('BLOCKED: event is not an eligible pull request.');
               return;
             }
 
             const { data: pr } = await github.rest.pulls.get({
-              owner, repo, pull_number: eventPr.number
+              owner, repo, pull_number: pullNumber
             });
+            if (pr.base.ref !== 'main') {
+              core.setFailed('BLOCKED: pull request must target main.');
+              return;
+            }
             const headSha = pr.head.sha;
 
             const [comments, files] = await Promise.all([
