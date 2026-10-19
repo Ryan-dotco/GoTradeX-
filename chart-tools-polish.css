@@ -96,3 +96,7 @@ html body #chartToolsDrawer .body-head{
   border-bottom:1px dotted #42617f!important;
 }
 
+
+/* Account selector: keep the three-dot menu inside the DEMO/LIVE control border. */
+html body .accountPickerBtn{position:relative!important;min-width:108px!important;padding-right:23px!important;align-items:flex-start!important}
+html body .accountPickerBtn::after{content:"⋯";position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:15px;font-weight:900;line-height:1;color:#c7d8ec;pointer-events:none}
