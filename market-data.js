@@ -195,8 +195,8 @@
   // Keep history and live ticks on their appropriate Deriv WebSocket services.
   // The Options public stream is already used by the GoTradeX Deriv index inspector
   // for verified live OTC index ticks.
-  const DERIV_HISTORY_WS="wss://ws.binaryws.com/websockets/v3";
-  const DERIV_TICK_WS="wss://api.derivws.com/trading/v1/options/ws/public";
+  const DERIV_HISTORY_WS="wss://ws.derivws.com/websockets/v3?app_id=1089";
+  const DERIV_TICK_WS="wss://ws.derivws.com/websockets/v3?app_id=1089";
 
   function derivCandleHistory(symbol,sec){
     return new Promise((resolve,reject)=>{
