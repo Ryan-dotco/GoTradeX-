@@ -308,8 +308,11 @@
   }
 
 
-  // Public Deriv market-data endpoint for ticks_history and live tick subscriptions.
-  const DERIV_WS="wss://ws.binaryws.com/websockets/v3";
+  // Keep history and live ticks on their appropriate Deriv WebSocket services.
+  // The Options public stream is already used by the GoTradeX Deriv index inspector
+  // for verified live OTC index ticks.
+  const DERIV_HISTORY_WS="wss://ws.binaryws.com/websockets/v3";
+  const DERIV_TICK_WS="wss://api.derivws.com/trading/v1/options/ws/public";
 
   function derivCandleHistory(symbol,sec){
     return new Promise((resolve,reject)=>{
@@ -320,7 +323,7 @@
         try{ws?.close()}catch(_){}
         fn(value);
       };
-      try{ws=new WebSocket(DERIV_WS)}catch(e){return reject(e)}
+      try{ws=new WebSocket(DERIV_HISTORY_WS)}catch(e){return reject(e)}
       timer=setTimeout(()=>finish(reject,new Error("Deriv history request timed out.")),10000);
       ws.onopen=()=>{
         ws.send(JSON.stringify(sec<60?{ticks_history:symbol,end:"latest",count:1000,style:"ticks",req_id:1}:{ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}));
@@ -352,7 +355,7 @@
     let stopped=false,ws=null,subId=null,reconnectTimer=null;
     const connect=()=>{
       if(stopped)return;
-      try{ws=new WebSocket(DERIV_WS)}catch(e){onStatus("DERIV CONNECTION ERROR",false);return}
+      try{ws=new WebSocket(DERIV_TICK_WS)}catch(e){onStatus("DERIV CONNECTION ERROR",false);return}
       onStatus("CONNECTING • DERIV",false);
       ws.onopen=()=>{
         if(stopped){try{ws.close()}catch(_){};return}
