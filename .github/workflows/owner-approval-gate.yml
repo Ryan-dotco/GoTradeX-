@@ -18,7 +18,7 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'pull_request_review'
     runs-on: ubuntu-latest
     steps:
-      - name: Require SHA-bound owner approval review and exact path scope
+      - name: Require SHA-bound owner authorization review and exact path scope
         uses: actions/github-script@v7
         with:
           script: |
@@ -71,9 +71,12 @@ jobs:
               return { sha: match[1].toLowerCase(), paths: paths.sort() };
             }
 
+            // The PR author may not approve their own PR on GitHub. A COMMENTED review is
+            // accepted as the owner's scoped authorization; a separate trusted reviewer
+            // must still provide the repository's required approving review.
             const approvals = reviews
               .filter(r => r.user?.login === ownerLogin && r.user?.id === ownerId)
-              .filter(r => r.state === 'APPROVED' && Boolean(r.submitted_at))
+              .filter(r => ['APPROVED', 'COMMENTED'].includes(r.state) && Boolean(r.submitted_at))
               .filter(r => String(r.commit_id || '').toLowerCase() === headSha.toLowerCase())
               .map(r => ({ review: r, parsed: parseApproval(r.body) }))
               .filter(x => x.parsed && x.parsed.sha === headSha.toLowerCase())
@@ -90,5 +93,5 @@ jobs:
               return;
             }
 
-            core.notice(`Owner approval review verified for current head ${headSha}.`);
+            core.notice(`Owner authorization review verified for current head ${headSha}.`);
             core.notice(`Approved path count: ${changedPaths.length}; no merge was performed.`);
