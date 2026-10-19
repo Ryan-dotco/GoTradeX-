@@ -20,7 +20,7 @@
 
   let state={
     tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
-    provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
+    provider:"",symbol:"",assetLabel:"EUR/USD",mode:"LIVE",type:"forex",
     connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
@@ -64,19 +64,26 @@
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:center;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
-      ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:26px;font:900 9px/1 system-ui;color:#fff;background:#0b2036e8;border:1px solid #254c70;border-radius:6px;padding:5px 7px;white-space:nowrap}"+
-      "@keyframes gtxFeedWhisper{0%,100%{transform:translateX(0);opacity:.82}50%{transform:translateX(-5px);opacity:1}}@media(prefers-reduced-motion:reduce){.gtxLWCStatus{animation:none!important}}"+
-      ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:auto;font:900 9px/1.15 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;padding:0!important;margin:0;white-space:nowrap;animation:gtxFeedWhisper 2.8s ease-in-out infinite;transform-origin:center}"+
+      ".gtxLWCStatus{box-sizing:border-box;display:inline-flex;align-items:center;height:auto;font:800 7px/1 system-ui;color:#35e889;background:transparent;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;padding:0;margin:0;white-space:nowrap;text-transform:uppercase}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
-      ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
-      ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
-      ".gtxLWCTypePicker{position:relative}"+
-      ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
-      ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:124px;padding:4px;background:#0b2036;border:1px solid var(--gtx-accent-border,#31597f);border-radius:7px;box-shadow:0 8px 24px #0009;z-index:9999;display:grid;gap:4px;visibility:visible;opacity:1}"+
+      ".gtxLWCDateTime{display:flex!important;flex:0 0 auto;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:5px!important;color:#f1f7ff!important;font:700 11px/1.25 system-ui!important;white-space:nowrap!important;padding:0!important;margin:0!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;pointer-events:none;position:relative;z-index:12}.gtxLWCDateClock{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;color:#f1f7ff!important;font:700 11px/1.25 system-ui!important;letter-spacing:.01em!important;white-space:nowrap!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;padding:0!important;margin:0!important;min-height:26px;visibility:visible!important;opacity:1!important}"+
+      ".gtxLWCMarketRow{display:flex;align-items:center;gap:13px;min-height:18px;white-space:nowrap}.gtxLWCMarketLabel{display:block!important;order:0!important;position:static!important;box-sizing:border-box!important;font:800 11px/1.2 system-ui!important;color:#35e889!important;letter-spacing:.02em!important;text-transform:none!important;white-space:nowrap!important;padding:0!important;margin:0!important;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}"+".gtxLWCDateTime{border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important}"+".gtxLWCDateTime #gtxLWCDate{order:1!important;display:block!important;color:#f1f7ff!important;font-size:11px!important;line-height:1.25!important}.gtxLWCDateTime #gtxLWCClock{display:block!important;color:#f1f7ff!important;font-size:11px!important;line-height:1.25!important}"+".gtxLWCDateTime #gtxLWCClock{order:2!important}"+
+      ".gtxLWCMarketRow{gap:5px!important}"+
+      ".gtxLWCMarketLabel{font-size:9px!important;margin:0!important;color:#35e889!important}"+
+      ".gtxLWCDateTime{flex-direction:column!important;align-items:flex-start!important;gap:3px!important}"+
+      ".gtxLWCChartTFPicker{position:relative;display:inline-flex;align-items:center;pointer-events:auto;z-index:50}"+
+      ".gtxLWCChartTFTrigger{appearance:none!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent!important;color:#facc15!important;padding:0!important;margin:0 0 0 12px!important;font:900 12px/1.2 system-ui!important;letter-spacing:.04em;min-width:0!important;min-height:0!important;height:auto!important;cursor:pointer!important;white-space:nowrap!important}"+
+      ".gtxLWCChartTFMenu{position:absolute;left:0;top:calc(100% + 7px);min-width:118px;max-height:55vh;overflow:auto;display:grid;gap:0;padding:4px;background:#0b2036;border:1px solid #31506d;border-radius:6px;box-shadow:0 8px 24px #0009;z-index:99999}"+
+      ".gtxLWCChartTFMenu[hidden]{display:none}"+
+      ".gtxLWCChartTFOption{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px dotted #29435f;border-radius:0;padding:7px 9px;color:#dcecff;font:700 10px/1.2 system-ui;cursor:pointer}"+
+      ".gtxLWCChartTFOption.active{color:#facc15;border-bottom-color:#facc15;background:transparent}"+
+      ".gtxLWCTypePicker{position:relative}.gtxLWCTypePickerNearMenu{display:inline-flex!important;align-items:center;flex:0 0 auto;margin:0 0 0 5px!important;position:relative;z-index:2147483000!important}.pairbarLeft #gtxLWCTypePicker .gtxLWCTypeButton{display:inline-flex!important;min-height:30px!important;padding:2px 3px!important;margin:0!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;color:#e5edf7!important;font-size:11px!important;font-weight:800!important;white-space:nowrap!important}.pairbarLeft #gtxLWCTypeMenu{position:absolute!important;left:0!important;right:auto!important;top:calc(100% + 5px)!important;z-index:2147483647!important;min-width:142px!important;max-height:55vh!important;overflow:auto!important;display:grid;gap:2px!important;padding:8px 6px!important;margin:0!important;background:rgba(7,17,29,.98)!important;border:0!important;border-radius:8px!important;outline:0!important;box-shadow:0 12px 28px rgba(0,0,0,.42)!important;opacity:0;transform:translateY(-7px) scale(.97);transform-origin:top left;transition:opacity .16s ease,transform .16s ease;pointer-events:none}.pairbarLeft #gtxLWCTypePicker.is-open #gtxLWCTypeMenu{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}.pairbarLeft #gtxLWCTypeMenu[hidden]{display:none!important}.pairbarLeft #gtxLWCTypeMenu .gtxLWCTypeOption{min-height:32px!important;padding:7px 8px!important;border:0!important;border-radius:5px!important;outline:0!important;box-shadow:none!important;background:transparent!important;color:#e5edf7!important;text-align:left!important;font-size:11px!important;cursor:pointer!important}.pairbarLeft #gtxLWCTypeMenu .gtxLWCTypeOption.active{background:rgba(56,189,248,.13)!important;color:#7dd3fc!important}"+
+      ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:5px;height:auto;border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;color:#e5edf7;padding:2px 0;font:800 11px/1.2 system-ui;white-space:nowrap;cursor:pointer}"+
+      ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 7px);min-width:112px;padding:5px 0;background:rgba(7,17,29,.97);border:0!important;border-radius:0;box-shadow:none!important;z-index:9999;display:grid;gap:9px;visibility:visible;opacity:1}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
-      ".gtxLWCTypeOption{box-sizing:border-box;display:block;width:100%;min-height:28px;border:1px solid var(--gtx-accent-border,#31597f);border-radius:4px;text-align:left;padding:6px 8px;background:#102945;color:var(--gtx-screen-text,#dcecff);font:800 10px/1.2 system-ui;white-space:nowrap;visibility:visible;opacity:1}"+
-      ".gtxLWCTypeOption.active{background:var(--gtx-accent,#17436a);border-color:var(--gtx-accent-light,#8ff0ae);color:#fff}"+
-      ".gtxLWCSelect{box-sizing:border-box;height:26px;border:0;background:transparent;color:#39ff14;padding:5px 0;font:900 9px/1 system-ui}"+
+      ".gtxLWCTypeOption{box-sizing:border-box;display:block;width:100%;min-height:24px;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;text-align:left;padding:2px 4px;background:transparent!important;color:#dcecff;font:700 11px/1.2 system-ui;white-space:nowrap;visibility:visible;opacity:1;cursor:pointer}"+
+      ".gtxLWCTypeOption.active{background:transparent!important;border:0!important;color:#38bdf8;font-weight:900}"+
+      ".gtxLWCSelect{box-sizing:border-box;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
       "#gtxLWCExpiryLayer{display:block!important;position:absolute!important;inset:0!important;z-index:2147483000!important;overflow:hidden!important;pointer-events:none!important;visibility:visible!important;opacity:1!important}"+
@@ -89,12 +96,37 @@
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCStatus,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCStatus,.gtxLWCTypeButton{height:23px;font-size:8px;padding:4px 5px}.gtxLWCChartTFTrigger{font-size:8px!important}.gtxLWCDateTime{font-size:7px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
+    s.textContent +=
+      "#gtxLiveChart{outline:none!important}"+
+      "#gtxLiveChart{border:0!important;border-radius:0!important;box-shadow:none!important}"+
+      "#gtxLWC canvas{border:0!important;outline:0!important;box-shadow:none!important}"+
+      "#gtxLiveChart,#gtxLWC,#gtxLWC canvas{border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}"+
+      "#gtxLWCStatus{position:absolute!important;right:8px!important;bottom:8px!important;top:auto!important;left:auto!important;z-index:20!important;display:block!important;height:auto!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;font:800 9px/1.2 system-ui!important;white-space:nowrap!important;text-transform:none!important;pointer-events:none!important}"+
+      "#gtxLiveChart .gtxLWCHead{border:0!important;outline:0!important;box-shadow:none!important}"+
+      ".gtxLWCStatus{position:absolute!important;right:8px!important;bottom:8px!important;z-index:20!important;display:block!important;height:auto!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;font:800 9px/1.2 system-ui!important;white-space:nowrap!important;text-transform:none!important;pointer-events:none!important}"+
+      ".gtxLWCTypePicker{position:relative;z-index:35;margin-top:1px}"+
+      ".gtxLWCTypeButton{font-size:11px!important;color:#f1f5f9!important}"+
+      ".gtxLWCTypeMenu{background:transparent!important;border:0!important;box-shadow:none!important;gap:10px!important;padding:6px 0!important;min-width:104px!important}"+
+      ".gtxLWCTypeOption{background:transparent!important;border:0!important;box-shadow:none!important;padding:2px 0!important;font-size:11px!important;color:#e5edf7!important}"+
+      ".gtxLWCTypeOption.active{color:#38bdf8!important;font-weight:900!important}"+
+      ".gtxLWCChartTFTrigger{font-size:12px!important;margin-left:14px!important;color:#facc15!important}"+
+      ".gtxLWCDateClock,#gtxLWCDate,#gtxLWCClock{color:#fff!important;font-size:11px!important}"+
+      "@media(max-width:600px){.gtxLWCStatus{font-size:9px!important;right:8px!important;bottom:8px!important}.gtxLWCChartTFTrigger{font-size:12px!important;margin-left:12px!important}.gtxLWCTypeButton,.gtxLWCTypeOption{font-size:10px!important}.gtxLWCControl{max-width:none!important}}"+
+      ".gtxLWCMarketLabel{font-size:12px!important;line-height:1.2!important}"+
+      ".gtxLWCDateClock,#gtxLWCDate,#gtxLWCClock{font-size:8px!important;line-height:1.15!important}"+
+      ".gtxLWCDateClock{gap:2px!important;min-height:0!important}"+
+      "html body #gtxChart,html body #gtxLiveChart,html body #gtxLWC,html body #gtxLWC canvas,html body #gtxLWCExpiryLayer,html body #gtxChart *,html body #gtxLiveChart *,html body #gtxLWC *{border-radius:0!important}"+
+      "html body #gtxChart,html body #gtxLiveChart,html body #gtxLWC,html body #gtxLWC canvas,html body #gtxLWCExpiryLayer{border:0!important;border-width:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}"+
+      "html body #gtxLWCStatus,html body .gtxLWCStatus{font-size:12px!important;line-height:1.2!important;font-weight:800!important;right:8px!important;bottom:8px!important;top:auto!important;left:auto!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;padding:0!important;margin:0!important;white-space:nowrap!important}"+
+      "@media(max-width:600px){html body #gtxLWCStatus,html body .gtxLWCStatus{font-size:12px!important;line-height:1.2!important;right:8px!important;bottom:8px!important}}";
     document.head.appendChild(s);
   }
 
+  // Keep Trade Expiration in the trading controls; the chart header's candle timeframe is separate.
+  function ensureExpiryControlPlacement(){ return true; }
   function mount(){
-    if(document.getElementById("gtxLiveChart"))return true;
+    if(document.getElementById("gtxLiveChart")){ensureExpiryControlPlacement();return true;}
     const chartHost=document.getElementById("gtxChart");
     const pair=document.querySelector(".pairbar"),bottom=document.querySelector(".bottom");
     if(!chartHost||!pair||!bottom||!bottom.parentNode)return false;
@@ -105,46 +137,95 @@
     box.innerHTML=
       '<div id="gtxLWC"></div>'+
       '<div class="gtxLWCHead">'+
-        '<div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div>'+
+        '<div class="gtxLWCDateTime" aria-label="Selected market"><div class="gtxLWCMarketRow"><span class="gtxLWCMarketLabel" id="gtxLWCMarketLabel">LIVE EUR/USD</span><div class="gtxLWCChartTFPicker" id="gtxLWCChartTFPicker"><button class="gtxLWCChartTFTrigger" id="gtxLWCChartTFTrigger" type="button" aria-label="Chart candle timeframe" aria-haspopup="true" aria-expanded="false">5M ⌄</button><div class="gtxLWCChartTFMenu" id="gtxLWCChartTFMenu" role="menu" aria-label="Chart candle timeframe" hidden></div></div></div><div class="gtxLWCDateClock"><span id="gtxLWCDate"></span><span id="gtxLWCClock"></span></div></div>'+
         '<div class="gtxLWCControl">'+
-          '<span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span>'+
-          '<span class="gtxLWCStatus" id="gtxLWCStatus">CONNECTING</span>'+
-          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
-          '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
-        '</div>'+
-      '</div>'+
+          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candlestick ⌄</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candlestick</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
+        '</div></div>'+ '<span class="gtxLWCStatus" id="gtxLWCStatus">Feed connecting</span>'+
       '<div id="gtxLWCExpiryLayer" aria-hidden="true"></div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
+    ensureExpiryControlPlacement();
+    [0,150,500,1200,2500].forEach(delay=>setTimeout(ensureExpiryControlPlacement,delay));
+    const expiryPlacementObserver=new MutationObserver(()=>ensureExpiryControlPlacement());
+    expiryPlacementObserver.observe(document.body,{childList:true,subtree:true});
+    setTimeout(()=>expiryPlacementObserver.disconnect(),15000);
+    const typePicker=document.getElementById("gtxLWCTypePicker");
+     const moreButton=document.getElementById("marketMoreBtn");
+     if(typePicker){typePicker.classList.add("gtxLWCTypePickerNearMenu");const moreGroup=moreButton&&moreButton.parentElement;if(moreGroup&&typePicker.parentElement!==moreGroup)moreButton.insertAdjacentElement("afterend",typePicker);}
     try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
-    const tfSelect=document.getElementById("gtxLWCChartTF");
-    const tfShort={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"1M","2 Minutes":"2M","3 Minutes":"3M","5 Minutes":"5M","10 Minutes":"10M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","2 Hours":"2H","4 Hours":"4H","1 Day":"1D"};
-    Object.keys(CFG.intervals).forEach(t=>{
-      const o=document.createElement("option");
-      o.value=t;o.textContent=tfShort[t]||t;
-      if(t===state.tf)o.selected=true;
-      tfSelect.appendChild(o);
-    });
-    tfSelect.onchange=()=>setTimeframe(tfSelect.value);
+    const tfTrigger=document.getElementById("gtxLWCChartTFTrigger");
+    const tfMenu=document.getElementById("gtxLWCChartTFMenu");
+    function shortChartTf(tf){
+      const short={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"1M","3 Minutes":"3M","5 Minutes":"5M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","4 Hours":"4H","1 Day":"1D"};
+      return short[tf]||tf;
+    }
+    function syncChartTfTrigger(){
+      if(tfTrigger)tfTrigger.textContent=shortChartTf(state.tf)+" ⌄";
+      if(tfMenu)tfMenu.querySelectorAll("[data-chart-timeframe]").forEach(option=>{
+        const active=option.dataset.chartTimeframe===state.tf;
+        option.classList.toggle("active",active);option.setAttribute("aria-checked",String(active));
+      });
+    }
+    if(tfTrigger&&tfMenu){
+      tfMenu.replaceChildren();
+      Object.keys(CFG.intervals).forEach(tf=>{
+        const option=document.createElement("button");option.type="button";
+        option.className="gtxLWCChartTFOption";option.dataset.chartTimeframe=tf;
+        option.setAttribute("role","menuitemradio");option.textContent=tf;
+        option.addEventListener("click",()=>{
+          setTimeframe(tf);tfMenu.hidden=true;tfTrigger.setAttribute("aria-expanded","false");syncChartTfTrigger();
+        });
+        tfMenu.appendChild(option);
+      });
+      tfTrigger.addEventListener("click",e=>{
+        e.preventDefault();e.stopPropagation();const open=tfMenu.hidden;tfMenu.hidden=!open;tfTrigger.setAttribute("aria-expanded",String(open));
+      });
+      document.addEventListener("click",e=>{
+        if(!e.target.closest("#gtxLWCChartTFPicker")){tfMenu.hidden=true;tfTrigger.setAttribute("aria-expanded","false");}
+      });
+    }
+    syncChartTfTrigger();
     const typeButton=document.getElementById("gtxLWCTypeButton");
     const typeMenu=document.getElementById("gtxLWCTypeMenu");
     if(typeButton&&typeMenu){
-      typeButton.onclick=()=>{const open=typeMenu.hidden;typeMenu.hidden=!open;typeButton.setAttribute("aria-expanded",String(open));};
-      typeMenu.querySelectorAll("[data-chart-type]").forEach(option=>option.onclick=()=>{
-        setChartType(option.dataset.chartType);
-        typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");
+      const closeTypeMenu=()=>{
+        typeMenu.hidden=true;
+        typePicker&&typePicker.classList.remove("is-open");
+        typeButton.setAttribute("aria-expanded","false");
+      };
+      const openTypeMenu=()=>{
+        typeMenu.hidden=false;
+        typePicker&&typePicker.classList.add("is-open");
+        typeButton.setAttribute("aria-expanded","true");
+      };
+      typeButton.setAttribute("aria-label","Open chart style menu");
+      typeButton.textContent="Chart Style ⌄";
+      typeButton.addEventListener("click",e=>{
+        e.preventDefault();e.stopPropagation();
+        if(typeMenu.hidden)openTypeMenu();else closeTypeMenu();
       });
-      document.addEventListener("click",e=>{if(!e.target.closest("#gtxLWCTypePicker")){typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");}});
+      typeMenu.querySelectorAll("[data-chart-type]").forEach(option=>option.addEventListener("click",e=>{
+        e.preventDefault();e.stopPropagation();
+        setChartType(option.dataset.chartType);
+        closeTypeMenu();
+      }));
+      document.addEventListener("click",e=>{
+        if(!e.target.closest("#gtxLWCTypePicker"))closeTypeMenu();
+      });
+      document.addEventListener("keydown",e=>{
+        if(e.key==="Escape")closeTypeMenu();
+      });
     }
 
     try{
       const saved=localStorage.getItem(CHART_KEY);
-      if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];tfSelect.value=saved}
+      if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved]}
       const savedType=localStorage.getItem(TYPE_KEY);
       if(["candle","heikin","line","mountain"].includes(savedType))state.chartType=savedType;
     }catch(_){}
+    syncChartTfTrigger();
     updateTypeButtons();
     updateDateTime();
     if(!state.dateTimeTimer)state.dateTimeTimer=setInterval(updateDateTime,1000);
@@ -162,30 +243,27 @@
 
   function status(t,ok){
     const e=document.getElementById("gtxLWCStatus");if(!e)return;
-    const raw=String(t||"").toUpperCase();
-    const asset=String(state.assetLabel||"").trim();
-    const provider=String(state.provider||"").toUpperCase();
-    const isOTC=state.mode==="OTC";
-    const feed=provider==="BYBIT"||raw.includes("BYBIT")?"BYBIT":provider==="DERIV"||raw.includes("DERIV")?"DERIV":"FEED";
-    const failed=/ERROR|UNAVAILABLE|NO VERIFIED|FAILED|DISCONNECTED/.test(raw);
-    e.textContent=isOTC
-      ? "OTC FEED"+(asset?" • "+asset:"")+" • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING")
-      : (feed==="FEED"?"LIVE FEED":"LIVE "+feed)+(asset?" • "+asset:"")+" • "+(ok?"CONNECTED":failed?"UNAVAILABLE":"CONNECTING");
-    e.style.color="#39ff14";
-    e.style.borderColor="transparent";
-    e.style.background="transparent";
+    const msg=String(t||"");
+    if(ok&&/BYBIT/i.test(msg))e.textContent="Live Bybit";
+    else if(ok&&/DERIV/i.test(msg))e.textContent="Live Deriv";
+    else if(ok&&/DERIV/i.test(msg))e.textContent="Live Deriv";
+    else e.textContent="Feed connecting";
+    e.style.color=ok&&(/BYBIT|DERIV/i.test(msg))?"#22c55e":"#94a3b8";
+    e.style.border="0";e.style.background="transparent";e.style.outline="0";e.style.boxShadow="none";
   }
   function notice(t,show=true){
     const e=document.getElementById("gtxLWCNotice");if(e){e.textContent=t;e.hidden=!show}
   }
   function assetText(){
-    const a=document.getElementById("gtxLWCAsset");
-    if(a)a.textContent=(state.mode==="LIVE"?"LIVE":"OTC")+" • "+(state.assetLabel||"");
+    const mode=String(state.mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
+    const pair=String(state.assetLabel||"EUR/USD").trim().toUpperCase();
+    const displayPair=pair;
+    const market=document.getElementById("gtxLWCMarketLabel");
+    if(market){market.textContent=mode+" "+displayPair;market.style.color="#22c55e";market.style.fontWeight="800";}
   }
   function updateTypeButtons(){
-    const labels={candle:"Candles",heikin:"Heikin Ashi",line:"Line",mountain:"Mountain"};
     const button=document.getElementById("gtxLWCTypeButton");
-    if(button)button.textContent=(labels[state.chartType]||"Candles")+" ▾";
+    if(button)button.textContent="Chart Style ⌄";
     document.querySelectorAll("#gtxLiveChart [data-chart-type]").forEach(b=>{
       b.classList.toggle("active",b.dataset.chartType===state.chartType);
     });
@@ -255,22 +333,11 @@
   }
 
   function historyReady(){
-    // Sub-minute candles can start from a single verified historical bucket or
-    // the first verified live tick. Never block a short-interval WebSocket while
-    // waiting for a full historical window.
-    if(state.sec<60)return state.candles.length>=1;
-    return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12;
-  }
-
-  async function resolveTwelveSymbol(f){
-    if(f.provider!=="TWELVE_DATA_LOOKUP")return f.symbol;
-    return await feed().twelveSearch(f.symbol);
-  }
-
-  async function loadTwelveHistory(symbol){
-    state.candles=await feed().twelveHistory(symbol,state.sec);
-    state.candles=state.candles.filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
-    if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
+    // A failed history request must not leave the chart blank while waiting for
+    // twelve completed timeframe buckets (which could take an hour for 5M).
+    // The first real provider tick creates one genuine, updating candle; never
+    // synthesize prices or require a full historical window before rendering.
+    return state.candles.length >= 1;
   }
 
   function connectBybit(){
@@ -411,62 +478,6 @@
     });
   }
 
-  function connectTwelve(){
-    const id=++state.connectionId;
-    closeSocket();
-    const f=selection();
-    if(!f.available||!String(f.provider).startsWith("TWELVE_DATA")){
-      state.connected=false;status("NO VERIFIED LIVE FEED",false);
-      notice(f.reason||"No verified provider is available for this asset.",true);
-      return;
-    }
-    state.assetLabel=f.label;assetText();
-    status("VERIFYING • TWELVE DATA",false);
-    notice("Loading verified historical candles…",true);
-    resolveTwelveSymbol(f).then(async symbol=>{
-      if(id!==state.connectionId)return;
-      state.symbol=symbol;state.provider="TWELVE_DATA";
-      // Request provider-verified history for every supported chart interval, including
-      // sub-minute intervals. If the provider has no history for an interval, keep
-      // that fact explicit and build only future candles from verified live ticks.
-      try{await loadTwelveHistory(symbol)}catch(historyError){state.candles=[];state.price=null;state.historyLoaded=false;notice("Verified historical candles are unavailable for this asset/timeframe. Waiting for live provider ticks; no candles will be fabricated.",true)}
-      if(id!==state.connectionId)return;
-      if(state.sec>=60 && !historyReady()){
-        state.connected=false;
-        status("WAITING FOR HISTORY",false);
-        notice("Waiting for enough verified historical candles before displaying the chart…",true);
-        return;
-      }
-      if(state.candles.length)renderHistory();
-      const socket=await feed().twelveSocket(symbol,
-        tick=>{
-          if(id!==state.connectionId)return;
-          addTick(tick.time,tick.price,0);
-          if(!state.historyLoaded && historyReady()){
-            try{renderHistory();status("LIVE • TWELVE DATA",true);notice("",false)}catch(e){
-              status("CHART ENGINE ERROR",false);notice(e.message||"Unable to render live candles.",true);
-            }
-          }
-        },
-        (msg,ok)=>{
-          if(id!==state.connectionId)return;
-
-          state.connected=!!ok;
-          status(ok?"LIVE • TWELVE DATA":msg,!!ok);
-          if(msg==="FALLBACK • TWELVE DATA" && state.sec<15){
-            notice("Your selected candle timeframe and trade expiration stay independent. This feed polls every 15 seconds, so 5-second candles may be under-sampled until a faster verified feed is available.",true);
-          }else if(ok)notice("",false);
-        }
-      );
-      if(id!==state.connectionId){try{socket.close()}catch(_){}return}
-      state.ws=socket;
-    }).catch(e=>{
-      if(id!==state.connectionId)return;
-      state.connected=false;status("NO VERIFIED LIVE FEED",false);
-      notice(e.message||"The selected symbol is not available through the configured verified provider.",true);
-    });
-  }
-
   function connectOTC(){
     const id=++state.connectionId;
     closeSocket();
@@ -521,7 +532,6 @@
     }
     if(f.provider==="BYBIT")connectBybit();
     else if(f.provider==="DERIV")connectDeriv();
-    else if(String(f.provider).startsWith("TWELVE_DATA"))connectTwelve();
     else{closeSocket();state.connected=false;status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified live feed is connected for this asset.",true)}
   }
 
@@ -592,9 +602,9 @@
       autoSize:true,
       layout:{background:{type:C.ColorType.Solid,color:"rgba(0,0,0,0)"},textColor:"#a9bdd0",fontFamily:"Inter,system-ui,sans-serif",fontSize:11},
       grid:{vertLines:{color:"#16283a",style:C.LineStyle.Solid},horzLines:{color:"#16283a",style:C.LineStyle.Solid}},
-      rightPriceScale:{visible:true,borderVisible:true,borderColor:"#31506d",minimumWidth:78,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
+      rightPriceScale:{visible:true,borderVisible:false,minimumWidth:66,ticksVisible:true,entireTextOnly:false,alignLabels:true,autoScale:true,scaleMargins:{top:.08,bottom:.12}},
       leftPriceScale:{visible:false,borderVisible:false},
-      timeScale:{visible:true,borderVisible:true,borderColor:"#31506d",timeVisible:true,secondsVisible:false,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false,tickMarkFormatter:formatChartTime},
+      timeScale:{visible:true,borderVisible:false,timeVisible:true,secondsVisible:false,barSpacing:9,minBarSpacing:3,rightOffset:5,fixLeftEdge:false,tickMarkFormatter:formatChartTime},
       localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}},
       crosshair:{mode:C.CrosshairMode.Normal,vertLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"},horzLine:{color:"#58718a",width:1,style:C.LineStyle.Dashed,labelBackgroundColor:"#263d53"}},
       handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},
@@ -604,7 +614,7 @@
 
     state.candleSeries=state.chart.addCandlestickSeries({
       upColor:"#22c55e",downColor:"#ef4444",
-      borderUpColor:"#22c55e",borderDownColor:"#ef4444",
+      borderVisible:false,borderUpColor:"#22c55e",borderDownColor:"#ef4444",
       wickUpColor:"#a7f3c2",wickDownColor:"#fca5a5",
       priceLineVisible:false,lastValueVisible:false,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
@@ -679,8 +689,25 @@
   }
 
   function updateCurrentPriceLine(){
-    // The candlestick series already supplies the current-price line and right-axis marker.
-    // Keep it separate from the fixed trade entry-price line.
+    if(!state.candleSeries)return;
+    const raw=Number(state.price ?? state.candles[state.candles.length-1]?.c);
+    if(!Number.isFinite(raw)||raw<=0)return;
+    // Yellow live-market price line, separate from fixed manual/AutoBot trade-entry lines.
+    // Recreate it at the latest verified price so its horizontal level and right-axis label track ticks.
+    try{
+      if(state.currentPriceLine)state.candleSeries.removePriceLine(state.currentPriceLine);
+      state.currentPriceLine=state.candleSeries.createPriceLine({
+        price:raw,
+        color:"#facc15",
+        lineWidth:2,
+        lineStyle:0,
+        axisLabelVisible:true,
+        axisLabelColor:"#facc15",
+        axisLabelTextColor:"#111827",
+        lineVisible:true,
+        title:""
+      });
+    }catch(_){}
   }
 
   const expiryTrades=[];
@@ -1123,7 +1150,7 @@
   }
 
   function setAsset(label,type,mode){
-    const pair=String(label||"BTC/USD").replace(/\s+OTC$/i,"").trim()||"BTC/USD";
+    const pair=String(label||"EUR/USD").replace(/\s+OTC$/i,"").trim()||"BTC/USD";
     const m=String(mode||"LIVE").toUpperCase()==="OTC"?"OTC":"LIVE";
     const t=String(type||"crypto").toLowerCase();
     try{
@@ -1140,7 +1167,8 @@
     if(state.candleSeries){try{state.candleSeries.setData([])}catch(_){} }
     if(state.lineSeries){try{state.lineSeries.setData([])}catch(_){} }
     if(state.areaSeries){try{state.areaSeries.setData([])}catch(_){} }
-    if(document.getElementById("gtxLWCAsset")) document.getElementById("gtxLWCAsset").textContent=m+" • "+pair;
+    const marketLabel=document.getElementById("gtxLWCMarketLabel");
+    if(marketLabel)marketLabel.textContent=m+" "+pair;
     if(document.getElementById("gtxLWCStatus")) document.getElementById("gtxLWCStatus").textContent="CONNECTING";
     if(document.getElementById("gtxLWCNotice")){document.getElementById("gtxLWCNotice").hidden=false;document.getElementById("gtxLWCNotice").textContent="Loading "+pair+" candles…"}
     if(state.booted) connect();
@@ -1360,9 +1388,9 @@
   });
 
   window.GoTradeXLiveChart={
-    boot,setTimeframe,reconnect:connect,setAsset,setChartTool,setChartToolEnabled,state,
+    boot,setTimeframe,reconnect:connect,setAsset,setChartType,setChartTool,setChartToolEnabled,state,
     setWallpaper:function(data){const box=document.getElementById("gtxLiveChart");if(box)box.style.setProperty("--gtx-chart-wallpaper",data?'url("'+data+'")':"none");},
-    applyTheme:function(p){if(!p||!p.border)return;try{if(state.chart)state.chart.applyOptions({rightPriceScale:{borderVisible:true,borderColor:p.border},timeScale:{borderVisible:true,borderColor:p.border}});}catch(e){}},
+    applyTheme:function(p){try{if(state.chart)state.chart.applyOptions({rightPriceScale:{borderVisible:false},leftPriceScale:{borderVisible:false},timeScale:{borderVisible:false}});}catch(e){}},
     applyTimezone:function(offset){try{if(offset&&/^([+-])\d{2}:\d{2}$/.test(offset))localStorage.setItem("gtx_timezone_offset",offset);if(state.chart)state.chart.applyOptions({timeScale:{tickMarkFormatter:formatChartTime},localization:{timeFormatter:function(time){return formatChartTime(time,(window.LightweightCharts&&window.LightweightCharts.TickMarkType&&window.LightweightCharts.TickMarkType.Time)||0);}}});}catch(e){}},
     chartVersion:"Lightweight Charts 4.2.2",
     engine:"TradingView Lightweight Charts"

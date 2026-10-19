@@ -1,8 +1,7 @@
 /* GoTradeX verified market-feed registry.
  * No synthetic prices. A feed is marked LIVE only after its provider confirms
  * the selected symbol/stream is available. Bybit Spot is the native crypto feed.
- * Twelve Data is the verified non-crypto adapter when a valid API key/feed access
- * is configured. Short candles are built only from real provider ticks.
+ * Deriv is the verified forex/OTC feed. Short candles are built only from real provider ticks.
  */
 (function(){
   "use strict";
@@ -107,15 +106,6 @@
     "UK 100":"OTC_FTSE"
   };
 
-  const directTwelve = {
-    "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
-    "AUD/USD":"AUD/USD","USD/CAD":"USD/CAD","NZD/USD":"NZD/USD","EUR/GBP":"EUR/GBP",
-    "EUR/JPY":"EUR/JPY","GBP/JPY":"GBP/JPY","EUR/CHF":"EUR/CHF","AUD/JPY":"AUD/JPY",
-    "XAU/USD":"XAU/USD","XAG/USD":"XAG/USD","XAU/EUR":"XAU/EUR","XAG/EUR":"XAG/EUR",
-    "WTI Oil":"WTI/USD","Brent Oil":"BRENT/USD","Natural Gas":"NATGAS/USD",
-    "Copper":"HG1","Platinum":"XPT/USD","Palladium":"XPD/USD"
-  };
-
   function key(){ return ""; }
 
   async function serverInvoke(body){
@@ -128,7 +118,7 @@
   }
 
   function type(){
-    try{return String(localStorage.getItem("gotradex_asset_type")||"crypto").toLowerCase()}catch(e){return "crypto"}
+    try{return String(localStorage.getItem("gotradex_asset_type")||"forex").toLowerCase()}catch(e){return "forex"}
   }
 
   function label(){
@@ -139,53 +129,26 @@
       const stored=String(localStorage.getItem("gotradex_asset_display")||"").trim();
       if(stored)return stored.replace(/\s+OTC$/i,"");
       const visible=String(document.getElementById("bottomAssetPair")?.textContent||"").trim().replace(/\s+OTC$/i,"");
-      return visible||"BTC/USD";
-    }catch(e){return "BTC/USD"}
+      return visible||"EUR/USD";
+    }catch(e){return "EUR/USD"}
   }
   function mode(){
     try{return String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(e){return "LIVE"}
   }
 
   function resolve(){
-    const raw=label(); const l=({BTCUSD:"BTC/USD","BTC/USDT":"BTC/USD"}[raw]||raw);
-    const storedType=type();
-    const inferredCrypto=!!cryptoMap[l];
-    const inferredTwelve=!!directTwelve[l];
-    const inferredType=inferredCrypto ? "crypto" : inferredTwelve ? (
-      /^(XAU|XAG)\//.test(l) ? "metals" :
-      /^(WTI|Brent|Natural Gas|Copper|Platinum|Palladium)/.test(l) ? "commodities" : "forex"
-    ) : storedType;
-    const t=inferredType;
+    const raw=label();
+    const l=({BTCUSD:"BTC/USD","BTC/USDT":"BTC/USD"}[raw]||raw);
+    const t=type();
+    // OTC mode exposes only the Deriv OTC index symbols that were verified in
+    // the GoTradeX index test. Never route an OTC label to a demo or unrelated feed.
     if(mode()==="OTC"){
-      if(t==="indices" && derivOtcIndexMap[l]) return {available:true,provider:"DERIV",symbol:derivOtcIndexMap[l],label:l,type:t,otc:true,mode:"OTC"};
-      return {available:false,provider:"NONE",reason:"No verified Deriv OTC feed is configured for "+l+".",label:l,type:t,mode:"OTC"};
+      if(t==="indices"&&derivOtcIndexMap[l]) return {available:true,provider:"DERIV",symbol:derivOtcIndexMap[l],label:l,type:t,otc:true,mode:"OTC"};
+      return {available:false,provider:"NONE",reason:"No verified live Deriv OTC feed is configured for "+l+". Choose a verified OTC index.",label:l,type:t,mode:"OTC"};
     }
-    if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
-    if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
-    // Use the selected asset native symbol through the verified Twelve Data adapter.
-    // Do not substitute BTC candles for another market.
-    if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
-    if(t==="forex" && /^[A-Z]{3}\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    if(t==="stocks" && /^[A-Z]{1,6}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    // All listed non-crypto assets are candidates for verified Twelve Data discovery.
-    // The chart layer will confirm the exact provider symbol before rendering.
-    if(t==="commodities" || t==="metals" || t==="indices") return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    return {available:false,provider:"NONE",reason:"No verified native feed is configured for "+l+".",label:l,type:t};
-  }
-
-  async function twelveSearch(symbol){
-    const requested=String(symbol||"").trim().toUpperCase();
-    const d=await serverInvoke({action:"lookup",marketMode:"LIVE",assetType:type(),symbol:requested});
-    const matches=Array.isArray(d.matches)?d.matches:[];
-    if(!matches.length) throw new Error("No verified Twelve Data symbol matches were returned for "+requested+".");
-    const exact=matches.find(x=>String(x.symbol||"").toUpperCase()===requested);
-    return String((exact||matches[0]).symbol||requested);
-  }
-
-  function intervals(sec){
-    if(sec===60)return "1min"; if(sec===300)return "5min"; if(sec===900)return "15min";
-    if(sec===1800)return "30min"; if(sec===3600)return "1h"; if(sec===14400)return "4h";
-    if(sec===86400)return "1day"; if(sec===2592000)return "1month"; return null;
+    if(t==="crypto"&&cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t};
+    if(t==="forex"&&derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
+    return {available:false,provider:"NONE",reason:"No verified live Deriv or Bybit feed is configured for "+l+". Unsupported assets are not substituted or fabricated.",label:l,type:t,mode:"LIVE"};
   }
   function timeframeName(sec){
     const m={5:"5 Seconds",10:"10 Seconds",15:"15 Seconds",30:"30 Seconds",60:"1 Minute",180:"3 Minutes",300:"5 Minutes",900:"15 Minutes",1800:"30 Minutes",3600:"1 Hour",14400:"4 Hours",86400:"1 Day"};
@@ -229,86 +192,11 @@
     if(sec>2592000)return aggregateMonths(candles,sec===7776000?3:sec===15552000?6:12);
     return candles;
   }
-  async function twelveHistory(symbol,sec,assetType){
-    const tf=timeframeName(sec);
-    if(!tf) return [];
-    // Historical seconds are built from verified ticks; 2-minute bars are merged
-    // from real 1-minute candles; multi-month bars are aggregated from real months.
-    const requestTf=sec===120?"1 Minute":sec>2592000?"1 Month":tf;
-    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:String(assetType||type()).toLowerCase(),symbol,timeframe:requestTf});
-    const candles=normalizeCandles(Array.isArray(d.candles)?d.candles:[]);
-    if(sec===120)return aggregateSeconds(candles,120);
-    if(sec>2592000)return aggregateMonths(candles,sec===7776000?3:sec===15552000?6:12);
-    return candles;
-  }
-
-  async function twelvePrice(symbol){
-    const d=await serverInvoke({action:"price",marketMode:"LIVE",assetType:type(),symbol});
-    if(!Number.isFinite(Number(d.price))) throw new Error("No verified live price was returned.");
-    return {price:Number(d.price),time:Number(d.timestamp)||Date.now()};
-  }
-
-  async function twelveSocket(symbol,onTick,onStatus){
-    let stopped=false,ws=null,timer=null,fallbackTimer=null,opened=false;
-    const sb=window.GoTradeXMarketSupabase||(window.GoTradeXMarketSupabase=
-      window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5",{auth:{persistSession:true,autoRefreshToken:true}}));
-
-    const poll=async()=>{
-      if(stopped)return;
-      try{const p=await twelvePrice(symbol);onTick(p);onStatus("LIVE • TWELVE DATA",true)}
-      catch(e){onStatus("WAITING • TWELVE DATA",false)}
-    };
-    const startFallback=async()=>{
-      if(stopped||timer)return;
-      // The HTTP fallback polls every 15 seconds, so a 5-second candle would
-      // be under-sampled. Tell the chart controller to move only the timeframe
-      // to the smallest interval this fallback can reasonably support.
-      onStatus("FALLBACK • TWELVE DATA",false);
-      await poll();
-      if(stopped)return;
-      timer=setInterval(poll,15000);
-    };
-
-    try{
-      const {data}=await sb.auth.getSession();
-      const token=data?.session?.access_token||"";
-      if(!token) throw new Error("No authenticated GoTradeX session is available for the live market stream.");
-      const base="https://glffecggusetzklmyukv.supabase.co/functions/v1/gotradex-market-ws";
-      ws=new WebSocket(base+"?access_token="+encodeURIComponent(token)+"&symbol="+encodeURIComponent(symbol));
-      onStatus("CONNECTING • TWELVE DATA",false);
-      const failTimer=setTimeout(()=>{if(!opened&&!stopped)startFallback()},4500);
-      ws.onopen=()=>{opened=true;clearTimeout(failTimer);onStatus("LIVE • TWELVE DATA",true)};
-      ws.onmessage=e=>{
-        if(stopped)return;
-        try{
-          const d=JSON.parse(String(e.data||"{}"));
-          if(d.event==="price" && Number.isFinite(Number(d.price))){
-            onTick({price:Number(d.price),time:Number(d.timestamp)||Date.now()});
-            onStatus("LIVE • TWELVE DATA",true);
-          }else if(d.event==="subscribe-status" && String(d.status||"").toLowerCase()==="failed"){
-            startFallback();
-          }else if(d.event==="proxy-status" && d.status!=="connected"){
-            startFallback();
-          }
-        }catch(_){}
-      };
-      ws.onerror=()=>{if(!opened)startFallback()};
-      ws.onclose=()=>{if(!stopped)startFallback()};
-      fallbackTimer=failTimer;
-    }catch(_){
-      await startFallback();
-    }
-
-    return {close(){
-      stopped=true;
-      if(timer)clearInterval(timer);
-      if(fallbackTimer)clearTimeout(fallbackTimer);
-      try{ws?.close()}catch(_){}
-    }};
-  }
-
-
-  const DERIV_WS="wss://api.derivws.com/trading/v1/options/ws/public";
+  // Keep history and live ticks on their appropriate Deriv WebSocket services.
+  // The Options public stream is already used by the GoTradeX Deriv index inspector
+  // for verified live OTC index ticks.
+  const DERIV_HISTORY_WS="wss://ws.derivws.com/websockets/v3?app_id=1089";
+  const DERIV_TICK_WS="wss://ws.derivws.com/websockets/v3?app_id=1089";
 
   function derivCandleHistory(symbol,sec){
     return new Promise((resolve,reject)=>{
@@ -319,7 +207,7 @@
         try{ws?.close()}catch(_){}
         fn(value);
       };
-      try{ws=new WebSocket(DERIV_WS)}catch(e){return reject(e)}
+      try{ws=new WebSocket(DERIV_HISTORY_WS)}catch(e){return reject(e)}
       timer=setTimeout(()=>finish(reject,new Error("Deriv history request timed out.")),10000);
       ws.onopen=()=>{
         ws.send(JSON.stringify(sec<60?{ticks_history:symbol,end:"latest",count:1000,style:"ticks",req_id:1}:{ticks_history:symbol,end:"latest",count:100,granularity:sec,style:"candles",req_id:1}));
@@ -351,7 +239,7 @@
     let stopped=false,ws=null,subId=null,reconnectTimer=null;
     const connect=()=>{
       if(stopped)return;
-      try{ws=new WebSocket(DERIV_WS)}catch(e){onStatus("DERIV CONNECTION ERROR",false);return}
+      try{ws=new WebSocket(DERIV_TICK_WS)}catch(e){onStatus("DERIV CONNECTION ERROR",false);return}
       onStatus("CONNECTING • DERIV",false);
       ws.onopen=()=>{
         if(stopped){try{ws.close()}catch(_){};return}
@@ -393,6 +281,6 @@
   }
 
   window.GoTradeXMarketFeeds={
-    config:CFG,key,resolve,twelveSearch,twelveHistory,bybitHistory,twelvePrice,twelveSocket,derivCandleHistory,derivSocket,intervals
+    config:CFG,key,resolve,bybitHistory,derivCandleHistory,derivSocket
   };
 })();
