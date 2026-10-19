@@ -333,11 +333,11 @@
   }
 
   function historyReady(){
-    // Sub-minute candles can start from a single verified historical bucket or
-    // the first verified live tick. Never block a short-interval WebSocket while
-    // waiting for a full historical window.
-    if(state.sec<60)return state.candles.length>=1;
-    return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12;
+    // A failed history request must not leave the chart blank while waiting for
+    // twelve completed timeframe buckets (which could take an hour for 5M).
+    // The first real provider tick creates one genuine, updating candle; never
+    // synthesize prices or require a full historical window before rendering.
+    return state.candles.length >= 1;
   }
 
   async function resolveTwelveSymbol(f){
