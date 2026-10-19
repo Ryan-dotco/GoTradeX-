@@ -112,7 +112,7 @@ function init(){
    portalIcon.className="gtxPortalIcon";
    const portalMeta={
      "Chart Indicators":["🐊","Trend & Pattern • Alligator, Fractals, EMA, Supertrend, Ichimoku, SAR, ADX"],
-     "Custom Indicators":["🦘","Kangaroo, Lion, Kenkley’s Lines"],
+     "Custom Indicators":["🦘","Kanglis, Lion, Kenkley’s Lines"],
      "Chart Type":["📊","Candles, Heikin Ashi, Line and Area"],
      "Drawing & Price":["✏️","Support/Resistance, lines and Fibonacci"],
      "Momentum":["⚡","RSI, MACD, Stochastic, CCI and Williams %R"],
@@ -131,7 +131,7 @@ function init(){
    portalLeft.append(portalIcon,portalText);
    const portalArrow=document.createElement("span");
    portalArrow.className="gtxPortalArrow";
-   portalArrow.textContent="V";
+   portalArrow.textContent="⌄"
    portalHead.append(portalLeft,portalArrow);
    const portalBody=document.createElement("div");
    portalBody.className="gtxPortalBody";
@@ -161,19 +161,21 @@ function init(){
 
  panel.querySelectorAll(".chartToolOption").forEach((old,index)=>{
    const name=old.dataset.tool||old.textContent.trim().replace(/›/g,"").trim();
+   const chartTypeMap={"Candlesticks":"candle","Heikin Ashi":"heikin","Line Chart":"line","Area Chart":"mountain","Mountain Chart":"mountain"};
+   const chartTypeKey=chartTypeMap[name]||null;
    const card=document.createElement("section");card.className="gtxToolCard";
    const head=document.createElement("button");head.type="button";head.className="tool-btn";head.dataset.tool=name;
    const left=document.createElement("span");left.className="tool-left";
    const icon=document.createElement("span");icon.className="tool-icon";icon.textContent=icons[name]||"›";
    const textWrap=document.createElement("span");textWrap.className="tool-text";
-   const title=document.createElement("b");title.textContent=name;
+   const title=document.createElement("b");title.textContent=name==="Kangaroo"?"Kanglis":name;
    const sub=document.createElement("span");sub.textContent=descriptions[name]||"Tool settings and chart availability for the selected market.";
    textWrap.append(title,sub);left.append(icon,textWrap);
-   const arrow=document.createElement("span");arrow.className="tool-arrow";arrow.textContent="V";
+   const arrow=document.createElement("span");arrow.className="tool-arrow";arrow.textContent="›"
    head.append(left,arrow);
    const body=document.createElement("div");body.className="tool-body";
    const bodyHead=document.createElement("div");bodyHead.className="body-head";
-   const bodyTitle=document.createElement("b");bodyTitle.textContent=(icons[name]?icons[name]+" ":"")+name.toUpperCase();
+   const bodyTitle=document.createElement("b");bodyTitle.textContent=(icons[name]?icons[name]+" ":"")+(name==="Kangaroo"?"KANGLIS":name.toUpperCase());
    const close=document.createElement("button");close.type="button";close.className="closeToolBody";close.textContent="×";close.setAttribute("aria-label","Collapse "+name);close.style.cssText="width:32px;height:32px;background:#1a0a0a;border:1px solid #7a1f1f;border-radius:8px;color:#ff6a6a;font-size:20px";
    bodyHead.append(bodyTitle,close);
    const content=document.createElement("div");content.className="body-content";
@@ -215,6 +217,13 @@ function init(){
    close.addEventListener("click",closeCard);
    apply.addEventListener("click",()=>{
      const api=window.GoTradeXLiveChart;
+     if(chartTypeKey){
+       if(!api||typeof api.setChartType!=="function"){setStatus("Chart style control is not ready yet. Please try again.");return;}
+       api.setChartType(chartTypeKey);
+       apply.classList.add("applied");apply.textContent="✓ APPLIED TO CHART";remove.classList.remove("applied");
+       setStatus(name+" is now active on the chart.");
+       return;
+     }
      if(!api||typeof api.setChartTool!=="function"){setStatus("Chart engine is not ready. No tool was applied.");return;}
      const result=typeof api.setChartToolEnabled==="function"?api.setChartToolEnabled(name,true,readParams()):api.setChartTool(name);
      if(result.ok){apply.classList.toggle("applied",result.active!==false);apply.textContent=result.active===false?"APPLY TO CHART":"✓ APPLIED TO CHART";remove.classList.toggle("applied",false);setStatus(result.message||name+" updated on the selected chart.");}
@@ -222,6 +231,13 @@ function init(){
    });
    remove.addEventListener("click",()=>{
      const api=window.GoTradeXLiveChart;
+     if(chartTypeKey){
+       if(!api||typeof api.setChartType!=="function"){setStatus("Chart style control is not ready yet. Please try again.");return;}
+       api.setChartType("candle");
+       apply.classList.remove("applied");apply.textContent="APPLY TO CHART";
+       setStatus("Default Candlesticks style restored.");
+       return;
+     }
      if(!api||typeof api.setChartTool!=="function"){setStatus("Chart engine is not ready. Nothing was removed.");return;}
      const result=typeof api.setChartToolEnabled==="function"?api.setChartToolEnabled(name,false):api.setChartTool(name);
      if(result.ok){apply.classList.remove("applied");apply.textContent="APPLY TO CHART";setStatus(result.message||name+" removed from the selected chart.");}
