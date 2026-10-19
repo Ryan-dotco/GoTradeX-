@@ -128,7 +128,7 @@
   }
 
   function type(){
-    try{return String(localStorage.getItem("gotradex_asset_type")||"crypto").toLowerCase()}catch(e){return "crypto"}
+    try{return String(localStorage.getItem("gotradex_asset_type")||"forex").toLowerCase()}catch(e){return "forex"}
   }
 
   function label(){
@@ -139,8 +139,8 @@
       const stored=String(localStorage.getItem("gotradex_asset_display")||"").trim();
       if(stored)return stored.replace(/\s+OTC$/i,"");
       const visible=String(document.getElementById("bottomAssetPair")?.textContent||"").trim().replace(/\s+OTC$/i,"");
-      return visible||"BTC/USD";
-    }catch(e){return "BTC/USD"}
+      return visible||"EUR/USD";
+    }catch(e){return "EUR/USD"}
   }
   function mode(){
     try{return String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(e){return "LIVE"}
