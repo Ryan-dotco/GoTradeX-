@@ -1,0 +1,98 @@
+/* GoTradeX chart-tools flyout: plain text, no cards or shadows. */
+html body #chartToolsDrawer .panel{position:relative!important;width:min(560px,100vw)!important;overflow-x:hidden!important;padding:12px!important;background:#081b31!important}
+html body #chartToolsDrawer .gtxPortal{position:relative!important;width:46%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
+html body #chartToolsDrawer .gtxPortalHead{width:100%!important;min-height:38px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:7px!important;padding:7px 0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#e5edf7!important;font-size:12px!important;font-weight:750!important}
+html body #chartToolsDrawer .gtxPortalHead.open{background:transparent!important;box-shadow:none!important;color:#38bdf8!important}
+html body #chartToolsDrawer .gtxPortalLeft{display:block!important;min-width:0!important;flex:1!important}
+html body #chartToolsDrawer .gtxPortalIcon,html body #chartToolsDrawer .gtxPortalText span,html body #chartToolsDrawer .tool-icon,html body #chartToolsDrawer .tool-text span{display:none!important}
+html body #chartToolsDrawer .gtxPortalText{display:block!important;min-width:0!important}
+html body #chartToolsDrawer .gtxPortalText b{display:block!important;font-size:12px!important;font-weight:750!important;color:inherit!important;line-height:1.3!important}
+html body #chartToolsDrawer .gtxPortalArrow{font-size:13px!important;color:#94a3b8!important;transition:transform .15s!important}
+html body #chartToolsDrawer .gtxPortalHead.open .gtxPortalArrow{transform:rotate(-90deg)!important;color:#38bdf8!important}
+html body #chartToolsDrawer .gtxPortalBody{display:none!important;position:absolute!important;left:100%!important;top:0!important;width:112%!important;max-height:68vh!important;overflow-y:auto!important;overflow-x:hidden!important;margin:0!important;padding:0 0 10px 14px!important;background:transparent!important;border:0!important;border-radius:0!important;z-index:60!important}
+html body #chartToolsDrawer .gtxPortalBody.show{display:block!important}
+html body #chartToolsDrawer .gtxToolCard{margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+html body #chartToolsDrawer .tool-btn{width:100%!important;min-height:31px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;padding:6px 0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#e5edf7!important;font-size:11px!important}
+html body #chartToolsDrawer .tool-btn.open{border:0!important;box-shadow:none!important;color:#38bdf8!important}
+html body #chartToolsDrawer .tool-left{display:block!important;min-width:0!important;flex:1!important}
+html body #chartToolsDrawer .tool-text b{font-size:11px!important;font-weight:700!important;color:inherit!important}
+html body #chartToolsDrawer .tool-arrow{font-size:14px!important;color:#94a3b8!important;opacity:1!important}
+html body #chartToolsDrawer .tool-btn.open .tool-arrow{transform:rotate(90deg)!important;color:#38bdf8!important}
+html body #chartToolsDrawer .tool-body{display:none!important;position:relative!important;margin:2px 0 8px 8px!important;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+html body #chartToolsDrawer .tool-body.show{display:block!important}
+html body #chartToolsDrawer .body-head{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:4px 0!important;border:0!important;background:transparent!important}
+html body #chartToolsDrawer .body-head b{font-size:10px!important;color:#94a3b8!important}
+html body #chartToolsDrawer .closeToolBody{width:22px!important;height:22px!important;background:transparent!important;border:0!important;color:#94a3b8!important}
+html body #chartToolsDrawer .body-content{padding:2px 0!important}
+html body #chartToolsDrawer .tool-description{display:none!important}
+html body #chartToolsDrawer .tool-setting-row,html body #chartToolsDrawer .tool-current-market,html body #chartToolsDrawer #chartToolsStatus{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:5px 0!important;color:#aab8ca!important}
+html body #chartToolsDrawer .tool-setting-row input,html body #chartToolsDrawer .tool-setting-row select{background:transparent!important;border:0!important;border-bottom:1px solid #42536a!important;border-radius:0!important;color:#fff!important}
+html body #chartToolsDrawer .apply-row{display:flex!important;gap:12px!important;margin-top:7px!important}
+html body #chartToolsDrawer .apply-btn{min-height:26px!important;padding:4px 0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#dbeafe!important;font-size:10px!important}
+html body #chartToolsDrawer .apply-btn.on,html body #chartToolsDrawer .apply-btn.applied{background:transparent!important;border:0!important;color:#4ade80!important}
+html body #chartToolsDrawer .apply-btn.off{background:transparent!important;border:0!important;color:#fca5a5!important}
+html body #chartToolsDrawer .category{display:none!important}
+html body #chartToolsDrawer .close{position:sticky!important;top:0!important;float:right!important;background:transparent!important;border:0!important;box-shadow:none!important;color:#dbeafe!important}
+@media(max-width:480px){html body #chartToolsDrawer .panel{width:100vw!important;padding:10px!important}html body #chartToolsDrawer .gtxPortal{width:45%!important}html body #chartToolsDrawer .gtxPortalBody{width:120%!important;padding-left:10px!important}}
+
+/* Larger borderless three-dot trigger on the main trading page. */
+html body #marketMoreBtn{width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;margin:0!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;color:#e5edf7!important;font-size:29px!important;font-weight:700!important;line-height:1!important;display:grid!important;place-items:center!important}
+html body #marketMoreBtn:focus-visible{outline:1px solid #64748b!important;outline-offset:2px!important}
+
+/* Chart Tools portal: dotted underlines plus consistent previous/close navigation. */
+html body #chartToolsDrawer .panel{
+  position:relative!important;
+  padding-top:54px!important;
+}
+html body #chartToolsDrawer .gtxUniversalBack{
+  position:absolute!important;
+  top:10px!important;
+  left:12px!important;
+  z-index:20!important;
+  min-height:32px!important;
+  margin:0!important;
+  padding:5px 9px!important;
+  border:0!important;
+  border-radius:0!important;
+  border-bottom:1px dotted #7b9bbd!important;
+  background:transparent!important;
+  color:#e5edf7!important;
+  font-size:18px!important;
+}
+html body #chartToolsDrawer .close{
+  position:absolute!important;
+  top:10px!important;
+  right:12px!important;
+  z-index:20!important;
+  float:none!important;
+  margin:0!important;
+  padding:7px 2px!important;
+  border:0!important;
+  border-radius:0!important;
+  border-bottom:1px dotted #7b9bbd!important;
+  background:transparent!important;
+  color:#e5edf7!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+html body #chartToolsDrawer .panel h2{
+  margin:0 0 16px!important;
+  padding-bottom:8px!important;
+  border-bottom:1px dotted #42617f!important;
+}
+html body #chartToolsDrawer .gtxPortalHead,
+html body #chartToolsDrawer .tool-btn{
+  border-bottom:1px dotted #42617f!important;
+  text-decoration:none!important;
+}
+html body #chartToolsDrawer .gtxPortalHead.open,
+html body #chartToolsDrawer .tool-btn.open{
+  border-bottom:1px dotted #38bdf8!important;
+}
+html body #chartToolsDrawer .gtxPortalBody .tool-btn{
+  border-bottom:1px dotted #29435f!important;
+}
+html body #chartToolsDrawer .body-head{
+  border-bottom:1px dotted #42617f!important;
+}
+
