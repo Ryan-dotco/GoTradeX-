@@ -308,7 +308,8 @@
   }
 
 
-  const DERIV_WS="wss://api.derivws.com/trading/v1/options/ws/public";
+  // Public Deriv market-data endpoint for ticks_history and live tick subscriptions.
+  const DERIV_WS="wss://ws.binaryws.com/websockets/v3";
 
   function derivCandleHistory(symbol,sec){
     return new Promise((resolve,reject)=>{
