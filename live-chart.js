@@ -246,7 +246,7 @@
     const msg=String(t||"");
     if(ok&&/BYBIT/i.test(msg))e.textContent="Live Bybit";
     else if(ok&&/DERIV/i.test(msg))e.textContent="Live Deriv";
-    else if(ok&&/TWELVE DATA/i.test(msg))e.textContent="Feed unavailable";
+    else if(ok&&/DERIV/i.test(msg))e.textContent="Live Deriv";
     else e.textContent="Feed connecting";
     e.style.color=ok&&(/BYBIT|DERIV/i.test(msg))?"#22c55e":"#94a3b8";
     e.style.border="0";e.style.background="transparent";e.style.outline="0";e.style.boxShadow="none";
@@ -338,17 +338,6 @@
     // The first real provider tick creates one genuine, updating candle; never
     // synthesize prices or require a full historical window before rendering.
     return state.candles.length >= 1;
-  }
-
-  async function resolveTwelveSymbol(f){
-    if(f.provider!=="TWELVE_DATA_LOOKUP")return f.symbol;
-    return await feed().twelveSearch(f.symbol);
-  }
-
-  async function loadTwelveHistory(symbol){
-    state.candles=await feed().twelveHistory(symbol,state.sec);
-    state.candles=state.candles.filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
-    if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
 
   function connectBybit(){
@@ -489,62 +478,6 @@
     });
   }
 
-  function connectTwelve(){
-    const id=++state.connectionId;
-    closeSocket();
-    const f=selection();
-    if(!f.available||!String(f.provider).startsWith("TWELVE_DATA")){
-      state.connected=false;status("NO VERIFIED LIVE FEED",false);
-      notice(f.reason||"No verified provider is available for this asset.",true);
-      return;
-    }
-    state.assetLabel=f.label;assetText();
-    status("VERIFYING • TWELVE DATA",false);
-    notice("Loading verified historical candles…",true);
-    resolveTwelveSymbol(f).then(async symbol=>{
-      if(id!==state.connectionId)return;
-      state.symbol=symbol;state.provider="TWELVE_DATA";
-      // Request provider-verified history for every supported chart interval, including
-      // sub-minute intervals. If the provider has no history for an interval, keep
-      // that fact explicit and build only future candles from verified live ticks.
-      try{await loadTwelveHistory(symbol)}catch(historyError){state.candles=[];state.price=null;state.historyLoaded=false;notice("Verified historical candles are unavailable for this asset/timeframe. Waiting for live provider ticks; no candles will be fabricated.",true)}
-      if(id!==state.connectionId)return;
-      if(state.sec>=60 && !historyReady()){
-        state.connected=false;
-        status("WAITING FOR HISTORY",false);
-        notice("Waiting for enough verified historical candles before displaying the chart…",true);
-        return;
-      }
-      if(state.candles.length)renderHistory();
-      const socket=await feed().twelveSocket(symbol,
-        tick=>{
-          if(id!==state.connectionId)return;
-          addTick(tick.time,tick.price,0);
-          if(!state.historyLoaded && historyReady()){
-            try{renderHistory();status("LIVE • TWELVE DATA",true);notice("",false)}catch(e){
-              status("CHART ENGINE ERROR",false);notice(e.message||"Unable to render live candles.",true);
-            }
-          }
-        },
-        (msg,ok)=>{
-          if(id!==state.connectionId)return;
-
-          state.connected=!!ok;
-          status(ok?"LIVE • TWELVE DATA":msg,!!ok);
-          if(msg==="FALLBACK • TWELVE DATA" && state.sec<15){
-            notice("Your selected candle timeframe and trade expiration stay independent. This feed polls every 15 seconds, so 5-second candles may be under-sampled until a faster verified feed is available.",true);
-          }else if(ok)notice("",false);
-        }
-      );
-      if(id!==state.connectionId){try{socket.close()}catch(_){}return}
-      state.ws=socket;
-    }).catch(e=>{
-      if(id!==state.connectionId)return;
-      state.connected=false;status("NO VERIFIED LIVE FEED",false);
-      notice(e.message||"The selected symbol is not available through the configured verified provider.",true);
-    });
-  }
-
   function connectOTC(){
     const id=++state.connectionId;
     closeSocket();
@@ -599,7 +532,6 @@
     }
     if(f.provider==="BYBIT")connectBybit();
     else if(f.provider==="DERIV")connectDeriv();
-    else if(String(f.provider).startsWith("TWELVE_DATA"))connectTwelve();
     else{closeSocket();state.connected=false;status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified live feed is connected for this asset.",true)}
   }
 
