@@ -74,15 +74,17 @@
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
       ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
-      ".gtxLWCTypePicker{position:relative}"+
-      ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:26px;border:1px solid var(--gtx-accent-border,#31597f);background:#102945;color:var(--gtx-accent-light,#fff);border-radius:5px;padding:5px 7px;font:800 9px/1 system-ui;white-space:nowrap}"+
-      ".gtxLWCTypeMenu{position:absolute;right:0;top:calc(100% + 5px);min-width:124px;padding:4px;background:#0b2036;border:1px solid var(--gtx-accent-border,#31597f);border-radius:7px;box-shadow:0 8px 24px #0009;z-index:9999;display:grid;gap:4px;visibility:visible;opacity:1}"+
+      ".gtxLWCTypePicker{position:relative;flex:0 0 auto;z-index:1000}"+
+      ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:96px;min-width:96px;height:34px;border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;color:#fff!important;border-radius:0!important;padding:6px 8px;font:900 14px/1.1 system-ui;white-space:nowrap}"+
+      ".gtxLWCTypeMenu{position:fixed!important;left:8px;right:auto!important;top:40px;min-width:136px;padding:4px;background:#071b34;border:0!important;outline:0!important;border-radius:8px;box-shadow:0 8px 24px #0009;z-index:2147483647!important;display:grid;gap:4px;visibility:visible;opacity:1;isolation:isolate}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
-      ".gtxLWCTypeOption{box-sizing:border-box;display:block;width:100%;min-height:28px;border:1px solid var(--gtx-accent-border,#31597f);border-radius:4px;text-align:left;padding:6px 8px;background:#102945;color:var(--gtx-screen-text,#dcecff);font:800 10px/1.2 system-ui;white-space:nowrap;visibility:visible;opacity:1}"+
+      ".gtxLWCTypeOption{box-sizing:border-box;display:block;width:100%;min-height:22px;border:0!important;outline:0!important;box-shadow:none!important;border-radius:4px;text-align:left;padding:4px 6px;background:#102945;color:#fff;font:600 10px/1.15 system-ui;white-space:nowrap;visibility:visible;opacity:1;cursor:pointer}"+
       ".gtxLWCTypeOption.active{background:var(--gtx-accent,#17436a);border-color:var(--gtx-accent-light,#8ff0ae);color:#fff}"+
       ".gtxLWCSelect{box-sizing:border-box;height:26px;border:0;background:transparent;color:#39ff14;padding:5px 0;font:900 9px/1 system-ui}"+
       ".gtxLWCNotice{position:absolute;z-index:8;left:12px;right:70px;top:50px;display:grid;place-items:center;text-align:center;color:#7695b2;font:800 11px/1.4 system-ui;pointer-events:none}"+
       ".gtxLWCNotice[hidden]{display:none}"+
+      "#marketMoreBtn{min-width:38px!important;width:38px!important;height:38px!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:32px!important;line-height:1!important;font-weight:900!important;color:#fff!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;flex:0 0 38px!important}"+
+      ".pairbar .pairbarLeft{display:flex;align-items:center;gap:8px;min-width:0}"+
       "#gtxLWCExpiryLayer{display:block!important;position:absolute!important;inset:0!important;z-index:2147483000!important;overflow:hidden!important;pointer-events:none!important;visibility:visible!important;opacity:1!important}"+
       ".gtxTradeEntryLine{position:absolute;height:2px;min-width:1px;transform:translateY(-50%);opacity:.96}"+
       ".gtxTradeEntryLine.buy{background:#22c58b;box-shadow:0 0 5px rgba(34,197,139,.28)}"+
@@ -93,7 +95,7 @@
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCTypeButton,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCStatus{right:68px;bottom:24px;font-size:9px}.gtxLWCTypeMenu{right:0;min-width:124px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCTypeButton{width:88px;min-width:88px;height:30px;font-size:12px;padding:5px 6px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCStatus{right:68px;bottom:24px;font-size:9px}.gtxLWCTypeMenu{right:auto!important;min-width:170px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -111,7 +113,7 @@
       '<div class="gtxLWCHead">'+
         '<div class="gtxLWCMeta"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span><div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
         '<div class="gtxLWCControl">'+
-          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
+          '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="bars" role="menuitem">Bars</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
           '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
         '</div>'+
       '</div>'+
@@ -134,12 +136,12 @@
     const typeButton=document.getElementById("gtxLWCTypeButton");
     const typeMenu=document.getElementById("gtxLWCTypeMenu");
     if(typeButton&&typeMenu){
-      typeButton.onclick=()=>{const open=typeMenu.hidden;typeMenu.hidden=!open;typeButton.setAttribute("aria-expanded",String(open));};
-      typeMenu.querySelectorAll("[data-chart-type]").forEach(option=>option.onclick=()=>{
-        setChartType(option.dataset.chartType);
-        typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");
-      });
-      document.addEventListener("click",e=>{if(!e.target.closest("#gtxLWCTypePicker")){typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");}});
+      document.body.appendChild(typeMenu);
+      const placeTypeMenu=()=>{const r=typeButton.getBoundingClientRect();const w=Math.max(170,typeMenu.offsetWidth||170);const left=Math.max(8,Math.min(r.left,window.innerWidth-w-8));const h=180;const top=(r.bottom+h+8<=window.innerHeight)?r.bottom+4:Math.max(8,r.top-h-4);typeMenu.style.left=left+"px";typeMenu.style.top=top+"px";};
+      typeButton.onclick=()=>{const open=typeMenu.hidden;if(open)placeTypeMenu();typeMenu.hidden=!open;typeButton.setAttribute("aria-expanded",String(open));};
+      typeMenu.querySelectorAll("[data-chart-type]").forEach(option=>option.onclick=()=>{setChartType(option.dataset.chartType);typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");});
+      document.addEventListener("click",e=>{if(!e.target.closest("#gtxLWCTypePicker")&&!e.target.closest("#gtxLWCTypeMenu")){typeMenu.hidden=true;typeButton.setAttribute("aria-expanded","false");}});
+      window.addEventListener("resize",()=>{if(!typeMenu.hidden)placeTypeMenu();});window.addEventListener("scroll",()=>{if(!typeMenu.hidden)placeTypeMenu();},true);
     }
 
     try{
