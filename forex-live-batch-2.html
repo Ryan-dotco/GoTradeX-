@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111d">
+<title>GoTradeX — LIVE Forex Batch 2</title>
+<style>
+:root{color-scheme:dark;--bg:#07111d;--panel:#102235;--line:#28445c;--text:#eef6ff;--muted:#9bb1c8;--green:#43dfa0;--red:#ff7777;--gold:#ffd166}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{position:sticky;top:0;z-index:2;background:#0b1a2a;border-bottom:1px solid var(--line);padding:15px}
+.wrap{max-width:850px;margin:auto}h1{font-size:19px;margin:0 0 5px}p{margin:5px 0;color:var(--muted)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid #365775;border-radius:9px;background:#142b41;color:#fff;padding:10px 12px;font-weight:750}button:disabled{opacity:.5}
+#overall{color:var(--gold);font-size:12px;margin-top:10px}.summary{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.pill{padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:12px}
+main{padding:12px}.note{border:1px solid var(--line);border-radius:10px;background:#102235;padding:11px;color:var(--muted);font-size:12px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid #20374c;font-size:12px}th{background:#11263a;color:var(--muted)}td:first-child{font-weight:800;white-space:nowrap}.status{font-weight:850}.ok{color:var(--green)}.bad{color:var(--red)}.wait{color:var(--gold)}.small{color:var(--muted);font-size:11px}.testBtn{padding:6px 8px;font-size:11px}
+@media(max-width:520px){th:nth-child(2),td:nth-child(2){display:none}th,td{padding:8px 5px;font-size:11px}.testBtn{padding:6px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>GoTradeX · LIVE Forex Feed Test — Batch 2 of 3</h1>
+<p>Pairs 21–40 of your exact 47-pair list · real Deriv tick subscription test · no trades placed</p>
+<div class="actions"><button id="testAll">Test Batch 2 LIVE feeds</button><button id="stop" disabled>Stop batch</button><button id="reset">Reset results</button></div>
+<div id="overall">Ready. Start the batch to test fresh ticks.</div>
+<div class="summary"><span class="pill" id="passed">PASS: 0</span><span class="pill" id="failed">FAIL: 0</span><span class="pill" id="pending">PENDING: 20</span></div>
+</div></header>
+<main class="wrap">
+<div class="note"><b>What counts as PASS:</b> the provider must send at least one fresh, valid tick during the test window (provider timestamp no more than 90 seconds old at receipt; timestamps over 15 seconds in the future fail). Historical candles or a pair name in a list do not count as LIVE success. FAIL means no usable tick or a provider error during this test window; market closure, unsupported symbols, or connection problems may require a later retest. Live orders remain disabled. This page is isolated and does not edit the dashboard or main branch.</div>
+<table><thead><tr><th>Pair</th><th>Deriv symbol</th><th>Latest tick</th><th>Result</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table>
+<p class="small">Each pair is subscribed separately for up to 12 seconds. Keep this page open. A provider response is recorded as received; no prices are fabricated.</p>
+</main>
+<script src="./market-data.js"></script>
+<script>
+(function(){
+'use strict';
+const pairs=[
+'GBP/CAD','GBP/CHF','GBP/NZD','GBP/ZAR','GBP/SGD',
+'AUD/JPY','NZD/JPY','CAD/JPY','CAD/CHF','CHF/JPY','AUD/CAD','AUD/CHF','AUD/NZD','SGD/NZD','CAD/NZD',
+'USD/SGD','USD/HKD','USD/ZAR','USD/MXN','USD/TRY'
+];
+const symbol=p=>'frx'+p.replace('/','');
+const state={};let running=false,stopRequested=false,activeClose=null;
+const $=id=>document.getElementById(id);
+function id(p){return p.replace('/','-')}
+function render(){
+ $('rows').innerHTML=pairs.map(p=>'<tr><td>'+p+'</td><td class="small">'+symbol(p)+'</td><td id="tick-'+id(p)+'">—</td><td id="status-'+id(p)+'" class="status wait">PENDING</td><td><button class="testBtn" data-pair="'+p+'">Test</button></td></tr>').join('');
+ $('rows').querySelectorAll('[data-pair]').forEach(b=>b.addEventListener('click',()=>testOne(b.dataset.pair)));
+}
+function summarize(){
+ const pass=pairs.filter(p=>state[p]?.status==='PASS').length;
+ const fail=pairs.filter(p=>state[p]?.status==='FAIL').length;
+ $('passed').textContent='PASS: '+pass;$('failed').textContent='FAIL: '+fail;$('pending').textContent='PENDING: '+(pairs.length-pass-fail);
+}
+function paint(p,status,detail){
+ state[p]={...(state[p]||{}),status,detail};
+ const s=$('status-'+id(p)),t=$('tick-'+id(p));
+ s.textContent=status+(detail?' — '+detail:'');s.className='status '+(status==='PASS'?'ok':status==='FAIL'?'bad':'wait');
+ if(detail&&status==='PASS')t.textContent=detail;
+ summarize();
+}
+function testOne(p){
+ return new Promise(resolve=>{
+  if(activeClose)activeClose();
+  paint(p,'TESTING','waiting for live tick');
+  if(!window.GoTradeXMarketFeeds||typeof window.GoTradeXMarketFeeds.derivSocket!=='function'){
+    paint(p,'FAIL','market-data.js did not load');resolve(false);return;
+  }
+  let finished=false,timer;
+  const finish=(ok,detail)=>{
+    if(finished)return;finished=true;clearTimeout(timer);
+    try{feed?.close()}catch(_){}
+    if(activeClose===cancel)activeClose=null;
+    paint(p,ok?'PASS':'FAIL',detail);resolve(ok);
+  };
+  const cancel=()=>finish(false,'stopped before tick');
+  let feed;
+  try{
+    feed=window.GoTradeXMarketFeeds.derivSocket(symbol(p),tick=>{
+      const price=Number(tick.price),time=Number(tick.time);
+      if(Number.isFinite(price)&&Number.isFinite(time)){
+        const ageMs=Date.now()-time;
+        const when=new Date(time).toISOString();
+        // A provider tick must have a plausible timestamp and be recent at receipt.
+        // Allow 90 seconds for clock skew/network delay; future timestamps over 15s fail.
+        if(ageMs < -15000 || ageMs > 90000){
+          finish(false,'stale/future provider tick · '+when+' · age '+Math.round(ageMs/1000)+'s');
+          return;
+        }
+        finish(true,'price '+price+' · '+when+' · fresh '+Math.max(0,Math.round(ageMs/1000))+'s');
+      }
+    },status=>{
+      $('tick-'+id(p)).textContent=status;
+      if(/FEED ERROR|CONNECTION ERROR/i.test(status))finish(false,status);
+    });
+    activeClose=cancel;
+    timer=setTimeout(()=>finish(false,'no tick within 12 seconds'),12000);
+  }catch(e){finish(false,String(e?.message||e).slice(0,100))}
+ });
+}
+$('testAll').addEventListener('click',async()=>{
+ if(running)return;running=true;stopRequested=false;$('testAll').disabled=true;$('stop').disabled=false;
+ $('overall').textContent='Testing Batch 2 pairs 21–40 one at a time. Please keep the page open.';
+ for(let i=0;i<pairs.length;i++){
+   if(stopRequested)break;
+   const p=pairs[i];
+   if(state[p]?.status==='PASS')continue;
+   await testOne(p);
+   if(stopRequested)break;
+   if(i<pairs.length-1)await new Promise(r=>setTimeout(r,350));
+ }
+ running=false;$('testAll').disabled=false;$('stop').disabled=true;
+ $('overall').textContent=stopRequested?'Batch stopped. Results already collected are retained.':'Batch finished. Check each PASS/FAIL and share a screenshot of the results.';
+});
+$('stop').addEventListener('click',()=>{stopRequested=true;if(activeClose)activeClose();$('overall').textContent='Stopping after the current subscription…'});
+$('reset').addEventListener('click',()=>{if(running)return;Object.keys(state).forEach(k=>delete state[k]);render();summarize();$('overall').textContent='Results reset. Ready to test again.'});
+render();summarize();
+if(!window.GoTradeXMarketFeeds)$('overall').textContent='ERROR: market-data.js did not load. This page cannot test feeds until that file is reachable.';
+})();
+</script>
+</body>
+</html>
