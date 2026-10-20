@@ -75,6 +75,9 @@
       ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
       ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
       ".gtxLWCTypePicker{position:relative;flex:0 0 auto;z-index:1000}"+
+      ".gtxLWCTypePickerTop{position:absolute!important;right:5px;top:5px;z-index:1001;margin:0!important;max-width:58px}"+
+      ".gtxLWCTypePickerTop .gtxLWCTypeButton{width:56px;min-width:56px;height:28px;padding:3px 1px;font-size:9px;justify-content:center;color:#fff!important}"+
+      ".pairbar .accountPickerBtn{width:154px!important;min-width:154px!important;padding-right:62px!important}"+
       ".gtxLWCTypeButton{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;width:96px;min-width:96px;height:34px;border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;color:#fff!important;border-radius:0!important;padding:6px 8px;font:900 14px/1.1 system-ui;white-space:nowrap}"+
       ".gtxLWCTypeMenu{position:fixed!important;left:8px;right:auto!important;top:40px;min-width:136px;padding:4px;background:#071b34;border:0!important;outline:0!important;border-radius:8px;box-shadow:0 8px 24px #0009;z-index:2147483647!important;display:grid;gap:4px;visibility:visible;opacity:1;isolation:isolate}"+
       ".gtxLWCTypeMenu[hidden]{display:none}"+
@@ -95,7 +98,7 @@
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCTypeButton{width:88px;min-width:88px;height:30px;font-size:12px;padding:5px 6px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCStatus{right:68px;bottom:24px;font-size:9px}.gtxLWCTypeMenu{right:auto!important;min-width:170px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset,.gtxLWCSelect{height:23px;font-size:8px;padding:4px 5px}.gtxLWCTypeButton{width:88px;min-width:88px;height:30px;font-size:12px;padding:5px 6px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCStatus{right:68px;bottom:24px;font-size:9px}.gtxLWCTypeMenu{right:auto!important;min-width:170px}.gtxLWCTypePickerTop{right:4px;top:5px;max-width:55px}.gtxLWCTypePickerTop .gtxLWCTypeButton{width:53px;min-width:53px;height:28px;font-size:8px;padding:2px 0}.pairbar .accountPickerBtn{width:150px!important;min-width:150px!important;padding-right:58px!important}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
@@ -135,6 +138,11 @@
     tfSelect.onchange=()=>setTimeframe(tfSelect.value);
     const typeButton=document.getElementById("gtxLWCTypeButton");
     const typeMenu=document.getElementById("gtxLWCTypeMenu");
+    // Put the chart-style selector inside the colored DEMO/LIVE account boundary,
+    // immediately to the right of the three-dot control in the top trading row.
+    const typePicker=document.getElementById("gtxLWCTypePicker");
+    const accountPicker=document.getElementById("accountPicker");
+    if(typePicker&&accountPicker){accountPicker.insertBefore(typePicker,accountPicker.firstChild);typePicker.classList.add("gtxLWCTypePickerTop");}
     if(typeButton&&typeMenu){
       document.body.appendChild(typeMenu);
       const placeTypeMenu=()=>{const r=typeButton.getBoundingClientRect();const w=Math.max(170,typeMenu.offsetWidth||170);const left=Math.max(8,Math.min(r.left,window.innerWidth-w-8));const h=180;const top=(r.bottom+h+8<=window.innerHeight)?r.bottom+4:Math.max(8,r.top-h-4);typeMenu.style.left=left+"px";typeMenu.style.top=top+"px";};
