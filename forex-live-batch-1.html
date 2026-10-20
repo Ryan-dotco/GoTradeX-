@@ -66,7 +66,7 @@ function testOne(p){
   if(!window.GoTradeXMarketFeeds||typeof window.GoTradeXMarketFeeds.derivSocket!=='function'){
     paint(p,'FAIL','market-data.js did not load');resolve(false);return;
   }
-  let finished=false,timer;
+  let finished=false,timer,lastStale='';
   const finish=(ok,detail)=>{
     if(finished)return;finished=true;clearTimeout(timer);
     try{feed?.close()}catch(_){}
@@ -84,8 +84,9 @@ function testOne(p){
         // A provider tick must have a plausible timestamp and be recent at receipt.
         // Allow 90 seconds for clock skew/network delay; future timestamps over 15s fail.
         if(ageMs < -15000 || ageMs > 90000){
-          finish(false,'stale/future provider tick · '+when+' · age '+Math.round(ageMs/1000)+'s');
-          return;
+          lastStale='last provider tick '+when+' · age '+Math.round(ageMs/1000)+'s';
+          $('tick-'+id(p)).textContent='STALE • '+lastStale;
+          return; // keep listening until a fresh tick arrives or the 12-second window expires
         }
         finish(true,'price '+price+' · '+when+' · fresh '+Math.max(0,Math.round(ageMs/1000))+'s');
       }
@@ -94,7 +95,7 @@ function testOne(p){
       if(/FEED ERROR|CONNECTION ERROR/i.test(status))finish(false,status);
     });
     activeClose=cancel;
-    timer=setTimeout(()=>finish(false,'no tick within 12 seconds'),12000);
+    timer=setTimeout(()=>finish(false,lastStale?'no fresh tick within 12 seconds; '+lastStale:'no tick within 12 seconds'),12000);
   }catch(e){finish(false,String(e?.message||e).slice(0,100))}
  });
 }
