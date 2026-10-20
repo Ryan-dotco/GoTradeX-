@@ -111,12 +111,12 @@
       '<div class="gtxLWCHead">'+
         '<div class="gtxLWCMeta"><span class="gtxLWCAsset" id="gtxLWCAsset">LIVE • BTC/USD</span><div class="gtxLWCDateTime" aria-label="Current date and time"><span id="gtxLWCDate">Loading date…</span><span id="gtxLWCClock">--:--:--</span></div></div>'+
         '<div class="gtxLWCControl">'+
-          '<div class="gtxLWCStatus" id="gtxLWCStatus" aria-label="Live market feed status"><span id="gtxLWCStatusText">CONNECTING</span><span class="gtxLWCStatusDots" aria-hidden="true"><i>·</i><i>·</i><i>·</i><i>·</i></span></div>'+
           '<div class="gtxLWCTypePicker" id="gtxLWCTypePicker"><button class="gtxLWCTypeButton" id="gtxLWCTypeButton" type="button" aria-haspopup="true" aria-expanded="false">Candles ▾</button><div class="gtxLWCTypeMenu" id="gtxLWCTypeMenu" role="menu" aria-label="Chart style" hidden><button class="gtxLWCTypeOption" type="button" data-chart-type="candle" role="menuitem">Candles</button><button class="gtxLWCTypeOption" type="button" data-chart-type="heikin" role="menuitem">Heikin Ashi</button><button class="gtxLWCTypeOption" type="button" data-chart-type="line" role="menuitem">Line</button><button class="gtxLWCTypeOption" type="button" data-chart-type="mountain" role="menuitem">Mountain</button></div></div>'+
           '<select class="gtxLWCSelect" id="gtxLWCChartTF" aria-label="Chart timeframe"></select>'+
         '</div>'+
       '</div>'+
       '<div id="gtxLWCExpiryLayer" aria-hidden="true"></div>'+
+      '<div class="gtxLWCStatus" id="gtxLWCStatus" aria-label="Live market feed status"><span id="gtxLWCStatusText">CONNECTING</span><span class="gtxLWCStatusDots" aria-hidden="true"><i>·</i><i>·</i><i>·</i><i>·</i></span></div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
