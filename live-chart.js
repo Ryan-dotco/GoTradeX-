@@ -22,7 +22,7 @@
     tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
     provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
     connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
-    chart:null,candleSeries:null,lineSeries:null,areaSeries:null,
+    chart:null,candleSeries:null,barSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
     booted:false,markersInstalled:false,dateTimeTimer:null
@@ -148,7 +148,7 @@
       const saved=localStorage.getItem(CHART_KEY);
       if(CFG.intervals[saved]){state.tf=saved;state.sec=CFG.intervals[saved];tfSelect.value=saved}
       const savedType=localStorage.getItem(TYPE_KEY);
-      if(["candle","heikin","line","mountain"].includes(savedType))state.chartType=savedType;
+      if(["candle","heikin","bars","line","mountain"].includes(savedType))state.chartType=savedType;
     }catch(_){}
     updateTypeButtons();
     updateDateTime();
@@ -188,7 +188,7 @@
     if(a)a.textContent=(state.mode==="LIVE"?"LIVE":"OTC")+" • "+(state.assetLabel||"");
   }
   function updateTypeButtons(){
-    const labels={candle:"Candles",heikin:"Heikin Ashi",line:"Line",mountain:"Mountain"};
+    const labels={candle:"Candles",heikin:"Heikin Ashi",bars:"Bars",line:"Line",mountain:"Mountain"};
     const button=document.getElementById("gtxLWCTypeButton");
     if(button)button.textContent=(labels[state.chartType]||"Candles")+" ▾";
     document.querySelectorAll("#gtxLiveChart [data-chart-type]").forEach(b=>{
@@ -198,12 +198,16 @@
   }
 
   function setChartType(type){
-    if(!["candle","heikin","line","mountain"].includes(type))return;
+    if(!["candle","heikin","bars","line","mountain"].includes(type))return;
     state.chartType=type;
     try{localStorage.setItem(TYPE_KEY,type)}catch(_){}
     if(state.chart){
       state.candleSeries.setData(seriesCandleData());
       const data=seriesLineData();
+      if(type==="bars"){
+        if(!state.barSeries)state.barSeries=state.chart.addBarSeries({upColor:"#22c55e",downColor:"#ef4444",openVisible:true,thinBars:false,priceLineVisible:false,lastValueVisible:false});
+        state.barSeries.setData(seriesBarData());
+      }
       if(type==="line"||type==="mountain"){
         if(!state.lineSeries){state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:false});}
         if(!state.areaSeries){state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:false});}
@@ -217,6 +221,7 @@
 
   function applyChartTypeVisibility(){
     if(state.candleSeries)state.candleSeries.applyOptions({visible:state.chartType==="candle"||state.chartType==="heikin"});
+    if(state.barSeries)state.barSeries.applyOptions({visible:state.chartType==="bars"});
     if(state.lineSeries)state.lineSeries.applyOptions({visible:state.chartType==="line"});
     if(state.areaSeries)state.areaSeries.applyOptions({visible:state.chartType==="mountain"});
   }
@@ -582,6 +587,10 @@
     return state.candles.map(c=>({time:Math.floor(c.t/1000),value:Number(c.c)}));
   }
 
+  function seriesBarData(){
+    return state.candles.map(c=>({time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)}));
+  }
+
   function removeSeriesSafe(s){
     if(!s||!state.chart)return;
     try{state.chart.removeSeries(s)}catch(_){}
@@ -616,7 +625,7 @@
     });
     // Alternate chart styles are created only when selected from the single chart-style menu.
     // No automatic green overlay or orange LIVE price-line is created.
-    state.lineSeries=null;state.areaSeries=null;
+    state.barSeries=null;state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
     state.currentPriceLine=null;
     applySeriesVisibility();
@@ -626,8 +635,8 @@
 
   function applySeriesVisibility(){
     if(!state.chart)return;
-    // Keep the verified candlesticks visible; no automatic line/mountain overlays.
-    state.candleSeries?.applyOptions({visible:true});
+    // Keep exactly the selected chart style visible.
+    applyChartTypeVisibility();
     const ind=true;
     state.ma50?.applyOptions({visible:ind});
     state.ma100?.applyOptions({visible:ind});
@@ -638,6 +647,10 @@
     if(!state.chart)buildChart();
     const candles=seriesCandleData();
     state.candleSeries.setData(candles);
+    if(state.chartType==="bars"){
+      if(!state.barSeries)state.barSeries=state.chart.addBarSeries({upColor:"#22c55e",downColor:"#ef4444",openVisible:true,thinBars:false,priceLineVisible:false,lastValueVisible:false});
+      state.barSeries.setData(seriesBarData());
+    }
     if(state.chartType==="line"||state.chartType==="mountain"){
       if(!state.lineSeries)state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
       if(!state.areaSeries)state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
@@ -673,6 +686,7 @@
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
     if(state.chartType==="heikin")state.candleSeries.setData(seriesCandleData());
     else state.candleSeries.update(item);
+    if(state.barSeries)state.barSeries.update(item);
     if(state.lineSeries)state.lineSeries.update({time:item.time,value:item.close});
     if(state.areaSeries)state.areaSeries.update({time:item.time,value:item.close});
     applyChartTypeVisibility();
