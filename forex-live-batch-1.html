@@ -26,7 +26,7 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 <div class="summary"><span class="pill" id="passed">PASS: 0</span><span class="pill" id="failed">FAIL: 0</span><span class="pill" id="pending">PENDING: 20</span></div>
 </div></header>
 <main class="wrap">
-<div class="note"><b>What counts as PASS:</b> the provider must send at least one fresh, valid tick during the test window. Historical candles or a pair name in a list do not count as LIVE success. FAIL means no usable tick or a provider error during this test window; market closure, unsupported symbols, or connection problems may require a later retest. Live orders remain disabled. This page is isolated and does not edit the dashboard or main branch.</div>
+<div class="note"><b>What counts as PASS:</b> the provider must send at least one fresh, valid tick during the test window (provider timestamp no more than 90 seconds old at receipt; timestamps over 15 seconds in the future fail). Historical candles or a pair name in a list do not count as LIVE success. FAIL means no usable tick or a provider error during this test window; market closure, unsupported symbols, or connection problems may require a later retest. Live orders remain disabled. This page is isolated and does not edit the dashboard or main branch.</div>
 <table><thead><tr><th>Pair</th><th>Deriv symbol</th><th>Latest tick</th><th>Result</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table>
 <p class="small">Each pair is subscribed separately for up to 12 seconds. Keep this page open. A provider response is recorded as received; no prices are fabricated.</p>
 </main>
@@ -79,8 +79,15 @@ function testOne(p){
     feed=window.GoTradeXMarketFeeds.derivSocket(symbol(p),tick=>{
       const price=Number(tick.price),time=Number(tick.time);
       if(Number.isFinite(price)&&Number.isFinite(time)){
+        const ageMs=Date.now()-time;
         const when=new Date(time).toISOString();
-        finish(true,'price '+price+' · '+when);
+        // A provider tick must have a plausible timestamp and be recent at receipt.
+        // Allow 90 seconds for clock skew/network delay; future timestamps over 15s fail.
+        if(ageMs < -15000 || ageMs > 90000){
+          finish(false,'stale/future provider tick · '+when+' · age '+Math.round(ageMs/1000)+'s');
+          return;
+        }
+        finish(true,'price '+price+' · '+when+' · fresh '+Math.max(0,Math.round(ageMs/1000))+'s');
       }
     },status=>{
       $('tick-'+id(p)).textContent=status;
