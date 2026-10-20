@@ -191,7 +191,7 @@
     const labels={candle:"Candles",heikin:"Heikin Ashi",bars:"Bars",line:"Line",mountain:"Mountain"};
     const button=document.getElementById("gtxLWCTypeButton");
     if(button)button.textContent=(labels[state.chartType]||"Candles")+" ▾";
-    document.querySelectorAll("#gtxLiveChart [data-chart-type]").forEach(b=>{
+    document.querySelectorAll("#gtxLWCTypeMenu [data-chart-type]").forEach(b=>{
       b.classList.toggle("active",b.dataset.chartType===state.chartType);
     });
     applyChartTypeVisibility();
