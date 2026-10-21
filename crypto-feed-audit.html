@@ -17,4 +17,6 @@ document.getElementById("stop").onclick=()=>{stopRequested=true;try{activeSocket
 document.getElementById("reset").onclick=()=>{if(running)return;for(const p of pairs)results[p]={status:"PENDING",price:"",detail:"Not tested"};render();document.getElementById("progress").textContent="Results reset. Ready to test."};
 document.getElementById("csv").onclick=()=>{const rows=[["Pair","Status","Bybit last price (USDT)","Detail"],...pairs.map(p=>[p,results[p].status,results[p].price,results[p].detail])];const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gotradex-crypto-feed-audit.csv";a.click();URL.revokeObjectURL(a.href)};
 render();
+// Automatically start the full 99-pair audit when this isolated test page opens.
+setTimeout(()=>document.getElementById("run").click(),300);
 </script></body></html>
