@@ -688,8 +688,13 @@
     applySeriesVisibility();
     updateCurrentPriceLine();
     if(candles.length){
-      const from=Math.max(0,candles.length-60);
-      state.chart.timeScale().setVisibleLogicalRange({from,to:candles.length+4});
+      // First view: place the newest candle near the horizontal center, with
+      // room on both sides. After this one-time setup, user zoom/pan is respected.
+      const centerIndex=candles.length-1;
+      const halfWindow=30;
+      const from=Math.max(0,centerIndex-halfWindow);
+      const to=centerIndex+halfWindow;
+      state.chart.timeScale().setVisibleLogicalRange({from,to});
       state.initialRangeSet=true;
     }
     positionTradeOverlay();
