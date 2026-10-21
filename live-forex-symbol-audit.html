@@ -20,13 +20,19 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 <header><div class="wrap">
 <h1>GoTradeX · Forex Symbol Catalogue Audit</h1>
 <p>Follow-up to the 47-pair live tick test. Reads Deriv's current symbol catalogue before subscribing.</p>
-<div class="actions"><button id="run">Refresh catalogue + retest 47 pairs</button></div>
+<div class="actions"><button id="run">Refresh catalogue + retest 47 pairs</button><button id="showCatalogue" type="button">Show full catalogue</button><button id="exportCsv" type="button" disabled>Export catalogue CSV</button><button id="exportJson" type="button" disabled>Export catalogue JSON</button></div>
 <div id="overall">Ready. This audit uses the symbols returned by Deriv, not guessed symbol names.</div>
 <div class="summary"><span class="pill" id="catalog">Catalogue: not loaded</span><span class="pill" id="passed">Live tick PASS: 0</span><span class="pill" id="failed">Not verified: 0</span><span class="pill" id="pending">Pending: 47</span></div>
 </div></header>
 <main class="wrap">
 <div class="note"><b>Why this second test:</b> The previous test hard-coded candidate symbols such as frxEURUSD. This page first requests active_symbols and matches each pair to the exact symbol and display name returned by Deriv. It then checks for a fresh tick. “Not in catalogue” means no matching forex display name was found in this catalogue response; “tick not received” means a matching symbol was found but no valid tick arrived in the test window. Neither result authorizes trading. No orders, Twelve Data, fallback feeds, or synthetic prices are used.</div>
 <table><thead><tr><th>Pair</th><th>Catalogue symbol</th><th>Live tick / detail</th><th>Result</th></tr></thead><tbody id="rows"></tbody></table>
+<section id="cataloguePanel" hidden style="margin-top:14px">
+<h2 style="font-size:16px">Complete Deriv active_symbols response</h2>
+<p class="small">Read-only diagnostic view. This includes every returned catalogue entry, not only the 47 requested forex pairs.</p>
+<div class="actions"><input id="catalogueFilter" aria-label="Filter catalogue" placeholder="Filter symbol, display name, market…" style="flex:1;min-width:180px;background:#102235;color:#eaf4ff;border:1px solid #365775;border-radius:9px;padding:10px"></div>
+<div style="overflow:auto;max-height:65vh;margin-top:8px"><table><thead><tr><th>Symbol</th><th>Display name</th><th>Underlying name</th><th>Market</th><th>Submarket</th><th>Symbol type</th><th>Underlying type</th></tr></thead><tbody id="catalogueRows"></tbody></table></div>
+</section>
 <div class="foot">Public Deriv WebSocket only. Test results are diagnostic and must be reviewed before changing the GoTradeX asset registry. Live orders remain disabled.</div>
 </main>
 <script src="./market-data.js"></script>
@@ -41,8 +47,28 @@ const pairs=[
 'EUR/TRY','GBP/SGD','NZD/CAD','USD/INR','USD/BRL','USD/CNH','USD/IDR'
 ];
 const rows=document.getElementById('rows'),state={},symbolFor={};
-let running=false,stopRequested=false,active=new Map();
+let running=false,stopRequested=false,active=new Map(),catalogueItems=[];
 function id(p){return p.replace('/','-')}
+function esc(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function catalogueRow(x){
+ const vals=[x.symbol,x.display_name,x.underlying_symbol_name,x.market,x.submarket,x.symbol_type,x.underlying_symbol_type];
+ return '<tr>'+vals.map(v=>'<td>'+esc(v??'—')+'</td>').join('')+'</tr>';
+}
+function renderCatalogue(){
+ const q=String(document.getElementById('catalogueFilter').value||'').trim().toLowerCase();
+ const found=catalogueItems.filter(x=>JSON.stringify(x).toLowerCase().includes(q));
+ document.getElementById('catalogueRows').innerHTML=found.map(catalogueRow).join('')||'<tr><td colspan="7">No catalogue entries match this filter.</td></tr>';
+ document.getElementById('showCatalogue').textContent=document.getElementById('cataloguePanel').hidden?'Show full catalogue':'Hide full catalogue ('+found.length+' shown)';
+}
+function downloadText(filename,text,mime){
+ const blob=new Blob([text],{type:mime}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportCatalogueCsv(){
+ const keys=['symbol','display_name','underlying_symbol_name','market','submarket','symbol_type','underlying_symbol_type'];
+ const csv=[keys.join(','),...catalogueItems.map(x=>keys.map(k=>'"'+String(x[k]??'').replace(/"/g,'""')+'"').join(','))].join('\\r\\n');
+ downloadText('gotradex-deriv-active-symbols.csv',csv,'text/csv;charset=utf-8');
+}
 function norm(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 function paint(p,cls,label,detail){document.getElementById('status-'+id(p)).className=cls;document.getElementById('status-'+id(p)).textContent=label;document.getElementById('data-'+id(p)).textContent=detail}
 function render(){rows.innerHTML=pairs.map(p=>'<tr><td>'+p+'</td><td id="sym-'+id(p)+'" class="small">—</td><td id="data-'+id(p)+'" class="small">—</td><td id="status-'+id(p)+'" class="wait">NOT TESTED</td></tr>').join('')}
@@ -70,6 +96,11 @@ function fetchCatalogue(){
  });
 }
 function matchSymbols(items){
+ catalogueItems=items.slice();
+ document.getElementById('exportCsv').disabled=false;
+ document.getElementById('exportJson').disabled=false;
+ document.getElementById('catalogue').textContent='Catalogue: '+items.length+' total symbols · matching candidates '+items.filter(x=>String(x.underlying_symbol_type||x.symbol_type||'').toLowerCase()==='forex'||String(x.market||'').toLowerCase()==='forex'||String(x.submarket||'').toLowerCase().includes('pair')).length+' forex/pair-category entries';
+ renderCatalogue();
  const forex=items.filter(x=>String(x.underlying_symbol_type||x.symbol_type||'').toLowerCase()==='forex'||String(x.market||'').toLowerCase()==='forex'||String(x.submarket||'').toLowerCase().includes('pair'));
  for(const p of pairs){
   const target=norm(p);
@@ -111,6 +142,12 @@ function testOne(p){
   }catch(e){finish(false,String(e?.message||e||'Could not start tick subscription'))}
  });
 }
+document.getElementById('showCatalogue').addEventListener('click',()=>{
+ document.getElementById('cataloguePanel').hidden=!document.getElementById('cataloguePanel').hidden;renderCatalogue();
+});
+document.getElementById('catalogueFilter').addEventListener('input',renderCatalogue);
+document.getElementById('exportCsv').addEventListener('click',()=>{if(catalogueItems.length)exportCatalogueCsv()});
+document.getElementById('exportJson').addEventListener('click',()=>{if(catalogueItems.length)downloadText('gotradex-deriv-active-symbols.json',JSON.stringify(catalogueItems,null,2),'application/json;charset=utf-8')});
 document.getElementById('run').addEventListener('click',async()=>{
  if(running)return;running=true;stopRequested=false;
  document.getElementById('run').disabled=true;
