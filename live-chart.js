@@ -635,14 +635,14 @@
     });
     // Restore the approved yellow live-price line and matching right-axis label.
     state.currentPriceLine=state.candleSeries.createPriceLine({
-      price:Number(state.price)||0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Dashed,
+      price:Number(state.price)||0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Solid,
       axisLabelVisible:true,title:"LIVE"
     });
+    // Keep the yellow LIVE line reference: updateCurrentPriceLine() moves this
+    // exact line on each verified tick. Do not clear it after creating it.
     // Alternate chart styles are created only when selected from the single chart-style menu.
-    // No automatic green overlay or orange LIVE price-line is created.
     state.barSeries=null;state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
-    state.currentPriceLine=null;
     applySeriesVisibility();
     state.chart.timeScale().subscribeSizeChange(()=>positionTradeOverlay());
     state.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>positionTradeOverlay());
@@ -994,15 +994,8 @@
       if(hasCandleAnchor&&state.candles.length){
         candleIndex=state.candles.findIndex(c=>Math.floor(Number(c.t)/1000)===anchorTime);
       }
-      // Preserve the exact original timestamp. If the selected timeframe has
-      // different candle boundaries, keep the marker at that timestamp rather
-      // than hiding it or silently assigning it to a newer candle.
-      if(hasCandleAnchor&&candleIndex<0&&state.chart){
-        try{
-          const coordinate=state.chart.timeScale().timeToCoordinate(anchorTime);
-          if(coordinate!==null&&coordinate!==undefined&&Number.isFinite(coordinate))x=coordinate;
-        }catch(_){}
-      }
+      // Keep the original entry timestamp; coordinate conversion is performed
+      // below through the shared time-scale helper for all chart intervals.
       if(candleIndex>=0){
         // Keep the entry at the exact trade-entry price captured on BUY/SELL.
         // Do not recalculate it from the candle body or wick as live ticks arrive:
