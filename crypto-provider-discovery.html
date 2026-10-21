@@ -91,4 +91,5 @@ async function run(){
 $("run").onclick=run;
 $("csv").onclick=()=>{const rows=[["Asset",...providers.map(k=>k+" status"),...providers.map(k=>k+" symbol")],...pairs.map(p=>[p,...providers.map(k=>state[p][k].status),...providers.map(k=>state[p][k].symbol)])];const csv=rows.map(r=>r.map(v=>'"'+String(v||"").replace(/"/g,'""')+'"').join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gotradex-crypto-provider-discovery.csv";a.click();URL.revokeObjectURL(a.href)};
 render();
+setTimeout(()=>document.getElementById("run").click(),300);
 </script></body></html>
