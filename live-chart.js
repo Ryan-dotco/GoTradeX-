@@ -1025,7 +1025,7 @@
       }
       let x=null,y=null;
       try{
-        if(state.chart&&Number.isFinite(anchorTime))x=state.chart.timeScale().timeToCoordinate(anchorTime);
+        if(Number.isFinite(anchorTime))x=coordinateForTimestamp(anchorTime*1000);
         // Recalculate the vertical coordinate from the fixed entry price on every
         // render. This keeps the marker aligned through price-scale changes, zoom,
         // resize, and timeframe changes instead of preserving a stale screen pixel.
