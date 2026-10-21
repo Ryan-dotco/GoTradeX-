@@ -81,7 +81,13 @@ function exportCatalogueCsv(){
  downloadText('gotradex-deriv-active-symbols.csv',csv,'text/csv;charset=utf-8');
 }
 function norm(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
-function paint(p,cls,label,detail){document.getElementById('status-'+id(p)).className=cls;document.getElementById('status-'+id(p)).textContent=label;document.getElementById('data-'+id(p)).textContent=detail}
+function paint(p,cls,label,detail){
+ // Keep the review group visually locked until a separate investigation decision changes its status.
+ if(reviewSet.has(p)){cls='wait';label='IN REVIEW';}
+ document.getElementById('status-'+id(p)).className=cls;
+ document.getElementById('status-'+id(p)).textContent=label;
+ document.getElementById('data-'+id(p)).textContent=detail;
+}
 function render(){
  rows.innerHTML='<tr class="section-row"><td colspan="4">VERIFIED · 24 PAIRS · PRIOR LIVE-TICK PASS</td></tr>'+
  verifiedPairs.map(p=>'<tr class="verified-row" id="row-'+id(p)+'"><td>'+p+'</td><td id="sym-'+id(p)+'" class="small">—</td><td id="data-'+id(p)+'" class="small">Previous live-tick pass</td><td id="status-'+id(p)+'" class="ok">VERIFIED</td></tr>').join('')+
