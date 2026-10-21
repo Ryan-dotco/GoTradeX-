@@ -26,9 +26,18 @@ function showStatus(v){if(v.status==="FOUND")return '<span class="yes" title="'+
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function render(){
   $("resultsBody").innerHTML=pairs.map(p=>'<tr><td>'+p+'</td>'+providers.map(k=>'<td>'+showStatus(state[p][k])+'</td>').join("")+'</tr>').join("");
-  const loaded=providers.filter(k=>pairs.some(p=>state[p][k].status==="FOUND"||state[p][k].status==="NOT FOUND")).length;
+  const loaded=providers.filter(k=>pairs.some(p=>["FOUND","NOT FOUND","ERROR"].includes(state[p][k].status))).length;
   $("loaded").textContent=loaded+" / "+providers.length;
   $("matched").textContent=pairs.filter(p=>providers.some(k=>state[p][k].status==="FOUND")).length;
+  $("providerStatus").innerHTML=providers.map(k=>{
+    const vals=pairs.map(p=>state[p][k].status);
+    const found=vals.filter(v=>v==="FOUND").length;
+    const missing=vals.filter(v=>v==="NOT FOUND").length;
+    const errors=vals.filter(v=>v==="ERROR").length;
+    const waiting=vals.filter(v=>v==="WAIT").length;
+    const label=errors?"CHECK ERROR":waiting?"CHECKING":found+missing===pairs.length?"FINISHED":"WAITING";
+    return '<div class="box"><b>'+esc(k)+'</b><div class="muted">'+label+'</div><div class="n">'+found+' found</div><div class="muted">'+missing+' not found · '+errors+' errors · '+waiting+' waiting</div></div>';
+  }).join("");
 }
 async function json(url){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{cache:"no-store",signal:controller.signal});if(!r.ok)throw Error("HTTP "+r.status);return await r.json()}catch(e){if(e.name==="AbortError")throw Error("Timed out after 12 seconds");throw Error(e.message||"Network/CORS blocked")}finally{clearTimeout(timer)}}
 async function checkBybit(category,name){
@@ -98,8 +107,8 @@ async function run(){
  window.__providerTestRunning=false;
  render();
 }
-$("run").onclick=()=>run().catch(e=>{$("progress").textContent="Test stopped: "+(e.message||e);$("run").disabled=false;window.__providerTestRunning=false;});
+$("run").onclick=()=>run().catch(e=>{$("progress").textContent="Test stopped: "+(e.message||e);$("run").textContent="Try again";$("run").disabled=false;window.__providerTestRunning=false;});
 $("csv").onclick=()=>{const rows=[["Asset",...providers.map(k=>k+" status"),...providers.map(k=>k+" symbol")],...pairs.map(p=>[p,...providers.map(k=>state[p][k].status),...providers.map(k=>state[p][k].symbol)])];const csv=rows.map(r=>r.map(v=>'"'+String(v||"").replace(/"/g,'""')+'"').join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gotradex-crypto-provider-discovery.csv";a.click();URL.revokeObjectURL(a.href)};
 render();
-setTimeout(()=>run().catch(e=>{document.getElementById("progress").textContent="Test stopped: "+(e.message||e);document.getElementById("run").disabled=false;window.__providerTestRunning=false;}),500);
+setTimeout(()=>run().catch(e=>{document.getElementById("progress").textContent="Test stopped: "+(e.message||e);document.getElementById("run").textContent="Try again";document.getElementById("run").disabled=false;window.__providerTestRunning=false;}),500);
 </script></body></html>
