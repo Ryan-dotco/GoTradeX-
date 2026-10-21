@@ -166,13 +166,23 @@
     return true;
   }
 
+  function timezoneLabel(){
+    const offset=timezoneOffsetMinutes();
+    const sign=offset<0?"-":"+";
+    const abs=Math.abs(offset);
+    const hh=String(Math.floor(abs/60)).padStart(2,"0");
+    const mm=String(abs%60).padStart(2,"0");
+    return offset===120?"SAST":"UTC"+sign+hh+":"+mm;
+  }
   function updateDateTime(){
     const now=new Date();
     const dateEl=document.getElementById("gtxLWCDate");
     const clockEl=document.getElementById("gtxLWCClock");
     if(!dateEl||!clockEl)return;
-    dateEl.textContent=new Intl.DateTimeFormat("en-ZA",{weekday:"short",day:"2-digit",month:"short",year:"numeric",timeZone:"Africa/Johannesburg"}).format(now);
-    clockEl.textContent=new Intl.DateTimeFormat("en-ZA",{hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23",timeZone:"Africa/Johannesburg"}).format(now)+" SAST";
+    // Chart axis labels and header clock use the same configured UTC offset.
+    const chartZoneNow=new Date(now.getTime()+timezoneOffsetMinutes()*60000);
+    dateEl.textContent=new Intl.DateTimeFormat("en-ZA",{weekday:"short",day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"}).format(chartZoneNow);
+    clockEl.textContent=new Intl.DateTimeFormat("en-ZA",{hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23",timeZone:"UTC"}).format(chartZoneNow)+" "+timezoneLabel();
   }
 
   function status(t,ok){
