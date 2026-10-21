@@ -1,0 +1,28 @@
+name: GoTradeX crypto audit all 99
+on:
+  push:
+    branches:
+      - test-expiry-portal-date-green-20261021
+    paths:
+      - ".github/workflows/crypto-audit-all-99.yml"
+      - "tools/crypto-audit-all-99.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated test branch
+        uses: actions/checkout@v4
+      - name: Run read-only public ticker checks
+        run: python tools/crypto-audit-all-99.py
+      - name: Upload full CSV report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gotradex-crypto-audit-all-99
+          path: gotradex-crypto-audit-all-99.csv
+          if-no-files-found: error
+          retention-days: 14
