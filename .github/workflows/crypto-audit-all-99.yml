@@ -1,3 +1,4 @@
+# Read-only audit; isolated test branch only.
 name: GoTradeX crypto audit all 99
 on:
   push:
