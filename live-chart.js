@@ -75,7 +75,7 @@
       ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
       ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
       ".gtxLWCDateExpiryRow{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-width:0}"+
-      ".gtxLWCDateExpiryRow .gtxLWCSelect{flex:0 0 auto;width:38px;min-width:38px;height:22px;padding:2px 2px;color:#39ff14!important;font:900 9px/1 system-ui;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}"+
+      ".gtxLWCDateExpiryRow .gtxLWCSelect{flex:0 0 auto;align-self:flex-start;transform:translateY(-3px);width:38px;min-width:38px;height:22px;padding:2px 2px;color:#39ff14!important;font:900 8px/1 system-ui;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important}"+
       ".gtxLWCTypePicker{position:relative;flex:0 0 auto;z-index:1000}"+
       ".gtxLWCTypePickerTop{position:relative!important;right:auto!important;top:auto!important;z-index:1001;margin:0!important;max-width:86px;flex:0 0 auto}"+
       ".gtxLWCTypePickerTop .gtxLWCTypeButton{width:84px;min-width:84px;height:30px;padding:3px 2px;font-size:12px;line-height:1.1;justify-content:center;color:#fff!important}"+
