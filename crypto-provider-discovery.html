@@ -6,7 +6,7 @@
 <h1>GoTradeX · Crypto Provider Discovery</h1>
 <div class="muted">Isolated read-only catalogue check · 99 app assets · no orders placed</div>
 <p class="note">This checks provider symbol catalogues, not trade execution. A provider marked FOUND has a matching market symbol in the catalogue response. NOT FOUND means no matching pair was found in that response. CHECK ERROR means the public endpoint could not be read from this browser; it does not mean the asset is unavailable. USD and USDT are not interchangeable, and listing does not prove a working live feed.</p>
-<div class="summary"><div class="box"><div class="muted">Assets checked</div><div class="n" id="total">99</div></div><div class="box"><div class="muted">Provider catalogues loaded</div><div class="n" id="loaded">0 / 5</div></div><div class="box"><div class="muted">Assets with at least one match</div><div class="n" id="matched">—</div></div></div>
+<div class="summary"><div class="box"><div class="muted">Assets checked</div><div class="n" id="total">99</div></div><div class="box"><div class="muted">Provider catalogues loaded</div><div class="n" id="loaded">0 / 6</div></div><div class="box"><div class="muted">Assets with at least one match</div><div class="n" id="matched">—</div></div></div>
 <div class="actions"><button id="run">Check all providers</button><button id="csv">Export CSV</button></div><div id="progress" class="muted">Ready to check provider catalogues.</div>
 <div class="tablewrap"><table class="results"><thead><tr><th>App asset</th><th>Bybit Spot</th><th>Bybit Linear</th><th>Binance Spot</th><th>Kraken</th><th>Coinbase</th><th>Deriv</th></tr></thead><tbody id="body"></tbody></table></div>
 <div class="foot muted"><b>Interpretation:</b> this is a discovery pass. It does not add, remove, or change any GoTradeX asset or feed. A listed result must still pass a separate real-time ticker/candle test before being treated as verified. Bybit Spot/Linear, Binance Spot, Kraken and Coinbase are exchange catalogues; Deriv is a broker's active-underlying catalogue and may offer a different contract type. Provider access and available products can vary by region/account.</div>
@@ -32,7 +32,7 @@ function render(){
 }
 async function json(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);return r.json()}
 async function checkBybit(category,name){
- const d=await json("https://api.bybit.com/v5/market/instruments-info?category="+category);
+ const d=await json("https://api.bybit.com/v5/market/instruments-info?category="+category+"&limit=1000);
  if(d.retCode!==0||!Array.isArray(d.result?.list))throw Error(d.retMsg||"Bad Bybit response");
  const list=d.result.list.filter(x=>x.status==="Trading");
  setProvider(name,list,(base,a)=>{const x=a.find(i=>i.baseCoin===base&&["USDT","USDC","USD"].includes(i.quoteCoin));return x?.symbol||""});
