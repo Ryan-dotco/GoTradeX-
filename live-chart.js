@@ -633,6 +633,11 @@
       priceLineVisible:false,lastValueVisible:false,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
+    // Restore the approved yellow live-price line and matching right-axis label.
+    state.currentPriceLine=state.candleSeries.createPriceLine({
+      price:Number(state.price)||0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Dashed,
+      axisLabelVisible:true,title:"LIVE"
+    });
     // Alternate chart styles are created only when selected from the single chart-style menu.
     // No automatic green overlay or orange LIVE price-line is created.
     state.barSeries=null;state.lineSeries=null;state.areaSeries=null;
@@ -708,8 +713,8 @@
   }
 
   function updateCurrentPriceLine(){
-    // The candlestick series already supplies the current-price line and right-axis marker.
-    // Keep it separate from the fixed trade entry-price line.
+    if(!state.currentPriceLine||!Number.isFinite(Number(state.price)))return;
+    try{state.currentPriceLine.applyOptions({price:Number(state.price),axisLabelVisible:true});}catch(_){}
   }
 
   const expiryTrades=[];
@@ -989,12 +994,14 @@
       if(hasCandleAnchor&&state.candles.length){
         candleIndex=state.candles.findIndex(c=>Math.floor(Number(c.t)/1000)===anchorTime);
       }
-      // A known candle anchor is immutable: never transfer this marker to a
-      // newer candle just because its original candle is outside the viewport
-      // or no longer present in the loaded history.
-      if(hasCandleAnchor&&candleIndex<0){
-        node.style.display="none";
-        return;
+      // Preserve the exact original timestamp. If the selected timeframe has
+      // different candle boundaries, keep the marker at that timestamp rather
+      // than hiding it or silently assigning it to a newer candle.
+      if(hasCandleAnchor&&candleIndex<0&&state.chart){
+        try{
+          const coordinate=state.chart.timeScale().timeToCoordinate(anchorTime);
+          if(coordinate!==null&&coordinate!==undefined&&Number.isFinite(coordinate))x=coordinate;
+        }catch(_){}
       }
       if(candleIndex>=0){
         // Keep the entry at the exact trade-entry price captured on BUY/SELL.
@@ -1019,17 +1026,12 @@
       let x=null,y=null;
       try{
         if(state.chart&&Number.isFinite(anchorTime))x=state.chart.timeScale().timeToCoordinate(anchorTime);
-        // Capture the body's wick-connection height once, at trade entry.
-        // Keep that screen-space Y fixed while the live candle body/wick changes,
-        // preventing the line from shaking up and down on every incoming tick.
-        if(Number.isFinite(Number(t.markerY))){
-          y=Number(t.markerY);
-        }else if(state.candleSeries&&Number.isFinite(anchorPrice)){
-          const initialY=state.candleSeries.priceToCoordinate(anchorPrice);
-          if(initialY!==null&&initialY!==undefined&&Number.isFinite(initialY)){
-            t.markerY=initialY;
-            y=initialY;
-          }
+        // Recalculate the vertical coordinate from the fixed entry price on every
+        // render. This keeps the marker aligned through price-scale changes, zoom,
+        // resize, and timeframe changes instead of preserving a stale screen pixel.
+        if(state.candleSeries&&Number.isFinite(anchorPrice)){
+          const priceY=state.candleSeries.priceToCoordinate(anchorPrice);
+          if(priceY!==null&&priceY!==undefined&&Number.isFinite(priceY))y=priceY;
         }
       }catch(_){}
       // Lightweight Charts returns null coordinates when the anchored candle
