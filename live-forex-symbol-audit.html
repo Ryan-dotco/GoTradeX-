@@ -66,7 +66,7 @@ function downloadText(filename,text,mime){
 }
 function exportCatalogueCsv(){
  const keys=['symbol','display_name','underlying_symbol_name','market','submarket','symbol_type','underlying_symbol_type'];
- const csv=[keys.join(','),...catalogueItems.map(x=>keys.map(k=>'"'+String(x[k]??'').replace(/"/g,'""')+'"').join(','))].join('\\r\\n');
+ const csv=[keys.join(','),...catalogueItems.map(x=>keys.map(k=>'"'+String(x[k]??'').replace(/"/g,'""')+'"').join(','))].join('\r\n');
  downloadText('gotradex-deriv-active-symbols.csv',csv,'text/csv;charset=utf-8');
 }
 function norm(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
