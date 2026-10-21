@@ -75,7 +75,10 @@ async function checkDeriv(){
  });
 }
 async function run(){
- $("run").disabled=true;$("progress").textContent="Querying public symbol catalogues… some providers may block browser access.";
+ if(window.__providerTestRunning)return;
+ window.__providerTestRunning=true;
+ $("run").disabled=true;
+ $("progress").textContent="Starting checks…";
  for(const k of providers)for(const p of pairs)state[p][k]={status:"WAIT",symbol:""};
  render();
  const jobs=[
@@ -83,13 +86,20 @@ async function run(){
   ["Bybit Linear",()=>checkBybit("linear","Bybit Linear")],
   ["Binance Spot",checkBinance],["Kraken",checkKraken],["Coinbase",checkCoinbase],["Deriv",checkDeriv]
  ];
- // Run providers concurrently; retain an explicit error status for a blocked endpoint.
- await Promise.all(jobs.map(async([name,fn])=>{try{await fn();}catch(e){for(const p of pairs)state[p][name]={status:"ERROR",symbol:String(e.message||e)};}render();}));
- $("progress").textContent="Catalogue check finished. FOUND is symbol-list evidence only; run live-feed tests before verification.";
- $("run").disabled=false;render();
+ await Promise.all(jobs.map(async([name,fn])=>{
+   $("progress").textContent="Checking "+name+"…";
+   render();
+   try{await fn();}
+   catch(e){for(const p of pairs)state[p][name]={status:"ERROR",symbol:String(e.message||e)};}
+   render();
+ }));
+ $("progress").textContent="Finished. FOUND means a catalogue match only. Export CSV for review; live-feed tests are still required.";
+ $("run").disabled=false;
+ window.__providerTestRunning=false;
+ render();
 }
-$("run").onclick=run;
+$("run").onclick=()=>run().catch(e=>{$("progress").textContent="Test stopped: "+(e.message||e);$("run").disabled=false;window.__providerTestRunning=false;});
 $("csv").onclick=()=>{const rows=[["Asset",...providers.map(k=>k+" status"),...providers.map(k=>k+" symbol")],...pairs.map(p=>[p,...providers.map(k=>state[p][k].status),...providers.map(k=>state[p][k].symbol)])];const csv=rows.map(r=>r.map(v=>'"'+String(v||"").replace(/"/g,'""')+'"').join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gotradex-crypto-provider-discovery.csv";a.click();URL.revokeObjectURL(a.href)};
 render();
-setTimeout(()=>document.getElementById("run").click(),300);
+setTimeout(()=>run().catch(e=>{document.getElementById("progress").textContent="Test stopped: "+(e.message||e);document.getElementById("run").disabled=false;window.__providerTestRunning=false;}),500);
 </script></body></html>
