@@ -25,7 +25,7 @@ function setProvider(name, catalog, parse) {
 function showStatus(v){if(v.status==="FOUND")return '<span class="yes" title="'+esc(v.symbol)+'">FOUND</span>';if(v.status==="NOT FOUND")return '<span class="no">NOT FOUND</span>';if(v.status==="ERROR")return '<span class="unk">CHECK ERROR</span>';return '<span class="unk">WAIT</span>'}
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function render(){
-  $("body").innerHTML=pairs.map(p=>'<tr><td>'+p+'</td>'+providers.map(k=>'<td>'+showStatus(state[p][k])+'</td>').join("")+'</tr>').join("");
+  $("resultsBody").innerHTML=pairs.map(p=>'<tr><td>'+p+'</td>'+providers.map(k=>'<td>'+showStatus(state[p][k])+'</td>').join("")+'</tr>').join("");
   const loaded=providers.filter(k=>pairs.some(p=>state[p][k].status==="FOUND"||state[p][k].status==="NOT FOUND")).length;
   $("loaded").textContent=loaded+" / "+providers.length;
   $("matched").textContent=pairs.filter(p=>providers.some(k=>state[p][k].status==="FOUND")).length;
