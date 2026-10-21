@@ -13,6 +13,10 @@ header{padding:18px 14px 14px;background:#0b1a2a;border-bottom:1px solid var(--l
 #overall{font-size:12px;margin-top:9px;color:var(--gold)}main{padding:12px;max-width:950px;margin:auto}.note{background:#102235;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px;color:var(--muted);font-size:12px}
 .summary{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.pill{border:1px solid var(--line);background:#102235;border-radius:8px;padding:8px 10px;font-size:12px}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid #20374c;font-size:12px}th{color:var(--muted);font-weight:700;background:#11263a}td:first-child{font-weight:800;white-space:nowrap}.ok{color:var(--green);font-weight:850}.bad{color:var(--red);font-weight:850}.wait{color:var(--gold);font-weight:850}.small{font-size:11px;color:var(--muted)}.foot{padding:14px;color:var(--muted);font-size:11px}
+tr.review-row{opacity:.48;filter:saturate(.55)}tr.review-row td:first-child{color:#9aaabd}
+tr.verified-row{background:rgba(66,223,152,.055)}tr.verified-row td:first-child{color:var(--green)}
+.section-row td{background:#102235;color:var(--muted);font-weight:850;letter-spacing:.06em;font-size:11px;padding:10px 7px}
+#rows tr.review-row{pointer-events:none;user-select:none}
 @media(max-width:520px){th:nth-child(2),td:nth-child(2){display:none}th,td{padding:8px 5px;font-size:11px}}
 </style>
 </head>
@@ -39,13 +43,20 @@ table{width:100%;border-collapse:collapse;background:var(--panel);border:1px sol
 <script>
 (function(){
 'use strict';
-const pairs=[
+// Keep the 24 previously passing pairs at the top. All other pairs remain visible
+// at the bottom as IN REVIEW; this is presentation only, not a registry edit.
+const verifiedPairs=[
 'EUR/USD','GBP/USD','USD/JPY','USD/CHF','AUD/USD','NZD/USD','USD/CAD','EUR/GBP','EUR/JPY','GBP/JPY',
 'AUD/JPY','EUR/CHF','EUR/AUD','EUR/CAD','EUR/NZD','GBP/AUD','GBP/CAD','GBP/CHF','GBP/NZD','NZD/JPY',
-'CAD/JPY','CAD/CHF','CHF/JPY','AUD/CAD','AUD/CHF','AUD/NZD','USD/SGD','USD/HKD','USD/HUF','USD/ZAR',
-'EUR/ZAR','GBP/ZAR','USD/MXN','USD/TRY','USD/NOK','USD/SEK','USD/DKK','EUR/NOK','EUR/SEK','EUR/PLN',
-'EUR/TRY','GBP/SGD','NZD/CAD','USD/INR','USD/BRL','USD/CNH','USD/IDR'
+'AUD/CAD','AUD/CHF','AUD/NZD','USD/MXN'
 ];
+const reviewPairs=[
+'CAD/JPY','CAD/CHF','CHF/JPY','USD/SGD','USD/HKD','USD/HUF','USD/ZAR','EUR/ZAR','GBP/ZAR',
+'USD/TRY','USD/NOK','USD/SEK','USD/DKK','EUR/NOK','EUR/SEK','EUR/PLN','EUR/TRY','GBP/SGD',
+'NZD/CAD','USD/INR','USD/BRL','USD/CNH','USD/IDR'
+];
+const pairs=[...verifiedPairs,...reviewPairs];
+const verifiedSet=new Set(verifiedPairs),reviewSet=new Set(reviewPairs);
 const rows=document.getElementById('rows'),state={},symbolFor={};
 let running=false,stopRequested=false,active=new Map(),catalogueItems=[];
 function id(p){return p.replace('/','-')}
@@ -71,11 +82,18 @@ function exportCatalogueCsv(){
 }
 function norm(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 function paint(p,cls,label,detail){document.getElementById('status-'+id(p)).className=cls;document.getElementById('status-'+id(p)).textContent=label;document.getElementById('data-'+id(p)).textContent=detail}
-function render(){rows.innerHTML=pairs.map(p=>'<tr><td>'+p+'</td><td id="sym-'+id(p)+'" class="small">—</td><td id="data-'+id(p)+'" class="small">—</td><td id="status-'+id(p)+'" class="wait">NOT TESTED</td></tr>').join('')}
+function render(){
+ rows.innerHTML='<tr class="section-row"><td colspan="4">VERIFIED · 24 PAIRS · PRIOR LIVE-TICK PASS</td></tr>'+
+ verifiedPairs.map(p=>'<tr class="verified-row" id="row-'+id(p)+'"><td>'+p+'</td><td id="sym-'+id(p)+'" class="small">—</td><td id="data-'+id(p)+'" class="small">Previous live-tick pass</td><td id="status-'+id(p)+'" class="ok">VERIFIED</td></tr>').join('')+
+ '<tr class="section-row"><td colspan="4">IN REVIEW · 23 PAIRS · NOT SELECTABLE</td></tr>'+
+ reviewPairs.map(p=>'<tr class="review-row" id="row-'+id(p)+'"><td>'+p+'</td><td id="sym-'+id(p)+'" class="small">—</td><td id="data-'+id(p)+'" class="small">Awaiting catalogue/provider investigation</td><td id="status-'+id(p)+'" class="wait">IN REVIEW</td></tr>').join('');
+ verifiedPairs.forEach(p=>{state[p]={ok:true,prior:true};});
+ reviewPairs.forEach(p=>{state[p]={ok:false,review:true,reason:'Pending catalogue/provider investigation'};});
+}
 function summary(){
  const pass=pairs.filter(p=>state[p]?.ok).length,fail=pairs.filter(p=>state[p]&&!state[p].ok).length;
- document.getElementById('passed').textContent='Live tick PASS: '+pass;
- document.getElementById('failed').textContent='Not verified: '+fail;
+ document.getElementById('passed').textContent='Verified / prior PASS: '+pass;
+ document.getElementById('failed').textContent='IN REVIEW: '+fail;
  document.getElementById('pending').textContent='Pending: '+(pairs.length-pass-fail);
 }
 function fetchCatalogue(){
@@ -152,7 +170,7 @@ document.getElementById('run').addEventListener('click',async()=>{
  if(running)return;running=true;stopRequested=false;
  document.getElementById('run').disabled=true;
  Object.keys(state).forEach(k=>delete state[k]);Object.keys(symbolFor).forEach(k=>delete symbolFor[k]);
- pairs.forEach(p=>{document.getElementById('sym-'+id(p)).textContent='—';paint(p,'wait','WAITING','Waiting for active-symbol catalogue')});
+ pairs.forEach(p=>{document.getElementById('sym-'+id(p)).textContent='—';paint(p,'wait',reviewSet.has(p)?'IN REVIEW':'WAITING',reviewSet.has(p)?'Still held for investigation':'Waiting for active-symbol catalogue')});
  document.getElementById('catalog').textContent='Catalogue: loading…';summary();
  try{
   document.getElementById('overall').textContent='Step 1/2: requesting Deriv active-symbol catalogue…';
