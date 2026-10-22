@@ -25,6 +25,7 @@
     chart:null,candleSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
+    heikinData:[],chartToolRefreshTimer:null,overlayFramePending:false,
     booted:false,markersInstalled:false,dateTimeTimer:null
   };
 
@@ -200,7 +201,9 @@
     state.chartType=type;
     try{localStorage.setItem(TYPE_KEY,type)}catch(_){}
     if(state.chart){
-      state.candleSeries.setData(seriesCandleData());
+      const candleData=seriesCandleData();
+      state.candleSeries.setData(candleData);
+      state.heikinData=type==="heikin"?candleData:[];
       const data=seriesLineData();
       if(type==="line"||type==="mountain"){
         if(!state.lineSeries){state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:false});}
@@ -558,17 +561,17 @@
     return out;
   }
 
+  function toHeikinCandle(c,previous){
+    const open=Number(c.o),high=Number(c.h),low=Number(c.l),close=Number(c.c);
+    const haClose=(open+high+low+close)/4;
+    const haOpen=previous?(Number(previous.open)+Number(previous.close))/2:(open+close)/2;
+    return {time:Math.floor(c.t/1000),open:haOpen,high:Math.max(high,haOpen,haClose),low:Math.min(low,haOpen,haClose),close:haClose};
+  }
   function seriesCandleData(){
     if(state.chartType==="heikin"){
-      let previousOpen=null,previousClose=null;
-      return state.candles.map(c=>{
-        const open=Number(c.o),high=Number(c.h),low=Number(c.l),close=Number(c.c);
-        const haClose=(open+high+low+close)/4;
-        const haOpen=previousOpen===null?(open+close)/2:(previousOpen+previousClose)/2;
-        const item={time:Math.floor(c.t/1000),open:haOpen,high:Math.max(high,haOpen,haClose),low:Math.min(low,haOpen,haClose),close:haClose};
-        previousOpen=haOpen;previousClose=haClose;
-        return item;
-      });
+      const data=[];
+      for(const c of state.candles)data.push(toHeikinCandle(c,data.length?data[data.length-1]:null));
+      return data;
     }
     return state.candles.map(c=>({
       time:Math.floor(c.t/1000),
@@ -636,6 +639,7 @@
     if(!state.chart)buildChart();
     const candles=seriesCandleData();
     state.candleSeries.setData(candles);
+    state.heikinData=state.chartType==="heikin"?candles:[];
     if(state.chartType==="line"||state.chartType==="mountain"){
       if(!state.lineSeries)state.lineSeries=state.chart.addLineSeries({color:"#4da3ff",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
       if(!state.areaSeries)state.areaSeries=state.chart.addAreaSeries({lineColor:"#38bdf8",topColor:"rgba(56,189,248,.34)",bottomColor:"rgba(56,189,248,.02)",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
@@ -669,16 +673,29 @@
       return;
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
-    if(state.chartType==="heikin")state.candleSeries.setData(seriesCandleData());
-    else state.candleSeries.update(item);
+    if(state.chartType==="heikin"){
+      // Update only the active Heikin Ashi candle; rebuilding all history on every tick
+      // caused avoidable work and could make candles appear to pause on busy feeds.
+      const cache=state.heikinData;
+      const sameBar=cache.length&&cache[cache.length-1].time===item.time;
+      const previous=cache.length?cache[cache.length-(sameBar?2:1)]:null;
+      const ha=toHeikinCandle(c,previous||null);
+      if(sameBar)cache[cache.length-1]=ha;else cache.push(ha);
+      if(cache.length>state.candles.length)cache.splice(0,cache.length-state.candles.length);
+      state.candleSeries.update(ha);
+    }else state.candleSeries.update(item);
     if(state.lineSeries)state.lineSeries.update({time:item.time,value:item.close});
     if(state.areaSeries)state.areaSeries.update({time:item.time,value:item.close});
-    applyChartTypeVisibility();
-    // No automatic SMA overlays: do not add background moving-average lines to the chart.
-    refreshChartTools();
+    // Lightweight Charts updates the visible series and its autoscaled price axis
+    // synchronously. Keep expensive indicators/overlays off the critical tick path.
     state.price=c.c;
     updateCurrentPriceLine();
-    positionTradeOverlay();
+    queueChartToolRefresh();
+    if(!state.overlayFramePending){
+      state.overlayFramePending=true;
+      const schedule=window.requestAnimationFrame||((fn)=>setTimeout(fn,16));
+      schedule(()=>{state.overlayFramePending=false;positionTradeOverlay();});
+    }
   }
 
   function updateCurrentPriceLine(){
@@ -1304,6 +1321,15 @@
     const ok=drawChartTool(name,params);
     if(ok){activeChartTools.add(name);chartToolParams[name]=params||{};return {ok:true,active:true,message:name+" applied to the current chart candles."};}
     return {ok:false,message:name+" is listed in Chart Tools but is not implemented in the current chart engine yet."};
+  }
+  function queueChartToolRefresh(){
+    if(!activeChartTools.size||state.chartToolRefreshTimer!==null)return;
+    // Indicators are secondary overlays: refresh at most about 6 times/second while
+    // market ticks continue at full speed, rather than rebuilding them for every tick.
+    state.chartToolRefreshTimer=setTimeout(()=>{
+      state.chartToolRefreshTimer=null;
+      if(state.chart&&activeChartTools.size)refreshChartTools();
+    },150);
   }
   function refreshChartTools(){
     for(const name of activeChartTools){clearChartTool(name);drawChartTool(name,chartToolParams[name]||{});}
