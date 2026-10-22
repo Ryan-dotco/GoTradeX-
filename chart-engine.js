@@ -254,10 +254,13 @@ function syncCandleModeButton(){
  b.textContent=candleMode==="heikin"?"HEIKIN ASHI":"CANDLES";
  b.title=candleMode==="heikin"?"Switch to standard candlesticks":"Switch to Heikin Ashi";
 }
-function renderCandleSeries(){
+function renderCandleSeries(incremental=false){
  if(!series)return;
  const data=displayCandles();
- series.setData(data);
+ if(incremental&&data.length){
+  try{series.update(data[data.length-1]);}
+  catch(_){series.setData(data);}
+ }else series.setData(data);
  if(data.length){
   try{series.applyOptions({priceFormat:{type:"price",precision:assetPricePrecision(),minMove:assetPriceMinMove()}})}catch(_){}
  }
@@ -373,7 +376,7 @@ async function connectSocket(requestId=assetRequestId){
    try{
     const {data}=await client.functions.invoke("gotradex-market-data",{body:{action:"price",symbol:normalizedExternalSymbol(),assetType}});
     const fp=Number(data?.price);
-    if(Number.isFinite(fp))updateLivePrice(fp,Number(data?.timestamp||Date.now())/1000);
+    if(Number.isFinite(fp))updateLivePrice(fp,Number(data?.timestamp||Date.now()));
    }catch(_){}
   };
   if(!isOtcMode()){
@@ -389,7 +392,7 @@ async function connectSocket(requestId=assetRequestId){
     try{
       const m=JSON.parse(e.data);
       if(m?.event==="price"){
-        const p=Number(m?.price),t=Number(m?.timestamp||Date.now())/1000;
+        const p=Number(m?.price),t=Number(m?.timestamp||Date.now());
         if(Number.isFinite(p))updateLivePrice(p,t);
       }else if(m?.event==="proxy-status"){
         if(src)updateFeedStatus();
@@ -429,7 +432,7 @@ async function connectSocket(requestId=assetRequestId){
   ws.onmessage=e=>{try{
    if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration)return;
    const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice),t=Number(m?.ts||Date.now());
-   if(Number.isFinite(p))updateLivePrice(p,t/1000);
+   if(Number.isFinite(p))updateLivePrice(p,t);
   }catch(_){}};
   ws.onerror=()=>{try{thisWs.close()}catch(_){}};
   ws.onclose=()=>{
@@ -465,17 +468,29 @@ function updateFeedStatus(){
  src.classList.toggle("stale",stale);
  src.textContent=stale?"STALE • waiting for live "+pairLabel():"LIVE • Twelve Data WebSocket • "+assetType.toUpperCase()+" • "+pairLabel();
 }
+function normalizeFeedEpochSeconds(value){
+ let n=Number(value);
+ if(!Number.isFinite(n)||n<=0)return Date.now()/1000;
+ // Accept provider Unix timestamps in either seconds or milliseconds.
+ if(n>1e12)n/=1000;
+ if(n<1e8)return Date.now()/1000;
+ return n;
+}
 function updateLivePrice(p,sourceTime){
  if(!Number.isFinite(Number(p)))return false;
  const price=Number(p);
  lastLiveUpdateAt=Date.now();
  const step=Math.max(1,Number(TF[tf]||60));
- const base=Number.isFinite(Number(sourceTime))?Number(sourceTime):Date.now()/1000;
+ const base=normalizeFeedEpochSeconds(sourceTime);
  const t=Math.floor(base/step)*step;
  let x=candles.at(-1);
+ let newBucket=false;
+ // Never append an out-of-order candle behind the chart's latest time.
+ if(x&&t<Number(x.time))return false;
  if(!x||Number(x.time)!==t){
   x={time:t,open:price,high:price,low:price,close:price,volume:0};
   candles.push(x);
+  newBucket=true;
   if(candles.length>500)candles=candles.slice(-500);
  }else{
   x.close=price;
@@ -483,8 +498,9 @@ function updateLivePrice(p,sourceTime){
   x.low=Math.min(Number(x.low),price);
  }
  try{
-  renderCandleSeries();
-  if(chart){showRecentChartWindow();chart.timeScale().scrollToRealTime();}
+  renderCandleSeries(true);
+  // Avoid resetting the visible range on every incoming tick.
+  if(chart&&newBucket)chart.timeScale().scrollToRealTime();
  }catch(_){}
  if(priceLine)priceLine.applyOptions({price});
  if(trade)updateTrade(price);
@@ -505,7 +521,7 @@ async function fast(){
    const client=auth.ensureClient();
    const {data}=await client.functions.invoke("gotradex-market-data",{body:{action:"price",symbol:normalizedExternalSymbol(),assetType}});
    const p=Number(data?.price);
-   if(Number.isFinite(p))updateLivePrice(p,Number(data?.timestamp||Date.now())/1000);
+   if(Number.isFinite(p))updateLivePrice(p,Number(data?.timestamp||Date.now()));
   }
  }catch(_){}
 }
