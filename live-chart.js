@@ -250,21 +250,28 @@
   function bucket(ms,sec){return Math.floor(ms/1000/sec)*sec*1000}
 
   function addTick(ts,price,volume){
-    if(!Number.isFinite(price)||!Number.isFinite(ts))return;
-    const b=bucket(ts,state.sec);
+    if(!Number.isFinite(Number(price))||!Number.isFinite(Number(ts)))return;
+    // Feed adapters normally return milliseconds; accept Unix seconds safely too.
+    let timestamp=Number(ts);
+    if(timestamp>0&&timestamp<1e11)timestamp*=1000;
+    if(!Number.isFinite(timestamp)||timestamp<=0)return;
+    const b=bucket(timestamp,state.sec);
     let c=state.candles[state.candles.length-1];
+    // Out-of-order ticks can make Lightweight Charts reject every later update.
+    // Ignore stale buckets instead of appending them after the latest candle.
+    if(c&&b<c.t)return;
     if(!c||c.t!==b){
-      c={t:b,o:price,h:price,l:price,c:price,v:Number(volume||0)};
+      c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0)};
       state.candles.push(c);
       if(state.candles.length>500)state.candles.shift();
     }else{
-      c.h=Math.max(c.h,price);
-      c.l=Math.min(c.l,price);
-      c.c=price;
+      c.h=Math.max(c.h,Number(price));
+      c.l=Math.min(c.l,Number(price));
+      c.c=Number(price);
       c.v+=Number(volume||0);
     }
     state.prev=state.price;
-    state.price=price;
+    state.price=Number(price);
     updateLiveSeries(c);
   }
 
@@ -717,14 +724,17 @@
       return;
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
-    if(state.chartType==="heikin")state.candleSeries.setData(seriesCandleData());
-    else state.candleSeries.update(item);
+    if(state.chartType==="heikin"){
+      // Recalculate HA values, but update only the latest candle instead of redrawing all history.
+      const ha=seriesCandleData();
+      if(ha.length)state.candleSeries.update(ha[ha.length-1]);
+    }else state.candleSeries.update(item);
     if(state.barSeries)state.barSeries.update(item);
     if(state.lineSeries)state.lineSeries.update({time:item.time,value:item.close});
     if(state.areaSeries)state.areaSeries.update({time:item.time,value:item.close});
     applyChartTypeVisibility();
-    // No automatic SMA overlays: do not add background moving-average lines to the chart.
-    refreshChartTools();
+    // Batch expensive overlay redraws so bursts of ticks don't block candle rendering.
+    scheduleChartToolsRefresh();
     state.price=c.c;
     updateCurrentPriceLine();
     positionTradeOverlay();
@@ -1343,6 +1353,14 @@
     const ok=drawChartTool(name,params);
     if(ok){activeChartTools.add(name);chartToolParams[name]=params||{};return {ok:true,active:true,message:name+" applied to the current chart candles."};}
     return {ok:false,message:name+" is listed in Chart Tools but is not implemented in the current chart engine yet."};
+  }
+  let chartToolsRefreshTimer=null;
+  function scheduleChartToolsRefresh(){
+    if(chartToolsRefreshTimer!==null)return;
+    chartToolsRefreshTimer=setTimeout(()=>{
+      chartToolsRefreshTimer=null;
+      refreshChartTools();
+    },180);
   }
   function refreshChartTools(){
     for(const name of activeChartTools){clearChartTool(name);drawChartTool(name,chartToolParams[name]||{});}
