@@ -304,25 +304,42 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   }
 
   async function loadBybitHistory(){
-    // Keep the 604 "100% perfect" chart UI/behavior, but route history through
-    // GoTradeX's verified server adapter instead of exposing exchange calls in the browser.
+    // Fetch history independently from the live stream. Never let a slow history
+    // request delay verified real-time trades.
     if(!feed()||typeof feed().bybitHistory!=="function"){
       throw new Error("Verified crypto market-data adapter is not loaded.");
     }
-    state.candles=await feed().bybitHistory(state.symbol,state.sec);
-    state.candles=(Array.isArray(state.candles)?state.candles:[])
+    const rows=await feed().bybitHistory(state.symbol,state.sec);
+    return (Array.isArray(rows)?rows:[])
       .map(x=>({t:Number(x.t),o:Number(x.o),h:Number(x.h),l:Number(x.l),c:Number(x.c),v:Number(x.v||0)}))
       .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite))
       .sort((a,b)=>a.t-b.t);
+  }
+
+  function mergeHistory(history){
+    const merged=new Map();
+    (Array.isArray(history)?history:[]).forEach(c=>{
+      if(c&&[c.t,c.o,c.h,c.l,c.c].every(v=>Number.isFinite(Number(v))))
+        merged.set(Number(c.t),{t:Number(c.t),o:Number(c.o),h:Number(c.h),l:Number(c.l),c:Number(c.c),v:Number(c.v||0)});
+    });
+    // Live buckets always win for the latest close; historical OHLC is retained
+    // where it overlaps the same candle so late history cannot roll prices back.
+    state.candles.forEach(live=>{
+      if(!live||![live.t,live.o,live.h,live.l,live.c].every(v=>Number.isFinite(Number(v))))return;
+      const t=Number(live.t),old=merged.get(t);
+      merged.set(t,old?{
+        t,o:old.o,h:Math.max(old.h,Number(live.h)),l:Math.min(old.l,Number(live.l)),
+        c:Number(live.c),v:Number(old.v||0)+Number(live.v||0)
+      }:{t,o:Number(live.o),h:Number(live.h),l:Number(live.l),c:Number(live.c),v:Number(live.v||0)});
+    });
+    state.candles=Array.from(merged.values()).sort((a,b)=>a.t-b.t).slice(-500);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
   }
 
   function historyReady(){
-    // Sub-minute candles can start from a single verified historical bucket or
-    // the first verified live tick. Never block a short-interval WebSocket while
-    // waiting for a full historical window.
-    if(state.sec<60)return state.candles.length>=1;
-    return state.mode==="OTC" ? state.candles.length >= 1 : state.candles.length >= 12;
+    // A single verified candle is enough to initialize the chart. Live ticks
+    // must never be blocked while waiting for an arbitrary 12-candle history.
+    return state.candles.length>=1;
   }
 
   async function resolveTwelveSymbol(f){
@@ -346,39 +363,20 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       return;
     }
     state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
-    state.connected=false;status("LOADING • BYBIT",false);
-    notice("Loading verified historical candles…",true);
+    state.candles=[];state.price=null;state.historyLoaded=false;
+    state.connected=false;status("CONNECTING • BYBIT",false);
+    notice("Connecting to verified live trades; history loads separately…",true);
 
-    loadBybitHistory().catch(e=>{
-      // Short intervals can still form valid candles from the real-time stream
-      // even when the provider's recent-trade history is temporarily unavailable.
-      if(state.sec>=60)throw e;
-      state.candles=[];state.price=null;state.historyLoaded=false;
-      status("COLLECTING VERIFIED TICKS",false);
-      notice("Short-interval history is unavailable; checking the verified live trade stream…",true);
-      return [];
-    }).then(()=>{
-      if(id!==state.connectionId)return;
-      if(!historyReady() && state.sec>=60){
-        state.connected=false;
-        status("WAITING FOR HISTORY",false);
-        notice("Waiting for enough verified historical candles before displaying the chart…",true);
-        setTimeout(()=>{if(id===state.connectionId)connect()},2500);
-        return;
-      }
-      if(state.candles.length)renderHistory();
-      else{
-        state.historyLoaded=false;
-        status("COLLECTING VERIFIED TICKS",false);
-        notice("Waiting for verified live trades to build the first candle…",true);
-      }
-      const ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
+    // Establish the live stream first. A slow REST/history request must not freeze
+    // prices or postpone reconnection after a dropped WebSocket.
+    let ws;
+    try{
+      ws=new WebSocket("wss://stream.bybit.com/v5/public/spot");
       state.ws=ws;
       ws.onopen=()=>{
         if(id!==state.connectionId){try{ws.close()}catch(_){}return}
         state.connected=true;state.diag.opens++;
         status("CONNECTED • WAITING FOR BYBIT TICK",true);
-        notice("",false);
         ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol]}));
       };
       ws.onmessage=e=>{
@@ -390,17 +388,34 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       };
       ws.onerror=()=>{
         if(id!==state.connectionId)return;
-        state.diag.errors++;state.connected=false;status("FEED ERROR",false);notice("Bybit live stream error. Retrying…",true);
+        state.diag.errors++;state.connected=false;status("FEED ERROR",false);
+        notice("Bybit live stream error. Retrying…",true);
       };
       ws.onclose=()=>{
         if(id!==state.connectionId)return;
         state.diag.closes++;state.connected=false;status("RECONNECTING • BYBIT",false);
         setTimeout(()=>{if(id===state.connectionId)connect()},2500);
       };
+    }catch(e){
+      state.connected=false;state.diag.errors++;status("FEED ERROR",false);
+      notice("Unable to open Bybit live stream: "+(e.message||"WebSocket unavailable"),true);
+    }
+
+    loadBybitHistory().then(history=>{
+      if(id!==state.connectionId)return;
+      mergeHistory(history);
+      if(state.candles.length){renderHistory();status(state.diag.lastTickAt&&Date.now()-state.diag.lastTickAt<5000?"LIVE • BYBIT":"CONNECTED • BYBIT",true);notice("",false);}
+      else{
+        state.historyLoaded=false;
+        status("COLLECTING VERIFIED TICKS",false);
+        notice("No historical candles returned. Verified live trades can still build the chart.",true);
+      }
     }).catch(e=>{
       if(id!==state.connectionId)return;
-      state.connected=false;status("FEED ERROR",false);
-      notice(e.message||"Verified Bybit historical data unavailable.",true);
+      // Keep any candles already formed from actual ticks; history failure is not
+      // a reason to tear down the live stream or erase the price.
+      if(state.candles.length){try{renderHistory()}catch(_){};status("LIVE STREAM • HISTORY UNAVAILABLE",true);}
+      else{status("COLLECTING VERIFIED TICKS",false);notice("Historical data unavailable ("+(e.message||"provider error")+"). Waiting for verified live trades; no candles are fabricated.",true);}
     });
   }
 
@@ -411,43 +426,18 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const f=selection();
     if(!f.available||f.provider!=="DERIV"){
       state.connected=false;status("NO VERIFIED DERIV FEED",false);
-      notice(f.reason||"Selected FX pair is not available through the verified Deriv feed.",true);
+      notice(f.reason||"Selected asset is not available through the verified Deriv feed.",true);
       return;
     }
     state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
-    state.connected=false;status(state.mode==="OTC"?"OTC • LOADING • DERIV":"LOADING • DERIV",false);
-    notice(state.mode==="OTC"?"Loading verified Deriv OTC historical candles…":"Loading verified Deriv historical candles…",true);
-    feed().derivCandleHistory(f.symbol,state.sec).catch(e=>{
-      // Historical data is optional: a history error must not block the live tick stream.
-      if(id===state.connectionId){
-        state.candles=[];state.price=null;state.historyLoaded=false;
-        status(state.mode==="OTC"?"OTC • COLLECTING CANDLES":"COLLECTING VERIFIED TICKS",false);
-        notice("Historical data unavailable ("+(e&&e.message?e.message:"provider error")+"). Connecting to verified live ticks; no candles will be fabricated.",true);
-      }
-      return [];
-    }).then(async history=>{
-      if(id!==state.connectionId)return;
-      state.candles=Array.isArray(history)?history:[];
-      if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
-      if(state.mode==="OTC"){
-        if(historyReady()){
-          renderHistory();
-        }else{
-          state.connected=false;status("OTC • COLLECTING CANDLES",false);
-          notice("No usable OTC history returned. Waiting for verified Deriv ticks to build the chart…",true);
-        }
-      }else{
-        if(!historyReady() && state.sec>=60){
-          state.connected=false;status("COLLECTING VERIFIED TICKS",false);
-          notice("Historical candles are incomplete. Keeping the live subscription active while verified ticks arrive.",true);
-        }else if(state.candles.length){
-          renderHistory();
-        }else{
-          state.historyLoaded=false;
-          status("COLLECTING VERIFIED TICKS",false);
-          notice("Waiting for verified Deriv ticks to build the first candle…",true);
-        }
-      }
+    state.candles=[];state.price=null;state.historyLoaded=false;
+    state.connected=false;
+    status(state.mode==="OTC"?"OTC • CONNECTING • DERIV":"CONNECTING • DERIV",false);
+    notice("Connecting to verified Deriv ticks; history loads independently…",true);
+
+    // Subscribe to live ticks immediately. The separate history request has a
+    // 10-second timeout in the adapter and must never gate live prices.
+    try{
       const socket=feed().derivSocket(f.symbol,
         tick=>{
           if(id!==state.connectionId)return;
@@ -461,19 +451,36 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
           if(/CONNECTED/.test(String(msg))&&ok)state.diag.opens++;
           const displayMsg=state.mode==="OTC"?String(msg).replace(/^LIVE • DERIV$/,"OTC • DERIV").replace(/^CONNECTING • DERIV$/,"CONNECTING • DERIV OTC").replace(/^RECONNECTING • DERIV$/,"RECONNECTING • DERIV OTC"):msg;
           status(displayMsg,!!ok);
-          if(ok){
-            if(state.historyLoaded)notice("",false);
-            else if(state.mode==="OTC")notice("Connected to Deriv; waiting for the first verified tick to build candles…",true);
-            else notice("",false);
-          }
+          if(ok&&state.historyLoaded)notice("",false);
         }
       );
       if(id!==state.connectionId){try{socket.close()}catch(_){}return}
       state.ws=socket;
+    }catch(e){
+      state.connected=false;state.diag.errors++;status("DERIV FEED ERROR",false);
+      notice(e.message||"Unable to open verified Deriv live ticks.",true);
+    }
+
+    feed().derivCandleHistory(f.symbol,state.sec).then(history=>{
+      if(id!==state.connectionId)return;
+      mergeHistory(Array.isArray(history)?history:[]);
+      if(state.candles.length){
+        renderHistory();
+        if(state.diag.lastTickAt&&Date.now()-state.diag.lastTickAt<5000)status(state.mode==="OTC"?"OTC • DERIV LIVE":"LIVE • DERIV",true);
+        notice("",false);
+      }else{
+        state.historyLoaded=false;
+        notice("No historical candles returned. Verified live ticks can still build the chart; no candles are fabricated.",true);
+      }
     }).catch(e=>{
       if(id!==state.connectionId)return;
-      state.connected=false;status("DERIV FEED ERROR",false);
-      notice(e.message||"Unable to read verified Deriv market data.",true);
+      // History failure must not reset live candles or disconnect the feed.
+      if(state.candles.length){
+        try{renderHistory()}catch(_){}
+        notice("",false);
+      }else{
+        notice("Historical data unavailable ("+(e&&e.message?e.message:"provider error")+"). Verified live ticks remain active; no candles are fabricated.",true);
+      }
     });
   }
 
@@ -579,6 +586,9 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const f=selection();
     let savedMode="LIVE";try{savedMode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(_){}
     state.mode=String(f.mode||savedMode).toUpperCase()==="OTC"?"OTC":"LIVE";
+    // Keep the polling watcher in sync with explicit connections so page boot
+    // and asset selection do not start a second competing history/socket cycle.
+    state.lastAssetKey=[f.provider,f.symbol,f.label,f.type,String(f.mode||savedMode).toUpperCase()].join("|");
     state.type=f.type||"";
     state.assetLabel=f.label||"";
     state.candles=[];state.price=null;state.prev=null;state.tradeStart=null;state.tradeEnd=null;
