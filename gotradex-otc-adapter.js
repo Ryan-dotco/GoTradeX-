@@ -56,43 +56,44 @@
     if(!data||!Number.isFinite(Number(data.price))) throw new Error("No OTC price is available for "+p+".");
     return {price:Number(data.price),time:Date.parse(data.updated_at)||Date.now()};
   }
-  async function socket(pair,onTick,onStatus){
-    let stopped=false;
-    let timer=null;
+  function withTimeout(promise,ms,message){
+    return new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error(message||"OTC market request timed out")),ms);
+      Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)});
+    });
+  }
+  function socket(pair,onTick,onStatus){
+    let stopped=false,timer=null,inFlight=false;
     const endpoint=SUPABASE_URL+"/functions/v1/gotradex-otc-engine";
     const poll=async()=>{
-      if(stopped)return;
+      if(stopped||inFlight)return;
+      inFlight=true;
       try{
-        // Read the server-generated OTC price directly so the chart does not
-        // freeze when the persisted otc_prices row is momentarily stale.
-        const res=await fetch(endpoint,{
-          method:"POST",cache:"no-store",
-          headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},
-          body:JSON.stringify({action:"chart",pair,timeframe:60,tf:60,limit:20})
-        });
-        const data=await res.json().catch(()=>null);
-        const p=Number(data?.price),t=Number(data?.serverTime||Date.now()/1000)*1000;
-        if(!res.ok||!Number.isFinite(p))throw new Error(data?.error||"OTC price unavailable");
-        if(stopped)return;
-        onTick({price:p,time:t});
-        onStatus("OTC • LIVE ENGINE",true);
-      }catch(e){
         try{
-          const p=await price(pair);
+          const res=await withTimeout(fetch(endpoint,{
+            method:"POST",cache:"no-store",
+            headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},
+            body:JSON.stringify({action:"chart",pair,timeframe:60,tf:60,limit:20})
+          }),2500,"OTC engine request timed out");
+          const data=await withTimeout(res.json().catch(()=>null),1000,"OTC engine response timed out");
+          const p=Number(data?.price),t=Number(data?.serverTime||Date.now()/1000)*1000;
+          if(!res.ok||!Number.isFinite(p))throw new Error(data?.error||"OTC price unavailable");
           if(stopped)return;
-          onTick(p);
-          onStatus("OTC • DATA CATCH-UP",true);
-        }catch(_){
-          if(stopped)return;
-          onStatus("OTC • WAITING",false);
+          onTick({price:p,time:t});onStatus("OTC • LIVE ENGINE",true);
+        }catch(engineError){
+          try{
+            const p=await withTimeout(price(pair),2000,"OTC stored-price request timed out");
+            if(stopped)return;
+            onTick(p);onStatus("OTC • DATA CATCH-UP",true);
+          }catch(_){if(!stopped)onStatus("OTC • WAITING",false)}
         }
-      }
+      }finally{inFlight=false}
     };
-    await poll();
-    if(!stopped) timer=setInterval(poll,1000);
+    // Return the close handle immediately; a slow request cannot block chart setup.
+    timer=setInterval(()=>{void poll()},1000);
+    void poll();
     return {close(){stopped=true;if(timer)clearInterval(timer)}};
   }
-
   const feeds=window.GoTradeXMarketFeeds;
   if(!feeds||typeof feeds.resolve!=="function"){
     window.setTimeout(()=>window.dispatchEvent(new Event("gotradex:otc-adapter-retry")),0);
