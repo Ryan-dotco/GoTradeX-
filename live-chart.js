@@ -693,8 +693,9 @@
     queueChartToolRefresh();
     if(!state.overlayFramePending){
       state.overlayFramePending=true;
-      const schedule=window.requestAnimationFrame||((fn)=>setTimeout(fn,16));
-      schedule(()=>{state.overlayFramePending=false;positionTradeOverlay();});
+      const updateOverlay=()=>{state.overlayFramePending=false;positionTradeOverlay();};
+      if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(updateOverlay);
+      else setTimeout(updateOverlay,16);
     }
   }
 
