@@ -1462,10 +1462,13 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   let chartToolsRefreshTimer=null;
   function scheduleChartToolsRefresh(){
     if(chartToolsRefreshTimer!==null)return;
+    // Indicator overlays may recalculate hundreds of historical candles. Batch
+    // that heavier work to at most once per second on mobile; live price/candle
+    // updates and trade-marker positioning still run on every verified tick.
     chartToolsRefreshTimer=setTimeout(()=>{
       chartToolsRefreshTimer=null;
       refreshChartTools();
-    },180);
+    },1000);
   }
   function refreshChartTools(){
     for(const name of activeChartTools){clearChartTool(name);drawChartTool(name,chartToolParams[name]||{});}
