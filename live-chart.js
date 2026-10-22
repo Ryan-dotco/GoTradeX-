@@ -26,7 +26,7 @@
     chart:null,candleSeries:null,barSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
-    booted:false,markersInstalled:false,dateTimeTimer:null,tickSeenForConnection:false
+    booted:false,markersInstalled:false,dateTimeTimer:null,tickSeenForConnection:false,connectionStartedAt:0,lastRecoveryAt:0,lastEventLoopAt:0,watchdogInstalled:false
   };
 
   function timezoneOffsetMinutes(){
@@ -603,7 +603,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Keep the polling watcher in sync with explicit connections so page boot
     // and asset selection do not start a second competing history/socket cycle.
     state.lastAssetKey=[f.provider,f.symbol,f.label,f.type,String(f.mode||savedMode).toUpperCase()].join("|");
-    state.tickSeenForConnection=false;state.diag.lastTickAt=0;state.diag.lastSourceTime=0;
+    state.tickSeenForConnection=false;state.diag.lastTickAt=0;state.diag.lastSourceTime=0;state.connectionStartedAt=Date.now();
     state.type=f.type||"";
     state.assetLabel=f.label||"";
     state.candles=[];state.price=null;state.prev=null;state.tradeStart=null;state.tradeEnd=null;
@@ -1174,7 +1174,10 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       renderExpiryMarkers();
     });
     window.addEventListener("resize",renderExpiryMarkers);
-    if(!expiryTimer)expiryTimer=setInterval(renderExpiryMarkers,250);
+    // Marker countdowns are displayed to whole seconds; rendering four times per second
+    // needlessly burns the main thread on mobile. Live ticks and chart interactions
+    // still reposition markers immediately through positionTradeOverlay().
+    if(!expiryTimer)expiryTimer=setInterval(renderExpiryMarkers,1000);
   }
     function positionTradeOverlay(){
     renderExpiryMarkers();
@@ -1222,10 +1225,55 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     }
   }
 
+  function staleLimitMs(){
+    if(state.provider==="BYBIT")return 8000;
+    if(state.provider==="DERIV")return 12000;
+    if(state.provider==="GOTRADEX_OTC")return 7000;
+    if(state.provider==="TWELVE_DATA")return 25000;
+    return 15000;
+  }
+  function recoverIfStale(reason){
+    if(!state.booted||!state.lastAssetKey)return;
+    const now=Date.now(),last=Number(state.diag.lastTickAt)||Number(state.connectionStartedAt)||now;
+    const age=now-last,limit=staleLimitMs();
+    // Never reconnect healthy streams. Rate-limit retries so an offline phone or
+    // provider outage cannot create a rapid reconnect loop.
+    if(age<limit||now-(Number(state.lastRecoveryAt)||0)<Math.max(5000,limit))return;
+    state.lastRecoveryAt=now;state.connected=false;state.diag.errors++;
+    status("RECOVERING • "+(state.provider||"MARKET FEED"),false);
+    notice("No fresh provider tick for "+Math.round(age/1000)+"s. Reconnecting automatically; no synthetic prices are used.",true);
+    try{connect()}catch(e){state.diag.errors++;status("RECOVERY RETRY PENDING",false);}
+  }
+  function installReliabilityWatchdog(){
+    if(state.watchdogInstalled)return;state.watchdogInstalled=true;
+    let previous=Date.now();
+    setInterval(()=>{
+      const now=Date.now(),gap=now-previous;previous=now;
+      state.lastEventLoopAt=now;
+      if(gap>5000){state.diag.errors++;}
+      recoverIfStale("watchdog");
+      renderDiagnostics();
+    },2000);
+    document.addEventListener("visibilitychange",()=>{
+      if(document.visibilityState==="visible")setTimeout(()=>recoverIfStale("resume"),300);
+    });
+    window.addEventListener("pageshow",()=>setTimeout(()=>recoverIfStale("pageshow"),300));
+    window.addEventListener("online",()=>setTimeout(()=>recoverIfStale("online"),300));
+    window.addEventListener("error",event=>{
+      state.diag.errors++;
+      try{console.error("GoTradeX chart runtime error:",event.message||event.error||"unknown")}catch(_){}
+    });
+    window.addEventListener("unhandledrejection",event=>{
+      state.diag.errors++;
+      try{console.error("GoTradeX chart unhandled rejection:",event.reason||"unknown")}catch(_){}
+    });
+  }
+
   function boot(){
     if(state.booted)return;
     if(!mount()){setTimeout(boot,300);return}
     state.booted=true;
+    installReliabilityWatchdog();
     installLibraryAndStart();
     observeTradeMarkers();
     setInterval(watchSelection,700);
