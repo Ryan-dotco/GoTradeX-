@@ -275,6 +275,7 @@
     // Out-of-order ticks can make Lightweight Charts reject every later update.
     // Ignore stale buckets instead of appending them after the latest candle.
     if(c&&b<c.t){state.diag.stale++;renderDiagnostics();return;}
+    if(state.diag.updates===0)status("LIVE • "+state.provider+" WEBSOCKET",true);
     if(!c||c.t!==b){
       c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0)};
       state.candles.push(c);
