@@ -73,7 +73,7 @@
       ".gtxLWCDateExpiryRow .gtxLWCSelect{box-sizing:border-box!important;flex:0 0 auto!important;align-self:center!important;transform:none!important;width:auto!important;min-width:0!important;max-width:none!important;height:23px!important;min-height:0!important;padding:3px 4px!important;margin:0!important;font:900 9px/1 system-ui!important;color:#39ff14!important;-webkit-text-fill-color:#39ff14!important;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;filter:none!important;text-shadow:none!important;appearance:none!important;-webkit-appearance:none!important}"+
       ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:auto!important;font:900 9px/1.1 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;white-space:nowrap}"+
       "@keyframes gtxFeedDots{0%,20%{opacity:.25}50%{opacity:1}100%{opacity:.25}}@media(prefers-reduced-motion:reduce){.gtxLWCStatusDots i{animation:none!important;opacity:1!important}}"+
-      "#gtxLWCCandleTimer{position:absolute;z-index:9;right:79px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:37px;padding:3px 4px;border-radius:4px;background:rgba(5,17,29,.94);border:1px solid rgba(245,166,35,.8);box-shadow:0 1px 5px rgba(0,0,0,.35);pointer-events:none;font:900 9px/1.1 ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#f5a623;text-align:center}"+
+      "#gtxLWCCandleTimer{position:absolute;z-index:9;left:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:37px;padding:3px 4px;border-radius:4px;background:rgba(5,17,29,.94);border:1px solid rgba(245,166,35,.8);box-shadow:0 1px 5px rgba(0,0,0,.35);pointer-events:none;font:900 9px/1.1 ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#f5a623;text-align:center}"+
       "#gtxLWCCandleTimer .gtxLWCCandleTimerFrame{font-size:9px;letter-spacing:.02em;color:#ffd36a}"+
       "#gtxLWCCandleTimer .gtxLWCCandleTimerCount{font-size:10px;color:#fff}"+
       ".gtxLWCStatus{position:absolute;z-index:12;right:76px;bottom:26px;display:inline-flex;align-items:center;gap:4px;color:#39ff14!important;font:900 9px/1.15 system-ui;white-space:nowrap;pointer-events:auto;cursor:pointer;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;animation:none!important;transform:none!important;opacity:1!important}"+
@@ -727,8 +727,8 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     state.barSeries=null;state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
     applySeriesVisibility();
-    state.chart.timeScale().subscribeSizeChange(()=>positionTradeOverlay());
-    state.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>positionTradeOverlay());
+    state.chart.timeScale().subscribeSizeChange(()=>{positionTradeOverlay();positionCandleTimer()});
+    state.chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{positionTradeOverlay();positionCandleTimer()});
   }
 
   function applySeriesVisibility(){
@@ -835,12 +835,25 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       : Math.max(0,period-(now%period));
     if(count)count.textContent=candleCountdownText(remaining);
     let y=host.clientHeight/2;
+    let x=Math.max(8,host.clientWidth-105);
     try{
       if(state.chart&&state.candleSeries&&Number.isFinite(Number(state.price))){
         const coord=state.candleSeries.priceToCoordinate(Number(state.price));
         if(Number.isFinite(coord))y=coord;
       }
+      // Follow the newest candle's horizontal chart coordinate, but keep the
+      // label to its left with a clear gap so it never covers the candle body.
+      const latest=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+      if(state.chart&&latest&&state.chart.timeScale()){
+        const candleX=state.chart.timeScale().timeToCoordinate(Math.floor(Number(latest.t)/1000));
+        if(Number.isFinite(candleX)){
+          const w=tag.offsetWidth||45;
+          x=candleX-w-10;
+        }
+      }
     }catch(_){}
+    const maxX=Math.max(8,host.clientWidth-(tag.offsetWidth||45)-8);
+    tag.style.left=Math.max(8,Math.min(maxX,x))+"px";
     tag.style.top=Math.max(18,Math.min(host.clientHeight-18,y))+"px";
   }
 
