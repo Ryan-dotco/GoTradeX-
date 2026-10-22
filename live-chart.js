@@ -810,7 +810,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   }
 
   function candleFrameLabel(){
-    const labels={"5 Seconds":"S5","10 Seconds":"S10","15 Seconds":"S15","30 Seconds":"S30","1 Minute":"M1","3 Minutes":"M3","5 Minutes":"M5","15 Minutes":"M15","30 Minutes":"M30","1 Hour":"H1","4 Hours":"H4","1 Day":"D1"};
+    const labels={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"M1","3 Minutes":"M3","5 Minutes":"M5","15 Minutes":"M15","30 Minutes":"M30","1 Hour":"1H","4 Hours":"4H","1 Day":"1D"};
     return labels[state.tf]||state.tf;
   }
   function candleCountdownText(ms){
@@ -825,10 +825,14 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const frame=tag.querySelector(".gtxLWCCandleTimerFrame");
     const count=tag.querySelector(".gtxLWCCandleTimerCount");
     if(frame)frame.textContent=candleFrameLabel();
-    // Countdown follows the selected chart-candle interval, not trade expiry.
-    // The next candle is created only when a genuine provider tick arrives.
+    // Count down from the timestamp of the actual latest candle bucket.
+    // When it closes, hold at 00:00 until a genuine provider tick creates the
+    // next candle. Never fake/reset the timer to imply a candle exists.
     const now=Date.now(),period=Math.max(1,Number(state.sec)||300)*1000;
-    const remaining=period-(now%period);
+    const last=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+    const remaining=last&&Number.isFinite(Number(last.t))
+      ? Math.max(0,period-Math.max(0,now-Number(last.t)))
+      : Math.max(0,period-(now%period));
     if(count)count.textContent=candleCountdownText(remaining);
     let y=host.clientHeight/2;
     try{
