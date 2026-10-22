@@ -211,6 +211,19 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
 .gsp-settings-entry .gsp-entry-copy strong{display:block!important;margin:0!important;white-space:nowrap!important;font-size:inherit!important;}
 .gsp-settings-entry .gsp-entry-copy small{display:none!important;}
 </style>
+
+<!-- Testing-only: keep the Trade Expiration Time menu above chart/header controls -->
+<style id="gtx-expiration-menu-layer-fix">
+  #timeDrawer {
+    position: fixed !important;
+    z-index: 2147483647 !important;
+    isolation: isolate;
+  }
+  #timeDrawer .timePanel {
+    position: absolute !important;
+    z-index: 2147483647 !important;
+  }
+</style>
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
