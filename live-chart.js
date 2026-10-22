@@ -22,6 +22,7 @@
     tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
     provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
     connected:false,tradeStart:null,tradeEnd:null,lastAssetKey:"",connectionId:0,
+    diag:{ticks:0,stale:0,invalid:0,updates:0,lastTickAt:0,lastSourceTime:0,opens:0,closes:0,errors:0,maxUpdateMs:0,slowUpdates:0},
     chart:null,candleSeries:null,barSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
@@ -72,8 +73,9 @@
       ".gtxLWCDateExpiryRow .gtxLWCSelect{box-sizing:border-box!important;flex:0 0 auto!important;align-self:center!important;transform:none!important;width:auto!important;min-width:0!important;max-width:none!important;height:23px!important;min-height:0!important;padding:3px 4px!important;margin:0!important;font:900 9px/1 system-ui!important;color:#39ff14!important;-webkit-text-fill-color:#39ff14!important;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;filter:none!important;text-shadow:none!important;appearance:none!important;-webkit-appearance:none!important}"+
       ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:auto!important;font:900 9px/1.1 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;white-space:nowrap}"+
       "@keyframes gtxFeedDots{0%,20%{opacity:.25}50%{opacity:1}100%{opacity:.25}}@media(prefers-reduced-motion:reduce){.gtxLWCStatusDots i{animation:none!important;opacity:1!important}}"+
-      ".gtxLWCStatus{position:absolute;z-index:12;right:76px;bottom:26px;display:inline-flex;align-items:center;gap:4px;color:#39ff14!important;font:900 9px/1.15 system-ui;white-space:nowrap;pointer-events:none;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;animation:none!important;transform:none!important;opacity:1!important}"+
+      ".gtxLWCStatus{position:absolute;z-index:12;right:76px;bottom:26px;display:inline-flex;align-items:center;gap:4px;color:#39ff14!important;font:900 9px/1.15 system-ui;white-space:nowrap;pointer-events:auto;cursor:pointer;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCStatusDots{display:inline-flex;gap:2px;margin-left:2px;color:#39ff14;font-size:12px;line-height:1}"+
+      "#gtxLWCDiagnostics{position:absolute;z-index:30;right:8px;bottom:42px;width:min(265px,78vw);padding:9px;background:#071b2b;border:1px solid #29445a;border-radius:6px;color:#dcecff;font:10px/1.5 ui-monospace,monospace;white-space:pre-wrap;box-shadow:0 4px 16px #0008;pointer-events:auto}#gtxLWCDiagnostics[hidden]{display:none}"+
       ".gtxLWCStatusDots i{font-style:normal;animation:gtxFeedDots 1.2s ease-in-out infinite;opacity:.25}"+
       ".gtxLWCStatusDots i:nth-child(2){animation-delay:.2s}.gtxLWCStatusDots i:nth-child(3){animation-delay:.4s}.gtxLWCStatusDots i:nth-child(4){animation-delay:.6s}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
@@ -128,10 +130,14 @@
         '</div>'+
       '</div>'+
       '<div id="gtxLWCExpiryLayer" aria-hidden="true"></div>'+
-      '<div class="gtxLWCStatus" id="gtxLWCStatus" aria-label="Live market feed status"><span id="gtxLWCStatusText">CONNECTING</span><span class="gtxLWCStatusDots" aria-hidden="true"><i>·</i><i>·</i><i>·</i><i>·</i></span></div>'+
+      '<button class="gtxLWCStatus" id="gtxLWCStatus" type="button" aria-label="Live market feed status; tap for diagnostics"><span id="gtxLWCStatusText">CONNECTING</span><span class="gtxLWCStatusDots" aria-hidden="true"><i>·</i><i>·</i><i>·</i><i>·</i></span></button>'+
+      '<div id="gtxLWCDiagnostics" hidden>Live feed diagnostics loading…</div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
+    const statusButton=document.getElementById("gtxLWCStatus");
+    if(statusButton)statusButton.addEventListener("click",()=>{const panel=document.getElementById("gtxLWCDiagnostics");if(panel){panel.hidden=!panel.hidden;renderDiagnostics();}});
+    setInterval(renderDiagnostics,1000);
     try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
@@ -187,6 +193,12 @@
     clockEl.textContent=new Intl.DateTimeFormat("en-ZA",{hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23",timeZone:"UTC"}).format(chartZoneNow)+" "+timezoneLabel();
   }
 
+  function renderDiagnostics(){
+    const panel=document.getElementById("gtxLWCDiagnostics");if(!panel)return;
+    const d=state.diag,age=d.lastTickAt?Math.max(0,Math.round((Date.now()-d.lastTickAt)/1000))+"s ago":"never";
+    const sourceAge=d.lastSourceTime?Math.round((Date.now()-d.lastSourceTime)/1000)+"s":"n/a";
+    panel.textContent="Provider: "+(state.provider||"none")+"\nSymbol: "+(state.symbol||"none")+"\nSocket: "+(state.connected?"open/connected":"not connected")+"\nTicks received: "+d.ticks+"\nLast tick received: "+age+"\nSource timestamp age: "+sourceAge+"\nChart updates: "+d.updates+"\nOut-of-order ticks ignored: "+d.stale+"\nInvalid ticks: "+d.invalid+"\nSocket opens/closes: "+d.opens+" / "+d.closes+"\nFeed/render errors: "+d.errors+"\nSlow chart updates (>50ms): "+d.slowUpdates+"\nSlowest chart update: "+Math.round(d.maxUpdateMs)+"ms";
+  }
   function status(t,ok){
     const e=document.getElementById("gtxLWCStatusText");if(!e)return;
     const raw=String(t||"").toUpperCase();
@@ -198,9 +210,11 @@
     else if(provider==="GOTRADEX_OTC"||raw.includes("OTC"))feed="feed";
     else feed="market feed";
     const failed=/ERROR|UNAVAILABLE|NO VERIFIED|FAILED|DISCONNECTED/.test(raw);
-    const result=ok?"Connected":failed?"Unavailable":"Connecting";
+    const fresh=state.diag.lastTickAt>0&&(Date.now()-state.diag.lastTickAt)<5000;
+    const result=failed?"Unavailable":(ok?(fresh?"Live ticks":(/WAITING|CONNECTED/.test(raw)?"Connected • waiting for ticks":"Connected")):"Connecting");
     e.textContent=(feed==="feed"?"OTC feed":mode+" "+feed)+" "+result;
-    e.style.color="#39ff14";
+    e.style.color=failed?"#ff9b9b":"#39ff14";
+    renderDiagnostics();
   }
   function notice(t,show=true){
     const e=document.getElementById("gtxLWCNotice");if(e){e.textContent=t;e.hidden=!show}
@@ -250,16 +264,17 @@
   function bucket(ms,sec){return Math.floor(ms/1000/sec)*sec*1000}
 
   function addTick(ts,price,volume){
-    if(!Number.isFinite(Number(price))||!Number.isFinite(Number(ts)))return;
+    if(!Number.isFinite(Number(price))||!Number.isFinite(Number(ts))){state.diag.invalid++;renderDiagnostics();return;}
     // Feed adapters normally return milliseconds; accept Unix seconds safely too.
     let timestamp=Number(ts);
     if(timestamp>0&&timestamp<1e11)timestamp*=1000;
-    if(!Number.isFinite(timestamp)||timestamp<=0)return;
+    if(!Number.isFinite(timestamp)||timestamp<=0){state.diag.invalid++;renderDiagnostics();return;}
+    state.diag.lastTickAt=Date.now();state.diag.lastSourceTime=timestamp;state.diag.ticks++;
     const b=bucket(timestamp,state.sec);
     let c=state.candles[state.candles.length-1];
     // Out-of-order ticks can make Lightweight Charts reject every later update.
     // Ignore stale buckets instead of appending them after the latest candle.
-    if(c&&b<c.t)return;
+    if(c&&b<c.t){state.diag.stale++;renderDiagnostics();return;}
     if(!c||c.t!==b){
       c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0)};
       state.candles.push(c);
@@ -272,7 +287,10 @@
     }
     state.prev=state.price;
     state.price=Number(price);
-    updateLiveSeries(c);
+    const updateStart=performance.now();
+    try{updateLiveSeries(c);state.diag.updates++;}
+    catch(err){state.diag.errors++;throw err;}
+    finally{const elapsed=performance.now()-updateStart;state.diag.maxUpdateMs=Math.max(state.diag.maxUpdateMs,elapsed);if(elapsed>50)state.diag.slowUpdates++;renderDiagnostics();}
   }
 
   function closeSocket(){
@@ -352,8 +370,8 @@
       state.ws=ws;
       ws.onopen=()=>{
         if(id!==state.connectionId){try{ws.close()}catch(_){}return}
-        state.connected=true;
-        status("LIVE • BYBIT WEBSOCKET",true);
+        state.connected=true;state.diag.opens++;
+        status("CONNECTED • WAITING FOR BYBIT TICK",true);
         notice("",false);
         ws.send(JSON.stringify({op:"subscribe",args:["publicTrade."+state.symbol]}));
       };
@@ -366,11 +384,11 @@
       };
       ws.onerror=()=>{
         if(id!==state.connectionId)return;
-        state.connected=false;status("FEED ERROR",false);notice("Bybit live stream error. Retrying…",true);
+        state.diag.errors++;state.connected=false;status("FEED ERROR",false);notice("Bybit live stream error. Retrying…",true);
       };
       ws.onclose=()=>{
         if(id!==state.connectionId)return;
-        state.connected=false;status("RECONNECTING • BYBIT",false);
+        state.diag.closes++;state.connected=false;status("RECONNECTING • BYBIT",false);
         setTimeout(()=>{if(id===state.connectionId)connect()},2500);
       };
     }).catch(e=>{
@@ -432,6 +450,9 @@
         (msg,ok)=>{
           if(id!==state.connectionId)return;
           state.connected=!!ok;
+          if(/RECONNECTING/.test(String(msg)))state.diag.closes++;
+          if(/CONNECTION ERROR|FEED ERROR/.test(String(msg)))state.diag.errors++;
+          if(/CONNECTED/.test(String(msg))&&ok)state.diag.opens++;
           const displayMsg=state.mode==="OTC"?String(msg).replace(/^LIVE • DERIV$/,"OTC • DERIV").replace(/^CONNECTING • DERIV$/,"CONNECTING • DERIV OTC").replace(/^RECONNECTING • DERIV$/,"RECONNECTING • DERIV OTC"):msg;
           status(displayMsg,!!ok);
           if(ok){
@@ -530,7 +551,11 @@
         },
         (msg,ok)=>{
           if(id!==state.connectionId)return;
-          state.connected=!!ok;status(msg,!!ok);
+          state.connected=!!ok;
+          if(/RECONNECTING/.test(String(msg)))state.diag.closes++;
+          if(/CONNECTION ERROR|FEED ERROR/.test(String(msg)))state.diag.errors++;
+          if(/CONNECTED/.test(String(msg))&&ok)state.diag.opens++;
+          status(msg,!!ok);
           if(ok)notice("",false);
         }
       );
@@ -560,7 +585,7 @@
     }
     if(f.provider==="BYBIT")connectBybit();
     else if(f.provider==="DERIV")connectDeriv();
-    else if(String(f.provider).startsWith("TWELVE_DATA"))connectTwelve();
+    else if(String(f.provider).startsWith("TWELVE_DATA")){closeSocket();state.connected=false;status("NO VERIFIED DERIV/BYBIT FEED",false);notice("IN REVIEW — no verified Deriv or Bybit feed is configured for this asset. Twelve Data and polling fallback are disabled.",true);}
     else{closeSocket();state.connected=false;status("NO VERIFIED LIVE FEED",false);notice(f.reason||"No verified live feed is connected for this asset.",true)}
   }
 
