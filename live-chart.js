@@ -78,6 +78,7 @@
       "#gtxLWCDiagnostics{position:absolute;z-index:30;right:8px;bottom:42px;width:min(265px,78vw);padding:9px;background:#071b2b;border:1px solid #29445a;border-radius:6px;color:#dcecff;font:10px/1.5 ui-monospace,monospace;white-space:pre-wrap;box-shadow:0 4px 16px #0008;pointer-events:auto}#gtxLWCDiagnostics[hidden]{display:none}"+
       ".gtxLWCStatusDots i{font-style:normal;animation:gtxFeedDots 1.2s ease-in-out infinite;opacity:.25}"+
       ".gtxLWCStatusDots i:nth-child(2){animation-delay:.2s}.gtxLWCStatusDots i:nth-child(3){animation-delay:.4s}.gtxLWCStatusDots i:nth-child(4){animation-delay:.6s}"+
+      "#gtxLWCFrameMenu{position:absolute;z-index:2147483001;top:42px;left:8px;display:none;flex-direction:column;gap:2px;max-height:min(60vh,340px);overflow:auto;min-width:116px;padding:6px;background:#071b2b;border:1px solid #29445a;border-radius:6px;box-shadow:0 4px 16px #0009;pointer-events:auto}#gtxLWCFrameMenu.open{display:flex}#gtxLWCFrameMenu button{appearance:none;border:0;border-radius:4px;background:transparent;color:#dcecff;text-align:left;padding:7px 9px;font:700 11px system-ui;cursor:pointer}#gtxLWCFrameMenu button[aria-current=true]{color:#39ff14;background:#102b30}"+
       ".gtxLWCControl{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-width:0}"+
       ".gtxLWCDateTime{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:var(--gtx-screen-text,var(--gtx-text,#dcecff));font:700 8px/1.1 system-ui;white-space:nowrap;padding:0;margin:0;background:transparent;border:0;border-radius:0;pointer-events:none}"+
       ".gtxLWCDateTime span:last-child{color:var(--gtx-accent-light,#8ff0ae);font-variant-numeric:tabular-nums}"+
@@ -135,6 +136,9 @@
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
       '<div class="gtxLWCNotice" id="gtxLWCNotice">Connecting to a verified market-data feed…</div>';
     chartHost.replaceChildren(box);
+    const frameMenu=document.createElement("div");frameMenu.id="gtxLWCFrameMenu";frameMenu.setAttribute("aria-label","Chart timeframe");frameMenu.setAttribute("role","menu");
+    Object.keys(CFG.intervals).forEach(t=>{const option=document.createElement("button");option.type="button";option.textContent=t;option.setAttribute("role","menuitem");option.setAttribute("aria-current",t===state.tf?"true":"false");option.onclick=()=>{setTimeframe(t);frameMenu.classList.remove("open");};frameMenu.appendChild(option);});
+    box.appendChild(frameMenu);
     const statusButton=document.getElementById("gtxLWCStatus");
     if(statusButton)statusButton.addEventListener("click",()=>{const panel=document.getElementById("gtxLWCDiagnostics");if(panel){panel.hidden=!panel.hidden;renderDiagnostics();}});
     setInterval(renderDiagnostics,1000);
@@ -145,7 +149,8 @@
     const updateFrameLabel=()=>{if(tfSelect)tfSelect.textContent=tfShort[state.tf]||state.tf;};
     updateFrameLabel();
     window.GoTradeXChartTimeframeController={set:(t)=>{if(CFG.intervals[t])setTimeframe(t);},get:()=>state.tf};
-    tfSelect.onclick=()=>{const expiryButton=document.getElementById("timeBtn");if(expiryButton)expiryButton.click();};
+    tfSelect.onclick=(event)=>{event?.preventDefault();event?.stopPropagation();const menu=document.getElementById("gtxLWCFrameMenu");if(menu){menu.classList.toggle("open");menu.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",b.textContent===state.tf?"true":"false"));}};
+document.addEventListener("click",event=>{const menu=document.getElementById("gtxLWCFrameMenu"),button=document.getElementById("gtxLWCChartTF");if(menu&&!menu.contains(event.target)&&event.target!==button)menu.classList.remove("open");});
     const typeButton=document.getElementById("gtxLWCTypeButton");
     const typeMenu=document.getElementById("gtxLWCTypeMenu");
     // Keep the chart-style selector in the same top row, immediately after the three-dot control
@@ -598,6 +603,7 @@
     // Chart timeframe is independent: never overwrite trade expiration.
     try{localStorage.setItem(CHART_KEY,tf)}catch(_){}
     const s=document.getElementById("gtxLWCChartTF");if(s)s.value=tf;
+    const menu=document.getElementById("gtxLWCFrameMenu");if(menu)menu.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",b.textContent===tf?"true":"false"));
     // Preferences can initialize before the chart is mounted. Boot will use the
     // saved interval; only reconnect an already-running chart when it truly changes.
     if(changed&&state.booted)connect();
