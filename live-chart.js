@@ -550,37 +550,40 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       return;
     }
     state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
-    state.connected=false;status("OTC • LOADING",false);notice("Loading isolated OTC candles…",true);
-    feed().otcHistory(f.symbol,state.sec).then(async history=>{
-      if(id!==state.connectionId)return;
-      state.candles=Array.isArray(history)?history:[];
-      if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
-      if(state.candles.length)renderHistory();
-      const socket=await feed().otcSocket(f.symbol,
-        tick=>{
-          if(id!==state.connectionId)return;
-          addTick(tick.time,tick.price,0);
-          if(!state.historyLoaded && state.candles.length)try{renderHistory()}catch(_){}
-        },
+    state.candles=[];state.price=null;state.historyLoaded=false;
+    state.connected=false;status("OTC • CONNECTING",false);
+    notice("Connecting to the isolated OTC engine; history loads independently…",true);
+    // Start the OTC price stream immediately; history must not gate live values.
+    try{
+      const socket=feed().otcSocket(f.symbol,
+        tick=>{if(id!==state.connectionId)return;addTick(tick.time,tick.price,0);},
         (msg,ok)=>{
           if(id!==state.connectionId)return;
           state.connected=!!ok;
           if(/RECONNECTING/.test(String(msg)))state.diag.closes++;
           if(/CONNECTION ERROR|FEED ERROR/.test(String(msg)))state.diag.errors++;
-          if(/CONNECTED/.test(String(msg))&&ok)state.diag.opens++;
+          if(/CONNECTED|LIVE ENGINE|DATA CATCH-UP/.test(String(msg))&&ok)state.diag.opens++;
           status(msg,!!ok);
-          if(ok)notice("",false);
+          if(ok&&state.historyLoaded)notice("",false);
         }
       );
-      if(id!==state.connectionId){try{socket.close()}catch(_){}return}
+      if(id!==state.connectionId){try{socket?.close()}catch(_){}return}
       state.ws=socket;
+    }catch(e){
+      state.connected=false;state.diag.errors++;status("OTC FEED ERROR",false);
+      notice(e.message||"Unable to start the isolated OTC engine.",true);
+    }
+    feed().otcHistory(f.symbol,state.sec).then(history=>{
+      if(id!==state.connectionId)return;
+      mergeHistory(Array.isArray(history)?history:[]);
+      if(state.candles.length){renderHistory();notice("",false)}
+      else{state.historyLoaded=false;notice("No OTC history returned. The isolated OTC engine can still build candles from its own verified price stream.",true)}
     }).catch(e=>{
       if(id!==state.connectionId)return;
-      state.connected=false;status("OTC FEED ERROR",false);
-      notice(e.message||"Unable to read isolated OTC chart data.",true);
+      if(state.candles.length){try{renderHistory()}catch(_){}notice("",false)}
+      else notice("OTC history unavailable ("+(e.message||"provider error")+"). Waiting for the isolated OTC engine; no candles are fabricated.",true);
     });
   }
-
   function connect(){
     ++state.connectionId;
     const f=selection();
