@@ -11,7 +11,7 @@
 <main>
 <div class="note"><b>Important:</b> a catalogue match is not a feed pass. A pass requires history and a live tick from that exact symbol. Deriv symbols may represent a different quote or instrument than Bybit's USDT-settled commodity contract; the exact code and market details are shown so unlike markets are not silently treated as identical. No synthetic fallback, Twelve Data, trades, or asset removals.</div>
 <div class="table-scroll"><table><thead><tr><th>Candidate</th><th>Bybit exact symbol / catalogue</th><th>Bybit history</th><th>Bybit live tick</th><th>Deriv exact symbol match(es)</th><th>Deriv history</th><th>Deriv live tick</th><th>Final result</th></tr></thead><tbody id="rows"></tbody></table></div>
-<div class="foot">The Bybit catalogue uses the official V5 linear instrument endpoint filtered to symbolType=commodity. Deriv symbol discovery uses the public active_symbols request. A failed or timed-out check is not proof of delisting; unresolved assets stay IN REVIEW. All tests are market-data only and do not validate order execution.</div>
+<div class="foot">The Bybit catalogue uses the official V5 linear instrument endpoint. Deriv matches are displayed with market/submarket details so synthetic indices are not confused with exchange-traded contracts. Deriv symbol discovery uses the public active_symbols request. A failed or timed-out check is not proof of delisting; unresolved assets stay IN REVIEW. All tests are market-data only and do not validate order execution.</div>
 </main>
 <script>
 (function(){
