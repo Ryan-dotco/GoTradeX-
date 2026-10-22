@@ -73,9 +73,9 @@
       ".gtxLWCDateExpiryRow .gtxLWCSelect{box-sizing:border-box!important;flex:0 0 auto!important;align-self:center!important;transform:none!important;width:auto!important;min-width:0!important;max-width:none!important;height:23px!important;min-height:0!important;padding:3px 4px!important;margin:0!important;font:900 9px/1 system-ui!important;color:#39ff14!important;-webkit-text-fill-color:#39ff14!important;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;filter:none!important;text-shadow:none!important;appearance:none!important;-webkit-appearance:none!important}"+
       ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:auto!important;font:900 9px/1.1 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;white-space:nowrap}"+
       "@keyframes gtxFeedDots{0%,20%{opacity:.25}50%{opacity:1}100%{opacity:.25}}@media(prefers-reduced-motion:reduce){.gtxLWCStatusDots i{animation:none!important;opacity:1!important}}"+
-      "#gtxLWCCandleTimer{position:absolute;z-index:9;left:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:37px;padding:3px 4px;border-radius:4px;background:rgba(5,17,29,.94);border:1px solid rgba(245,166,35,.8);box-shadow:0 1px 5px rgba(0,0,0,.35);pointer-events:none;font:900 9px/1.1 ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#f5a623;text-align:center}"+
-      "#gtxLWCCandleTimer .gtxLWCCandleTimerFrame{font-size:9px;letter-spacing:.02em;color:#ffd36a}"+
-      "#gtxLWCCandleTimer .gtxLWCCandleTimerCount{font-size:10px;color:#fff}"+
+      "#gtxLWCCandleTimer{position:absolute;z-index:9;left:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;padding:0;border-radius:0;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;text-shadow:none;pointer-events:none;font:900 9px/1.1 ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#f5a623;text-align:center}"+
+      "#gtxLWCCandleTimer .gtxLWCCandleTimerFrame{font-size:9px;letter-spacing:.02em;color:#ffd36a;background:transparent!important;border:0!important;box-shadow:none!important;text-shadow:none}"+
+      "#gtxLWCCandleTimer .gtxLWCCandleTimerCount{font-size:10px;color:#fff;background:transparent!important;border:0!important;box-shadow:none!important;text-shadow:none}"+
       ".gtxLWCStatus{position:absolute;z-index:12;right:76px;bottom:26px;display:inline-flex;align-items:center;gap:4px;color:#39ff14!important;font:900 9px/1.15 system-ui;white-space:nowrap;pointer-events:auto;cursor:pointer;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCStatusDots{display:inline-flex;gap:2px;margin-left:2px;color:#39ff14;font-size:12px;line-height:1}"+
       "#gtxLWCDiagnostics{position:absolute;z-index:30;right:8px;bottom:42px;width:min(265px,78vw);padding:9px;background:#071b2b;border:1px solid #29445a;border-radius:6px;color:#dcecff;font:10px/1.5 ui-monospace,monospace;white-space:pre-wrap;box-shadow:0 4px 16px #0008;pointer-events:auto}#gtxLWCDiagnostics[hidden]{display:none}"+
@@ -842,13 +842,13 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
         if(Number.isFinite(coord))y=coord;
       }
       // Follow the newest candle's horizontal chart coordinate, but keep the
-      // label to its left with a clear gap so it never covers the candle body.
+      // label just to its left with a small 4px gap so it stays close without touching the candle body.
       const latest=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
       if(state.chart&&latest&&state.chart.timeScale()){
         const candleX=state.chart.timeScale().timeToCoordinate(Math.floor(Number(latest.t)/1000));
         if(Number.isFinite(candleX)){
           const w=tag.offsetWidth||45;
-          x=candleX-w-10;
+          x=candleX-w-4;
         }
       }
     }catch(_){}
