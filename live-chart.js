@@ -138,6 +138,7 @@
     const tfShort={"5 Seconds":"5S","10 Seconds":"10S","15 Seconds":"15S","30 Seconds":"30S","1 Minute":"1M","2 Minutes":"2M","3 Minutes":"3M","5 Minutes":"5M","10 Minutes":"10M","15 Minutes":"15M","30 Minutes":"30M","1 Hour":"1H","2 Hours":"2H","4 Hours":"4H","1 Day":"1D"};
     const updateFrameLabel=()=>{if(tfSelect)tfSelect.textContent=tfShort[state.tf]||state.tf;};
     updateFrameLabel();
+    window.GoTradeXChartTimeframeController={set:(t)=>{if(CFG.intervals[t])setTimeframe(t);},get:()=>state.tf};
     tfSelect.onclick=()=>{const expiryButton=document.getElementById("timeBtn");if(expiryButton)expiryButton.click();};
     const typeButton=document.getElementById("gtxLWCTypeButton");
     const typeMenu=document.getElementById("gtxLWCTypeMenu");
