@@ -26,7 +26,7 @@
     chart:null,candleSeries:null,barSeries:null,lineSeries:null,areaSeries:null,
     ma50:null,ma100:null,ma200:null,currentPriceLine:null,
     chartType:"candle",historyLoaded:false,initialRangeSet:false,resizeObserver:null,
-    booted:false,markersInstalled:false,dateTimeTimer:null
+    booted:false,markersInstalled:false,dateTimeTimer:null,tickSeenForConnection:false
   };
 
   function timezoneOffsetMinutes(){
@@ -280,7 +280,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Out-of-order ticks can make Lightweight Charts reject every later update.
     // Ignore stale buckets instead of appending them after the latest candle.
     if(c&&b<c.t){state.diag.stale++;renderDiagnostics();return;}
-    if(state.diag.updates===0)status("LIVE • "+state.provider+" WEBSOCKET",true);
+    if(!state.tickSeenForConnection){state.tickSeenForConnection=true;status("LIVE • "+state.provider+" WEBSOCKET",true)}
     if(!c||c.t!==b){
       c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0)};
       state.candles.push(c);
@@ -592,6 +592,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Keep the polling watcher in sync with explicit connections so page boot
     // and asset selection do not start a second competing history/socket cycle.
     state.lastAssetKey=[f.provider,f.symbol,f.label,f.type,String(f.mode||savedMode).toUpperCase()].join("|");
+    state.tickSeenForConnection=false;state.diag.lastTickAt=0;state.diag.lastSourceTime=0;
     state.type=f.type||"";
     state.assetLabel=f.label||"";
     state.candles=[];state.price=null;state.prev=null;state.tradeStart=null;state.tradeEnd=null;
