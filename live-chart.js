@@ -65,6 +65,9 @@
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
       ".gtxLWCMeta{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:3px;min-width:0}"+
+      ".gtxLWCMeta{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;gap:3px!important;min-width:0!important;width:max-content!important;max-width:100%}"+
+      ".gtxLWCAssetExpiryRow{display:flex!important;align-items:center!important;justify-content:flex-start!important;width:max-content!important;max-width:100%}"+
+      ".gtxLWCDateExpiryRow{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important;width:max-content!important;max-width:100%}"+
       ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:auto!important;font:900 9px/1.1 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;white-space:nowrap}"+
       "@keyframes gtxFeedDots{0%,20%{opacity:.25}50%{opacity:1}100%{opacity:.25}}@media(prefers-reduced-motion:reduce){.gtxLWCStatusDots i{animation:none!important;opacity:1!important}}"+
       ".gtxLWCStatus{position:absolute;z-index:12;right:76px;bottom:26px;display:inline-flex;align-items:center;gap:4px;color:#39ff14!important;font:900 9px/1.15 system-ui;white-space:nowrap;pointer-events:none;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;animation:none!important;transform:none!important;opacity:1!important}"+
