@@ -200,8 +200,19 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
 
   function renderDiagnostics(){
     const panel=document.getElementById("gtxLWCDiagnostics");if(!panel)return;
-    const d=state.diag,age=d.lastTickAt?Math.max(0,Math.round((Date.now()-d.lastTickAt)/1000))+"s ago":"never";
+    const d=state.diag,ageMs=d.lastTickAt?Math.max(0,Date.now()-d.lastTickAt):Infinity;
+    const age=d.lastTickAt?Math.max(0,Math.round(ageMs/1000))+"s ago":"never";
     const sourceAge=d.lastSourceTime?Math.round((Date.now()-d.lastSourceTime)/1000)+"s":"n/a";
+    // A connected socket is not proof of a live feed. Re-evaluate tick freshness
+    // every second so a frozen stream cannot keep a misleading green LIVE label.
+    const badge=document.getElementById("gtxLWCStatusText");
+    if(badge&&state.provider&&state.connected){
+      const p=state.provider==="BYBIT"?"Bybit":state.provider==="DERIV"?"Deriv":state.provider==="GOTRADEX_OTC"?"OTC engine":"market feed";
+      const mode=state.mode==="OTC"?"OTC ":"Live ";
+      if(state.tickSeenForConnection&&ageMs<5000){badge.textContent=mode+p+" • Live ticks";badge.style.color="#39ff14"}
+      else if(state.tickSeenForConnection){badge.textContent=mode+p+" • STALE";badge.style.color="#ffb86b"}
+      else{badge.textContent=mode+p+" • Waiting for ticks";badge.style.color="#ffb86b"}
+    }
     panel.textContent="Provider: "+(state.provider||"none")+"\nSymbol: "+(state.symbol||"none")+"\nSocket: "+(state.connected?"open/connected":"not connected")+"\nTicks received: "+d.ticks+"\nLast tick received: "+age+"\nSource timestamp age: "+sourceAge+"\nChart updates: "+d.updates+"\nOut-of-order ticks ignored: "+d.stale+"\nInvalid ticks: "+d.invalid+"\nSocket opens/closes: "+d.opens+" / "+d.closes+"\nFeed/render errors: "+d.errors+"\nSlow chart updates (>50ms): "+d.slowUpdates+"\nSlowest chart update: "+Math.round(d.maxUpdateMs)+"ms";
   }
   function status(t,ok){
