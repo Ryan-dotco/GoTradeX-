@@ -73,6 +73,9 @@
       ".gtxLWCDateExpiryRow .gtxLWCSelect{box-sizing:border-box!important;flex:0 0 auto!important;align-self:center!important;transform:none!important;width:auto!important;min-width:0!important;max-width:none!important;height:23px!important;min-height:0!important;padding:3px 4px!important;margin:0!important;font:900 9px/1 system-ui!important;color:#39ff14!important;-webkit-text-fill-color:#39ff14!important;background:transparent!important;border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;filter:none!important;text-shadow:none!important;appearance:none!important;-webkit-appearance:none!important}"+
       ".gtxLWCAsset{box-sizing:border-box;display:inline-flex;align-items:center;height:auto!important;font:900 9px/1.1 system-ui;color:#39ff14!important;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;white-space:nowrap}"+
       "@keyframes gtxFeedDots{0%,20%{opacity:.25}50%{opacity:1}100%{opacity:.25}}@media(prefers-reduced-motion:reduce){.gtxLWCStatusDots i{animation:none!important;opacity:1!important}}"+
+      "#gtxLWCCandleTimer{position:absolute;z-index:9;right:79px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:37px;padding:3px 4px;border-radius:4px;background:rgba(5,17,29,.94);border:1px solid rgba(245,166,35,.8);box-shadow:0 1px 5px rgba(0,0,0,.35);pointer-events:none;font:900 9px/1.1 ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#f5a623;text-align:center}"+
+      "#gtxLWCCandleTimer .gtxLWCCandleTimerFrame{font-size:9px;letter-spacing:.02em;color:#ffd36a}"+
+      "#gtxLWCCandleTimer .gtxLWCCandleTimerCount{font-size:10px;color:#fff}"+
       ".gtxLWCStatus{position:absolute;z-index:12;right:76px;bottom:26px;display:inline-flex;align-items:center;gap:4px;color:#39ff14!important;font:900 9px/1.15 system-ui;white-space:nowrap;pointer-events:auto;cursor:pointer;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;padding:0!important;margin:0;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCStatusDots{display:inline-flex;gap:2px;margin-left:2px;color:#39ff14;font-size:12px;line-height:1}"+
       "#gtxLWCDiagnostics{position:absolute;z-index:30;right:8px;bottom:42px;width:min(265px,78vw);padding:9px;background:#071b2b;border:1px solid #29445a;border-radius:6px;color:#dcecff;font:10px/1.5 ui-monospace,monospace;white-space:pre-wrap;box-shadow:0 4px 16px #0008;pointer-events:auto}#gtxLWCDiagnostics[hidden]{display:none}"+
@@ -131,6 +134,7 @@
         '</div>'+
       '</div>'+
       '<div id="gtxLWCExpiryLayer" aria-hidden="true"></div>'+
+      '<div id="gtxLWCCandleTimer" aria-label="Current candle timeframe and time remaining"><span class="gtxLWCCandleTimerFrame">M5</span><span class="gtxLWCCandleTimerCount">00:00</span></div>'+
       '<button class="gtxLWCStatus" id="gtxLWCStatus" type="button" aria-label="Live market feed status; tap for diagnostics"><span id="gtxLWCStatusText">CONNECTING</span><span class="gtxLWCStatusDots" aria-hidden="true"><i>·</i><i>·</i><i>·</i><i>·</i></span></button>'+
       '<div id="gtxLWCDiagnostics" hidden>Live feed diagnostics loading…</div>'+
       '<div class="gtxLWCWatermark">VERIFIED MARKET DATA</div>'+
@@ -142,6 +146,7 @@
     const statusButton=document.getElementById("gtxLWCStatus");
     if(statusButton)statusButton.addEventListener("click",()=>{const panel=document.getElementById("gtxLWCDiagnostics");if(panel){panel.hidden=!panel.hidden;renderDiagnostics();}});
     setInterval(renderDiagnostics,1000);
+    setInterval(positionCandleTimer,1000);
     try{const savedWallpaper=localStorage.getItem("gtx_custom_bg_image");if(savedWallpaper)box.style.setProperty("--gtx-chart-wallpaper",'url("'+savedWallpaper+'")');}catch(_){}
 
     const tfSelect=document.getElementById("gtxLWCChartTF");
@@ -631,6 +636,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const menu=document.getElementById("gtxLWCFrameMenu");if(menu)menu.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",b.textContent===tf?"true":"false"));
     // Preferences can initialize before the chart is mounted. Boot will use the
     // saved interval; only reconnect an already-running chart when it truly changes.
+    positionCandleTimer();
     if(changed&&state.booted)connect();
   }
 
@@ -800,6 +806,38 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   function updateCurrentPriceLine(){
     if(!state.currentPriceLine||!Number.isFinite(Number(state.price)))return;
     try{state.currentPriceLine.applyOptions({price:Number(state.price),axisLabelVisible:true});}catch(_){}
+    positionCandleTimer();
+  }
+
+  function candleFrameLabel(){
+    const labels={"5 Seconds":"S5","10 Seconds":"S10","15 Seconds":"S15","30 Seconds":"S30","1 Minute":"M1","3 Minutes":"M3","5 Minutes":"M5","15 Minutes":"M15","30 Minutes":"M30","1 Hour":"H1","4 Hours":"H4","1 Day":"D1"};
+    return labels[state.tf]||state.tf;
+  }
+  function candleCountdownText(ms){
+    const total=Math.max(0,Math.ceil(ms/1000));
+    if(total>=3600){const h=Math.floor(total/3600),m=Math.floor((total%3600)/60),s=total%60;return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
+    return String(Math.floor(total/60)).padStart(2,"0")+":"+String(total%60).padStart(2,"0");
+  }
+  function positionCandleTimer(){
+    const tag=document.getElementById("gtxLWCCandleTimer");
+    const host=document.getElementById("gtxLWC");
+    if(!tag||!host)return;
+    const frame=tag.querySelector(".gtxLWCCandleTimerFrame");
+    const count=tag.querySelector(".gtxLWCCandleTimerCount");
+    if(frame)frame.textContent=candleFrameLabel();
+    // Countdown follows the selected chart-candle interval, not trade expiry.
+    // The next candle is created only when a genuine provider tick arrives.
+    const now=Date.now(),period=Math.max(1,Number(state.sec)||300)*1000;
+    const remaining=period-(now%period);
+    if(count)count.textContent=candleCountdownText(remaining);
+    let y=host.clientHeight/2;
+    try{
+      if(state.chart&&state.candleSeries&&Number.isFinite(Number(state.price))){
+        const coord=state.candleSeries.priceToCoordinate(Number(state.price));
+        if(Number.isFinite(coord))y=coord;
+      }
+    }catch(_){}
+    tag.style.top=Math.max(18,Math.min(host.clientHeight-18,y))+"px";
   }
 
   const expiryTrades=[];
