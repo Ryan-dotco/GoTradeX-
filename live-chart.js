@@ -1187,17 +1187,24 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // original candle wick and runs toward the right edge. The expiry flag,
       // pair label and countdown share that same price level/endpoint.
       const bodyCenterX=x;
-      const endX=Math.max(bodyCenterX+barSpacing+12,Math.min(plotRight,layer.clientWidth-12));
-      const tagWidth=112;
-      const tagLeft=Math.max(bodyCenterX+barSpacing+8,endX-tagWidth);
+      // Use the selected trade's real expiry timestamp to place the endpoint in
+      // chart time coordinates. This makes a 5-minute expiry span five 1-minute
+      // candles (or the corresponding duration on another chart timeframe).
+      const expiryX=coordinateForTimestamp(Number(t.expiryAt));
+      const desiredEnd=Number.isFinite(expiryX)?expiryX:plotRight;
+      const endX=Math.max(bodyCenterX+barSpacing+12,Math.min(plotRight-6,desiredEnd));
+      const tagWidth=116;
+      const tagLeft=Math.max(bodyCenterX+barSpacing+8,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
       line.style.background="#ffd84d";line.style.height="2px";line.style.opacity=".98";
-      if(dots){dots.style.left=Math.max(bodyCenterX+barSpacing+4,endX-30)+"px";dots.style.top=(y-4)+"px";}
-      tag.style.left=tagLeft+"px";tag.style.top=(y-14)+"px";tag.style.background="transparent";tag.style.width=tagWidth+"px";tag.style.textAlign="right";
-      if(expiryFlag){expiryFlag.style.top="-16px";expiryFlag.style.right="0";}
+      // Three small dots sit at the expiry end; the pair/flag sits above and
+      // the live countdown sits below the same line level.
+      if(dots){dots.style.left=(endX+3)+"px";dots.style.top=(y-4)+"px";}
+      tag.style.left=tagLeft+"px";tag.style.top=(y-14)+"px";tag.style.background="transparent";tag.style.width=tagWidth+"px";tag.style.textAlign="center";
+      if(expiryFlag){expiryFlag.style.top="-16px";expiryFlag.style.right="50%";expiryFlag.style.transform="translateX(50%)";}
       const label=tag.querySelector(".gtxTradeAssetLabel");
       if(label)label.textContent=(t.asset.flag||"")+" "+t.asset.label;
-      if(countdown)countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));
+      if(countdown){countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));countdown.style.marginTop="7px";}
     });
     // Remove only orphaned marker DOM; active markers are never cleared wholesale.
     Array.from(layer.querySelectorAll("[data-trade-marker]")).forEach(node=>{
