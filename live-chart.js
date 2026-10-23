@@ -1115,15 +1115,23 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
           ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";
           tag.appendChild(ab);
         }
-        const label=document.createElement("span");label.className="gtxTradeAssetLabel";label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;tag.appendChild(label);
-        const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";tag.appendChild(countdown);
-        node.append(line,tag);
+        const flag=document.createElement("span");flag.className="gtxTradeExpiryFlag";flag.textContent="⚑";
+        flag.style.cssText="position:absolute;right:0;top:-16px;color:#22c58b;font:900 16px/1 system-ui;";
+        const label=document.createElement("span");label.className="gtxTradeAssetLabel";label.style.cssText="display:block;text-align:right;color:#f8fafc;font:800 10px/1.2 system-ui;text-shadow:0 1px 3px #00101e;";
+        label.textContent=(t.asset.flag||"")+" "+t.asset.label;
+        const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.style.cssText="display:block;text-align:right;color:#ffd84d;font:900 12px/1.2 system-ui;text-shadow:0 1px 3px #00101e;margin-top:7px;";
+        const dots=document.createElement("span");dots.className="gtxTradeEndDots";dots.textContent="•••";
+        dots.style.cssText="position:absolute;color:#ffd84d;font:900 10px/1 system-ui;letter-spacing:2px;white-space:nowrap;";
+        tag.append(flag,label,countdown);
+        node.append(line,dots,tag);
         layer.appendChild(node);
         t.markerNode=node;
       }
       const line=node.querySelector(".gtxTradeEntryLine");
       const tag=node.querySelector(".gtxTradeTag");
       const countdown=node.querySelector(".gtxTradeCountdown");
+      const dots=node.querySelector(".gtxTradeEndDots");
+      const expiryFlag=node.querySelector(".gtxTradeExpiryFlag");
       // Resolve the original candle timestamp on every chart update. The marker
       // follows that candle horizontally through zoom/scroll, while its entry-price
       // level stays fixed; newer candles never steal it.
@@ -1175,15 +1183,20 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       }
       node.style.display="";
       const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
-      // timeToCoordinate is the original candle center. Start the fixed entry-price
-      // line there so it remains visibly connected to the original candle.
+      // The yellow entry line starts at the exact entry-price coordinate of the
+      // original candle wick and runs toward the right edge. The expiry flag,
+      // pair label and countdown share that same price level/endpoint.
       const bodyCenterX=x;
-      const tagLeft=Math.max(bodyCenterX+barSpacing*0.5+8,plotRight-148);
-      line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-bodyCenterX)+"px";
-      line.style.background=t.side==="SELL"?"#f16b70":"#22c58b";
-      tag.style.left=tagLeft+"px";tag.style.top=y+"px";tag.style.background=t.side==="SELL"?"#b72d43":"#087d5b";
+      const endX=Math.max(bodyCenterX+barSpacing+12,Math.min(plotRight,layer.clientWidth-12));
+      const tagWidth=112;
+      const tagLeft=Math.max(bodyCenterX+barSpacing+8,endX-tagWidth);
+      line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
+      line.style.background="#ffd84d";line.style.height="2px";line.style.opacity=".98";
+      if(dots){dots.style.left=Math.max(bodyCenterX+barSpacing+4,endX-30)+"px";dots.style.top=(y-4)+"px";}
+      tag.style.left=tagLeft+"px";tag.style.top=(y-14)+"px";tag.style.background="transparent";tag.style.width=tagWidth+"px";tag.style.textAlign="right";
+      if(expiryFlag){expiryFlag.style.top="-2px";expiryFlag.style.right="0";}
       const label=tag.querySelector(".gtxTradeAssetLabel");
-      if(label)label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;
+      if(label)label.textContent=(t.asset.flag||"")+" "+t.asset.label;
       if(countdown)countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));
     });
     // Remove only orphaned marker DOM; active markers are never cleared wholesale.
