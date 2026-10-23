@@ -390,7 +390,7 @@ async function connectSocket(requestId=assetRequestId){
       const m=JSON.parse(e.data);
       if(m?.event==="price"){
         const p=Number(m?.price),t=Number(m?.timestamp||Date.now())/1000;
-        if(Number.isFinite(p))updateLivePrice(p,t);
+        if(Number.isFinite(p))updateLivePrice(p,t/1000);
       }else if(m?.event==="proxy-status"){
         if(src)updateFeedStatus();
       }else if(m?.event==="proxy-error"||m?.event==="proxy-closed"){
@@ -429,7 +429,7 @@ async function connectSocket(requestId=assetRequestId){
   ws.onmessage=e=>{try{
    if(requestId!==assetRequestId||thisWs!==ws||mySocket!==socketGeneration)return;
    const m=JSON.parse(e.data),p=Number(m?.data?.lastPrice),t=Number(m?.ts||Date.now());
-   if(Number.isFinite(p))updateLivePrice(p,t/1000);
+   if(Number.isFinite(p))updateLivePrice(p,t);
   }catch(_){}};
   ws.onerror=()=>{try{thisWs.close()}catch(_){}};
   ws.onclose=()=>{
