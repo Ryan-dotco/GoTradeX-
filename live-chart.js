@@ -1109,7 +1109,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
         line.style.cssText="position:absolute;display:block;visibility:visible;opacity:.96;z-index:1;height:2px;min-width:1px;transform:translateY(-50%);";
         const tag=document.createElement("div");
         tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
-        tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);padding:4px 6px;border-radius:5px;color:#fff;border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25);";
+        tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);padding:0;border-radius:0;color:#fff;border:0;background:transparent;outline:0;box-shadow:none;text-shadow:none;font:800 9px/1.25 system-ui;white-space:nowrap;";
         if(t.source==="AB"){
           const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";
           ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";
