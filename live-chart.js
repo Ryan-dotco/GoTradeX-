@@ -100,9 +100,9 @@
       ".gtxTradeEntryLine{position:absolute;height:2px;min-width:1px;transform:translateY(-50%);opacity:.96}"+
       ".gtxTradeEntryLine.buy{background:#22c58b;box-shadow:0 0 5px rgba(34,197,139,.28)}"+
       ".gtxTradeEntryLine.sell{background:#f16b70;box-shadow:0 0 5px rgba(241,107,112,.28)}"+
-      ".gtxTradeTag{position:absolute;transform:translateY(-50%);padding:4px 6px;border-radius:5px;color:#fff;font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)}"+
-      ".gtxTradeTag.buy{background:#087d5b;border:1px solid #22c58b}"+
-      ".gtxTradeTag.sell{background:#b72d43;border:1px solid #f16b70}"+
+      ".gtxTradeTag{position:absolute;transform:translateY(-50%);padding:0;border-radius:0;color:#fff;font:800 9px/1.25 system-ui;white-space:nowrap;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;filter:none!important;text-shadow:none!important}"+
+      ".gtxTradeTag.buy{background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important}"+
+      ".gtxTradeTag.sell{background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important}"+
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
@@ -1002,7 +1002,7 @@
         line.style.cssText="position:absolute;display:block;visibility:visible;opacity:.96;z-index:1;height:2px;min-width:1px;transform:translateY(-50%);";
         const tag=document.createElement("div");
         tag.className="gtxTradeTag "+(t.side==="SELL"?"sell":"buy");
-        tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);padding:4px 6px;border-radius:5px;color:#fff;border:1px solid "+(t.side==="SELL"?"#f16b70":"#22c58b")+";font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25);";
+        tag.style.cssText="position:absolute;display:block;visibility:visible;opacity:1;z-index:2;transform:translateY(-50%);padding:0;border-radius:0;color:#fff;border:0;outline:0;background:transparent;font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:none;text-shadow:none;";
         if(t.source==="AB"){
           const ab=document.createElement("b");ab.className="gtxTradeAB";ab.textContent="AB";
           ab.style.cssText="position:absolute;right:3px;top:-17px;min-width:22px;text-align:center;padding:2px 4px;border-radius:4px;background:#f8fafc;color:#087d5b;font:900 10px/1.2 system-ui;animation:gtxAbPulse 1s steps(2,end) infinite";
@@ -1074,7 +1074,7 @@
       const tagLeft=Math.max(bodyCenterX+barSpacing*0.5+8,plotRight-148);
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,tagLeft-bodyCenterX)+"px";
       line.style.background=t.side==="SELL"?"#f16b70":"#22c58b";
-      tag.style.left=tagLeft+"px";tag.style.top=y+"px";tag.style.background=t.side==="SELL"?"#b72d43":"#087d5b";
+      tag.style.left=tagLeft+"px";tag.style.top=y+"px";tag.style.background="transparent";tag.style.border="0";tag.style.boxShadow="none";
       const label=tag.querySelector(".gtxTradeAssetLabel");
       if(label)label.textContent=(t.asset.flag||"🏳️")+" "+t.asset.label;
       if(countdown)countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));
