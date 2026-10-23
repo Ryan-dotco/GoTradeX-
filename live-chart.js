@@ -105,9 +105,9 @@
       ".gtxTradeEntryLine{position:absolute;height:2px;min-width:1px;transform:translateY(-50%);opacity:.96}"+
       ".gtxTradeEntryLine.buy{background:#22c58b;box-shadow:0 0 5px rgba(34,197,139,.28)}"+
       ".gtxTradeEntryLine.sell{background:#f16b70;box-shadow:0 0 5px rgba(241,107,112,.28)}"+
-      ".gtxTradeTag{position:absolute;transform:translateY(-50%);padding:4px 6px;border-radius:5px;color:#fff;font:800 9px/1.25 system-ui;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.25)}"+
-      ".gtxTradeTag.buy{background:#087d5b;border:1px solid #22c58b}"+
-      ".gtxTradeTag.sell{background:#b72d43;border:1px solid #f16b70}"+
+      ".gtxTradeTag{position:absolute;transform:translateY(-50%);padding:0;border-radius:0;color:#fff;font:800 9px/1.25 system-ui;white-space:nowrap;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;text-shadow:none!important}"+
+      ".gtxTradeTag.buy{background:transparent!important;border:0!important;box-shadow:none!important}"+
+      ".gtxTradeTag.sell{background:transparent!important;border:0!important;box-shadow:none!important}"+
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
