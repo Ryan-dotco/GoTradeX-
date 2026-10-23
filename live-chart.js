@@ -933,10 +933,10 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const latest=lastCandle?Number(lastCandle.c):NaN;
     // The actual latest verified tick is the entry price; candle close is only a fallback.
     const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
-    // Anchor to the original candle's body edge, in chart data coordinates:
-    // bullish candle = body top (close); bearish candle = body bottom (close).
-    // Keep its candle time so zoom/scroll can reposition the same anchor.
-    const markerTime=lastCandle&&Number.isFinite(Number(lastCandle.t))?Math.floor(Number(lastCandle.t)/1000):null;
+    // Anchor the line to the provider-time of the entry tick, not the candle open.
+    // Fractional candle positioning keeps the marker aligned with the actual entry moment.
+    const sourceTime=Number(state.diag.lastSourceTime)||now;
+    const markerTime=Number.isFinite(sourceTime)&&sourceTime>0?Math.floor(sourceTime/1000):null;
     const markerPrice=entryPrice;
     const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerPrice,amount:null,expiryAt,marker:null};
     try{
