@@ -1194,7 +1194,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       line.style.background="#ffd84d";line.style.height="2px";line.style.opacity=".98";
       if(dots){dots.style.left=Math.max(bodyCenterX+barSpacing+4,endX-30)+"px";dots.style.top=(y-4)+"px";}
       tag.style.left=tagLeft+"px";tag.style.top=(y-14)+"px";tag.style.background="transparent";tag.style.width=tagWidth+"px";tag.style.textAlign="right";
-      if(expiryFlag){expiryFlag.style.top="-2px";expiryFlag.style.right="0";}
+      if(expiryFlag){expiryFlag.style.top="-16px";expiryFlag.style.right="0";}
       const label=tag.querySelector(".gtxTradeAssetLabel");
       if(label)label.textContent=(t.asset.flag||"")+" "+t.asset.label;
       if(countdown)countdown.textContent=formatRemaining(Math.max(0,Number(t.expiryAt)-now));
