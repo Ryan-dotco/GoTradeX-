@@ -1038,6 +1038,101 @@ syncGtxKenglyVisibility();
     };
   });
 
+
+  const GTX_TRADE_HISTORY_KEY="gotradex_trading_history_v1";
+  const GTX_HISTORY_TTL=86400000;
+  function gtxHistoryStamp(row){
+    const v=row&&(row.opened_at||row.created_at||row.openedAt||row.createdAt||row.timestamp||row.time||row.at);
+    if(v===undefined||v===null||v==="")return NaN;
+    const n=Number(v);if(Number.isFinite(n)&&n>0)return n<1e12?n*1000:n;
+    const d=Date.parse(v);return Number.isFinite(d)?d:NaN;
+  }
+  function gtxHistoryMode(row){
+    const m=String(row&&(row.account_mode||row.accountMode||row.mode||row.account)||"DEMO").toUpperCase();
+    return m==="LIVE"||m==="REAL"?"LIVE":"DEMO";
+  }
+  function gtxHistoryRead(){
+    try{const r=JSON.parse(localStorage.getItem(GTX_TRADE_HISTORY_KEY)||"[]");return Array.isArray(r)?r:[]}catch(_){return []}
+  }
+  function gtxHistoryEsc(v){return String(v==null?"":v).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]))}
+  function gtxHistorySave(rows){
+    const cutoff=Date.now()-GTX_HISTORY_TTL;
+    const clean=(Array.isArray(rows)?rows:[]).filter(r=>{const t=gtxHistoryStamp(r);return Number.isFinite(t)&&t>=cutoff});
+    try{localStorage.setItem(GTX_TRADE_HISTORY_KEY,JSON.stringify(clean))}catch(_){}
+    return clean;
+  }
+  function gtxHistoryMerge(rows){
+    const all=gtxHistorySave(gtxHistoryRead().concat(Array.isArray(rows)?rows:[]));
+    const map=new Map();
+    all.forEach((r,i)=>{
+      const t=gtxHistoryStamp(r);if(!Number.isFinite(t)||t<Date.now()-GTX_HISTORY_TTL)return;
+      const mode=gtxHistoryMode(r);
+      const id=String(r.id||r.trade_id||r.tradeId||r.order_id||r.orderId||mode+"-"+t+"-"+(r.asset||r.symbol||r.pair||"trade")+"-"+(r.direction||r.side||""));
+      map.set(id,Object.assign({},r,{id,account_mode:mode,opened_at:new Date(t).toISOString()}));
+    });
+    const result=Array.from(map.values()).sort((a,b)=>gtxHistoryStamp(b)-gtxHistoryStamp(a));
+    try{localStorage.setItem(GTX_TRADE_HISTORY_KEY,JSON.stringify(result))}catch(_){}
+    return result;
+  }
+  function gtxHistoryMoney(v){return "$"+(Number(v)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+  function openGtxTradingHistory(mode){
+    const active=/^(LIVE|REAL)$/i.test(String(mode||""))?"LIVE":"DEMO";
+    const rows=gtxHistoryMerge([]);
+    const renderRows=()=>{
+      const selected=gtxHistoryRead().filter(r=>gtxHistoryMode(r)===active);
+      const list=selected.map(r=>{
+        const t=new Date(gtxHistoryStamp(r));
+        const when=Number.isFinite(t.getTime())?t.toLocaleString():"—";
+        const side=gtxHistoryEsc(r.direction||r.side||r.action||"TRADE");
+        const asset=gtxHistoryEsc(r.asset||r.symbol||r.pair||"—");
+        const result=gtxHistoryEsc(r.result||r.status||r.outcome||"RECORDED");
+        const amount=gtxHistoryMoney(r.amount??r.stake??r.trade_amount);
+        const pnl=Number(r.pnl??r.profit??r.net_profit??0)||0;
+        return '<div class="adminTransaction"><strong>'+side+' • '+asset+'</strong><span>'+gtxHistoryEsc(when)+' • Amount: '+amount+' • P/L: '+gtxHistoryMoney(pnl)+'</span><span>Status: '+result+'</span></div>';
+      }).join("");
+      const body=document.getElementById("gtxTradeHistoryRows");
+      if(body)body.innerHTML=list||'<div class="gtxTradeHistoryEmpty">No '+active+' trades recorded in the last 24 hours.</div>';
+    };
+    const tab=(name)=>'<button type="button" data-gtx-history-mode="'+name+'" style="flex:1;padding:10px;border:1px solid '+(name===active?"#16a34a":"#23466d")+';border-radius:8px;background:'+(name===active?"#16a34a":"#102944")+';color:'+(name===active?"#04120b":"#d9e8fa")+';font:800 12px system-ui">'+name+'</button>';
+    openSimplePanel("Trading History",
+      '<style>.gtxTradeHistoryTabs{display:flex;gap:8px;margin:0 0 12px}.gtxTradeHistoryList{display:grid;gap:8px}.gtxTradeHistoryEmpty{padding:18px 12px;text-align:center;color:#8fa8c4;border:1px dashed #23466d;border-radius:8px;font-size:12px;line-height:1.5}.gtxTradeHistoryMeta{font-size:11px;color:#8fa8c4;line-height:1.5;margin:10px 0}</style>'+
+      '<div class="gtxTradeHistoryTabs">'+tab("DEMO")+tab("LIVE")+'</div>'+
+      '<div class="gtxTradeHistoryMeta">Separate '+active+' trade records. History expires after 24 hours and is removed from this device.</div>'+
+      '<div class="gtxTradeHistoryList" id="gtxTradeHistoryRows"></div>'+
+      '<div style="margin-top:12px"><button class="adminReferralAction" type="button" id="gtxTradeHistoryRefresh">Refresh history</button></div>'+
+      '<div class="gtxTradeHistoryMeta" id="gtxTradeHistoryStatus">'+(active==="LIVE"?"Real-money execution remains disabled; only genuine live records will appear here.":"Demo trades are virtual and kept separate from live records.")+'</div>');
+    renderRows();
+    document.querySelectorAll("[data-gtx-history-mode]").forEach(b=>b.onclick=()=>openGtxTradingHistory(b.getAttribute("data-gtx-history-mode")));
+    const refresh=document.getElementById("gtxTradeHistoryRefresh");
+    if(refresh)refresh.onclick=async()=>{
+      refresh.disabled=true;refresh.textContent="Refreshing…";
+      try{
+        const runtime=window.GoTradeXServerRuntime;
+        if(runtime&&typeof runtime.call==="function"){
+          const response=await runtime.call("sync");
+          gtxHistoryMerge(Array.isArray(response.history)?response.history:[]);
+          renderRows();
+          const status=document.getElementById("gtxTradeHistoryStatus");
+          if(status)status.textContent="History refreshed. Records older than 24 hours are excluded from this view.";
+        }else{
+          renderRows();
+          const status=document.getElementById("gtxTradeHistoryStatus");
+          if(status)status.textContent="Showing saved records on this device. Sign in to load server-recorded demo trades.";
+        }
+      }catch(e){
+        const status=document.getElementById("gtxTradeHistoryStatus");
+        if(status)status.textContent="Server history could not be refreshed. Saved records are still shown where available.";
+      }finally{
+        const b=document.getElementById("gtxTradeHistoryRefresh");
+        if(b){b.disabled=false;b.textContent="Refresh history";}
+      }
+    };
+    const runtime=window.GoTradeXServerRuntime;
+    if(runtime&&typeof runtime.call==="function"){
+      runtime.call("sync").then(response=>{gtxHistoryMerge(Array.isArray(response.history)?response.history:[]);renderRows()}).catch(()=>{});
+    }
+  }
+
   function gtxPrefBool(key,def=true){const v=localStorage.getItem(key);return v===null?def:v==="true"}
   function openGtxNotifications(){
     const push=gtxPrefBool("gotradex_notify_trades",true);
