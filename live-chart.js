@@ -1205,9 +1205,11 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // candles (or the corresponding duration on another chart timeframe).
       const expiryX=coordinateForTimestamp(Number(t.expiryAt));
       const desiredEnd=Number.isFinite(expiryX)?expiryX:plotRight;
-      const endX=Math.max(bodyCenterX+barSpacing+12,Math.min(plotRight-6,desiredEnd));
+      // Do not force a minimum candle-width span: short expiries must end at their real time coordinate.
+      const endX=Math.max(bodyCenterX+1,Math.min(plotRight-6,desiredEnd));
       const tagWidth=116;
-      const tagLeft=Math.max(bodyCenterX+barSpacing+8,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
+      // Center the expiry label/countdown on the actual endpoint, including short expiries.
+      const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
       line.style.background="#ffd84d";line.style.height="2px";line.style.opacity=".98";
       // Three small dots sit at the expiry end; the pair/flag sits above and
