@@ -1061,8 +1061,15 @@ syncGtxKenglyVisibility();
     try{localStorage.setItem(GTX_TRADE_HISTORY_KEY,JSON.stringify(clean))}catch(_){}
     return clean;
   }
+  function gtxHistoryLegacy(){
+    const found=[];
+    ["gotradex_trade_history","gotradex_trades","gotradex_order_history","gotradex_orders","gotradex_paper_trades"].forEach(key=>{
+      try{const list=JSON.parse(localStorage.getItem(key)||"[]");if(Array.isArray(list))list.forEach(row=>{if(row&&typeof row==="object")found.push(row)})}catch(_){}
+    });
+    return found;
+  }
   function gtxHistoryMerge(rows){
-    const all=gtxHistorySave(gtxHistoryRead().concat(Array.isArray(rows)?rows:[]));
+    const all=gtxHistorySave(gtxHistoryRead().concat(gtxHistoryLegacy(),Array.isArray(rows)?rows:[]));
     const map=new Map();
     all.forEach((r,i)=>{
       const t=gtxHistoryStamp(r);if(!Number.isFinite(t)||t<Date.now()-GTX_HISTORY_TTL)return;
@@ -1075,6 +1082,7 @@ syncGtxKenglyVisibility();
     return result;
   }
   function gtxHistoryMoney(v){return "$"+(Number(v)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+  setInterval(()=>gtxHistorySave(gtxHistoryRead()),60000);
   function openGtxTradingHistory(mode){
     const active=/^(LIVE|REAL)$/i.test(String(mode||""))?"LIVE":"DEMO";
     const rows=gtxHistoryMerge([]);
