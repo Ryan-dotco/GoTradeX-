@@ -8,9 +8,9 @@ Status: investigation note; no migration applied and no Edge Function deployed.
 - `referral_level_2_pct = 2.000`
 - `min_deposit = 10.00`
 - `min_withdrawal = 10.00`
-- `withdrawal_fee_pct = 1.000`
+- Stored `withdrawal_fee_pct = 1.000` was observed in the live row; owner-confirmed intended policy is **5%**.
 
-Do not modify these values. The live withdrawal fee is 1%, not the previously mentioned 5%; preserve the current database value unless the owner explicitly authorizes a policy change.
+The stored withdrawal fee conflicts with the owner's confirmed business rule: **withdrawal fee must be 5%**. This branch documents the required target only; do not write to the live database or deploy a change without explicit authorization. Before enabling withdrawals, update and test the setting and every server-side fee calculation in Testing, including fee/net amount reconciliation.
 
 ## Referral relationship
 - `profiles.referral_code` is nullable text and has a unique constraint.
