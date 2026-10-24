@@ -15,7 +15,7 @@ main{width:min(760px,100%);margin:auto;padding:22px 16px 42px}.brand{display:fle
 <section class="panel">
 <div class="eyebrow">Deposit request</div>
 <p class="sub">Sign in to your GoTradeX account before requesting a deposit. The secure service must identify your account from your authenticated session; an email typed into this page is not proof of account ownership.</p>
-<label for="amount">Deposit amount</label><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" placeholder="Enter amount">
+<label for="amount">Deposit amount</label><input id="amount" type="number" inputmode="decimal" min="10" step="0.01" placeholder="Enter amount (minimum $10)">
 <div class="row"><div><label for="asset">Pay with</label><select id="asset"><option value="btc">Bitcoin (BTC)</option><option value="eth">Ethereum (ETH)</option><option value="usdttrc20">Tether (USDT · TRC20)</option><option value="usdc">USD Coin (USDC, if supported)</option></select></div><div><label for="quote">Amount currency</label><select id="quote"><option value="usd">USD equivalent</option></select></div></div>
 <button id="fund">Continue to NOWPayments</button><div id="status" class="status hidden" role="status" aria-live="polite"></div>
 <p class="note">The server must confirm the available network, exact amount, fees and final crypto address at checkout. Never send funds to an address shown outside the official invoice.</p>
@@ -27,7 +27,7 @@ main{width:min(760px,100%);margin:auto;padding:22px 16px 42px}.brand{display:fle
 function show(message,kind='wait'){const el=$('status');el.textContent=message;el.className='status '+kind;}
 $('fund').addEventListener('click',async()=>{
  const amount=Number($('amount').value),asset=$('asset').value,btn=$('fund');
- if(!Number.isFinite(amount)||amount<=0){show('Enter a valid positive deposit amount.','bad');return;}
+ if(!Number.isFinite(amount)||Math.round(amount*100)!==amount*100||amount<10||amount>100000){show('Enter a valid USD deposit amount between $10 and $100,000.','bad');return;}
  const base=window.GOTRADEX_PAYMENT_API_BASE;
  const auth=window.GOTRADEX_AUTH;
  if(!base||typeof base!=='string'||!/^https:\/\//i.test(base)){show('Secure funding service is not configured. No invoice was created and no funds were requested.','bad');return;}
@@ -36,10 +36,10 @@ $('fund').addEventListener('click',async()=>{
  try{
   const token=await auth.getAccessToken();
   if(!token)throw new Error('Please sign in to GoTradeX first. No invoice was created.');
-  const res=await fetch(base.replace(/\/$/,'')+'/functions/v1/nowpayments-create-deposit',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({amount,asset,quote_currency:'usd'}),cache:'no-store'});
+  const res=await fetch(base.replace(/\/$/,'')+'/functions/v1/nowpayments-create-deposit',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({amount_usd:amount,pay_currency:asset}),cache:'no-store'});
   const data=await res.json().catch(()=>({}));
   if(!res.ok)throw new Error(data.error||'The secure funding service rejected the request.');
-  if(!data.invoice_url||!/^https:\/\//i.test(data.invoice_url))throw new Error('No valid provider checkout URL was returned.');
+  let invoice;try{invoice=new URL(data.invoice_url);}catch{throw new Error('No valid provider checkout URL was returned.');}if(invoice.protocol!=='https:'||(invoice.hostname!=='nowpayments.io'&&!invoice.hostname.endsWith('.nowpayments.io')))throw new Error('The provider checkout URL failed the security check.');
   show('Deposit invoice created. Opening NOWPayments checkout…');window.location.assign(data.invoice_url);
  }catch(e){show(e.message||'Funding request failed. No account credit was granted.','bad');}
  finally{btn.disabled=false;}
