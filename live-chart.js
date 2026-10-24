@@ -790,18 +790,32 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       return;
     }
     const item={time:Math.floor(c.t/1000),open:Number(c.o),high:Number(c.h),low:Number(c.l),close:Number(c.c)};
+    let displayedClose=item.close;
     if(state.chartType==="heikin"){
-      // Recalculate HA values, but update only the latest candle instead of redrawing all history.
+      // Recalculate Heikin Ashi from the complete real-tick OHLC history on every
+      // accepted tick. The displayed candle is transformed, so its close is not
+      // necessarily the raw market close; keep the live line on the displayed
+      // candle close in this mode to prevent the line appearing detached from body.
       const ha=seriesCandleData();
-      if(ha.length)state.candleSeries.update(ha[ha.length-1]);
-    }else state.candleSeries.update(item);
+      if(ha.length){
+        const latest=ha[ha.length-1];
+        state.candleSeries.update(latest);
+        displayedClose=Number(latest.close);
+      }
+    }else{
+      state.candleSeries.update(item);
+    }
     if(state.barSeries)state.barSeries.update(item);
     if(state.lineSeries)state.lineSeries.update({time:item.time,value:item.close});
     if(state.areaSeries)state.areaSeries.update({time:item.time,value:item.close});
     applyChartTypeVisibility();
     // Batch expensive overlay redraws so bursts of ticks don't block candle rendering.
     scheduleChartToolsRefresh();
-    state.price=c.c;
+    // In regular candles this is the actual tick. In Heikin Ashi, the yellow
+    // line follows the transformed displayed close; raw market price remains in
+    // state.marketPrice for feed diagnostics and trade calculations.
+    state.marketPrice=Number(c.c);
+    state.price=displayedClose;
     updateCurrentPriceLine();
     positionTradeOverlay();
   }
