@@ -382,7 +382,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       return;
     }
     state.provider=f.provider;state.symbol=f.symbol;state.assetLabel=f.label;assetText();
-    state.candles=[];state.price=null;state.historyLoaded=false;
+    state.candles=[];state.price=null;state.displayPrice=null;state.marketPrice=null;state.historyLoaded=false;
     state.connected=false;status("CONNECTING • BYBIT",false);
     notice("Connecting to verified live trades; history loads separately…",true);
 
