@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>GoTradeX · Withdrawal Fee Testing</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2e;--line:#26344b;--text:#eef4ff;--muted:#9aabc3;--green:#36d399;--red:#ff7272;--amber:#f6c85f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#142541 0,#0b1220 55%);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text)}
+main{width:min(760px,100%);margin:auto;padding:20px 15px 40px}.top{display:flex;align-items:center;gap:12px;margin-bottom:20px}.mark{width:44px;height:44px;border-radius:13px;background:#1c304a;border:1px solid #36516e;display:grid;place-items:center;font-weight:900;color:var(--green)}h1{font-size:20px;margin:0}h2{font-size:16px;margin:0 0 12px}.sub{color:var(--muted);font-size:13px}.flag{display:inline-block;border:1px solid #8a6b25;color:var(--amber);background:#352b15;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.07em;margin:0 0 14px}.panel{background:rgba(18,28,46,.94);border:1px solid var(--line);border-radius:17px;padding:17px;margin:12px 0;box-shadow:0 8px 26px #0002}.field-label{display:block;color:var(--muted);font-size:13px;margin:0 0 8px}.amount-wrap{display:flex;align-items:center;border:1px solid #3a4b64;border-radius:12px;background:#0c1525;padding:0 13px}.currency{color:var(--muted);font-size:20px;margin-right:8px}.amount-wrap input{width:100%;min-width:0;background:transparent;border:0;outline:none;color:var(--text);font-size:26px;padding:13px 0;font-weight:700}.hint{font-size:12px;color:var(--muted);margin-top:7px}.results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}.result{padding:13px;border-radius:12px;background:#0b1525;border:1px solid var(--line)}.result .label{color:var(--muted);font-size:12px}.result .value{font-size:22px;font-weight:800;margin-top:5px;overflow-wrap:anywhere}.result.fee .value{color:var(--amber)}.result.net .value{color:var(--green)}.status{margin-top:12px;border-radius:10px;padding:10px 12px;background:#103027;color:var(--green);font-size:13px}.status.bad{background:#3a1d26;color:var(--red)}button{border:1px solid #3b506d;background:#1a2b43;color:var(--text);border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer}button:active{transform:scale(.99)}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 7px;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:600}.pass{color:var(--green);font-weight:800}.notice{font-size:13px;color:var(--muted)}.notice strong{color:var(--text)}.foot{color:var(--muted);font-size:12px;text-align:center;padding:10px}.tag{color:var(--green);font-weight:800}
+@media(min-width:560px){main{padding-top:30px}.panel{padding:21px}.results{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<main>
+<header class="top"><div class="mark">GTX</div><div><h1>Withdrawal Fee Testing</h1><div class="sub">GoTradeX · isolated calculator preview</div></div></header>
+<div class="flag">TESTING ONLY · NO REAL PAYOUTS</div>
+<section class="panel">
+<h2>Withdrawal calculation</h2>
+<label class="field-label" for="gross">Gross withdrawal amount (USD)</label>
+<div class="amount-wrap"><span class="currency">$</span><input id="gross" type="number" inputmode="decimal" min="10" max="100000" step="0.01" value="100.00" autocomplete="off"></div>
+<div class="hint">Test range: $10.00–$100,000.00 · Fee rule: 5.000% of gross amount</div>
+<div class="results">
+<div class="result"><div class="label">Gross amount</div><div class="value" id="grossOut">$100.00</div></div>
+<div class="result fee"><div class="label">Withdrawal fee · 5%</div><div class="value" id="feeOut">$5.00</div></div>
+<div class="result net"><div class="label">Estimated net payout</div><div class="value" id="netOut">$95.00</div></div>
+</div>
+<div id="validation" class="status">Calculation ready.</div>
+</section>
+<section class="panel">
+<h2>Regression cases</h2>
+<div class="scroll"><table><thead><tr><th>Gross</th><th>Expected fee</th><th>Expected net</th><th>Result</th></tr></thead><tbody id="cases"></tbody></table></div>
+<div class="status" id="summary">Running local arithmetic checks…</div>
+</section>
+<section class="panel">
+<h2>Scope and safety</h2>
+<p class="notice"><strong>This page tests fee arithmetic only.</strong> It does not connect to the GoTradeX wallet, server, database, payment provider, or payout system. No money moves and no records are written.</p>
+<p class="notice">The live finance setting was previously observed as 1%. This standalone page uses the owner-confirmed 5% rule for testing and does not change the live setting. The actual withdrawal UI/API and isolated-database integration still require separate verification.</p>
+</section>
+<div class="foot">GoTradeX · Testing branch · Live orders and payouts disabled</div>
+</main>
+<script>
+(function(){
+ const $=id=>document.getElementById(id);
+ const money=cents=>'$'+(cents/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+ // Work in integer cents. Round the 5% fee to nearest cent, half up.
+ function calc(grossCents){const feeCents=Math.floor((grossCents*5+50)/100);return {feeCents,netCents:grossCents-feeCents};}
+ function readAmount(){const raw=$('gross').value;if(raw.trim()==='')return null;const n=Number(raw);if(!Number.isFinite(n))return null;return Math.round((n+Number.EPSILON)*100);}
+ function render(){
+   const cents=readAmount();
+   if(cents===null){$('grossOut').textContent='—';$('feeOut').textContent='—';$('netOut').textContent='—';$('validation').className='status bad';$('validation').textContent='Enter a valid amount.';return;}
+   if(cents<1000||cents>10000000){$('grossOut').textContent=money(cents);$('feeOut').textContent='—';$('netOut').textContent='—';$('validation').className='status bad';$('validation').textContent='Amount must be between $10.00 and $100,000.00 for this test.';return;}
+   const out=calc(cents);$('grossOut').textContent=money(cents);$('feeOut').textContent=money(out.feeCents);$('netOut').textContent=money(out.netCents);$('validation').className='status';$('validation').textContent=(out.feeCents+out.netCents===cents)?'PASS · Fee + net equals gross to the cent.':'FAIL · Reconciliation mismatch.';
+ }
+ const tests=[{g:1000,f:50,n:950},{g:2000,f:100,n:1900},{g:5000,f:250,n:4750},{g:10000,f:500,n:9500},{g:12345,f:617,n:11728},{g:99999,f:5000,n:94999},{g:100000,f:5000,n:95000}];
+ let passed=0;
+ $('cases').innerHTML=tests.map(t=>{const r=calc(t.g);const ok=r.feeCents===t.f&&r.netCents===t.n&&r.feeCents+r.netCents===t.g;if(ok)passed++;return '<tr><td>'+money(t.g)+'</td><td>'+money(t.f)+'</td><td>'+money(t.n)+'</td><td class="'+(ok?'pass':'')+'">'+(ok?'PASS':'FAIL')+'</td></tr>';}).join('');
+ $('summary').textContent=passed+' / '+tests.length+' arithmetic cases passed locally. UI/API/database integration has not been run.';
+ $('gross').addEventListener('input',render);render();
+})();
+</script>
+</body>
+</html>
