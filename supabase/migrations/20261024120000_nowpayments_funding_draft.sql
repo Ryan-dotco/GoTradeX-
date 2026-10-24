@@ -52,8 +52,6 @@ create policy "users read own NOWPayments orders"
   using (user_id = auth.uid());
 
 -- No client policy on events. Service-role only.
-revoke all on function public.gotradex_nowpayments_settle(uuid,text,numeric,text,numeric,text,numeric,text,jsonb) from public, anon, authenticated;
-
 create or replace function public.gotradex_nowpayments_settle(
   p_internal_order_id uuid,
   p_provider_payment_id text,
@@ -173,6 +171,7 @@ begin
     where id=o.id;
   return jsonb_build_object('result','settled','order_id',o.internal_order_id);
 end;
-$$;
+$;
 
+revoke all on function public.gotradex_nowpayments_settle(uuid,text,numeric,text,numeric,text,numeric,text,jsonb) from public, anon, authenticated;
 grant execute on function public.gotradex_nowpayments_settle(uuid,text,numeric,text,numeric,text,numeric,text,jsonb) to service_role;
