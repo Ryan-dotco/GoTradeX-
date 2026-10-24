@@ -1,56 +1,47 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#071a33">
-<title>GoTradeX · AI OTC Scanner Pro</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071a33"><title>GoTradeX · Crypto Account Funding</title>
 <style>
-:root{color-scheme:dark;--bg:#061426;--panel:#0b203b;--line:#1d3b5e;--muted:#a9bbd2;--green:#22c55e;--blue:#60a5fa;--red:#f87171}
+:root{color-scheme:dark;--panel:#0b203b;--line:#1d3b5e;--muted:#a9bbd2;--green:#22c55e;--blue:#60a5fa}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#0c2c50 0,#061426 55%);color:#f8fafc;font:16px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
-main{width:min(760px,100%);margin:auto;padding:22px 16px 42px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.mark{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#16a34a,#0d6b39);font-weight:900;letter-spacing:.04em}.eyebrow{color:#86efac;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.brand h1{font-size:20px;margin:2px 0}.sub{color:var(--muted);font-size:14px}
-h2{font-size:26px;line-height:1.15;margin:0 0 8px}.panel{background:rgba(11,32,59,.94);border:1px solid var(--line);border-radius:18px;padding:20px;margin:16px 0;box-shadow:0 12px 32px #0002}.plan{display:flex;justify-content:space-between;align-items:center;gap:12px}.price{font-size:25px;font-weight:850;color:#86efac}.tag{font-size:12px;border:1px solid #245b43;color:#bbf7d0;border-radius:99px;padding:5px 9px;white-space:nowrap}
-label{display:block;font-weight:700;margin:14px 0 6px;font-size:14px}input,select{width:100%;min-height:48px;background:#061426;border:1px solid #34506f;border-radius:10px;color:#fff;padding:12px;font:inherit}input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-button{width:100%;min-height:48px;border:0;border-radius:11px;background:var(--green);color:#05210f;font-weight:850;font-size:15px;padding:12px;cursor:pointer;margin-top:14px}button.secondary{background:#15385e;color:#eff6ff;border:1px solid #345a80}button:disabled{opacity:.55;cursor:not-allowed}
-.note{color:var(--muted);font-size:13px}.status{border-radius:10px;padding:12px;margin-top:14px;background:#07182b;border:1px solid var(--line);font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.status.good{border-color:#166534;color:#bbf7d0}.status.bad{border-color:#7f1d1d;color:#fecaca}.status.wait{border-color:#854d0e;color:#fde68a}.section-title{margin:0 0 4px;font-size:18px}.divider{height:1px;background:var(--line);margin:20px 0}.bullet{display:flex;gap:9px;color:#dbeafe;font-size:14px;margin:9px 0}.bullet:before{content:"✓";color:#86efac;font-weight:900}.foot{text-align:center;color:#8ea5c0;font-size:12px;padding:8px}.hidden{display:none}@media(max-width:520px){.row{grid-template-columns:1fr}.panel{padding:16px}h2{font-size:23px}}
-</style>
-</head>
+main{width:min(760px,100%);margin:auto;padding:22px 16px 42px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.mark{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#16a34a,#0d6b39);font-weight:900}.eyebrow{color:#86efac;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.brand h1{font-size:20px;margin:2px 0}.sub,.note{color:var(--muted);font-size:14px}h2{font-size:26px;line-height:1.15;margin:0 0 8px}.panel{background:rgba(11,32,59,.94);border:1px solid var(--line);border-radius:18px;padding:20px;margin:16px 0;box-shadow:0 12px 32px #0002}label{display:block;font-weight:700;margin:14px 0 6px;font-size:14px}input,select{width:100%;min-height:48px;background:#061426;border:1px solid #34506f;border-radius:10px;color:#fff;padding:12px;font:inherit}input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}button{width:100%;min-height:48px;border:0;border-radius:11px;background:var(--green);color:#05210f;font-weight:850;font-size:15px;padding:12px;cursor:pointer;margin-top:14px}button:disabled{opacity:.55;cursor:not-allowed}.status{border-radius:10px;padding:12px;margin-top:14px;background:#07182b;border:1px solid var(--line);font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.status.bad{border-color:#7f1d1d;color:#fecaca}.status.wait{border-color:#854d0e;color:#fde68a}.bullet{display:flex;gap:9px;color:#dbeafe;font-size:14px;margin:9px 0}.bullet:before{content:"✓";color:#86efac;font-weight:900}.foot{text-align:center;color:#8ea5c0;font-size:12px;padding:8px}.hidden{display:none}@media(max-width:520px){.row{grid-template-columns:1fr}.panel{padding:16px}h2{font-size:23px}}
+</style></head>
 <body><main>
-<header class="brand"><div class="mark">GTX</div><div><div class="eyebrow">GoTradeX</div><h1>AI OTC Scanner Pro</h1><div class="sub">Subscription & secure checkout · Testing</div></div></header>
-<h2>Unlock Scanner Pro</h2><p class="sub">Choose your access period, then pay with supported cryptocurrency through NOWPayments or redeem your one-time voucher.</p>
-<section class="panel"><div class="plan"><div><div class="eyebrow">Scanner Pro access</div><h3 style="margin:5px 0">Subscription plan</h3><div class="sub">Final amount and coin are confirmed at checkout.</div></div><span class="tag">Crypto checkout</span></div>
-<label for="plan">Access period</label><select id="plan"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="180">180 days</option></select>
-<label for="email">Account email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-<button id="pay">Continue to NOWPayments</button><div id="payStatus" class="status hidden" role="status" aria-live="polite"></div>
-<p class="note">Access is granted only after the server verifies a successful payment. Returning from a payment page is not proof of payment.</p></section>
-<section class="panel"><h3 class="section-title">Have a voucher?</h3><p class="sub">Each voucher can be redeemed once and grants the duration assigned to that code.</p><label for="voucherEmail">Account email</label><input id="voucherEmail" type="email" autocomplete="email" placeholder="you@example.com">
-<label for="voucher">Single-use voucher code</label><input id="voucher" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Enter voucher code">
-<button class="secondary" id="redeem">Redeem voucher</button><div id="voucherStatus" class="status hidden" role="status" aria-live="polite"></div></section>
-<section class="panel"><h3 class="section-title">Security & verification</h3><div class="bullet">Payment status is checked by the backend, not by a URL parameter.</div><div class="bullet">Pending, failed, expired, or cancelled payments do not unlock Pro.</div><div class="bullet">Voucher redemption must be atomic and single-use.</div><div class="bullet">Payment secrets remain on the server and are never embedded in this page.</div><div class="status wait">TESTING MODE — checkout and voucher redemption are not live until a secured backend is configured and end-to-end tests pass.</div></section>
-<div class="foot">GoTradeX · AI OTC Scanner Pro · Testing only</div>
-</main>
+<header class="brand"><div class="mark">GTX</div><div><div class="eyebrow">GoTradeX</div><h1>Crypto Account Funding</h1><div class="sub">NOWPayments · Testing</div></div></header>
+<h2>Fund your GoTradeX account</h2>
+<p class="sub">GoTradeX is intended to be free to use. NOWPayments is for user cryptocurrency deposits into their own trading account—not a subscription or platform access fee.</p>
+<section class="panel">
+<div class="eyebrow">Deposit request</div>
+<p class="sub">Sign in to your GoTradeX account before requesting a deposit. The secure service must identify your account from your authenticated session; an email typed into this page is not proof of account ownership.</p>
+<label for="amount">Deposit amount</label><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" placeholder="Enter amount">
+<div class="row"><div><label for="asset">Pay with</label><select id="asset"><option value="btc">Bitcoin (BTC)</option><option value="eth">Ethereum (ETH)</option><option value="usdttrc20">Tether (USDT · TRC20)</option><option value="usdttrc20">Tether (USDT · TRC20)</option><option value="usdc">USD Coin (USDC, if supported)</option></select></div><div><label for="quote">Amount currency</label><select id="quote"><option value="usd">USD equivalent</option></select></div></div>
+<button id="fund">Continue to NOWPayments</button><div id="status" class="status hidden" role="status" aria-live="polite"></div>
+<p class="note">The server must confirm the available network, exact amount, fees and final crypto address at checkout. Never send funds to an address shown outside the official invoice.</p>
+</section>
+<section class="panel"><h3 style="margin:0 0 8px">What happens next?</h3><div class="bullet">NOWPayments creates a deposit invoice for your authenticated account.</div><div class="bullet">The server verifies the signed provider notification and the expected amount/currency.</div><div class="bullet">A confirmed deposit is credited once to the matching GoTradeX account.</div><div class="bullet">AI/automated trading remains subject to separate user authorization and trading safeguards.</div><div class="status wait">TESTING ONLY — no live deposit is available until the authenticated backend, provider credentials, webhook verification, ledger safeguards and end-to-end tests are complete.</div></section>
+<div class="foot">GoTradeX · Account Funding · Testing only</div></main>
 <script>
-'use strict';
-const $=id=>document.getElementById(id);
-function show(id,message,kind='wait'){const el=$(id);el.textContent=message;el.className='status '+kind;}
-async function post(endpoint,body,statusId,buttonId){
- const btn=$(buttonId);btn.disabled=true;show(statusId,'Contacting secure service…');
+'use strict';const $=id=>document.getElementById(id);
+function show(message,kind='wait'){const el=$('status');el.textContent=message;el.className='status '+kind;}
+$('fund').addEventListener('click',async()=>{
+ const amount=Number($('amount').value),asset=$('asset').value,btn=$('fund');
+ if(!Number.isFinite(amount)||amount<=0){show('Enter a valid positive deposit amount.','bad');return;}
+ const base=window.GOTRADEX_PAYMENT_API_BASE;
+ const auth=window.GOTRADEX_AUTH;
+ if(!base||typeof base!=='string'||!/^https:\/\//i.test(base)){show('Secure funding service is not configured. No invoice was created and no funds were requested.','bad');return;}
+ if(!auth||typeof auth.getAccessToken!=='function'){show('Authenticated GoTradeX sign-in is not connected yet. No invoice was created and no funds were requested.','bad');return;}
+ btn.disabled=true;show('Requesting a deposit invoice from the secure service…');
  try{
-  const base=window.GOTRADEX_PAYMENT_API_BASE;
-  if(!base||typeof base!=='string'||!/^https:\/\//i.test(base))throw new Error('Secure payment service is not configured. No payment was started and no access was granted.');
-  const response=await fetch(base.replace(/\/$/,'')+endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'omit',cache:'no-store'});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'Secure service rejected the request.');
-  if(endpoint.includes('create-invoice')){
-   if(!data.invoice_url||!/^https:\/\//i.test(data.invoice_url))throw new Error('The server did not return a valid checkout URL.');
-   show(statusId,'Invoice created by server. Redirecting to provider checkout…','good');window.location.assign(data.invoice_url);return;
-  }
-  if(data.status!=='redeemed')throw new Error('Voucher was not confirmed as redeemed.');
-  show(statusId,'Voucher redeemed by the server. Access status: '+String(data.access_status||'pending account refresh')+'.','good');
- }catch(e){show(statusId,e.message||'Request failed. No access was granted.','bad');}
+  const token=await auth.getAccessToken();
+  if(!token)throw new Error('Please sign in to GoTradeX first. No invoice was created.');
+  const res=await fetch(base.replace(/\/$/,'')+'/functions/v1/nowpayments-create-deposit',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({amount,asset,quote_currency:'usd'}),cache:'no-store'});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.error||'The secure funding service rejected the request.');
+  if(!data.invoice_url||!/^https:\/\//i.test(data.invoice_url))throw new Error('No valid provider checkout URL was returned.');
+  show('Deposit invoice created. Opening NOWPayments checkout…');window.location.assign(data.invoice_url);
+ }catch(e){show(e.message||'Funding request failed. No account credit was granted.','bad');}
  finally{btn.disabled=false;}
-}
-$('pay').addEventListener('click',()=>{const email=$('email').value.trim();if(!email||!$('email').checkValidity()){show('payStatus','Enter a valid account email first.','bad');return;}post('/functions/v1/nowpayments-create-invoice',{email,plan_days:Number($('plan').value)},'payStatus','pay');});
-$('redeem').addEventListener('click',()=>{const email=$('voucherEmail').value.trim(),code=$('voucher').value.trim();if(!email||!$('voucherEmail').checkValidity()){show('voucherStatus','Enter a valid account email first.','bad');return;}if(!code){show('voucherStatus','Enter a voucher code.','bad');return;}post('/functions/v1/redeem-scanner-voucher',{email,code},'voucherStatus','redeem');});
-</script>
-</body></html>
+});
+</script></body></html>
