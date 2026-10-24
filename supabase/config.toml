@@ -1,0 +1,5 @@
+[functions.nowpayments-create-deposit]
+verify_jwt = true
+
+[functions.nowpayments-ipn]
+verify_jwt = false
