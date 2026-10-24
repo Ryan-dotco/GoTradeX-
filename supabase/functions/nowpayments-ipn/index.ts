@@ -71,8 +71,24 @@ Deno.serve(async (req) => {
     signature_valid: true,
     safe_metadata: { event_keys: Object.keys(event).sort() },
   });
-  if (eventInsertError?.code === "23505") return reply(200, { received: true, result: "duplicate_event" });
-  if (eventInsertError) {
+  if (eventInsertError?.code === "23505") {
+    // A repeated provider delivery may be retried after a transient failure.
+    // Only short-circuit if the earlier copy was actually handled; an unhandled
+    // or settlement_failed event must continue through provider verification.
+    const { data: priorEvent, error: priorEventError } = await supabase
+      .from("gotradex_nowpayments_events")
+      .select("handled_at, handling_result")
+      .eq("event_fingerprint", fingerprint)
+      .maybeSingle();
+    if (priorEventError) {
+      console.error("NOWPayments duplicate event lookup failed", priorEventError.code);
+      return reply(503, { error: "event_record_unavailable" });
+    }
+    const completed = Boolean(priorEvent?.handled_at) &&
+      !["settlement_failed", "provider_verification_unavailable"].includes(String(priorEvent?.handling_result ?? ""));
+    if (completed) return reply(200, { received: true, result: "duplicate_event" });
+    // Safe to retry: settlement is row-locked and idempotent by provider payment ID.
+  } else if (eventInsertError) {
     console.error("NOWPayments event ledger unavailable", eventInsertError.code);
     return reply(503, { error: "event_record_unavailable" });
   }
