@@ -94,7 +94,7 @@ begin
   if o.provider_payment_id is not null and o.provider_payment_id <> p_provider_payment_id then
     update public.gotradex_nowpayments_orders set status='manual_review', updated_at=now()
       where id=o.id;
-    raise exception 'provider payment id mismatch';
+    return jsonb_build_object('result','manual_review','reason','provider_payment_id_mismatch');
   end if;
   if lower(coalesce(p_price_currency,'')) <> 'usd'
      or abs(coalesce(p_price_amount,0) - o.expected_usd) > 0.01
@@ -142,7 +142,7 @@ begin
     safe_metadata=safe_metadata || coalesce(p_safe_metadata,'{}'::jsonb), updated_at=now()
     where id=o.id;
 
-  select min_deposit_amount into v_minimum from public.gotradex_platform_finance limit 1;
+  select min_deposit into v_minimum from public.gotradex_platform_finance limit 1;
   if o.expected_usd < coalesce(v_minimum,10) then
     update public.gotradex_nowpayments_orders set status='manual_review', updated_at=now() where id=o.id;
     return jsonb_build_object('result','manual_review','reason','minimum_deposit_policy');
@@ -158,8 +158,8 @@ begin
     (user_id, transaction_type, amount, balance_before, balance_after, reference_id, metadata, created_at)
   values
     (o.user_id, 'deposit', o.expected_usd, v_balance, v_balance + o.expected_usd,
-     'nowpayments:' || p_provider_payment_id,
-     jsonb_build_object('provider','nowpayments','order_id',o.internal_order_id), now());
+     o.id,
+     jsonb_build_object('provider','nowpayments','provider_payment_id',p_provider_payment_id,'order_id',o.internal_order_id), now());
 
   insert into public.gotradex_deposits
     (user_id, amount, payment_method, payment_reference, status, requested_at, reviewed_at, metadata)
