@@ -291,14 +291,15 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     if(timestamp>0&&timestamp<1e11)timestamp*=1000;
     if(!Number.isFinite(timestamp)||timestamp<=0){state.diag.invalid++;renderDiagnostics();return;}
     const b=bucket(timestamp,state.sec);
-    // Ignore provider events older than the last accepted market event. A late tick
-    // must never rewind the candle close or make the feed look fresher than it is.
-    if(state.diag.lastSourceTime&&timestamp<state.diag.lastSourceTime){state.diag.stale++;renderDiagnostics();return;}
     let c=state.candles[state.candles.length-1];
-    // Out-of-order ticks can make Lightweight Charts reject every later update.
-    // Ignore stale buckets instead of appending them after the latest candle.
+    // Reject only ticks from an older candle bucket. Trade streams can deliver
+    // events with equal or slightly out-of-order timestamps; dropping every event
+    // older than the last timestamp can make a live chart appear frozen.
     if(c&&b<c.t){state.diag.stale++;renderDiagnostics();return;}
-    state.diag.lastTickAt=Date.now();state.diag.lastSourceTime=timestamp;state.diag.ticks++;
+    const isNewestEvent=!state.diag.lastSourceTime||timestamp>=state.diag.lastSourceTime;
+    state.diag.lastTickAt=Date.now();
+    state.diag.lastSourceTime=Math.max(Number(state.diag.lastSourceTime||0),timestamp);
+    state.diag.ticks++;
     if(!state.tickSeenForConnection){state.tickSeenForConnection=true;status("LIVE • "+state.provider+" WEBSOCKET",true)}
     if(!c||c.t!==b){
       c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0)};
@@ -307,11 +308,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     }else{
       c.h=Math.max(c.h,Number(price));
       c.l=Math.min(c.l,Number(price));
-      c.c=Number(price);
+      // A late trade can extend the wick but must not rewind the candle close.
+      if(isNewestEvent)c.c=Number(price);
       c.v+=Number(volume||0);
     }
     state.prev=state.price;
-    state.price=Number(price);
+    if(isNewestEvent)state.price=Number(price);
     const updateStart=performance.now();
     try{updateLiveSeries(c);state.diag.updates++;}
     catch(err){state.diag.errors++;throw err;}
