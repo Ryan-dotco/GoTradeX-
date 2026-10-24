@@ -79,8 +79,18 @@ Deno.serve(async (req) => {
       }),
     });
     const provider = await response.json().catch(() => ({}));
-    if (!response.ok || typeof provider?.invoice_url !== "string" ||
-        !provider.invoice_url.startsWith("https://") || typeof provider?.id !== "string") {
+    let invoiceUrl: URL | null = null;
+    try {
+      if (typeof provider?.invoice_url === "string") invoiceUrl = new URL(provider.invoice_url);
+    } catch {
+      invoiceUrl = null;
+    }
+    const trustedInvoiceHost = invoiceUrl !== null &&
+      (invoiceUrl.hostname === "nowpayments.io" || invoiceUrl.hostname.endsWith(".nowpayments.io"));
+    const validInvoiceId = typeof provider?.id === "string" ||
+      (typeof provider?.id === "number" && Number.isFinite(provider.id));
+    if (!response.ok || !invoiceUrl || invoiceUrl.protocol !== "https:" ||
+        !trustedInvoiceHost || !validInvoiceId) {
       await service.from("gotradex_nowpayments_orders").update({
         status: "failed", updated_at: new Date().toISOString(),
         safe_metadata: { failure: "provider_invoice_creation_failed", provider_http_status: response.status },
@@ -89,8 +99,8 @@ Deno.serve(async (req) => {
       return json(502, { error: "invoice_creation_failed" });
     }
     const { error: updateError } = await service.from("gotradex_nowpayments_orders").update({
-      provider_invoice_id: provider.id,
-      invoice_url: provider.invoice_url,
+      provider_invoice_id: String(provider.id),
+      invoice_url: invoiceUrl!.toString(),
       status: "waiting",
       updated_at: new Date().toISOString(),
       safe_metadata: { provider: "nowpayments", invoice_created: true },
@@ -101,7 +111,7 @@ Deno.serve(async (req) => {
     }
     return json(200, {
       order_id: internalOrderId,
-      invoice_url: provider.invoice_url,
+      invoice_url: invoiceUrl!.toString(),
       expected_usd: amount,
       pay_currency: payCurrency,
       status: "waiting",
