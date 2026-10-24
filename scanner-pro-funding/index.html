@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071a33"><title>GoTradeX · Crypto Account Funding</title>
+<style>
+:root{color-scheme:dark;--panel:#0b203b;--line:#1d3b5e;--muted:#a9bbd2;--green:#22c55e;--blue:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#0c2c50 0,#061426 55%);color:#f8fafc;font:16px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+main{width:min(760px,100%);margin:auto;padding:22px 16px 42px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.mark{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#16a34a,#0d6b39);font-weight:900}.eyebrow{color:#86efac;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}.brand h1{font-size:20px;margin:2px 0}.sub,.note{color:var(--muted);font-size:14px}h2{font-size:26px;line-height:1.15;margin:0 0 8px}.panel{background:rgba(11,32,59,.94);border:1px solid var(--line);border-radius:18px;padding:20px;margin:16px 0;box-shadow:0 12px 32px #0002}label{display:block;font-weight:700;margin:14px 0 6px;font-size:14px}input,select{width:100%;min-height:48px;background:#061426;border:1px solid #34506f;border-radius:10px;color:#fff;padding:12px;font:inherit}input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}button{width:100%;min-height:48px;border:0;border-radius:11px;background:var(--green);color:#05210f;font-weight:850;font-size:15px;padding:12px;cursor:pointer;margin-top:14px}button:disabled{opacity:.55;cursor:not-allowed}.status{border-radius:10px;padding:12px;margin-top:14px;background:#07182b;border:1px solid var(--line);font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.status.bad{border-color:#7f1d1d;color:#fecaca}.status.wait{border-color:#854d0e;color:#fde68a}.bullet{display:flex;gap:9px;color:#dbeafe;font-size:14px;margin:9px 0}.bullet:before{content:"✓";color:#86efac;font-weight:900}.foot{text-align:center;color:#8ea5c0;font-size:12px;padding:8px}.hidden{display:none}@media(max-width:520px){.row{grid-template-columns:1fr}.panel{padding:16px}h2{font-size:23px}}
+</style></head>
+<body><main>
+<header class="brand"><div class="mark">GTX</div><div><div class="eyebrow">GoTradeX</div><h1>Crypto Account Funding</h1><div class="sub">NOWPayments · Testing</div></div></header>
+<h2>Fund your GoTradeX account</h2>
+<p class="sub">GoTradeX is intended to be free to use. NOWPayments is for user cryptocurrency deposits into their own trading account—not a subscription or platform access fee.</p>
+<section class="panel">
+<div class="eyebrow">Deposit request</div>
+<p class="sub">Sign in to your GoTradeX account before requesting a deposit. The secure service must identify your account from your authenticated session; an email typed into this page is not proof of account ownership.</p>
+<label for="amount">Deposit amount</label><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" placeholder="Enter amount">
+<div class="row"><div><label for="asset">Pay with</label><select id="asset"><option value="btc">Bitcoin (BTC)</option><option value="eth">Ethereum (ETH)</option><option value="usdttrc20">Tether (USDT · TRC20)</option><option value="usdc">USD Coin (USDC, if supported)</option></select></div><div><label for="quote">Amount currency</label><select id="quote"><option value="usd">USD equivalent</option></select></div></div>
+<button id="fund">Continue to NOWPayments</button><div id="status" class="status hidden" role="status" aria-live="polite"></div>
+<p class="note">The server must confirm the available network, exact amount, fees and final crypto address at checkout. Never send funds to an address shown outside the official invoice.</p>
+</section>
+<section class="panel"><h3 style="margin:0 0 8px">What happens next?</h3><div class="bullet">NOWPayments creates a deposit invoice for your authenticated account.</div><div class="bullet">The server verifies the signed provider notification and the expected amount/currency.</div><div class="bullet">A confirmed deposit is credited once to the matching GoTradeX account.</div><div class="bullet">AI/automated trading remains subject to separate user authorization and trading safeguards.</div><div class="status wait">TESTING ONLY — no live deposit is available until the authenticated backend, provider credentials, webhook verification, ledger safeguards and end-to-end tests are complete.</div></section>
+<div class="foot">GoTradeX · Account Funding · Testing only</div></main>
+<script>
+'use strict';const $=id=>document.getElementById(id);
+function show(message,kind='wait'){const el=$('status');el.textContent=message;el.className='status '+kind;}
+$('fund').addEventListener('click',async()=>{
+ const amount=Number($('amount').value),asset=$('asset').value,btn=$('fund');
+ if(!Number.isFinite(amount)||amount<=0){show('Enter a valid positive deposit amount.','bad');return;}
+ const base=window.GOTRADEX_PAYMENT_API_BASE;
+ const auth=window.GOTRADEX_AUTH;
+ if(!base||typeof base!=='string'||!/^https:\/\//i.test(base)){show('Secure funding service is not configured. No invoice was created and no funds were requested.','bad');return;}
+ if(!auth||typeof auth.getAccessToken!=='function'){show('Authenticated GoTradeX sign-in is not connected yet. No invoice was created and no funds were requested.','bad');return;}
+ btn.disabled=true;show('Requesting a deposit invoice from the secure service…');
+ try{
+  const token=await auth.getAccessToken();
+  if(!token)throw new Error('Please sign in to GoTradeX first. No invoice was created.');
+  const res=await fetch(base.replace(/\/$/,'')+'/functions/v1/nowpayments-create-deposit',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({amount,asset,quote_currency:'usd'}),cache:'no-store'});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.error||'The secure funding service rejected the request.');
+  if(!data.invoice_url||!/^https:\/\//i.test(data.invoice_url))throw new Error('No valid provider checkout URL was returned.');
+  show('Deposit invoice created. Opening NOWPayments checkout…');window.location.assign(data.invoice_url);
+ }catch(e){show(e.message||'Funding request failed. No account credit was granted.','bad');}
+ finally{btn.disabled=false;}
+});
+</script></body></html>
