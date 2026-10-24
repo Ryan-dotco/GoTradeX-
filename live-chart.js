@@ -811,18 +811,20 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     applyChartTypeVisibility();
     // Batch expensive overlay redraws so bursts of ticks don't block candle rendering.
     scheduleChartToolsRefresh();
-    // In regular candles this is the actual tick. In Heikin Ashi, the yellow
-    // line follows the transformed displayed close; raw market price remains in
-    // state.marketPrice for feed diagnostics and trade calculations.
+    // Keep raw market price for feed/trade calculations. In Heikin Ashi mode,
+    // the yellow line follows the transformed displayed close so it stays aligned
+    // with the visible candle body; the raw tick is preserved separately.
     state.marketPrice=Number(c.c);
-    state.price=displayedClose;
+    state.displayPrice=displayedClose;
+    state.price=Number(c.c);
     updateCurrentPriceLine();
     positionTradeOverlay();
   }
 
   function updateCurrentPriceLine(){
-    if(!state.currentPriceLine||!Number.isFinite(Number(state.price)))return;
-    try{state.currentPriceLine.applyOptions({price:Number(state.price),axisLabelVisible:true});}catch(_){}
+    const linePrice=Number(state.displayPrice??state.price);
+    if(!state.currentPriceLine||!Number.isFinite(linePrice))return;
+    try{state.currentPriceLine.applyOptions({price:linePrice,axisLabelVisible:true});}catch(_){}
     positionCandleTimer();
   }
 
