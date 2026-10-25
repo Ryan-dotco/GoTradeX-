@@ -296,20 +296,29 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // events with equal or slightly out-of-order timestamps; dropping every event
     // older than the last timestamp can make a live chart appear frozen.
     if(c&&b<c.t){state.diag.stale++;renderDiagnostics();return;}
-    const isNewestEvent=!state.diag.lastSourceTime||timestamp>=state.diag.lastSourceTime;
+    const lastSourceTime=Number(state.diag.lastSourceTime||0);
+    const isNewestEvent=!lastSourceTime||timestamp>=lastSourceTime;
     state.diag.lastTickAt=Date.now();
-    state.diag.lastSourceTime=Math.max(Number(state.diag.lastSourceTime||0),timestamp);
+    state.diag.lastSourceTime=Math.max(lastSourceTime,timestamp);
     state.diag.ticks++;
     if(!state.tickSeenForConnection){state.tickSeenForConnection=true;status("LIVE • "+state.provider+" WEBSOCKET",true)}
     if(!c||c.t!==b){
-      c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0)};
+      c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0),_firstTs:timestamp,_lastTs:timestamp};
       state.candles.push(c);
       if(state.candles.length>500)state.candles.shift();
     }else{
+      // Keep OHLC ordered by the trade's own timestamp, not message arrival.
+      // Late same-candle trades may extend high/low, but cannot rewind close.
       c.h=Math.max(c.h,Number(price));
       c.l=Math.min(c.l,Number(price));
-      // A late trade can extend the wick but must not rewind the candle close.
-      if(isNewestEvent)c.c=Number(price);
+      if(!Number.isFinite(Number(c._firstTs))||timestamp<Number(c._firstTs)){
+        c.o=Number(price);
+        c._firstTs=timestamp;
+      }
+      if(!Number.isFinite(Number(c._lastTs))||timestamp>=Number(c._lastTs)){
+        c.c=Number(price);
+        c._lastTs=timestamp;
+      }
       c.v+=Number(volume||0);
     }
     state.prev=state.price;
@@ -404,7 +413,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
         if(id!==state.connectionId)return;
         try{
           const j=JSON.parse(e.data);
-          if(Array.isArray(j.data))j.data.forEach(t=>addTick(Number(t.T||Date.now()),Number(t.p),Number(t.v)));
+          if(Array.isArray(j.data)){
+            // Bybit documents trades in ascending match-time order. Sort defensively
+            // before aggregation so OHLC never depends on array delivery order.
+            j.data.slice().sort((a,b)=>Number(a.T||0)-Number(b.T||0))
+              .forEach(t=>addTick(Number(t.T||Date.now()),Number(t.p),Number(t.v)));
+          }
         }catch(_){}
       };
       ws.onerror=()=>{
