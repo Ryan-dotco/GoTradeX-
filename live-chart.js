@@ -1186,46 +1186,23 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       const countdown=node.querySelector(".gtxTradeCountdown");
       const dots=node.querySelector(".gtxTradeEndDots");
       const expiryFlag=node.querySelector(".gtxTradeExpiryFlag");
-      // Resolve the original candle timestamp on every chart update. The marker
-      // follows that candle horizontally through zoom/scroll, while its entry-price
-      // level stays fixed; newer candles never steal it.
-      let anchorTime=Number(t.markerTime);
-      // While the trade is running, follow the latest displayed market price
-      // (the yellow line) so the trade line remains attached to the live candle
-      // body/wick. After expiry, hold its last real price briefly for visibility.
+      // Anchor the marker to the CURRENT candle, not the candle that existed
+      // when the trade was opened. This keeps the line attached to the live wick
+      // as new candles arrive and when the user zooms or scrolls.
+      if(!state.candles.length){
+        node.style.display="none";
+        return;
+      }
+      const lastCandle=state.candles[state.candles.length-1];
+      const anchorTime=Math.floor(Number(lastCandle.t)/1000);
+      // Follow the same displayed market price used by the yellow live-price line.
+      // Keep the last real price briefly after expiry so the marker does not jump.
       const liveFollowPrice=Number(state.displayPrice??state.price);
       if(now<Number(t.expiryAt)&&Number.isFinite(liveFollowPrice)&&liveFollowPrice>0)t.lastFollowPrice=liveFollowPrice;
-      let anchorPrice=now<Number(t.expiryAt)
-        ? Number(t.lastFollowPrice??t.markerPrice??t.entryPrice)
-        : Number(t.lastFollowPrice??t.markerPrice??t.entryPrice);
-      let candleIndex=-1;
-      const hasCandleAnchor=t.markerTime!==null&&t.markerTime!==undefined&&t.markerTime!==""&&Number.isFinite(anchorTime);
-      if(hasCandleAnchor&&state.candles.length){
-        candleIndex=state.candles.findIndex(c=>Math.floor(Number(c.t)/1000)===anchorTime);
-      }
-      // Keep the original entry timestamp; coordinate conversion is performed
-      // below through the shared time-scale helper for all chart intervals.
-      if(candleIndex>=0){
-        // Preserve the original candle/time anchor, while the vertical line
-        // follows the real live price until expiry. It therefore stays attached
-        // to the moving candle/wick and still belongs to the opening asset.
-        if(now<Number(t.expiryAt)){
-          const currentPrice=Number(state.displayPrice??state.price);
-          if(Number.isFinite(currentPrice)&&currentPrice>0)t.lastFollowPrice=currentPrice;
-        }
-        anchorPrice=Number(t.lastFollowPrice??t.markerPrice??t.entryPrice);
-        if(!Number.isFinite(anchorPrice)){
-          node.style.display="none";
-          return;
-        }
-      }else if(!hasCandleAnchor&&state.candles.length){
-        // Legacy/server markers without an original candle identity are pinned
-        // once to the current candle and its saved entry price.
-        const last=state.candles[state.candles.length-1];
-        anchorTime=Math.floor(Number(last.t)/1000);
-        anchorPrice=Number(t.markerPrice||t.entryPrice);
-        t.markerTime=anchorTime;
-        t.markerPrice=anchorPrice;
+      const anchorPrice=Number(t.lastFollowPrice??liveFollowPrice??lastCandle.c??lastCandle.close);
+      if(!Number.isFinite(anchorPrice)||anchorPrice<=0){
+        node.style.display="none";
+        return;
       }
       let x=null,y=null;
       try{
