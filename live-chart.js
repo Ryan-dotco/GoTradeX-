@@ -1186,21 +1186,21 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       const countdown=node.querySelector(".gtxTradeCountdown");
       const dots=node.querySelector(".gtxTradeEndDots");
       const expiryFlag=node.querySelector(".gtxTradeExpiryFlag");
-      // Anchor the marker to the CURRENT candle, not the candle that existed
-      // when the trade was opened. This keeps the line attached to the live wick
-      // as new candles arrive and when the user zooms or scrolls.
-      if(!state.candles.length){
-        node.style.display="none";
-        return;
-      }
-      const lastCandle=state.candles[state.candles.length-1];
-      const anchorTime=Math.floor(Number(lastCandle.t)/1000);
-      // Follow the same displayed market price used by the yellow live-price line.
-      // Keep the last real price briefly after expiry so the marker does not jump.
-      const liveFollowPrice=Number(state.displayPrice??state.price);
-      if(now<Number(t.expiryAt)&&Number.isFinite(liveFollowPrice)&&liveFollowPrice>0)t.lastFollowPrice=liveFollowPrice;
-      const anchorPrice=Number(t.lastFollowPrice??liveFollowPrice??lastCandle.c??lastCandle.close);
-      if(!Number.isFinite(anchorPrice)||anchorPrice<=0){
+      // Freeze the trade marker at the exact entry timestamp and entry price.
+      // It must NEVER follow the yellow live-price line or later candle wicks.
+      // Chart coordinate conversion below lets this fixed market point move on
+      // screen naturally during zoom/scroll without changing the actual entry.
+      const savedTime=Number(t.markerTime);
+      const savedEntryTime=Number(t.entryAt);
+      const anchorTime=Number.isFinite(savedTime)&&savedTime>0
+        ? Math.floor(savedTime)
+        : (Number.isFinite(savedEntryTime)&&savedEntryTime>0 ? Math.floor(savedEntryTime/1000) : NaN);
+      const savedMarkerPrice=Number(t.markerPrice);
+      const savedEntryPrice=Number(t.entryPrice);
+      const anchorPrice=Number.isFinite(savedMarkerPrice)&&savedMarkerPrice>0
+        ? savedMarkerPrice
+        : (Number.isFinite(savedEntryPrice)&&savedEntryPrice>0 ? savedEntryPrice : NaN);
+      if(!Number.isFinite(anchorTime)||!Number.isFinite(anchorPrice)||anchorPrice<=0){
         node.style.display="none";
         return;
       }
