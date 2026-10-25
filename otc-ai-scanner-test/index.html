@@ -4,7 +4,39 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GoTradeX - All in One</title>
-<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js">
+function signalText(){return 'GoTradeX OTC AI Analyzer\\nStatus: WAIT\\nNo verified OTC feed or vision engine is connected. No trading recommendation.';}
+document.getElementById('copyBtn').addEventListener('click',async()=>{
+  try { if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(signalText());noteStatus('Copied the current WAIT status.');}
+  else {const ta=document.createElement('textarea');ta.value=signalText();document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();noteStatus(ok?'Copied the current WAIT status.':'Copy is unavailable in this browser.');}}
+  catch(e){noteStatus('Copy unavailable in this browser.');}
+});
+document.getElementById('shareBtn').addEventListener('click',async()=>{
+  try {if(navigator.share) await navigator.share({title:'GoTradeX OTC AI Analyzer',text:signalText()}); else if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(signalText());noteStatus('Sharing is not supported here; WAIT status copied instead.');} else noteStatus('Share is not supported by this browser.');}
+  catch(e){if(e&&e.name!=='AbortError')noteStatus('Share could not be opened in this browser.');}
+});
+document.getElementById('setAlertBtn').addEventListener('click',()=>{
+ const asset=prompt('Asset (example EUR/USD):','EUR/USD'); if(!asset||!asset.trim()) return;
+ const condition=prompt('Condition (Price Above or Price Below):','Price Above'); if(!condition) return;
+ const price=prompt('Target price:',''); if(!price||!price.trim()||!Number.isFinite(Number(price))){document.getElementById('alertFeedback').textContent='Enter a valid numeric target price.';return;}
+ const row=document.createElement('div');row.className='alertItem';
+ const ico=document.createElement('div');ico.className='ico up';ico.textContent='🔔';
+ const label=document.createElement('div');label.style.fontSize='12px';label.textContent=asset.trim()+' — '+condition.trim()+' '+Number(price);
+ const badge=document.createElement('div');badge.className='badge active';badge.textContent='Local test';
+ row.append(ico,label,badge);const list=document.getElementById('activeAlerts');if(list.querySelector('.item'))list.innerHTML='';list.prepend(row);
+ document.getElementById('alertFeedback').textContent='Alert saved for this page session only. No broker notification is connected.';
+});
+document.querySelectorAll('.tabs').forEach(tabs=>tabs.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>{
+ tabs.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));tab.classList.add('active');
+ const msg=tab.textContent.trim();let note=tabs.nextElementSibling;
+ if(note&&note.classList.contains('card')){const p=document.createElement('p');p.style.cssText='color:#8da7cc;font-size:11px;margin-top:8px';p.textContent=msg==='New Alert'?'Create a local test alert below.':msg+' view selected; no server-backed alert history is connected.';const old=note.querySelector('.tabFeedback');if(old)old.remove();p.className='tabFeedback';note.appendChild(p);}
+ else if(tabs.parentElement){let n=tabs.parentElement.querySelector('.tabFeedback');if(!n){n=document.createElement('p');n.className='tabFeedback';n.style.cssText='color:#8da7cc;font-size:11px;padding:10px 12px';tabs.parentElement.insertBefore(n,tabs.nextElementSibling);}n.textContent=msg+' selected. Only verified signal history will be shown; none is connected yet.';}
+})));
+document.querySelectorAll('.switch').forEach(sw=>sw.addEventListener('click',()=>{const on=sw.getAttribute('aria-pressed')!=='true';sw.setAttribute('aria-pressed',String(on));sw.style.background=on?'#0a5bff':'#34415b';sw.style.opacity=on?'1':'.6';}));
+document.querySelectorAll('.pRow button.val').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.pRow button.val').forEach(b=>{b.textContent='Select';b.style.borderColor='#1a345f';});btn.textContent='Selected';btn.style.borderColor='#0a5bff';document.getElementById('priceFeedback').textContent='Selected '+btn.parentElement.querySelector('span').textContent.replace('★ ','')+'. Price feed is not connected, so no live price is displayed.';}));
+document.getElementById('savePriceSettings').addEventListener('click',()=>{document.getElementById('priceFeedback').textContent='Settings applied to this page session only. No server or broker alerts are connected.';});
+
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Inter,Segoe UI,sans-serif}
 body{background:#020a1d;display:flex;justify-content:center;padding:12px}
@@ -75,8 +107,8 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
       <div class="up"><div class="upBtn" onclick="cam.click()">📷 Camera</div><div class="upBtn" onclick="upl.click()">☁️ Upload</div></div>
       <input type="file" id="cam" accept="image/*" capture="environment" hidden><input type="file" id="upl" accept="image/*" hidden>
       <button class="signalBtn" id="signalBtn">✦ Get the Signal <span style="background:#072a8a;padding:3px 8px;border-radius:20px;font-size:10px">5-10s</span></button>
-      <div class="result" id="res"><div class="buy"><div><big>▲</big><br>BUY</div></div><div class="details"><div><i>Asset:</i> <b>EUR/USD</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">1.1005</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>Strong</b></div></div></div>
-      <div class="actRow"><div class="act" onclick="copy()">↗ Share</div><div class="act" onclick="copy()">⎙ Copy</div></div>
+      <div class="result" id="res"><div class="buy" style="background:linear-gradient(180deg,#3b3210,#241f0a);color:#ffd166"><div><big>—</big><br>WAIT</div></div><div class="details"><div><i>Asset:</i> <b>EUR/USD</b></div><div><i>Time:</i> <b>15m</b></div><div><i>Entry:</i> <b id="entry">1.1005</b></div><div><i>Expiration:</i> <b>5m</b></div><div><i>Momentum:</i> <b>Strong</b></div></div></div>
+      <div class="actRow"><button type="button" class="act" id="shareBtn">↗ Share</button><button type="button" class="act" id="copyBtn">⎙ Copy</button></div>
     </div>
   </div>
 
@@ -84,15 +116,15 @@ body{background:#020a1d;display:flex;justify-content:center;padding:12px}
   <div class="view" id="v-alerts">
     <div class="top"><div class="top-icon">🔔</div><div><h3 style="color:#fff;font-size:14px">Chart Alerts</h3><p style="color:#6b86b3;font-size:11px">Set alerts, get notified, trade smarter</p></div></div>
     <div class="tabs"><div class="tab active">New Alert</div><div class="tab">Active Alerts</div><div class="tab">History</div></div>
-    <div class="card"><h4 style="font-size:12px;margin-bottom:8px">Create New Alert</h4><div style="display:flex;gap:8px"><div style="flex:1"><div class="label">Asset</div><div class="input">EUR/USD ⌄</div></div><div style="flex:1"><div class="label">Condition</div><div class="input">Price Above ⌄</div></div></div><div style="display:flex;gap:8px;margin-top:8px"><div style="flex:1"><div class="label">Price</div><div class="input">1.1050</div></div><div style="flex:1"><div class="label">Expiry</div><div class="input">1 hour ⌄</div></div></div><button class="setBtn">🔔 Set Alert</button></div>
+    <div class="card"><h4 style="font-size:12px;margin-bottom:8px">Create New Alert</h4><div style="display:flex;gap:8px"><div style="flex:1"><div class="label">Asset</div><div class="input">EUR/USD ⌄</div></div><div style="flex:1"><div class="label">Condition</div><div class="input">Price Above ⌄</div></div></div><div style="display:flex;gap:8px;margin-top:8px"><div style="flex:1"><div class="label">Price</div><div class="input">1.1050</div></div><div style="flex:1"><div class="label">Expiry</div><div class="input">1 hour ⌄</div></div></div><button class="setBtn" id="setAlertBtn">🔔 Set Alert</button><p id="alertFeedback" role="status" style="font-size:11px;color:#8da7cc;margin-top:8px">No alerts saved in this test session.</p></div>
     <div style="padding:0 12px;color:#fff;font-size:12px">Active Alerts</div>
-    <div class="list"><div class="alertItem"><div class="ico up">↑</div><div style="font-size:12px"><div>EUR/USD</div><div style="color:#6b86b3">Price above 1.1050</div></div><div class="badge active">Active</div></div><div class="alertItem"><div class="ico down">↓</div><div style="font-size:12px"><div>BTC/USDT</div><div style="color:#6b86b3">Price below 83,000</div></div><div class="badge active">Active</div></div></div>
+    <div class="list" id="activeAlerts"><div class="item">No verified alerts are active yet. Create one above to test the control.</div></div>
   </div>
 
   <!-- VIEW 3: PRICE ALERT SETTINGS -->
   <div class="view" id="v-price">
-    <div class="pList"><div class="pRow"><span>★ EURUSD</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ XAUUSD</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ USOil</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ USDJPY</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ GBPUSD</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ GBPJPY</span><span>🔔 ⓘ ≡</span></div><div class="pRow"><span>★ AUDUSD</span><span>🔔 ⓘ ≡</span></div></div>
-    <div class="popup"><div style="font-size:12px;color:#8aa3c8;font-weight:700;margin-bottom:10px">🔔 Settings</div><div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#c2d3ef;font-size:11px"><label>Price rise to($) ≥1.11723</label><div style="display:flex;gap:8px"><div class="val">1.11730</div><div class="switch"></div></div></div><div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#c2d3ef;font-size:11px"><label>Price fall to($) ≤1.11623</label><div style="display:flex;gap:8px"><div class="val">1.11610</div><div class="switch"></div></div></div><div style="display:flex;justify-content:space-between;color:#c2d3ef;font-size:11px"><label>Daily changes exceeds(%)</label><div style="display:flex;gap:8px"><div class="val">0.012</div><div class="switch"></div></div></div><button class="save">Save</button></div>
+    <div class="pList"><div class="pRow"><span>★ EURUSD</span><button type="button" class="val">Select</button></div><div class="pRow"><span>★ XAUUSD</span><button type="button" class="val">Select</button></div><div class="pRow"><span>★ USOil</span><button type="button" class="val">Select</button></div><div class="pRow"><span>★ USDJPY</span><button type="button" class="val">Select</button></div><div class="pRow"><span>★ GBPUSD</span><button type="button" class="val">Select</button></div><div class="pRow"><span>★ GBPJPY</span><button type="button" class="val">Select</button></div><div class="pRow"><span>★ AUDUSD</span><button type="button" class="val">Select</button></div></div>
+    <div class="popup"><div style="font-size:12px;color:#8aa3c8;font-weight:700;margin-bottom:10px">🔔 Settings</div><div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#c2d3ef;font-size:11px"><label>Price rise to($) ≥1.11723</label><div style="display:flex;gap:8px"><div class="val">1.11730</div><button type="button" class="switch" aria-pressed="true" aria-label="Toggle price rise alert"></button></div></div><div style="display:flex;justify-content:space-between;margin-bottom:10px;color:#c2d3ef;font-size:11px"><label>Price fall to($) ≤1.11623</label><div style="display:flex;gap:8px"><div class="val">1.11610</div><button type="button" class="switch" aria-pressed="true" aria-label="Toggle price fall alert"></button></div></div><div style="display:flex;justify-content:space-between;color:#c2d3ef;font-size:11px"><label>Daily changes exceeds(%)</label><div style="display:flex;gap:8px"><div class="val">0.012</div><button type="button" class="switch" aria-pressed="true" aria-label="Toggle daily change alert"></button></div></div><button type="button" class="save" id="savePriceSettings">Save</button><p id="priceFeedback" role="status" style="font-size:11px;color:#8da7cc;margin-top:8px"></p></div>
   </div>
 
   <!-- VIEW 4: SIGNAL HISTORY -->
@@ -151,8 +183,8 @@ const sig=[];
 document.getElementById('sigList').innerHTML=sig.length?sig.map(s=>`<div class="item"><div class="ico ${s.dir}">${s.dir==='up'?'↑':'↓'}</div><div style="flex:1"><div style="font-size:12px;font-weight:700">${s.pair}</div><div style="color:#6b86b3;font-size:10px">${s.type} • ${s.tf} • ${s.date}</div></div><div style="color:${s.res==='WIN'?'#00ff88':'#ff3d57'};font-weight:700;font-size:12px">${s.pct}</div><div class="badge ${s.res==='WIN'?'active':''}" style="background:${s.res==='WIN'?'#0a3d1f':'#3a1120'};color:${s.res==='WIN'?'#00ff88':'#ff3d57'}">${s.res}</div></div>`).join('');
 // TRADE HISTORY
 const trades=[];
-document.getElementById('tradeList').innerHTML=trades.length?trades.map(t=>`<div class="item" style="border-left:3px solid ${t.dir==='long'?'#00e676':'#ff3d57'}"><div style="flex:1"><div style="font-weight:800;font-size:13px">${t.pair}</div><div style="color:#5a6a85;font-size:11px">Exit ${t.exit} Entry ${t.entry} ${t.lev} <span style="color:#00e676">${t.pct}</span><br>${t.date}</div></div><div style="color:#00e676;font-weight:800">${t.pnl}</div></div>`).join('':'<div class="item">No verified trade history is connected.</div>';
-function copy(){navigator.clipboard.writeText(document.getElementById('entry').innerText); alert('Copied!')}
+document.getElementById('tradeList').innerHTML=trades.length?trades.map(t=>`<div class="item" style="border-left:3px solid ${t.dir==='long'?'#00e676':'#ff3d57'}"><div style="flex:1"><div style="font-weight:800;font-size:13px">${t.pair}</div><div style="color:#5a6a85;font-size:11px">Exit ${t.exit} Entry ${t.entry} ${t.lev} <span style="color:#00e676">${t.pct}</span><br>${t.date}</div></div><div style="color:#00e676;font-weight:800">${t.pnl}</div></div>`).join(''):'<div class="item">No verified trade history is connected.</div>';
+
 </script>
 </body>
 </html>
