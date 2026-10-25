@@ -1,38 +1,49 @@
 # GoTradeX Withdrawal Fee Backend Review — Testing Only
 
-Status: READ-ONLY REVIEW COMPLETE. No database writes were performed.
+Status: READ-ONLY BACKEND SAFEGUARD REVIEW COMPLETE. No database writes, migration deployments, withdrawal requests, or payout submissions were performed.
 
-## Findings
+## Confirmed UI preview checks
 
-- The UI preview is configured for a 5% fee and passed manual preview checks:
-  - $10.00 gross → $0.50 fee → $9.50 net.
-  - $20.00 gross → $1.00 fee → $19.00 net.
-- The existing backend function is `public.gotradex_request_withdrawal(numeric, text)`.
-- The function enforces a minimum gross withdrawal of $10.00, rejects blank wallet addresses, locks the user's wallet row, checks wallet status and available withdrawable profit, and blocks a second pending request.
-- The function calculates fee and net amount from `public.gotradex_platform_finance.withdrawal_fee_pct`; it does not hard-code 5%.
-- The live finance setting was previously read as `withdrawal_fee_pct = 1.000`. Therefore the live backend configuration does not currently match the 5% UI preview.
-- IMPORTANT: calling the withdrawal function creates a real pending withdrawal request and ledger entries and deducts the gross amount from withdrawable profit. Do not call it for testing.
+- $10.00 gross → $0.50 fee → $9.50 net.
+- $20.00 gross → $1.00 fee → $19.00 net.
+- The standalone arithmetic checks also cover awkward cent values and larger amounts.
+- These checks validate arithmetic only, not live backend enforcement.
 
-## Zero-cost next action
+## Backend findings
 
-Do not create a Supabase branch/project, and do not apply SQL to the live project. Before enabling actual withdrawals, use an already-existing free isolated test database if one is available. If none is available, keep payouts disabled.
+- The withdrawal function is `public.gotradex_request_withdrawal(numeric, text)`.
+- It checks the $10.00 minimum, requires a nonblank wallet address, locks the wallet row, checks wallet status and available withdrawable profit, and blocks a second pending request.
+- It calculates fee and net amount from `public.gotradex_platform_finance.withdrawal_fee_pct`.
+- The live finance setting was read as `withdrawal_fee_pct = 1.000`, so production backend configuration does not match the 5% UI preview.
+- The `gotradex_withdrawals` table has constraints for gross amount >= $10, fee >= $0, net amount >= $0, and valid withdrawal statuses.
+- The `gotradex_withdrawal_security_guard` trigger runs before insert and status updates. Its trigger function checks `profiles.withdrawal_frozen_until` and `profiles.account_frozen_at` for pending, approved, or paid states.
+- Wallet balance fields have nonnegative constraints, and wallet transaction types are constrained to an allowed list.
+- Read-only policy/constraint inspection returned table constraints. It did not return policy rows for the four inspected tables in that query; this alone is not proof that all access paths are secure. RLS enablement, grants, and all API execution paths still need a separate focused audit before enabling withdrawals.
 
-The intended backend configuration change, for a future explicitly approved migration only, is to set the finance row's `withdrawal_fee_pct` to `5.000` while preserving the existing minimum-withdrawal check and security logic. This is a proposal only; no update statement has been run.
+## Critical warning: never use production withdrawal function as a test
 
-## Acceptance checks before any live enablement
+Calling `gotradex_request_withdrawal` can deduct the gross amount from withdrawable profit, create a real pending withdrawal, and create wallet ledger entries. Do not invoke it against production for validation.
 
-1. Confirm gross $10.00 → fee $0.50 → net $9.50.
-2. Confirm gross $20.00 → fee $1.00 → net $19.00.
-3. Confirm amounts below $10.00 are rejected.
-4. Confirm fee rounding to cents for awkward values (e.g. $123.45 → $6.17 fee → $117.28 net).
-5. Confirm a rejected request creates no withdrawal or ledger rows and does not change balances.
-6. Confirm one pending request prevents a second request.
-7. Confirm withdrawal freeze/security checks still apply.
-8. Keep payout submission disabled until these checks can be safely performed without real balance mutations.
+## Required before real withdrawals can be enabled
 
-## Protection boundaries
+1. Change the backend finance setting to 5.000 only through an explicitly approved, reviewed migration/change window. No such change has been made.
+2. Keep the minimum withdrawal at $10.00 and verify the function and database constraints agree.
+3. Verify the fee and net amount are consistently recorded in withdrawal and ledger rows.
+4. Confirm rejection paths produce no withdrawal/ledger rows and no balance changes.
+5. Confirm duplicate pending requests are blocked under concurrent requests.
+6. Confirm account and withdrawal freezes work on all relevant transitions.
+7. Audit RLS enablement, grants, function execute privileges, and direct API write paths.
+8. Run end-to-end tests only in an already-existing, free, isolated database that cannot affect real user balances. Do not create a paid Supabase branch/project. If no safe isolated database exists, keep payouts disabled.
+9. Keep the UI payout action disabled until backend verification is complete and explicitly approved.
 
-- Testing branch documentation only.
-- No Vault or Main changes.
-- No live SQL writes, migrations, or payout submissions.
-- No paid resources.
+## Zero-cost/protection boundaries
+
+- Changes in this document are Testing-branch documentation only.
+- No Supabase branch/project was created.
+- No live SQL writes, configuration updates, migrations, balance mutations, or payout submissions were performed.
+- Vault and Main remain untouched.
+- No paid resources are to be created or used.
+
+## Current verdict
+
+NOT READY FOR LIVE WITHDRAWALS. The preview math is correct, but production fee configuration remains 1%, and end-to-end backend enforcement has not been verified. Maintain preview-only mode.
