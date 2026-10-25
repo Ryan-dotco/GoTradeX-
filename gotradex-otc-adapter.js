@@ -29,15 +29,20 @@
         if(d) p=d+" OTC";
       }catch(_){}
     }
-    return PAIRS[p]?p:"EUR/USD OTC";
+    return PAIRS[p]?p:"";
   }
   function timeframe(sec){
     const v=TF[Number(sec)];
     if(!v) throw new Error("OTC timeframe is not supported: "+sec);
     return v;
   }
+  function requirePair(pair){
+    const p=String(pair||"").trim();
+    if(!PAIRS[p]) throw new Error("OTC Forex pair is not verified/configured: "+(p||"no pair selected")+". No pair substitution is allowed.");
+    return PAIRS[p];
+  }
   async function history(pair,sec){
-    const p=PAIRS[pair]||pair;
+    const p=requirePair(pair);
     const tf=timeframe(sec);
     const {data,error}=await client().from("otc_candles")
       .select("candle_time,open,high,low,close,volume")
@@ -49,12 +54,16 @@
     })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
   }
   async function price(pair){
-    const p=PAIRS[pair]||pair;
+    const p=requirePair(pair);
     const {data,error}=await client().from("otc_prices")
       .select("price,updated_at").eq("pair",p).maybeSingle();
     if(error) throw new Error("OTC price read failed: "+error.message);
     if(!data||!Number.isFinite(Number(data.price))) throw new Error("No OTC price is available for "+p+".");
-    return {price:Number(data.price),time:Date.parse(data.updated_at)||Date.now()};
+    const time=Date.parse(data.updated_at);
+    if(!Number.isFinite(time)) throw new Error("OTC stored price has no valid timestamp for "+p+".");
+    const age=Date.now()-time;
+    if(age>90000||age < -15000) throw new Error("OTC stored price is stale or future-dated for "+p+".");
+    throw new Error("Stored OTC price is read-only catch-up data, not proof of a live feed for "+p+".");
   }
   function withTimeout(promise,ms,message){
     return new Promise((resolve,reject)=>{
@@ -65,6 +74,7 @@
   function socket(pair,onTick,onStatus){
     let stopped=false,timer=null,inFlight=false;
     const endpoint=SUPABASE_URL+"/functions/v1/gotradex-otc-engine";
+    try{requirePair(pair)}catch(e){onStatus("OTC • FEED ERROR: "+e.message,false);return {close(){stopped=true}}}
     const poll=async()=>{
       if(stopped||inFlight)return;
       inFlight=true;
@@ -76,16 +86,17 @@
             body:JSON.stringify({action:"chart",pair,timeframe:60,tf:60,limit:20})
           }),2500,"OTC engine request timed out");
           const data=await withTimeout(res.json().catch(()=>null),1000,"OTC engine response timed out");
-          const p=Number(data?.price),t=Number(data?.serverTime||Date.now()/1000)*1000;
-          if(!res.ok||!Number.isFinite(p))throw new Error(data?.error||"OTC price unavailable");
+          const p=Number(data?.price);
+          const rawTime=Number(data?.serverTime);
+          const t=rawTime>1e12?rawTime:rawTime*1000;
+          if(!res.ok||!Number.isFinite(p)||p<=0)throw new Error(data?.error||"OTC price unavailable");
+          if(!Number.isFinite(t)||t<=0)throw new Error("OTC engine returned no valid provider timestamp.");
+          const age=Date.now()-t;
+          if(age>90000||age < -15000)throw new Error("OTC engine tick is stale or future-dated.");
           if(stopped)return;
           onTick({price:p,time:t});onStatus("OTC • LIVE ENGINE",true);
         }catch(engineError){
-          try{
-            const p=await withTimeout(price(pair),2000,"OTC stored-price request timed out");
-            if(stopped)return;
-            onTick(p);onStatus("OTC • DATA CATCH-UP",true);
-          }catch(_){if(!stopped)onStatus("OTC • WAITING",false)}
+          if(!stopped)onStatus("OTC • FEED ERROR: "+String(engineError?.message||"No verified live tick"),false);
         }
       }finally{inFlight=false}
     };
