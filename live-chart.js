@@ -1143,6 +1143,15 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     expiryTrades.forEach(t=>{
       const key=String(t.markerKey||(t.markerKey="marker-"+t.entryAt+"-"+(++expiryTradeCounter)));
       liveIds.add(key);
+      // A trade marker belongs only to the asset on which it was opened.
+      // Keep its countdown alive while another asset is selected, but never
+      // paint its line over that different asset's candles.
+      const activeAsset=String(selectedAssetFlag().label||"").replace(/\s+(LIVE|OTC)$/i,"").trim().toUpperCase();
+      const tradeAsset=String(t.asset&&t.asset.label||"").replace(/\s+(LIVE|OTC)$/i,"").trim().toUpperCase();
+      if(activeAsset!==tradeAsset){
+        if(t.markerNode)t.markerNode.style.display="none";
+        return;
+      }
       let node=t.markerNode;
       if(!node||node.parentNode!==layer){
         node=document.createElement("div");
@@ -1181,7 +1190,14 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // follows that candle horizontally through zoom/scroll, while its entry-price
       // level stays fixed; newer candles never steal it.
       let anchorTime=Number(t.markerTime);
-      let anchorPrice=Number(t.markerPrice||t.entryPrice);
+      // While the trade is running, follow the latest displayed market price
+      // (the yellow line) so the trade line remains attached to the live candle
+      // body/wick. After expiry, hold its last real price briefly for visibility.
+      const liveFollowPrice=Number(state.displayPrice??state.price);
+      if(now<Number(t.expiryAt)&&Number.isFinite(liveFollowPrice)&&liveFollowPrice>0)t.lastFollowPrice=liveFollowPrice;
+      let anchorPrice=now<Number(t.expiryAt)
+        ? Number(t.lastFollowPrice??t.markerPrice??t.entryPrice)
+        : Number(t.lastFollowPrice??t.markerPrice??t.entryPrice);
       let candleIndex=-1;
       const hasCandleAnchor=t.markerTime!==null&&t.markerTime!==undefined&&t.markerTime!==""&&Number.isFinite(anchorTime);
       if(hasCandleAnchor&&state.candles.length){
@@ -1190,12 +1206,14 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // Keep the original entry timestamp; coordinate conversion is performed
       // below through the shared time-scale helper for all chart intervals.
       if(candleIndex>=0){
-        // Keep the entry at the exact trade-entry price captured on BUY/SELL.
-        // Do not recalculate it from the candle body or wick as live ticks arrive:
-        // the horizontal price level and original candle identity stay fixed
-        // for the life of this trade.
-        anchorPrice=Number(t.markerPrice);
-        if(!Number.isFinite(anchorPrice))anchorPrice=Number(t.entryPrice);
+        // Preserve the original candle/time anchor, while the vertical line
+        // follows the real live price until expiry. It therefore stays attached
+        // to the moving candle/wick and still belongs to the opening asset.
+        if(now<Number(t.expiryAt)){
+          const currentPrice=Number(state.displayPrice??state.price);
+          if(Number.isFinite(currentPrice)&&currentPrice>0)t.lastFollowPrice=currentPrice;
+        }
+        anchorPrice=Number(t.lastFollowPrice??t.markerPrice??t.entryPrice);
         if(!Number.isFinite(anchorPrice)){
           node.style.display="none";
           return;
