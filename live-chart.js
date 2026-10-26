@@ -863,7 +863,9 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Count down from the timestamp of the actual latest candle bucket.
     // When it closes, hold at 00:00 until a genuine provider tick creates the
     // next candle. Never fake/reset the timer to imply a candle exists.
-    const now=Date.now(),period=Math.max(1,Number(state.sec)||300)*1000;
+    // Use the market/provider clock estimate for candle countdowns so a
+    // device clock offset cannot make candle timing drift from live feed time.
+    const now=marketNow(),period=Math.max(1,Number(state.sec)||300)*1000;
     const last=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
     const remaining=last&&Number.isFinite(Number(last.t))
       ? Math.max(0,period-Math.max(0,now-Number(last.t)))
