@@ -783,9 +783,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // First view: place the newest candle near the horizontal center, with
       // room on both sides. After this one-time setup, user zoom/pan is respected.
       const centerIndex=candles.length-1;
-      const halfWindow=30;
-      const from=Math.max(0,centerIndex-halfWindow);
-      const to=centerIndex+halfWindow;
+      // Show a longer verified market history while leaving a small amount of
+      // room to the right for incoming live candles; never fabricate future bars.
+      const historyWindow=60;
+      const futureRoom=12;
+      const from=Math.max(0,centerIndex-historyWindow);
+      const to=centerIndex+futureRoom;
       state.chart.timeScale().setVisibleLogicalRange({from,to});
       state.initialRangeSet=true;
     }
