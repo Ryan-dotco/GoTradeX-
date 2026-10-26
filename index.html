@@ -256,6 +256,42 @@ body>.app>#gtxChart.chart>#gtxLiveChart{position:relative!important;display:bloc
  body>.app>.bottom .trade{min-height:34px!important;height:34px!important}
 }
 </style>
+
+<style id="gtx-readable-responsive-testing">
+/* Restore readable trading labels without changing the existing dashboard structure. */
+#gtxChart .gtxLWCHead,#gtxChart .gtxLWCAsset,#gtxChart .gtxLWCDateExpiryRow,
+#gtxChart .gtxLWCNotice,#gtxChart .gtxLWCStatus,#gtxChart .gtxLWCCountdown,
+#gtxChart .gtxLWCTradeLabel{font-size:12px!important;line-height:1.25!important}
+#gtxChart .gtxLWCAsset{font-size:13px!important}
+#gtxChart .gtxLWCDateExpiryRow .gtxLWCSelect{font-size:12px!important;min-height:28px!important}
+#gtxChart .gtxLWCNotice{font-size:12px!important}
+#gtxChart .gtxLWC canvas{max-width:100%!important}
+.top .person strong{font-size:clamp(14px,1.4vw,18px)!important}
+.top .person span{font-size:clamp(11px,1vw,13px)!important}
+.pairbar .asset,.pairbar button,.pairbar .accountPickerBtn{font-size:clamp(12px,1.2vw,15px)!important}
+.bottom .asset,.bottom .autoBotBtn,.bottom .time,.bottom .amountValue{font-size:clamp(13px,1.3vw,17px)!important}
+.bottom .trade{font-size:clamp(17px,1.6vw,22px)!important;min-height:48px!important}
+.bottom .tradePercent{font-size:clamp(12px,1.1vw,15px)!important}
+.bottom .status{font-size:11px!important;line-height:1.35!important}
+@media(max-width:600px){
+ body>.app>#gtxChart.chart{height:46dvh!important;min-height:260px!important;max-height:54dvh!important;flex:0 1 auto!important}
+ #gtxChart .gtxLWCHead{font-size:12px!important}
+ #gtxChart .gtxLWCAsset{font-size:13px!important}
+ .top .person strong{font-size:14px!important}.top .person span{font-size:11px!important}
+ .pairbar .asset,.pairbar button,.pairbar .accountPickerBtn{font-size:12px!important}
+ .bottom .asset,.bottom .autoBotBtn,.bottom .time,.bottom .amountValue{font-size:14px!important}
+ .bottom .trade{font-size:18px!important;min-height:48px!important}
+ .bottom .status{font-size:10px!important}
+}
+@media(orientation:landscape) and (max-height:600px){
+ body>.app>#gtxChart.chart{height:48dvh!important;min-height:190px!important;max-height:58dvh!important;flex:0 1 auto!important}
+ body>.app>.top{padding:4px 9px!important}
+ body>.app>.pairbar{min-height:36px!important;padding:3px 8px!important}
+ body>.app>.bottom{padding:4px 8px calc(4px + env(safe-area-inset-bottom,0px))!important}
+ body>.app>.bottom .trade{height:42px!important;min-height:42px!important;font-size:18px!important}
+ #gtxChart .gtxLWCAsset{font-size:13px!important}
+}
+</style>
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
