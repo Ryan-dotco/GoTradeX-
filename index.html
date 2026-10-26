@@ -231,6 +231,28 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
 .gsp-settings-entry .gsp-entry-copy strong{display:block!important;margin:0!important;white-space:nowrap!important;font-size:inherit!important;}
 .gsp-settings-entry .gsp-entry-copy small{display:none!important;}
 </style>
+
+<style id="gtx-fullscreen-phone-testing">
+/* Testing-only: make the trading screen fill the actual phone viewport. */
+html,body{width:100%!important;height:100%!important;min-height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important}
+body{min-height:100dvh!important}
+body>.app{display:flex!important;flex-direction:column!important;width:100%!important;max-width:100%!important;height:100vh!important;height:100dvh!important;min-height:0!important;max-height:100dvh!important;margin:0!important;padding:0!important;overflow:hidden!important}
+body>.app>.top,body>.app>.pairbar,body>.app>.bottom{flex:0 0 auto!important;width:100%!important;max-width:100%!important}
+body>.app>#gtxChart.chart{display:block!important;position:relative!important;flex:1 1 0!important;min-width:0!important;min-height:160px!important;width:100%!important;height:auto!important;max-height:none!important;overflow:hidden!important;touch-action:pan-y!important}
+#gtxChart>*,#gtxChart canvas{max-width:100%!important}
+@media(max-width:600px){
+ body>.app>.top{padding:7px 9px!important}
+ body>.app>.pairbar{min-height:42px!important;padding:5px 7px!important}
+ body>.app>.bottom{padding:6px 7px calc(6px + env(safe-area-inset-bottom,0px))!important}
+ body>.app>.bottom .trade{min-height:46px!important}
+}
+@media(orientation:landscape) and (max-height:600px){
+ body>.app>.top{padding:3px 8px!important}
+ body>.app>.pairbar{min-height:34px!important;padding:2px 7px!important}
+ body>.app>.bottom{padding:3px 7px calc(3px + env(safe-area-inset-bottom,0px))!important}
+ body>.app>.bottom .trade{min-height:34px!important;height:34px!important}
+}
+</style>
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
