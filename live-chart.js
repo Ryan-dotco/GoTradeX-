@@ -349,18 +349,30 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   function mergeHistory(history){
     const merged=new Map();
     (Array.isArray(history)?history:[]).forEach(c=>{
-      if(c&&[c.t,c.o,c.h,c.l,c.c].every(v=>Number.isFinite(Number(v))))
-        merged.set(Number(c.t),{t:Number(c.t),o:Number(c.o),h:Number(c.h),l:Number(c.l),c:Number(c.c),v:Number(c.v||0)});
+      if(c&&[c.t,c.o,c.h,c.l,c.c].every(v=>Number.isFinite(Number(v)))){
+        const t=Number(c.t);
+        // Historical OHLC has no individual trade timestamps. Use the bucket
+        // start as a safe baseline until real live event times are available.
+        merged.set(t,{t,o:Number(c.o),h:Number(c.h),l:Number(c.l),c:Number(c.c),v:Number(c.v||0),
+          _firstTs:Number.isFinite(Number(c._firstTs))?Number(c._firstTs):t,
+          _lastTs:Number.isFinite(Number(c._lastTs))?Number(c._lastTs):t});
+      }
     });
-    // Live buckets always win for the latest close; historical OHLC is retained
-    // where it overlaps the same candle so late history cannot roll prices back.
+    // Preserve the live bucket's real event timestamps when merging history.
+    // Losing these fields lets a late-arriving tick overwrite open/close after
+    // history returns, which can make the candle body jump independently.
     state.candles.forEach(live=>{
       if(!live||![live.t,live.o,live.h,live.l,live.c].every(v=>Number.isFinite(Number(v))))return;
       const t=Number(live.t),old=merged.get(t);
       merged.set(t,old?{
-        t,o:old.o,h:Math.max(old.h,Number(live.h)),l:Math.min(old.l,Number(live.l)),
-        c:Number(live.c),v:Number(old.v||0)+Number(live.v||0)
-      }:{t,o:Number(live.o),h:Number(live.h),l:Number(live.l),c:Number(live.c),v:Number(live.v||0)});
+        t,o:Number.isFinite(Number(live._firstTs))&&Number(live._firstTs)>0?Number(live.o):old.o,
+        h:Math.max(old.h,Number(live.h)),l:Math.min(old.l,Number(live.l)),
+        c:Number(live.c),v:Number(old.v||0)+Number(live.v||0),
+        _firstTs:Number.isFinite(Number(live._firstTs))?Number(live._firstTs):Number(old._firstTs||t),
+        _lastTs:Number.isFinite(Number(live._lastTs))?Number(live._lastTs):Number(old._lastTs||t)
+      }:{t,o:Number(live.o),h:Number(live.h),l:Number(live.l),c:Number(live.c),v:Number(live.v||0),
+        _firstTs:Number.isFinite(Number(live._firstTs))?Number(live._firstTs):t,
+        _lastTs:Number.isFinite(Number(live._lastTs))?Number(live._lastTs):t});
     });
     state.candles=Array.from(merged.values()).sort((a,b)=>a.t-b.t).slice(-500);
     if(state.candles.length)state.price=state.candles[state.candles.length-1].c;
