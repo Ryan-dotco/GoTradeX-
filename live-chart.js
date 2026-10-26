@@ -61,7 +61,7 @@
     const s=document.createElement("style");
     s.id="gtx-lwc-style";
     s.textContent=
-      "#gtxLiveChart{position:relative;width:100%;height:clamp(330px,52vh,560px);min-height:300px;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
+      "#gtxLiveChart{position:relative;width:100%;height:100%;min-height:0;max-height:none;background:#07111d;border:0;border-radius:0;overflow:hidden;box-sizing:border-box;touch-action:none;user-select:none}"+
       "#gtxLWC{position:absolute;inset:0;width:100%;height:100%}"+
       ".gtxLWCHead{position:absolute;z-index:10;top:7px;left:8px;right:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:6px;pointer-events:none}"+
       ".gtxLWCHead>*{pointer-events:auto}"+
@@ -111,7 +111,7 @@
       ".gtxTradeTag .gtxTradeCountdown{display:block;text-align:right;font-size:10px;font-variant-numeric:tabular-nums}"+
       ".gtxTradeAB{display:inline-block;margin-right:3px;padding:1px 3px;border-radius:3px;background:#f7c948;color:#15202b;font-size:8px;animation:none!important;transform:none!important;opacity:1!important}"+
       ".gtxLWCWatermark{position:absolute;z-index:2;right:70px;bottom:34px;color:#42627e;font:900 10px system-ui;letter-spacing:.08em;pointer-events:none}"+
-      "@media(max-width:600px){#gtxLiveChart{height:clamp(300px,50vh,440px);min-height:300px}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset{height:23px;font-size:9px;padding:4px 5px}.gtxLWCDateExpiryRow .gtxLWCSelect{height:23px;width:auto;min-width:0;font-size:9px;padding:3px 4px}.gtxLWCTypeButton{width:88px;min-width:88px;height:30px;font-size:12px;padding:5px 6px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCStatus{right:68px;bottom:24px;font-size:9px}.gtxLWCTypeMenu{right:auto!important;min-width:170px}.gtxLWCTypePickerTop{right:auto;top:auto;max-width:86px}.gtxLWCTypePickerTop .gtxLWCTypeButton{width:84px;min-width:84px;height:30px;font-size:12px;padding:3px 2px}.gtxLWCWatermark{display:none}}";
+      "@media(max-width:600px){#gtxLiveChart{height:100%;min-height:0;max-height:none}.gtxLWCHead{left:5px;right:5px;gap:4px}.gtxLWCAsset{height:23px;font-size:9px;padding:4px 5px}.gtxLWCDateExpiryRow .gtxLWCSelect{height:23px;width:auto;min-width:0;font-size:9px;padding:3px 4px}.gtxLWCTypeButton{width:88px;min-width:88px;height:30px;font-size:12px;padding:5px 6px}.gtxLWCDateTime{font-size:8px}.gtxLWCControl{gap:3px;max-width:78%;}.gtxLWCStatus{right:68px;bottom:24px;font-size:9px}.gtxLWCTypeMenu{right:auto!important;min-width:170px}.gtxLWCTypePickerTop{right:auto;top:auto;max-width:86px}.gtxLWCTypePickerTop .gtxLWCTypeButton{width:84px;min-width:84px;height:30px;font-size:12px;padding:3px 2px}.gtxLWCWatermark{display:none}}";
     document.head.appendChild(s);
   }
 
