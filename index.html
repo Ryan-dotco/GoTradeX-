@@ -292,6 +292,30 @@ body>.app>#gtxChart.chart>#gtxLiveChart{position:relative!important;display:bloc
  #gtxChart .gtxLWCAsset{font-size:13px!important}
 }
 </style>
+
+<style id="gtx-first-trading-page-readable-text">
+/* Slightly larger, phone-readable type on the first trading screen only. */
+body>.app>.top .person strong{font-size:clamp(16px,1.55vw,19px)!important}
+body>.app>.top .person span{font-size:clamp(12px,1.1vw,14px)!important}
+body>.app>.pairbar button,body>.app>.pairbar .asset,body>.app>.pairbar .accountPickerBtn{font-size:clamp(14px,1.25vw,16px)!important}
+body>.app>.bottom .asset,body>.app>.bottom .autoBotBtn,body>.app>.bottom .time,body>.app>.bottom .amountValue{font-size:clamp(15px,1.4vw,18px)!important}
+body>.app>.bottom .trade{font-size:clamp(19px,1.8vw,23px)!important}
+body>.app>.bottom .tradePercent{font-size:clamp(13px,1.15vw,16px)!important}
+body>.app>.bottom .status{font-size:clamp(11px,1vw,12px)!important;line-height:1.4!important}
+#gtxChart .gtxLWCHead,#gtxChart .gtxLWCDateExpiryRow,#gtxChart .gtxLWCNotice,#gtxChart .gtxLWCStatus,#gtxChart .gtxLWCCountdown,#gtxChart .gtxLWCTradeLabel{font-size:13px!important;line-height:1.3!important}
+#gtxChart .gtxLWCAsset{font-size:14px!important}
+@media(max-width:600px){
+ body>.app>.top .person strong{font-size:15px!important}
+ body>.app>.top .person span{font-size:12px!important}
+ body>.app>.pairbar button,body>.app>.pairbar .asset,body>.app>.pairbar .accountPickerBtn{font-size:14px!important}
+ body>.app>.bottom .asset,body>.app>.bottom .autoBotBtn,body>.app>.bottom .time,body>.app>.bottom .amountValue{font-size:15px!important}
+ body>.app>.bottom .trade{font-size:19px!important}
+ body>.app>.bottom .tradePercent{font-size:13px!important}
+ body>.app>.bottom .status{font-size:11px!important}
+ #gtxChart .gtxLWCHead,#gtxChart .gtxLWCDateExpiryRow,#gtxChart .gtxLWCNotice,#gtxChart .gtxLWCStatus,#gtxChart .gtxLWCCountdown,#gtxChart .gtxLWCTradeLabel{font-size:13px!important}
+ #gtxChart .gtxLWCAsset{font-size:14px!important}
+}
+</style>
 </head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
