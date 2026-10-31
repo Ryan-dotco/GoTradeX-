@@ -952,8 +952,9 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const candleTime=lastCandle&&Number(lastCandle.t)>0?Math.floor(Number(lastCandle.t)/1000):null;
     const markerTime=candleTime;
     const markerTimeExact=candleTime!==null?candleTime*1000:null;
+    const markerLogicalIndex=lastCandle?state.candles.length-1:null;
     const markerPrice=entryPrice;
-    const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerTimeExact,markerPrice,amount:null,expiryAt,marker:null};
+    const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerTimeExact,markerLogicalIndex,markerPrice,amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
@@ -962,7 +963,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // The server response will confirm/update it; a rejected order removes it.
     intent.marker={
       id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:localNow,expiryAt,
-      entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerTimeExact:intent.markerTimeExact,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
+      entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerTimeExact:intent.markerTimeExact,markerLogicalIndex:intent.markerLogicalIndex,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
     expiryTrades.push(intent.marker);
@@ -1207,8 +1208,14 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
         // Use the active candle's native time coordinate (its centre), not the
         // provider tick's fractional timestamp. That pins the line to the candle
         // itself and keeps the attachment stable through zoom and horizontal scroll.
-        if(Number.isFinite(anchorTime)&&state.chart&&state.chart.timeScale()){
-          x=state.chart.timeScale().timeToCoordinate(anchorTime);
+        const timeScale=state.chart&&state.chart.timeScale();
+        if(Number.isFinite(anchorTime)&&timeScale){
+          x=timeScale.timeToCoordinate(anchorTime);
+        }
+        // Fallback to the captured active-candle logical index if the library
+        // cannot resolve the timestamp after a range/zoom transition.
+        if((x===null||x===undefined||!Number.isFinite(x))&&timeScale&&Number.isFinite(Number(t.markerLogicalIndex))){
+          x=timeScale.logicalToCoordinate(Number(t.markerLogicalIndex));
         }
         if((x===null||x===undefined||!Number.isFinite(x))&&Number.isFinite(anchorTime)){
           x=coordinateForTimestamp(anchorTime*1000);
@@ -1221,18 +1228,17 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
           if(priceY!==null&&priceY!==undefined&&Number.isFinite(priceY))y=priceY;
         }
       }catch(_){}
-      // Lightweight Charts returns null coordinates when the anchored candle
-      // is outside the visible range. Hide the whole marker with that candle.
-      if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)||x<0||x>layer.clientWidth){
+      // Keep the marker alive whenever its rightward segment can intersect the
+      // visible chart. A candle just left of the viewport may still project into it.
+      if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)||x>layer.clientWidth){
         node.style.display="none";
         return;
       }
       node.style.display="";
       const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
-      // The yellow entry line starts at the exact live entry-price coordinate
-      // at the original candle timestamp and runs toward the expiry endpoint. The expiry flag,
-      // pair label and countdown share that same price level/endpoint.
-      const bodyCenterX=x;
+      // timeToCoordinate returns the candle centre. Start at its right edge so
+      // the yellow guide visibly grows out of the latest candle, left-to-right.
+      const bodyCenterX=x+Math.max(2,barSpacing*0.48);
       // Use the selected trade's real expiry timestamp to place the endpoint in
       // chart time coordinates. This makes a 5-minute expiry span five 1-minute
       // candles (or the corresponding duration on another chart timeframe).
