@@ -719,13 +719,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       priceLineVisible:false,lastValueVisible:false,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
-    // Restore the approved yellow live-price line and matching right-axis label.
+    // Live-price line colour follows the currently forming candle direction.
     state.currentPriceLine=state.candleSeries.createPriceLine({
-      price:Number(state.price)||0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Solid,
+      price:Number(state.price)||0,color:activeCandleDirectionColor(),lineWidth:1,lineStyle:C.LineStyle.Solid,
       axisLabelVisible:true,title:"LIVE"
     });
-    // Keep the yellow LIVE line reference: updateCurrentPriceLine() moves this
-    // exact line on each verified tick. Do not clear it after creating it.
+    // Keep this LIVE line reference and update its price and direction on each verified tick.
     // Alternate chart styles are created only when selected from the single chart-style menu.
     state.barSeries=null;state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
@@ -806,9 +805,22 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     positionTradeOverlay();
   }
 
+  function activeCandleDirectionColor(){
+    let candle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+    if(state.chartType==="heikin"){
+      try{
+        const ha=seriesCandleData();
+        if(ha&&ha.length)candle=ha[ha.length-1];
+      }catch(_){}
+    }
+    const open=Number(candle&&(candle.o!==undefined?candle.o:candle.open));
+    const close=Number(candle&&(candle.c!==undefined?candle.c:candle.close));
+    if(Number.isFinite(open)&&Number.isFinite(close))return close>=open?"#22c55e":"#ef4444";
+    return "#22c55e";
+  }
   function updateCurrentPriceLine(){
     if(!state.currentPriceLine||!Number.isFinite(Number(state.price)))return;
-    try{state.currentPriceLine.applyOptions({price:Number(state.price),axisLabelVisible:true});}catch(_){}
+    try{state.currentPriceLine.applyOptions({price:Number(state.price),color:activeCandleDirectionColor(),axisLabelVisible:true});}catch(_){}
     positionCandleTimer();
   }
 
@@ -937,8 +949,9 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Fractional candle positioning keeps the marker aligned with the actual entry moment.
     const sourceTime=Number(state.diag.lastSourceTime)||now;
     const markerTime=Number.isFinite(sourceTime)&&sourceTime>0?Math.floor(sourceTime/1000):null;
+    const markerTimeExact=Number.isFinite(sourceTime)&&sourceTime>0?sourceTime:null;
     const markerPrice=entryPrice;
-    const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerPrice,amount:null,expiryAt,marker:null};
+    const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerTimeExact,markerPrice,amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
@@ -947,7 +960,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // The server response will confirm/update it; a rejected order removes it.
     intent.marker={
       id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:localNow,expiryAt,
-      entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
+      entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerTimeExact:intent.markerTimeExact,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
     expiryTrades.push(intent.marker);
@@ -1047,15 +1060,25 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     renderExpiryMarkers();
   }
   function coordinateForTimestamp(timestampMs){
-    if(!state.chart||!state.candles.length)return null;
-    const ts=timestampMs/1000, scale=state.chart.timeScale();
-    const exact=scale.timeToCoordinate(Math.floor(ts));
-    if(exact!==null&&exact!==undefined)return exact;
-    const lastIndex=state.candles.length-1;
-    const last=state.candles[lastIndex];
-    const lastTime=Math.floor(Number(last.t)/1000);
-    const logical=lastIndex+(ts-lastTime)/(Number(state.sec)||300);
-    return scale.logicalToCoordinate(logical);
+    if(!state.chart||!state.candles.length||!Number.isFinite(Number(timestampMs)))return null;
+    const ts=Number(timestampMs)/1000, scale=state.chart.timeScale();
+    const interval=Math.max(1,Number(state.sec)||300);
+    // Map timestamps to fractional candle positions, not just candle centres.
+    // This preserves the actual click-time entry position and places expiry on
+    // the exact duration boundary (e.g. five M1 intervals for a five-minute trade).
+    let baseIndex=-1,baseTime=0;
+    for(let i=state.candles.length-1;i>=0;i--){
+      const candleTime=Math.floor(Number(state.candles[i].t)/1000);
+      if(Number.isFinite(candleTime)&&candleTime<=ts){
+        baseIndex=i;baseTime=candleTime;break;
+      }
+    }
+    if(baseIndex<0){
+      const firstTime=Math.floor(Number(state.candles[0].t)/1000);
+      if(!Number.isFinite(firstTime))return null;
+      return scale.logicalToCoordinate((ts-firstTime)/interval);
+    }
+    return scale.logicalToCoordinate(baseIndex+(ts-baseTime)/interval);
   }
   function formatRemaining(ms){
     const s=Math.max(0,Math.ceil(ms/1000));
@@ -1179,7 +1202,9 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       }
       let x=null,y=null;
       try{
-        if(Number.isFinite(anchorTime))x=coordinateForTimestamp(anchorTime*1000);
+        const exactEntryTime=Number(t.markerTimeExact);
+      if(Number.isFinite(exactEntryTime)&&exactEntryTime>0)x=coordinateForTimestamp(exactEntryTime);
+      else if(Number.isFinite(anchorTime))x=coordinateForTimestamp(anchorTime*1000);
         // Recalculate the vertical coordinate from the fixed entry price on every
         // render. This keeps the marker aligned through price-scale changes, zoom,
         // resize, and timeframe changes instead of preserving a stale screen pixel.
@@ -1211,7 +1236,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // Center the expiry label/countdown on the actual endpoint, including short expiries.
       const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
-      line.style.background="#ffd84d";line.style.height="2px";line.style.opacity=".98";
+      line.style.background="repeating-linear-gradient(to right,#ffd84d 0 2px,transparent 2px 5px)";line.style.height="2px";line.style.opacity=".98";
       // Three small dots sit at the expiry end; the pair/flag sits above and
       // the live countdown sits below the same line level.
       if(dots){dots.style.left=(endX+3)+"px";dots.style.top=(y-4)+"px";}
