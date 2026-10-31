@@ -945,11 +945,13 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const latest=lastCandle?Number(lastCandle.c):NaN;
     // The actual latest verified tick is the entry price; candle close is only a fallback.
     const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
-    // Anchor the line to the provider-time of the entry tick, not the candle open.
-    // Fractional candle positioning keeps the marker aligned with the actual entry moment.
-    const sourceTime=Number(state.diag.lastSourceTime)||now;
-    const markerTime=Number.isFinite(sourceTime)&&sourceTime>0?Math.floor(sourceTime/1000):null;
-    const markerTimeExact=Number.isFinite(sourceTime)&&sourceTime>0?sourceTime:null;
+    // Anchor horizontally to the active candle that is moving when BUY/SELL is pressed.
+    // Keep the exact live tick as the fixed entry price, but use the candle's own
+    // timestamp so the line begins inside that candle's wick/body and stays there
+    // when the chart is zoomed or scrolled.
+    const candleTime=lastCandle&&Number(lastCandle.t)>0?Math.floor(Number(lastCandle.t)/1000):null;
+    const markerTime=candleTime;
+    const markerTimeExact=candleTime!==null?candleTime*1000:null;
     const markerPrice=entryPrice;
     const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerTimeExact,markerPrice,amount:null,expiryAt,marker:null};
     try{
@@ -1202,9 +1204,15 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       }
       let x=null,y=null;
       try{
-        const exactEntryTime=Number(t.markerTimeExact);
-      if(Number.isFinite(exactEntryTime)&&exactEntryTime>0)x=coordinateForTimestamp(exactEntryTime);
-      else if(Number.isFinite(anchorTime))x=coordinateForTimestamp(anchorTime*1000);
+        // Use the active candle's native time coordinate (its centre), not the
+        // provider tick's fractional timestamp. That pins the line to the candle
+        // itself and keeps the attachment stable through zoom and horizontal scroll.
+        if(Number.isFinite(anchorTime)&&state.chart&&state.chart.timeScale()){
+          x=state.chart.timeScale().timeToCoordinate(anchorTime);
+        }
+        if((x===null||x===undefined||!Number.isFinite(x))&&Number.isFinite(anchorTime)){
+          x=coordinateForTimestamp(anchorTime*1000);
+        }
         // Recalculate the vertical coordinate from the fixed entry price on every
         // render. This keeps the marker aligned through price-scale changes, zoom,
         // resize, and timeframe changes instead of preserving a stale screen pixel.
