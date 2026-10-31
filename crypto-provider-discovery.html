@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GoTradeX Crypto Provider Discovery</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#061426;color:#eaf2ff;font:14px system-ui,sans-serif;padding:16px}.wrap{max-width:1050px;margin:auto}h1{font-size:22px;margin:0 0 8px}.muted{color:#9bb0c9}.note{line-height:1.5;margin:12px 0}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.box,.asset{border:1px solid #203b5a;border-radius:10px;padding:10px;background:#0a1d33}.n{font-size:20px;font-weight:800}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}button{background:#16834a;color:white;border:0;border-radius:8px;padding:11px 14px;font-weight:700}button:disabled{opacity:.5}.tablewrap{overflow:auto}.results{width:100%;border-collapse:collapse;font-size:12px}.results th,.results td{border:1px solid #203b5a;padding:8px;text-align:left;white-space:nowrap}.results th{background:#102943;position:sticky;top:0}.yes{color:#4ade80;font-weight:800}.no{color:#fb7185;font-weight:800}.unk{color:#fbbf24;font-weight:800}.foot{margin-top:14px;line-height:1.55}@media(max-width:520px){.summary{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><div class="wrap">
+<h1>GoTradeX · Crypto Provider Discovery</h1>
+<div class="muted">Isolated read-only catalogue check · 99 app assets · no orders placed</div>
+<p class="note">This checks provider symbol catalogues, not trade execution. A provider marked FOUND has a matching market symbol in the catalogue response. NOT FOUND means no matching pair was found in that response. CHECK ERROR means the public endpoint could not be read from this browser; it does not mean the asset is unavailable. USD and USDT are not interchangeable, and listing does not prove a working live feed.</p>
+<div class="summary"><div class="box"><div class="muted">Assets checked</div><div class="n" id="total">99</div></div><div class="box"><div class="muted">Provider catalogues loaded</div><div class="n" id="loaded">0 / 6</div></div><div class="box"><div class="muted">Assets with at least one match</div><div class="n" id="matched">—</div></div></div>
+<div class="actions"><button id="run">Check all providers</button><button id="csv">Export CSV</button></div><div id="progress" class="box" role="status" style="margin:12px 0">Ready. The test will show each provider status here.</div><div id="providerStatus" class="summary"></div>
+<div class="tablewrap"><table class="results"><thead><tr><th>App asset</th><th>Bybit Spot</th><th>Bybit Linear</th><th>Binance Spot</th><th>Kraken</th><th>Coinbase</th><th>Deriv</th></tr></thead><tbody id="resultsBody"></tbody></table></div>
+<div class="foot muted"><b>Interpretation:</b> this is a discovery pass. It does not add, remove, or change any GoTradeX asset or feed. A listed result must still pass a separate real-time ticker/candle test before being treated as verified. Bybit Spot/Linear, Binance Spot, Kraken and Coinbase are exchange catalogues; Deriv is a broker's active-underlying catalogue and may offer a different contract type. Provider access and available products can vary by region/account.</div>
+</div>
+<script>
+const pairs=["BTC/USD","ETH/USD","XRP/USD","SOL/USD","ADA/USD","DOGE/USD","LTC/USD","BNB/USD","AVAX/USD","DOT/USD","LINK/USD","TRX/USD","TON/USD","ATOM/USD","UNI/USD","BCH/USD","ETC/USD","XLM/USD","NEAR/USD","APT/USD","ARB/USD","OP/USD","SUI/USD","FIL/USD","ALGO/USD","SHIB/USD","PEPE/USD","AAVE/USD","ICP/USD","INJ/USD","SEI/USD","WIF/USD","RENDER/USD","SAND/USD","MANA/USD","GALA/USD","FET/USD","ONDO/USD","JUP/USD","POL/USD","RUNE/USD","IMX/USD","LDO/USD","CRV/USD","AR/USD","STX/USD","TIA/USD","KAS/USD","HBAR/USD","VET/USD","XTZ/USD","THETA/USD","ZIL/USD","EGLD/USD","KAVA/USD","ROSE/USD","MINA/USD","QNT/USD","ENS/USD","COMP/USD","SNX/USD","DYDX/USD","PENDLE/USD","ENA/USD","WLD/USD","JTO/USD","PYTH/USD","JASMY/USD","AXS/USD","CHZ/USD","BOME/USD","NOT/USD","STRK/USD","ZK/USD","BLUR/USD","MASK/USD","GMT/USD","APE/USD","FLOW/USD","DYM/USD","ALT/USD","AEVO/USD","ORDI/USD","CORE/USD","BEAM/USD","GRT/USD","QTUM/USD","LRC/USD","ENJ/USD","BAT/USD","ZRX/USD","1INCH/USD","YFI/USD","TWT/USD","ARKM/USD","MANTA/USD","BLAST/USD","ZETA/USD","XAI/USD"];
+const providers=["Bybit Spot","Bybit Linear","Binance Spot","Kraken","Coinbase","Deriv"];
+const state=Object.fromEntries(pairs.map(p=>[p,Object.fromEntries(providers.map(k=>[k,{status:"WAIT",symbol:""}]))]));
+const $=id=>document.getElementById(id);
+function setProvider(name, catalog, parse) {
+  for(const pair of pairs){
+    const base=pair.split("/")[0]; const hit=parse(base,catalog);
+    state[pair][name]=hit?{status:"FOUND",symbol:hit}:{status:"NOT FOUND",symbol:""};
+  }
+}
+function showStatus(v){if(v.status==="FOUND")return '<span class="yes" title="'+esc(v.symbol)+'">FOUND</span>';if(v.status==="NOT FOUND")return '<span class="no">NOT FOUND</span>';if(v.status==="ERROR")return '<span class="unk">CHECK ERROR</span>';return '<span class="unk">WAIT</span>'}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function render(){
+  $("resultsBody").innerHTML=pairs.map(p=>'<tr><td>'+p+'</td>'+providers.map(k=>'<td>'+showStatus(state[p][k])+'</td>').join("")+'</tr>').join("");
+  const loaded=providers.filter(k=>pairs.some(p=>["FOUND","NOT FOUND","ERROR"].includes(state[p][k].status))).length;
+  $("loaded").textContent=loaded+" / "+providers.length;
+  $("matched").textContent=pairs.filter(p=>providers.some(k=>state[p][k].status==="FOUND")).length;
+  $("providerStatus").innerHTML=providers.map(k=>{
+    const vals=pairs.map(p=>state[p][k].status);
+    const found=vals.filter(v=>v==="FOUND").length;
+    const missing=vals.filter(v=>v==="NOT FOUND").length;
+    const errors=vals.filter(v=>v==="ERROR").length;
+    const waiting=vals.filter(v=>v==="WAIT").length;
+    const label=errors?"CHECK ERROR":waiting?"CHECKING":found+missing===pairs.length?"FINISHED":"WAITING";
+    return '<div class="box"><b>'+esc(k)+'</b><div class="muted">'+label+'</div><div class="n">'+found+' found</div><div class="muted">'+missing+' not found · '+errors+' errors · '+waiting+' waiting</div></div>';
+  }).join("");
+}
+async function json(url){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(url,{cache:"no-store",signal:controller.signal});if(!r.ok)throw Error("HTTP "+r.status);return await r.json()}catch(e){if(e.name==="AbortError")throw Error("Timed out after 12 seconds");throw Error(e.message||"Network/CORS blocked")}finally{clearTimeout(timer)}}
+async function checkBybit(category,name){
+ const d=await json("https://api.bybit.com/v5/market/instruments-info?category="+category+"&limit=1000);
+ if(d.retCode!==0||!Array.isArray(d.result?.list))throw Error(d.retMsg||"Bad Bybit response");
+ const list=d.result.list.filter(x=>x.status==="Trading");
+ setProvider(name,list,(base,a)=>{const x=a.find(i=>i.baseCoin===base&&["USDT","USDC","USD"].includes(i.quoteCoin));return x?.symbol||""});
+}
+async function checkBinance(){
+ const d=await json("https://api.binance.com/api/v3/exchangeInfo");
+ if(!Array.isArray(d.symbols))throw Error("Bad Binance response");
+ const list=d.symbols.filter(x=>x.status==="TRADING"&&x.isSpotTradingAllowed!==false);
+ setProvider("Binance Spot",list,(base,a)=>{const x=a.find(i=>i.baseAsset===base&&["USDT","USDC","USD"].includes(i.quoteAsset));return x?.symbol||""});
+}
+async function checkKraken(){
+ const d=await json("https://api.kraken.com/0/public/AssetPairs");
+ if(!d.result||!Array.isArray(d.error)||d.error.length)throw Error("Bad Kraken response");
+ const list=Object.values(d.result);
+ const alias={BTC:["XBT","BTC"],DOGE:["XDG","DOGE"],POL:["POL","MATIC"]};
+ setProvider("Kraken",list,(base,a)=>{const bases=alias[base]||[base];const x=a.find(i=>bases.includes(i.base)||bases.includes(i.altname?.replace(/(USD|USDT|USDC)$/,"")) || bases.some(b=>String(i.wsname||"").startsWith(b+"/")) && /\/(USD|USDT|USDC)$/.test(i.wsname||""));return x?.wsname||x?.altname||""});
+}
+async function checkCoinbase(){
+ const d=await json("https://api.exchange.coinbase.com/products");
+ if(!Array.isArray(d))throw Error("Bad Coinbase response");
+ const list=d.filter(x=>x.status==="online"&&x.trading_disabled!==true);
+ setProvider("Coinbase",list,(base,a)=>{const x=a.find(i=>i.base_currency===base&&["USD","USDT","USDC"].includes(i.quote_currency));return x?.id||""});
+}
+function getDerivName(x){return String(x.display_name||x.underlying_symbol_name||x.symbol||x.underlying_symbol||"").toUpperCase().replace(/\s+/g,"")}
+async function checkDeriv(){
+ await new Promise((resolve,reject)=>{
+   let ws,done=false;const timer=setTimeout(()=>finish(Error("Deriv active-symbols timeout")),10000);
+   const finish=e=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close()}catch(_){};e?reject(e):resolve()};
+   try{ws=new WebSocket("wss://ws.derivws.com/websockets/v3?app_id=1089")}catch(e){finish(e);return}
+   ws.onopen=()=>ws.send(JSON.stringify({active_symbols:"brief",product_type:"basic"}));
+   ws.onerror=()=>finish(Error("Deriv WebSocket error"));
+   ws.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}
+     if(d.error){finish(Error(d.error.message||"Deriv returned an error"));return}
+     if(d.msg_type==="active_symbols"&&Array.isArray(d.active_symbols)){
+       const list=d.active_symbols.filter(x=>/crypto/i.test(String(x.market||"")+" "+String(x.submarket||"")+" "+String(x.underlying_symbol_type||"")));
+       setProvider("Deriv",list,(base,a)=>{const x=a.find(i=>{const name=getDerivName(i);const sym=String(i.symbol||i.underlying_symbol||"").toUpperCase();return name.includes(base+"/USD")||name.includes(base+"USD")||name===base||sym.includes("CRY"+base)||sym==="CRY"+base+"USD"||sym===base+"USD"});return x?.symbol||x?.underlying_symbol||x?.display_name||x?.underlying_symbol_name||""});
+       finish();
+     }
+   };
+ });
+}
+async function run(){
+ if(window.__providerTestRunning)return;
+ window.__providerTestRunning=true;
+ $("run").disabled=true;
+ $("progress").textContent="Starting checks…";
+ for(const k of providers)for(const p of pairs)state[p][k]={status:"WAIT",symbol:""};
+ render();
+ const jobs=[
+  ["Bybit Spot",()=>checkBybit("spot","Bybit Spot")],
+  ["Bybit Linear",()=>checkBybit("linear","Bybit Linear")],
+  ["Binance Spot",checkBinance],["Kraken",checkKraken],["Coinbase",checkCoinbase],["Deriv",checkDeriv]
+ ];
+ await Promise.all(jobs.map(async([name,fn])=>{
+   $("progress").textContent="Checking "+name+"…";
+   render();
+   try{await fn();}
+   catch(e){for(const p of pairs)state[p][name]={status:"ERROR",symbol:String(e.message||e)};}
+   render();
+ }));
+ $("progress").textContent="Finished. FOUND means a catalogue match only. Export CSV for review; live-feed tests are still required.";
+ $("run").disabled=false;
+ window.__providerTestRunning=false;
+ render();
+}
+$("run").onclick=()=>run().catch(e=>{$("progress").textContent="Test stopped: "+(e.message||e);$("run").textContent="Try again";$("run").disabled=false;window.__providerTestRunning=false;});
+$("csv").onclick=()=>{const rows=[["Asset",...providers.map(k=>k+" status"),...providers.map(k=>k+" symbol")],...pairs.map(p=>[p,...providers.map(k=>state[p][k].status),...providers.map(k=>state[p][k].symbol)])];const csv=rows.map(r=>r.map(v=>'"'+String(v||"").replace(/"/g,'""')+'"').join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="gotradex-crypto-provider-discovery.csv";a.click();URL.revokeObjectURL(a.href)};
+render();
+setTimeout(()=>run().catch(e=>{document.getElementById("progress").textContent="Test stopped: "+(e.message||e);document.getElementById("run").textContent="Try again";document.getElementById("run").disabled=false;window.__providerTestRunning=false;}),500);
+</script></body></html>
