@@ -1254,10 +1254,13 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // Center the expiry label/countdown on the actual endpoint, including short expiries.
       const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
-      line.style.background="repeating-linear-gradient(to right,#ffd84d 0 2px,transparent 2px 5px)";line.style.height="2px";line.style.opacity=".98";
-      // Three small dots sit at the expiry end; the pair/flag sits above and
-      // the live countdown sits below the same line level.
-      if(dots){dots.style.left=(endX+3)+"px";dots.style.top=(y-4)+"px";}
+      // Solid directional trade guide. Preserve the approved active-candle
+      // anchor, wick attachment, and left-to-right projection geometry.
+      const tradeLineColor=t.side==="SELL"?"#ef4444":"#22c55e";
+      line.style.background=tradeLineColor;line.style.height="2px";line.style.opacity=".98";
+      // Dots identify the expiry endpoint; pair flag and countdown stay grouped there.
+      if(dots){dots.style.left=(endX+3)+"px";dots.style.top=(y-4)+"px";dots.style.color=tradeLineColor;}
+      if(expiryFlag)expiryFlag.style.color=tradeLineColor;
       tag.style.left=tagLeft+"px";tag.style.top=(y-14)+"px";tag.style.background="transparent";tag.style.width=tagWidth+"px";tag.style.textAlign="center";
       if(expiryFlag){expiryFlag.style.top="-16px";expiryFlag.style.right="50%";expiryFlag.style.transform="translateX(50%)";}
       const label=tag.querySelector(".gtxTradeAssetLabel");
