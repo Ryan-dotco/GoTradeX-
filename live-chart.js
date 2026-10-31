@@ -290,12 +290,15 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     let timestamp=Number(ts);
     if(timestamp>0&&timestamp<1e11)timestamp*=1000;
     if(!Number.isFinite(timestamp)||timestamp<=0){state.diag.invalid++;renderDiagnostics();return;}
-    state.diag.lastTickAt=Date.now();state.diag.lastSourceTime=timestamp;state.diag.ticks++;
     const b=bucket(timestamp,state.sec);
+    // Ignore provider events older than the last accepted market event. A late tick
+    // must never rewind the candle close or make the feed look fresher than it is.
+    if(state.diag.lastSourceTime&&timestamp<state.diag.lastSourceTime){state.diag.stale++;renderDiagnostics();return;}
     let c=state.candles[state.candles.length-1];
     // Out-of-order ticks can make Lightweight Charts reject every later update.
     // Ignore stale buckets instead of appending them after the latest candle.
     if(c&&b<c.t){state.diag.stale++;renderDiagnostics();return;}
+    state.diag.lastTickAt=Date.now();state.diag.lastSourceTime=timestamp;state.diag.ticks++;
     if(!state.tickSeenForConnection){state.tickSeenForConnection=true;status("LIVE • "+state.provider+" WEBSOCKET",true)}
     if(!c||c.t!==b){
       c={t:b,o:Number(price),h:Number(price),l:Number(price),c:Number(price),v:Number(volume||0)};
@@ -913,19 +916,29 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const flags={"EUR/USD":"🇪🇺","GBP/USD":"🇬🇧","USD/JPY":"🇯🇵","AUD/USD":"🇦🇺","USD/CAD":"🇨🇦","USD/CHF":"🇨🇭","NZD/USD":"🇳🇿","BTC/USD":"₿","BTC/USDT":"₿","ETH/USD":"Ξ","ETH/USDT":"Ξ"};
     return {label,flag:flags[label]||"🏳️"};
   }
+  function marketNow(){
+    // Estimate provider time from its latest accepted event timestamp and local receipt time.
+    // This keeps expiry/countdown timing independent of a mis-set device wall clock.
+    const source=Number(state.diag.lastSourceTime)||0;
+    const received=Number(state.diag.lastTickAt)||0;
+    if(source>0&&received>0)return source+Math.max(0,Date.now()-received);
+    return Date.now();
+  }
   function rememberIntent(side,source){
-    const now=Date.now();
+    const localNow=Date.now();
+    const now=marketNow();
     const expiryAt=now+selectedExpirySeconds()*1000;
     const lastCandle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
-    const latest=lastCandle?Number(lastCandle.c):NaN;
     const livePrice=Number(state.price);
-    const entryPrice=Number.isFinite(latest)&&latest>0?latest:(Number.isFinite(livePrice)&&livePrice>0?livePrice:null);
-    // Anchor to the original candle's body edge, in chart data coordinates:
-    // bullish candle = body top (close); bearish candle = body bottom (close).
-    // Keep its candle time so zoom/scroll can reposition the same anchor.
-    const markerTime=lastCandle&&Number.isFinite(Number(lastCandle.t))?Math.floor(Number(lastCandle.t)/1000):null;
+    const latest=lastCandle?Number(lastCandle.c):NaN;
+    // The actual latest verified tick is the entry price; candle close is only a fallback.
+    const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
+    // Anchor the line to the provider-time of the entry tick, not the candle open.
+    // Fractional candle positioning keeps the marker aligned with the actual entry moment.
+    const sourceTime=Number(state.diag.lastSourceTime)||now;
+    const markerTime=Number.isFinite(sourceTime)&&sourceTime>0?Math.floor(sourceTime/1000):null;
     const markerPrice=entryPrice;
-    const intent={at:now,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerPrice,amount:null,expiryAt,marker:null};
+    const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerPrice,amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
@@ -933,7 +946,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Show a visible provisional entry line immediately on the button press.
     // The server response will confirm/update it; a rejected order removes it.
     intent.marker={
-      id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:now,expiryAt,
+      id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:localNow,expiryAt,
       entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
@@ -1082,7 +1095,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
-    const now=Date.now();
+    const now=marketNow();
     // Keep the entry marker pinned to its original candle and exact entry price throughout the trade,
     // then leave it visible for 3 more seconds.
     // Never rebuild the layer on each tick: that caused visible flashing.
@@ -1183,8 +1196,8 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       }
       node.style.display="";
       const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
-      // The yellow entry line starts at the exact entry-price coordinate of the
-      // original candle wick and runs toward the right edge. The expiry flag,
+      // The yellow entry line starts at the exact live entry-price coordinate
+      // at the original candle timestamp and runs toward the expiry endpoint. The expiry flag,
       // pair label and countdown share that same price level/endpoint.
       const bodyCenterX=x;
       // Use the selected trade's real expiry timestamp to place the endpoint in
@@ -1192,9 +1205,11 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // candles (or the corresponding duration on another chart timeframe).
       const expiryX=coordinateForTimestamp(Number(t.expiryAt));
       const desiredEnd=Number.isFinite(expiryX)?expiryX:plotRight;
-      const endX=Math.max(bodyCenterX+barSpacing+12,Math.min(plotRight-6,desiredEnd));
+      // Do not force a minimum candle-width span: short expiries must end at their real time coordinate.
+      const endX=Math.max(bodyCenterX+1,Math.min(plotRight-6,desiredEnd));
       const tagWidth=116;
-      const tagLeft=Math.max(bodyCenterX+barSpacing+8,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
+      // Center the expiry label/countdown on the actual endpoint, including short expiries.
+      const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
       line.style.background="#ffd84d";line.style.height="2px";line.style.opacity=".98";
       // Three small dots sit at the expiry end; the pair/flag sits above and
