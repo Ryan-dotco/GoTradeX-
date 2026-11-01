@@ -1241,13 +1241,23 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
           if(priceY!==null&&priceY!==undefined&&Number.isFinite(priceY))y=priceY;
         }
       }catch(_){}
-      // Keep the marker alive whenever its rightward segment can intersect the
-      // visible chart. A candle just left of the viewport may still project into it.
-      if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)||x>layer.clientWidth){
-        node.style.display="none";
-        return;
+      // Never silently suppress a user-requested marker because a chart coordinate
+      // is temporarily unavailable during load, timeframe switches, or live reconnects.
+      const chartHost=document.getElementById("gtxLWC");
+      const layerWidth=Number(layer.clientWidth)||Number(chartHost&&chartHost.clientWidth)||320;
+      const layerHeight=Number(layer.clientHeight)||Number(chartHost&&chartHost.clientHeight)||260;
+      const fallbackSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
+      if(x===null||x===undefined||!Number.isFinite(x)){
+        const last=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+        const lastTime=last?Math.floor(Number(last.t)/1000):NaN;
+        try{x=Number.isFinite(lastTime)&&state.chart?state.chart.timeScale().timeToCoordinate(lastTime):null;}catch(_){}
       }
-      node.style.display="";
+      if(x===null||x===undefined||!Number.isFinite(x))x=Math.max(12,layerWidth-100);
+      if(y===null||y===undefined||!Number.isFinite(y))y=Math.max(30,Math.min(layerHeight-30,layerHeight*0.52));
+      // A marker anchored just beyond the right edge remains visible at the edge
+      // until the chart can resolve its active candle coordinate again.
+      if(x>layerWidth)x=Math.max(12,layerWidth-fallbackSpacing*2);
+      node.style.display=""; 
       const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
       // timeToCoordinate returns the candle centre. Start at its right edge so
       // the yellow guide visibly grows out of the latest candle, left-to-right.
