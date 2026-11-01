@@ -91,7 +91,8 @@
   if(!(entry>0))return;
   const saved=read()[id]||{};
   active={id,side:String(t.direction||t.side||"BUY").toUpperCase(),entryPrice:entry,sl:saved.sl||null,tp:saved.tp||null,asset:t.asset||$("bottomAssetPair")?.textContent||"BTC/USD",createdAt:Date.now()};
-  save();if(ensure()){root.style.display="block";render();note("Position detected. Set levels automatically or drag the red/green lines. These are setup controls only until the trade engine supports server-side SL/TP.");}
+  if(!(Number(active.sl)>0)||!(Number(active.tp)>0)){const buy=active.side!=="SELL";active.sl=buy?entry*.99:entry*1.01;active.tp=buy?entry*1.02:entry*.98;}
+  save();if(ensure()){root.style.display="block";render();note("LIVE CHART LEVELS: red SL and green TP are displayed with the entry flag and expiry marker. Drag either line to reposition. Server-side auto-close is not connected yet.");}
  }
  window.addEventListener("gotradex:trade-opened",opened);
  window.addEventListener("gotradex:autobot-trade-opened",opened);
