@@ -7,7 +7,7 @@
   if(window.GoTradeXServerRuntime) return;
   const URL="https://glffecggusetzklmyukv.supabase.co";
   const KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
-  const ENGINE=URL+"/functions/v1/gotradex-trade-engine";
+  const ENGINE=URL+"/functions/v1/gotradex-testing-position-engine";
   let sb=null, syncTimer=null, syncing=false, realtimeChannel=null, realtimeUserId=null;
 
   function client(){
@@ -49,10 +49,10 @@
     try{
       const mode=String(localStorage.getItem("gotradex_account_mode")||"DEMO").toUpperCase();
       const j=await call("open",{account_mode:mode,market_mode:String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase(),asset:asset(),direction,amount:amount(),expiry_seconds:secondsFromUi()});
-      if(j.trade){
+      if(j.position){
         const el=document.getElementById("status");
         if(el)el.textContent="";
-        window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.trade}}));
+        window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.position}}));
       }
       await sync();
     }catch(e){
@@ -135,7 +135,7 @@
     setupRealtime();
     sync();
     if(syncTimer)clearInterval(syncTimer);
-    syncTimer=setInterval(sync,5000);
+    syncTimer=setInterval(sync,1000);
     document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){setupRealtime();sync()}});
     window.addEventListener("pageshow",()=>{setupRealtime();sync()});
     window.addEventListener("online",()=>{setupRealtime();sync()});
