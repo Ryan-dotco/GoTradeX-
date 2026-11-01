@@ -1081,7 +1081,20 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       if(!Number.isFinite(firstTime))return null;
       return scale.logicalToCoordinate((ts-firstTime)/interval);
     }
-    return scale.logicalToCoordinate(baseIndex+(ts-baseTime)/interval);
+    const logical=baseIndex+(ts-baseTime)/interval;
+    const mapped=scale.logicalToCoordinate(logical);
+    if(mapped!==null&&mapped!==undefined&&Number.isFinite(mapped))return mapped;
+    // Future expiry candles often have no data point yet, so Lightweight Charts
+    // can return null for their logical coordinate. Project from the last real
+    // candle using the current bar spacing; do not substitute the price-scale edge.
+    const last=state.candles[state.candles.length-1];
+    const lastTime=last?Math.floor(Number(last.t)/1000):NaN;
+    const lastX=Number.isFinite(lastTime)?scale.timeToCoordinate(lastTime):null;
+    const spacing=Number(scale.options().barSpacing)||9;
+    if(ts>lastTime&&lastX!==null&&lastX!==undefined&&Number.isFinite(lastX)){
+      return lastX+((ts-lastTime)/interval)*spacing;
+    }
+    return null;
   }
   function formatRemaining(ms){
     const s=Math.max(0,Math.ceil(ms/1000));
