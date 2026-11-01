@@ -962,7 +962,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Show a visible provisional entry line immediately on the button press.
     // The server response will confirm/update it; a rejected order removes it.
     intent.marker={
-      id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:localNow,expiryAt,
+      id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:localNow,expiryAt,durationSeconds:selectedExpirySeconds(),
       entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerTimeExact:intent.markerTimeExact,markerLogicalIndex:intent.markerLogicalIndex,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
@@ -1256,12 +1256,18 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // Never substitute the chart's right edge/price scale for the expiry candle.
       // A 5m trade on M1 ends after 5 candles; 15m on M1 after 15; 1h on M15 after 4.
       const expiryX=coordinateForTimestamp(Number(t.expiryAt));
-      if(!Number.isFinite(expiryX)||expiryX<=bodyCenterX+8){
+      // Future timestamps often have no coordinate in Lightweight Charts because
+      // the visible logical range ends at the latest candle. Never hide the marker
+      // for that reason: project the full selected duration using candle spacing.
+      const intervalSeconds=Math.max(1,Number(state.sec)||60);
+      const durationSeconds=Math.max(1,Number(t.durationSeconds)||selectedExpirySeconds());
+      const projectedEndX=bodyCenterX+(durationSeconds/intervalSeconds)*barSpacing;
+      const endX=Number.isFinite(expiryX)&&expiryX>bodyCenterX+2?expiryX:projectedEndX;
+      if(!Number.isFinite(endX)){
         node.style.display="none";
         return;
       }
       node.style.display="";
-      const endX=expiryX;
       const tagWidth=116;
       // Center the expiry label/countdown on the actual endpoint, including short expiries.
       const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
