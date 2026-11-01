@@ -19,7 +19,7 @@
   layer=$("gtxLWCExpiryLayer");if(!layer)return false;
   if(root&&root.isConnected)return true;
   root=document.createElement("div");root.id="gtxPositionControls";
-  root.innerHTML='<div class="gtxpc-head"><div><b>POSITION LEVELS</b><small id="gtxpc-mode">DEMO • SETUP</small></div><button type="button" id="gtxpc-hide" aria-label="Hide position controls">−</button></div><div class="gtxpc-row"><button type="button" data-level="sl" class="gtxpc-level sl"><span>STOP LOSS</span><b id="gtxpc-sl-value">Not set</b></button><button type="button" data-level="tp" class="gtxpc-level tp"><span>TAKE PROFIT</span><b id="gtxpc-tp-value">Not set</b></button></div><div class="gtxpc-actions"><button type="button" id="gtxpc-auto">AUTO SET</button><button type="button" id="gtxpc-manual">MANUAL DRAG</button><button type="button" id="gtxpc-edit">ENTER PRICE</button></div><div class="gtxpc-note" id="gtxpc-note">Drag either line on the chart or enter an exact price. Levels are saved as setup only; execution protection is not connected yet.</div>';
+  root.innerHTML='<div class="gtxpc-head"><div><b>POSITION LEVELS</b><small id="gtxpc-mode">DEMO • SETUP</small></div><button type="button" id="gtxpc-hide" aria-label="Hide position controls">−</button></div><div class="gtxpc-row"><button type="button" data-level="sl" class="gtxpc-level sl"><span>STOP LOSS</span><b id="gtxpc-sl-value">Not set</b></button><button type="button" data-level="tp" class="gtxpc-level tp"><span>TAKE PROFIT</span><b id="gtxpc-tp-value">Not set</b></button></div><div class="gtxpc-actions"><button type="button" id="gtxpc-auto">AUTO SET</button><button type="button" id="gtxpc-manual">MANUAL DRAG</button><button type="button" id="gtxpc-edit">ENTER PRICE</button><button type="button" id="gtxpc-close">CLOSE</button></div><div class="gtxpc-note" id="gtxpc-note">Drag either line on the chart or enter an exact price. Levels are saved as setup only; Bybit Demo position engine is active while this page is connected.</div>';
   layer.appendChild(root);
   const style=document.createElement("style");style.id="gtxpc-style";style.textContent=
   '#gtxPositionControls{position:absolute;z-index:2147483002;left:10px;top:10px;width:min(260px,calc(100% - 96px));pointer-events:auto;background:rgba(5,19,35,.94);border:1px solid #294765;border-radius:10px;padding:8px;box-shadow:0 4px 16px #0006;color:#eaf3fb;font:11px system-ui}'+
@@ -42,16 +42,19 @@
   $("gtxpc-auto").addEventListener("click",autoSet);
   $("gtxpc-manual").addEventListener("click",()=>note("Manual mode: drag the red Stop Loss or green Take Profit line up/down."));
   $("gtxpc-edit").addEventListener("click",()=>edit("both"));
+  $("gtxpc-close").addEventListener("click",closePosition);
   return true;
  }
  function note(s){const el=$("gtxpc-note");if(el)el.textContent=s}
+ async function persistLevels(){if(!active?.id||String(active.id).startsWith("local-"))return;const rt=window.GoTradeXServerRuntime;if(!rt?.call)return;try{await rt.call("levels",{position_id:active.id,stop_loss:active.sl||null,take_profit:active.tp||null});note("SL/TP saved to the Bybit Demo position engine.");}catch(e){note("Could not save levels to server: "+(e?.message||"request failed"));}}
+ async function closePosition(){if(!active?.id)return;const rt=window.GoTradeXServerRuntime;if(!rt?.call){note("Position engine is not available.");return;}try{const j=await rt.call("close",{position_id:active.id});if(j.position){active=j.position;save();render();note("Position manually closed. Result: "+j.position.result+". Net P/L: "+fmt(j.position.pnl));window.dispatchEvent(new CustomEvent("gotradex:position-closed",{detail:j.position}));}}catch(e){note(e?.message||"Position could not be closed.");}}
  function edit(which){
   if(!active)return;
   const p=currentPrice();let sl=active.sl,tp=active.tp;
   const ask=(label,val)=>{const x=window.prompt(label,val?String(val):"");if(x===null)return null;const n=Number(x);return Number.isFinite(n)&&n>0?n:NaN};
   if(which==="sl"||which==="both"){const n=ask("Stop Loss price",sl);if(n===null)return;if(!Number.isFinite(n)){note("Enter a valid positive price.");return}sl=n}
   if(which==="tp"||which==="both"){const n=ask("Take Profit price",tp);if(n===null)return;if(!Number.isFinite(n)){note("Enter a valid positive price.");return}tp=n}
-  active.sl=sl;active.tp=tp;save();render();note("Prices saved. Execution protection is not connected yet.");
+  active.sl=sl;active.tp=tp;save();render();persistLevels();note("Saving SL/TP to the Bybit Demo engine…");
  }
  function autoSet(){
   if(!active)return;const p=Number(active.entryPrice);if(!(p>0))return;
@@ -96,10 +99,11 @@
   const saved=read()[id]||{};
   active={id,side:String(t.direction||t.side||"BUY").toUpperCase(),entryPrice:entry,sl:saved.sl||null,tp:saved.tp||null,asset:t.asset||$("bottomAssetPair")?.textContent||"BTC/USD",createdAt:Date.now()};
   if(!(Number(active.sl)>0)||!(Number(active.tp)>0)){const buy=active.side!=="SELL";active.sl=buy?entry*.99:entry*1.01;active.tp=buy?entry*1.02:entry*.98;}
-  save();if(ensure()){root.style.display="block";render();note("LIVE CHART LEVELS: red SL and green TP are displayed with the entry flag and expiry marker. Drag either line to reposition. Server-side auto-close is not connected yet.");}
+  save();if(ensure()){root.style.display="block";render();note("BYBIT DEMO POSITION: set SL and TP with the grey cursor. Confirmed levels are monitored against Bybit Spot prices while connected.");}
  }
  window.addEventListener("gotradex:trade-opened",opened);
  window.addEventListener("gotradex:autobot-trade-opened",opened);
+ window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id));if(p){active={...active,...p,sl:p.stop_loss??active.sl,tp:p.take_profit??active.tp};save();render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
  window.addEventListener("resize",render);
  window.addEventListener("gotradex:asset-changed",()=>setTimeout(render,100));
  const timer=setInterval(()=>{if(active)render()},500);
@@ -111,7 +115,7 @@
   chooser=document.createElement("div");chooser.id="gtxpc-choice";
   chooser.innerHTML='<button type="button" data-pick="sl">SL · STOP LOSS</button><button type="button" data-pick="tp">TP · TAKE PROFIT</button><button type="button" data-pick="cancel">CANCEL</button>';
   chooser.style.cssText="position:absolute;z-index:2147483646;display:none;gap:5px;padding:5px;background:#07182b;border:1px solid #36516d;border-radius:7px;pointer-events:auto;box-shadow:0 4px 14px #0008";
-  chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";return;}if(!active||!candidate)return;active[pick]=candidate;save();candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";render();note((pick==="sl"?"Stop Loss":"Take Profit")+" pinned at "+fmt(active[pick])+". Automatic server-side closing is not connected yet.");});});
+  chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";return;}if(!active||!candidate)return;active[pick]=candidate;save();candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";render();persistLevels();note((pick==="sl"?"Stop Loss":"Take Profit")+" pinned at "+fmt(active[pick])+". Sending to Bybit Demo engine…");});});
   layer.appendChild(chooser);return chooser;
  }
  function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
@@ -125,9 +129,9 @@
   gesture={kind};if(kind==="candidate")candidate=p;else active[kind]=p;render();
  }
  function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;if(gesture.kind==="candidate"){candidate=p;const r=layer.getBoundingClientRect(),y=e.clientY-r.top;if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=y+"px";candidateLine.querySelector("span").textContent=fmt(p);}}else active[gesture.kind]=p;render();}
- function chartUp(e){if(!gesture)return;const kind=gesture.kind;gesture=null;if(kind==="candidate"){if(candidate)showChoice(candidate,e.clientY);}else{save();render();note((kind==="sl"?"Stop Loss":"Take Profit")+" moved to "+fmt(active[kind])+".");}}
+ function chartUp(e){if(!gesture)return;const kind=gesture.kind;gesture=null;if(kind==="candidate"){if(candidate)showChoice(candidate,e.clientY);}else{save();render();persistLevels();note((kind==="sl"?"Stop Loss":"Take Profit")+" moved to "+fmt(active[kind])+". Updating engine…");}}
  function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
  const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
- window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.2-crosshair-level-placement"};
+ window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.3-bybit-demo-position-engine"};
  document.addEventListener("DOMContentLoaded",()=>{if(ensure())root.style.display="none"});
 })();
