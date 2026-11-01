@@ -1159,7 +1159,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
         const label=document.createElement("span");label.className="gtxTradeAssetLabel";label.style.cssText="display:block;text-align:right;color:#f8fafc;font:800 10px/1.2 system-ui;text-shadow:0 1px 3px #00101e;";
         label.textContent=(t.asset.flag||"")+" "+t.asset.label;
         const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.style.cssText="display:block;text-align:right;color:#ffd84d;font:900 12px/1.2 system-ui;text-shadow:0 1px 3px #00101e;margin-top:7px;";
-        const dots=document.createElement("span");dots.className="gtxTradeEndDots";dots.textContent="•••";
+        const dots=document.createElement("span");dots.className="gtxTradeEndDots";dots.textContent="••••";
         dots.style.cssText="position:absolute;color:#ffd84d;font:900 10px/1 system-ui;letter-spacing:2px;white-space:nowrap;";
         tag.append(flag,label,countdown);
         node.append(line,dots,tag);
@@ -1239,17 +1239,16 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       // timeToCoordinate returns the candle centre. Start at its right edge so
       // the yellow guide visibly grows out of the latest candle, left-to-right.
       const bodyCenterX=x+Math.max(2,barSpacing*0.48);
-      // Use the selected trade's real expiry timestamp to place the endpoint in
-      // chart time coordinates. This makes a 5-minute expiry span five 1-minute
-      // candles (or the corresponding duration on another chart timeframe).
+      // Stop at the actual expiry timestamp converted through the candle interval.
+      // Never substitute the chart's right edge/price scale for the expiry candle.
+      // A 5m trade on M1 ends after 5 candles; 15m on M1 after 15; 1h on M15 after 4.
       const expiryX=coordinateForTimestamp(Number(t.expiryAt));
-      // Always draw from the active candle toward the right. If the expiry
-      // coordinate is unavailable or falls behind the entry (for example after
-      // a zoom/range change), extend to the visible future edge instead of
-      // collapsing the line to a one-pixel mark.
-      const futureEdge=Math.max(bodyCenterX+24,Math.min(layer.clientWidth-12,plotRight));
-      const desiredEnd=Number.isFinite(expiryX)&&expiryX>bodyCenterX+8?expiryX:futureEdge;
-      const endX=Math.max(bodyCenterX+24,Math.min(layer.clientWidth-12,desiredEnd));
+      if(!Number.isFinite(expiryX)||expiryX<=bodyCenterX+8){
+        node.style.display="none";
+        return;
+      }
+      node.style.display="";
+      const endX=expiryX;
       const tagWidth=116;
       // Center the expiry label/countdown on the actual endpoint, including short expiries.
       const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
