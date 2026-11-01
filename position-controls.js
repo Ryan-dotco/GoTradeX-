@@ -61,14 +61,14 @@
   if(!active)return;const p=Number(active.entryPrice);if(!(p>0))return;
   const buy=active.side!=="SELL";
   active.sl=buy?p*.99:p*1.01;active.tp=buy?p*1.02:p*.98;
-  save();render();note("Automatic levels set at 1% stop loss and 2% take profit from entry. You can drag either line to adjust.");
+  save();render();persistLevels();note("Automatic levels set and sent to the Bybit Demo engine.");
  }
  function startDrag(e,k){
   if(!active)return;e.preventDefault();dragging=k;
   try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){}
   moveDrag(e);
   const move=ev=>{if(dragging===k)moveDrag(ev)};
-  const end=()=>{dragging=null;window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",end);window.removeEventListener("pointercancel",end);save();render();};
+  const end=()=>{dragging=null;window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",end);window.removeEventListener("pointercancel",end);save();render();persistLevels();};
   window.addEventListener("pointermove",move);window.addEventListener("pointerup",end);window.addEventListener("pointercancel",end);
  }
  function moveDrag(e){
