@@ -6,7 +6,7 @@
  "use strict";
  if(window.GoTradeXPositionControls)return;
  const KEY="gotradex_position_levels_v1";
- let active=null, dragging=null, root=null, layer=null;
+ let active=null, dragging=null, root=null, layer=null, candidateLine=null;
  const $=id=>document.getElementById(id);
  const money=n=>Number.isFinite(Number(n))?Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:6}):"—";
  function mode(){return String(localStorage.getItem("gotradex_account_mode")||"DEMO").toUpperCase();}
@@ -29,10 +29,14 @@
   '.gtxpc-note{font-size:8px;line-height:1.35;color:#91a9c2;margin-top:6px}'+
   '.gtxpc-line{position:absolute;left:0;right:72px;height:2px;z-index:2147483001;pointer-events:auto;touch-action:none;cursor:ns-resize}'+
   '.gtxpc-line.sl{background:#ef626b;box-shadow:0 0 7px #ef626b77}.gtxpc-line.tp{background:#25c783;box-shadow:0 0 7px #25c78377}'+
-  '.gtxpc-line span{position:absolute;left:0;top:-15px;padding:2px 5px;border-radius:4px;background:#07182b;color:#fff;font:900 9px system-ui;white-space:nowrap;pointer-events:none}'+
+  '.gtxpc-line span{position:absolute;right:-70px;top:-12px;width:68px;text-align:center;padding:3px 2px;border-radius:4px;background:#07182b;color:#fff;font:900 9px system-ui;white-space:nowrap;pointer-events:none;border:1px solid currentColor}'+
+  '.gtxpc-line.sl span{color:#ff8990;border-color:#ef626b}.gtxpc-line.tp span{color:#58e8ae;border-color:#25c783}'+
+  '.gtxpc-candidate{position:absolute;left:0;right:0;height:2px;z-index:2147483003;background:#c5cbd3;box-shadow:0 0 7px #d5dce588;pointer-events:none;display:none}'+
+  '.gtxpc-candidate span{position:absolute;right:0;top:-13px;min-width:84px;text-align:center;padding:3px 4px;border-radius:4px;background:#aeb7c2;color:#101b28;border:1px solid #eef2f6;font:900 10px system-ui;white-space:nowrap}'+
   '@media(max-width:420px){#gtxPositionControls{left:6px;top:6px;width:220px;padding:6px}.gtxpc-note{font-size:7px}.gtxpc-actions button{font-size:7px}}';
   document.head.appendChild(style);
   ["sl","tp"].forEach(k=>{const el=document.createElement("div");el.className="gtxpc-line "+k;el.id="gtxpc-line-"+k;el.innerHTML='<span></span>';layer.appendChild(el);el.addEventListener("pointerdown",e=>startDrag(e,k));});
+  candidateLine=document.createElement("div");candidateLine.className="gtxpc-candidate";candidateLine.id="gtxpc-candidate";candidateLine.innerHTML="<span></span>";layer.appendChild(candidateLine);
   $("gtxpc-hide").addEventListener("click",()=>{root.style.display="none";});
   root.querySelectorAll("[data-level]").forEach(b=>b.addEventListener("click",()=>edit(b.dataset.level)));
   $("gtxpc-auto").addEventListener("click",autoSet);
@@ -107,11 +111,11 @@
   chooser=document.createElement("div");chooser.id="gtxpc-choice";
   chooser.innerHTML='<button type="button" data-pick="sl">SL · STOP LOSS</button><button type="button" data-pick="tp">TP · TAKE PROFIT</button><button type="button" data-pick="cancel">CANCEL</button>';
   chooser.style.cssText="position:absolute;z-index:2147483646;display:none;gap:5px;padding:5px;background:#07182b;border:1px solid #36516d;border-radius:7px;pointer-events:auto;box-shadow:0 4px 14px #0008";
-  chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";return;}if(!active||!candidate)return;active[pick]=candidate;save();candidate=null;chooser.style.display="none";render();note((pick==="sl"?"Stop Loss":"Take Profit")+" pinned at "+fmt(active[pick])+". Automatic server-side closing is not connected yet.");});});
+  chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";return;}if(!active||!candidate)return;active[pick]=candidate;save();candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";render();note((pick==="sl"?"Stop Loss":"Take Profit")+" pinned at "+fmt(active[pick])+". Automatic server-side closing is not connected yet.");});});
   layer.appendChild(chooser);return chooser;
  }
  function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
- function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";note("Selected "+fmt(price)+". Choose SL or TP to pin this price.");}
+ function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(y-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(price);}note("Selected "+fmt(price)+". Choose SL or TP to pin this price.");}
  function chartDown(e){
   if(!active||e.button!==0)return;
   if(e.target.closest?.("#gtxPositionControls,#gtxpc-choice"))return;
@@ -120,7 +124,7 @@
   e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
   gesture={kind};if(kind==="candidate")candidate=p;else active[kind]=p;render();
  }
- function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;if(gesture.kind==="candidate")candidate=p;else active[gesture.kind]=p;render();}
+ function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;if(gesture.kind==="candidate"){candidate=p;const r=layer.getBoundingClientRect(),y=e.clientY-r.top;if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=y+"px";candidateLine.querySelector("span").textContent=fmt(p);}}else active[gesture.kind]=p;render();}
  function chartUp(e){if(!gesture)return;const kind=gesture.kind;gesture=null;if(kind==="candidate"){if(candidate)showChoice(candidate,e.clientY);}else{save();render();note((kind==="sl"?"Stop Loss":"Take Profit")+" moved to "+fmt(active[kind])+".");}}
  function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
  const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
