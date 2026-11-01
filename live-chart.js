@@ -274,6 +274,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       try{state.chart.timeScale().fitContent()}catch(_){}
     }
     updateTypeButtons();
+    renderExpiryMarkers();
   }
 
   function applyChartTypeVisibility(){
@@ -873,6 +874,34 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   }
 
   const expiryTrades=[];
+  const EXPIRY_MARKERS_STORAGE_KEY="gotradex_fixed_trade_markers_v1";
+  let expiryMarkersRestored=false;
+  function persistExpiryTrades(){
+    try{
+      const saved=expiryTrades.map(t=>({
+        id:t.id,serverId:t.serverId||null,entryAt:Number(t.entryAt)||Date.now(),
+        expiryAt:Number(t.expiryAt),durationSeconds:Number(t.durationSeconds)||0,
+        entryPrice:Number(t.entryPrice),markerTime:Number(t.markerTime),
+        markerTimeExact:Number(t.markerTimeExact)||null,markerLogicalIndex:Number(t.markerLogicalIndex),
+        markerPrice:Number(t.markerPrice),asset:t.asset||selectedAssetFlag(),
+        side:t.side==="SELL"?"SELL":"BUY",source:t.source||"MANUAL",
+        amount:Number(t.amount)||null,completed:!!t.completed,pending:!!t.pending
+      })).filter(t=>Number.isFinite(t.expiryAt)&&Number.isFinite(t.entryPrice)&&Number.isFinite(t.markerTime)&&Number.isFinite(t.markerPrice));
+      localStorage.setItem(EXPIRY_MARKERS_STORAGE_KEY,JSON.stringify(saved));
+    }catch(_){}
+  }
+  function restoreExpiryTrades(){
+    if(expiryMarkersRestored)return;
+    expiryMarkersRestored=true;
+    try{
+      const saved=JSON.parse(localStorage.getItem(EXPIRY_MARKERS_STORAGE_KEY)||"[]");
+      if(!Array.isArray(saved))return;
+      const now=Date.now();
+      saved.filter(t=>Number(t.expiryAt)+3000>now).forEach(t=>{
+        expiryTrades.push({...t,markerNode:null,raw:{},asset:t.asset||selectedAssetFlag()});
+      });
+    }catch(_){}
+  }
   const pendingTradeIntents=[];
   const resultCards=[];
   let expiryTimer=null;
@@ -967,6 +996,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
     expiryTrades.push(intent.marker);
+    persistExpiryTrades();
     renderExpiryMarkers();
     pendingTradeIntents.push(intent);
     while(pendingTradeIntents.length>20)pendingTradeIntents.shift();
@@ -1042,6 +1072,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const t=normalizeServerTrade(raw);
     if(!t)return null;
     if(!expiryTrades.includes(t))expiryTrades.push(t);
+    persistExpiryTrades();
     return t;
   }
   function onServerSync(event){
@@ -1134,6 +1165,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
+    restoreExpiryTrades();
     const now=marketNow();
     // Keep the entry marker pinned to its original candle and exact entry price throughout the trade,
     // then leave it visible for 3 more seconds.
@@ -1143,6 +1175,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       if(now>=Number(t.expiryAt)+3000){
         if(t.markerNode&&t.markerNode.parentNode)t.markerNode.parentNode.removeChild(t.markerNode);
         expiryTrades.splice(i,1);
+        persistExpiryTrades();
       }
     }
     const plotRight=Math.max(20,layer.clientWidth-70);
