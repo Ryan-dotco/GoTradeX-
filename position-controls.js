@@ -98,12 +98,11 @@
   if(!(entry>0))return;
   const saved=read()[id]||{};
   active={id,side:String(t.direction||t.side||"BUY").toUpperCase(),entryPrice:entry,sl:saved.sl||null,tp:saved.tp||null,asset:t.asset||$("bottomAssetPair")?.textContent||"BTC/USD",createdAt:Date.now()};
-  if(!(Number(active.sl)>0)||!(Number(active.tp)>0)){const buy=active.side!=="SELL";active.sl=buy?entry*.99:entry*1.01;active.tp=buy?entry*1.02:entry*.98;}
   save();if(ensure()){root.style.display="block";render();note("BYBIT DEMO POSITION: set SL and TP with the grey cursor. Confirmed levels are monitored against Bybit Spot prices while connected.");}
  }
  window.addEventListener("gotradex:trade-opened",opened);
  window.addEventListener("gotradex:autobot-trade-opened",opened);
- window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id));if(p){active={...active,...p,sl:p.stop_loss??active.sl,tp:p.take_profit??active.tp};save();render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
+ window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id));if(p){active={...active,...p,sl:p.stop_loss??null,tp:p.take_profit??null};save();render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
  window.addEventListener("resize",render);
  window.addEventListener("gotradex:asset-changed",()=>setTimeout(render,100));
  const timer=setInterval(()=>{if(active)render()},500);
