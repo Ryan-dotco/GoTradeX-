@@ -98,6 +98,31 @@
  window.addEventListener("resize",render);
  window.addEventListener("gotradex:asset-changed",()=>setTimeout(render,100));
  const timer=setInterval(()=>{if(active)render()},500);
- window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.1-testing"};
+
+ /* Use the chart's own horizontal price/crosshair position as the SL/TP placement tool. */
+ let candidate=null, chooser=null, gesture=null, placementInstalled=false;
+ function ensureChooser(){
+  if(chooser&&chooser.isConnected)return chooser;
+  chooser=document.createElement("div");chooser.id="gtxpc-choice";
+  chooser.innerHTML='<button type="button" data-pick="sl">SL · STOP LOSS</button><button type="button" data-pick="tp">TP · TAKE PROFIT</button><button type="button" data-pick="cancel">CANCEL</button>';
+  chooser.style.cssText="position:absolute;z-index:2147483646;display:none;gap:5px;padding:5px;background:#07182b;border:1px solid #36516d;border-radius:7px;pointer-events:auto;box-shadow:0 4px 14px #0008";
+  chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";return;}if(!active||!candidate)return;active[pick]=candidate;save();candidate=null;chooser.style.display="none";render();note((pick==="sl"?"Stop Loss":"Take Profit")+" pinned at "+fmt(active[pick])+". Automatic server-side closing is not connected yet.");});});
+  layer.appendChild(chooser);return chooser;
+ }
+ function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
+ function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";note("Selected "+fmt(price)+". Choose SL or TP to pin this price.");}
+ function chartDown(e){
+  if(!active||e.button!==0)return;
+  if(e.target.closest?.("#gtxPositionControls,#gtxpc-choice"))return;
+  const line=e.target.closest?.(".gtxpc-line"),kind=line?(line.classList.contains("sl")?"sl":"tp"):"candidate";
+  const p=priceAt(e.clientY);if(!(p>0))return;
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  gesture={kind};if(kind==="candidate")candidate=p;else active[kind]=p;render();
+ }
+ function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;if(gesture.kind==="candidate")candidate=p;else active[gesture.kind]=p;render();}
+ function chartUp(e){if(!gesture)return;const kind=gesture.kind;gesture=null;if(kind==="candidate"){if(candidate)showChoice(candidate,e.clientY);}else{save();render();note((kind==="sl"?"Stop Loss":"Take Profit")+" moved to "+fmt(active[kind])+".");}}
+ function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
+ const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
+ window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.2-crosshair-level-placement"};
  document.addEventListener("DOMContentLoaded",()=>{if(ensure())root.style.display="none"});
 })();
