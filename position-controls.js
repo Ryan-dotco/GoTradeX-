@@ -16,7 +16,19 @@
  function currentPrice(){const s=chart();return Number(s&&s.price)||Number(active&&active.entryPrice)||0}
  function fmt(n){return money(n)}
  function ensure(){
-  layer=$("gtxLWCExpiryLayer");const chartBox=$("gtxLiveChart");if(!chartBox)return false;
+  const chartBox=$("gtxLiveChart");if(!chartBox)return false;
+  layer=$("gtxLWCExpiryLayer");
+  /* Create the overlay if an older chart shell does not provide it. */
+  if(!layer){layer=document.createElement("div");layer.id="gtxLWCExpiryLayer";chartBox.appendChild(layer);}
+  chartBox.style.setProperty("position","relative","important");
+  layer.style.setProperty("display","block","important");
+  layer.style.setProperty("position","absolute","important");
+  layer.style.setProperty("inset","0","important");
+  layer.style.setProperty("z-index","2147483000","important");
+  layer.style.setProperty("overflow","hidden","important");
+  layer.style.setProperty("pointer-events","none","important");
+  layer.style.setProperty("visibility","visible","important");
+  layer.style.setProperty("opacity","1","important");
   layer.setAttribute("aria-hidden","false");
   if(root&&root.isConnected){if(root.parentElement!==document.body)document.body.appendChild(root);root.style.setProperty("display","block","important");root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");return true;}
   root=document.createElement("div");root.id="gtxPositionControls";
