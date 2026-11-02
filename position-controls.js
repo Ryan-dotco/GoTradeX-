@@ -84,7 +84,7 @@
   $("gtxpc-tp-value").textContent=active.tp?fmt(active.tp):"Not set";
   const live=$("gtxpc-live"),cs=chart(),sameMarket=!cs?.symbol||!active.provider_symbol||String(cs.symbol)===String(active.provider_symbol),last=Number(sameMarket?currentPrice():active.last_price||active.entryPrice);if(live&&last>0){const gross=Number(active.amount||0)*((active.side==="SELL"?Number(active.entryPrice)-last:last-Number(active.entryPrice))/Number(active.entryPrice));const fee=Number(active.amount||0)*.001+(gross>0?gross*.10:gross<0?Number(active.amount||0)*.001:0);const net=gross-fee;live.textContent="BYBIT "+fmt(last)+"  ·  NET P/L "+(net>=0?"+":"")+fmt(net);}
   const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return;
-  const sameMarket=!s.symbol||!active.provider_symbol||String(s.symbol)===String(active.provider_symbol);
+  const sameMarket=sameInstrument(s);
   ["sl","tp"].forEach(k=>{if(!sameMarket){const el=$("gtxpc-line-"+k);if(el)el.style.display="none";return;}
    const el=$("gtxpc-line-"+k),v=Number(active[k]);
    if(!v){el.style.display="none";return}
@@ -120,19 +120,25 @@
   chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";return;}if(!active||!candidate)return;active[pick]=candidate;save();candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";render();persistLevels();note((pick==="sl"?"Stop Loss":"Take Profit")+" pinned at "+fmt(active[pick])+". Sending to Bybit Demo engine…");});});
   layer.appendChild(chooser);return chooser;
  }
- function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return null;if(active?.provider_symbol&&s.symbol&&String(active.provider_symbol)!==String(s.symbol))return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
+ function normSymbol(v){return String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/USD$/,"USDT");}
+ function sameInstrument(s){return !s?.symbol||!active?.provider_symbol||normSymbol(s.symbol)===normSymbol(active.provider_symbol);}
+ function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host||!sameInstrument(s))return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
  function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(y-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(price);}note("Selected "+fmt(price)+". Choose SL or TP to pin this price.");}
  function chartDown(e){
   if(!active||e.button!==0)return;
   if(e.target.closest?.("#gtxPositionControls,#gtxpc-choice"))return;
-  const line=e.target.closest?.(".gtxpc-line"),kind=line?(line.classList.contains("sl")?"sl":"tp"):"candidate";
-  const p=priceAt(e.clientY);if(!(p>0))return;
-  gesture={kind};if(kind==="candidate")candidate=p;else active[kind]=p;render();
+  if(e.target.closest?.(".gtxpc-line"))return; // Confirmed levels use their own drag handler.
+  const kind="candidate",p=priceAt(e.clientY);if(!(p>0))return;
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  gesture={kind};candidate=p;
+  try{e.target.setPointerCapture?.(e.pointerId)}catch(_){}
+  const r=layer.getBoundingClientRect();if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(e.clientY-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(p);}
+  render();
  }
- function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;if(gesture.kind==="candidate"){candidate=p;const r=layer.getBoundingClientRect(),y=e.clientY-r.top;if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=y+"px";candidateLine.querySelector("span").textContent=fmt(p);}}else active[gesture.kind]=p;render();}
+ function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;e.preventDefault?.();const r=layer.getBoundingClientRect(),y=e.clientY-r.top;candidate=p;if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=y+"px";candidateLine.querySelector("span").textContent=fmt(p);}render();}
  function chartUp(e){if(!gesture)return;const kind=gesture.kind;gesture=null;if(kind==="candidate"){if(candidate)showChoice(candidate,e.clientY);}else{save();render();persistLevels();note((kind==="sl"?"Stop Loss":"Take Profit")+" moved to "+fmt(active[kind])+". Updating engine…");}}
  function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
  const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
- window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.3-bybit-demo-position-engine"};
+ window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.4-bybit-demo-position-engine-dragfix"};
  document.addEventListener("DOMContentLoaded",()=>{if(ensure())root.style.display="none"});
 })();
