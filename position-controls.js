@@ -17,7 +17,8 @@
  function fmt(n){return money(n)}
  function ensure(){
   layer=$("gtxLWCExpiryLayer");if(!layer)return false;
-  if(root&&root.isConnected)return true;
+  layer.setAttribute("aria-hidden","false");
+  if(root&&root.isConnected){if(root.parentElement!==layer)layer.appendChild(root);root.style.setProperty("display","block","important");return true;}
   root=document.createElement("div");root.id="gtxPositionControls";
   root.innerHTML='<div class="gtxpc-head"><div><b>POSITION LEVELS</b><small id="gtxpc-mode">DEMO • SETUP</small></div><button type="button" id="gtxpc-hide" aria-label="Hide position controls">−</button></div><div class="gtxpc-row"><button type="button" data-level="sl" class="gtxpc-level sl"><span>STOP LOSS</span><b id="gtxpc-sl-value">Not set</b></button><button type="button" data-level="tp" class="gtxpc-level tp"><span>TAKE PROFIT</span><b id="gtxpc-tp-value">Not set</b></button></div><div id="gtxpc-live" class="gtxpc-live">BYBIT PRICE · waiting for verified tick</div><div class="gtxpc-actions"><button type="button" id="gtxpc-auto">AUTO SET</button><button type="button" id="gtxpc-manual">MANUAL DRAG</button><button type="button" id="gtxpc-edit">ENTER PRICE</button><button type="button" id="gtxpc-close">CLOSE</button></div><div class="gtxpc-note" id="gtxpc-note">Drag either line on the chart or enter an exact price. Levels are saved as setup only; Bybit Demo position engine is active while this page is connected.</div>';
   layer.appendChild(root);
@@ -140,5 +141,5 @@
  function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
  const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
  window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.4-bybit-demo-position-engine-dragfix"};
- document.addEventListener("DOMContentLoaded",()=>{if(ensure()){root.style.display="block";if(!active)note("No open position detected. Open a Demo position to enable Stop Loss and Take Profit controls.");}});
+ document.addEventListener("DOMContentLoaded",()=>{const init=()=>{if(ensure()){root.style.setProperty("display","block","important");if(!active)note("No open position detected. Open a Demo position to enable Stop Loss and Take Profit controls.");}};init();window.addEventListener("load",init,{once:true});});
 })();
