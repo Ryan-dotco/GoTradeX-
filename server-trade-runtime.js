@@ -138,7 +138,7 @@
     setupRealtime();
     sync();
     if(syncTimer)clearInterval(syncTimer);
-    syncTimer=setInterval(sync,1000);
+    syncTimer=setInterval(sync,5000);
     document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){setupRealtime();sync()}});
     window.addEventListener("pageshow",()=>{setupRealtime();sync()});
     window.addEventListener("online",()=>{setupRealtime();sync()});
