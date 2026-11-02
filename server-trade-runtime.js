@@ -33,8 +33,8 @@
   function asset(){
     const stored=String(localStorage.getItem("gotradex_asset_display")||"").trim();
     const visible=String(document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"BTC/USD")
-      .replace(/^[A-Z]+\\s+/i,"").replace(/\\s+(LIVE|OTC)$/i,"").replace(/[▾▼].*$/,"").trim();
-    return (stored||visible||"BTC/USD").replace(/\\s+OTC$/i,"").trim();
+      .replace(/^[A-Z]+\s+/i,"").replace(/\s+(LIVE|OTC)$/i,"").replace(/[▾▼].*$/,"").trim();
+    return (stored||visible||"BTC/USD").replace(/\s+OTC$/i,"").trim();
   }
   async function call(action,extra={}){
     const s=client(); if(!s)throw new Error("Supabase client unavailable.");
