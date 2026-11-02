@@ -127,7 +127,6 @@
   if(e.target.closest?.("#gtxPositionControls,#gtxpc-choice"))return;
   const line=e.target.closest?.(".gtxpc-line"),kind=line?(line.classList.contains("sl")?"sl":"tp"):"candidate";
   const p=priceAt(e.clientY);if(!(p>0))return;
-  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
   gesture={kind};if(kind==="candidate")candidate=p;else active[kind]=p;render();
  }
  function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;if(gesture.kind==="candidate"){candidate=p;const r=layer.getBoundingClientRect(),y=e.clientY-r.top;if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=y+"px";candidateLine.querySelector("span").textContent=fmt(p);}}else active[gesture.kind]=p;render();}
