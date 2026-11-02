@@ -108,7 +108,7 @@
  window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id))||(!active?(j.open||[])[0]:null);if(p){active={...p,entryPrice:Number(p.entry_price),side:p.direction,sl:p.stop_loss??null,tp:p.take_profit??null};save();if(ensure())root.style.display="block";render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
  window.addEventListener("resize",render);
  window.addEventListener("gotradex:asset-changed",()=>setTimeout(render,100));
- const timer=setInterval(()=>{if(active)render()},500);
+ const timer=setInterval(()=>{if(!root||!root.isConnected){if(ensure()){root.style.display="block";if(!active)note("No open position detected. Open a Demo position to enable Stop Loss and Take Profit controls.");}}if(active)render()},500);
 
  /* Use the chart's own horizontal price/crosshair position as the SL/TP placement tool. */
  let candidate=null, chooser=null, gesture=null, placementInstalled=false;
