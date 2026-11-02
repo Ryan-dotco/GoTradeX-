@@ -140,5 +140,5 @@
  function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
  const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
  window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,version:"0.4-bybit-demo-position-engine-dragfix"};
- document.addEventListener("DOMContentLoaded",()=>{if(ensure())root.style.display="none"});
+ document.addEventListener("DOMContentLoaded",()=>{if(ensure()){root.style.display="block";if(!active)note("No open position detected. Open a Demo position to enable Stop Loss and Take Profit controls.");}});
 })();
