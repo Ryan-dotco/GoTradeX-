@@ -82,9 +82,10 @@
   $("gtxpc-mode").textContent=mode()+" • "+(active.side||"POSITION")+" • SETUP";
   $("gtxpc-sl-value").textContent=active.sl?fmt(active.sl):"Not set";
   $("gtxpc-tp-value").textContent=active.tp?fmt(active.tp):"Not set";
-  const live=$("gtxpc-live"),last=Number(currentPrice()||active.last_price||active.entryPrice);if(live&&last>0){const gross=Number(active.amount||0)*((active.side==="SELL"?Number(active.entryPrice)-last:last-Number(active.entryPrice))/Number(active.entryPrice));const fee=Number(active.amount||0)*.001+(gross>0?gross*.10:gross<0?Number(active.amount||0)*.001:0);const net=gross-fee;live.textContent="BYBIT "+fmt(last)+"  ·  NET P/L "+(net>=0?"+":"")+fmt(net);}
+  const live=$("gtxpc-live"),cs=chart(),sameMarket=!cs?.symbol||!active.provider_symbol||String(cs.symbol)===String(active.provider_symbol),last=Number(sameMarket?currentPrice():active.last_price||active.entryPrice);if(live&&last>0){const gross=Number(active.amount||0)*((active.side==="SELL"?Number(active.entryPrice)-last:last-Number(active.entryPrice))/Number(active.entryPrice));const fee=Number(active.amount||0)*.001+(gross>0?gross*.10:gross<0?Number(active.amount||0)*.001:0);const net=gross-fee;live.textContent="BYBIT "+fmt(last)+"  ·  NET P/L "+(net>=0?"+":"")+fmt(net);}
   const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return;
-  ["sl","tp"].forEach(k=>{
+  const sameMarket=!s.symbol||!active.provider_symbol||String(s.symbol)===String(active.provider_symbol);
+  ["sl","tp"].forEach(k=>{if(!sameMarket){const el=$("gtxpc-line-"+k);if(el)el.style.display="none";return;}
    const el=$("gtxpc-line-"+k),v=Number(active[k]);
    if(!v){el.style.display="none";return}
    const y=s.candleSeries.priceToCoordinate(v);
@@ -104,7 +105,7 @@
  }
  window.addEventListener("gotradex:trade-opened",opened);
  window.addEventListener("gotradex:autobot-trade-opened",opened);
- window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id));if(p){active={...active,...p,sl:p.stop_loss??null,tp:p.take_profit??null};save();render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
+ window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id))||(!active?(j.open||[])[0]:null);if(p){active={...p,entryPrice:Number(p.entry_price),side:p.direction,sl:p.stop_loss??null,tp:p.take_profit??null};save();if(ensure())root.style.display="block";render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
  window.addEventListener("resize",render);
  window.addEventListener("gotradex:asset-changed",()=>setTimeout(render,100));
  const timer=setInterval(()=>{if(active)render()},500);
@@ -119,7 +120,7 @@
   chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";return;}if(!active||!candidate)return;active[pick]=candidate;save();candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";render();persistLevels();note((pick==="sl"?"Stop Loss":"Take Profit")+" pinned at "+fmt(active[pick])+". Sending to Bybit Demo engine…");});});
   layer.appendChild(chooser);return chooser;
  }
- function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
+ function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return null;if(active?.provider_symbol&&s.symbol&&String(active.provider_symbol)!==String(s.symbol))return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
  function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(y-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(price);}note("Selected "+fmt(price)+". Choose SL or TP to pin this price.");}
  function chartDown(e){
   if(!active||e.button!==0)return;
