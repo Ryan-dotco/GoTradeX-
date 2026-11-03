@@ -274,6 +274,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       try{state.chart.timeScale().fitContent()}catch(_){}
     }
     updateTypeButtons();
+    renderExpiryMarkers();
   }
 
   function applyChartTypeVisibility(){
@@ -719,13 +720,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       priceLineVisible:false,lastValueVisible:false,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
-    // Restore the approved yellow live-price line and matching right-axis label.
+    // Live-price line colour follows the currently forming candle direction.
     state.currentPriceLine=state.candleSeries.createPriceLine({
-      price:Number(state.price)||0,color:"#f5a623",lineWidth:1,lineStyle:C.LineStyle.Solid,
+      price:Number(state.price)||0,color:activeCandleDirectionColor(),lineWidth:1,lineStyle:C.LineStyle.Solid,
       axisLabelVisible:true,title:"LIVE"
     });
-    // Keep the yellow LIVE line reference: updateCurrentPriceLine() moves this
-    // exact line on each verified tick. Do not clear it after creating it.
+    // Keep this LIVE line reference and update its price and direction on each verified tick.
     // Alternate chart styles are created only when selected from the single chart-style menu.
     state.barSeries=null;state.lineSeries=null;state.areaSeries=null;
     state.ma50=null;state.ma100=null;state.ma200=null;
@@ -806,9 +806,22 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     positionTradeOverlay();
   }
 
+  function activeCandleDirectionColor(){
+    let candle=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+    if(state.chartType==="heikin"){
+      try{
+        const ha=seriesCandleData();
+        if(ha&&ha.length)candle=ha[ha.length-1];
+      }catch(_){}
+    }
+    const open=Number(candle&&(candle.o!==undefined?candle.o:candle.open));
+    const close=Number(candle&&(candle.c!==undefined?candle.c:candle.close));
+    if(Number.isFinite(open)&&Number.isFinite(close))return close>=open?"#22c55e":"#ef4444";
+    return "#22c55e";
+  }
   function updateCurrentPriceLine(){
     if(!state.currentPriceLine||!Number.isFinite(Number(state.price)))return;
-    try{state.currentPriceLine.applyOptions({price:Number(state.price),axisLabelVisible:true});}catch(_){}
+    try{state.currentPriceLine.applyOptions({price:Number(state.price),color:activeCandleDirectionColor(),axisLabelVisible:true});}catch(_){}
     positionCandleTimer();
   }
 
@@ -861,6 +874,34 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   }
 
   const expiryTrades=[];
+  const EXPIRY_MARKERS_STORAGE_KEY="gotradex_fixed_trade_markers_v1";
+  let expiryMarkersRestored=false;
+  function persistExpiryTrades(){
+    try{
+      const saved=expiryTrades.map(t=>({
+        id:t.id,serverId:t.serverId||null,entryAt:Number(t.entryAt)||Date.now(),
+        expiryAt:Number(t.expiryAt),durationSeconds:Number(t.durationSeconds)||0,
+        entryPrice:Number(t.entryPrice),markerTime:Number(t.markerTime),
+        markerTimeExact:Number(t.markerTimeExact)||null,markerLogicalIndex:Number(t.markerLogicalIndex),
+        markerPrice:Number(t.markerPrice),asset:t.asset||selectedAssetFlag(),
+        side:t.side==="SELL"?"SELL":"BUY",source:t.source||"MANUAL",
+        amount:Number(t.amount)||null,completed:!!t.completed,pending:!!t.pending
+      })).filter(t=>Number.isFinite(t.expiryAt)&&Number.isFinite(t.entryPrice)&&Number.isFinite(t.markerTime)&&Number.isFinite(t.markerPrice));
+      localStorage.setItem(EXPIRY_MARKERS_STORAGE_KEY,JSON.stringify(saved));
+    }catch(_){}
+  }
+  function restoreExpiryTrades(){
+    if(expiryMarkersRestored)return;
+    expiryMarkersRestored=true;
+    try{
+      const saved=JSON.parse(localStorage.getItem(EXPIRY_MARKERS_STORAGE_KEY)||"[]");
+      if(!Array.isArray(saved))return;
+      const now=Date.now();
+      saved.filter(t=>Number(t.expiryAt)+3000>now).forEach(t=>{
+        expiryTrades.push({...t,markerNode:null,raw:{},asset:t.asset||selectedAssetFlag()});
+      });
+    }catch(_){}
+  }
   const pendingTradeIntents=[];
   const resultCards=[];
   let expiryTimer=null;
@@ -933,12 +974,16 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const latest=lastCandle?Number(lastCandle.c):NaN;
     // The actual latest verified tick is the entry price; candle close is only a fallback.
     const entryPrice=Number.isFinite(livePrice)&&livePrice>0?livePrice:(Number.isFinite(latest)&&latest>0?latest:null);
-    // Anchor the line to the provider-time of the entry tick, not the candle open.
-    // Fractional candle positioning keeps the marker aligned with the actual entry moment.
-    const sourceTime=Number(state.diag.lastSourceTime)||now;
-    const markerTime=Number.isFinite(sourceTime)&&sourceTime>0?Math.floor(sourceTime/1000):null;
+    // Anchor horizontally to the active candle that is moving when BUY/SELL is pressed.
+    // Keep the exact live tick as the fixed entry price, but use the candle's own
+    // timestamp so the line begins inside that candle's wick/body and stays there
+    // when the chart is zoomed or scrolled.
+    const candleTime=lastCandle&&Number(lastCandle.t)>0?Math.floor(Number(lastCandle.t)/1000):null;
+    const markerTime=candleTime;
+    const markerTimeExact=candleTime!==null?candleTime*1000:null;
+    const markerLogicalIndex=lastCandle?state.candles.length-1:null;
     const markerPrice=entryPrice;
-    const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerPrice,amount:null,expiryAt,marker:null};
+    const intent={at:localNow,side:String(side||"BUY").toUpperCase(),source:source==="AB"?"AB":"MANUAL",asset:selectedAssetFlag().label,entryPrice,markerTime,markerTimeExact,markerLogicalIndex,markerPrice,amount:null,expiryAt,marker:null};
     try{
       const amountEl=document.getElementById("amountValueText");
       if(amountEl)intent.amount=Number(String(amountEl.textContent).replace(/[^0-9.]/g,""));
@@ -946,11 +991,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Show a visible provisional entry line immediately on the button press.
     // The server response will confirm/update it; a rejected order removes it.
     intent.marker={
-      id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:localNow,expiryAt,
-      entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
+      id:"pending-trade-"+(++expiryTradeCounter),serverId:null,entryAt:localNow,expiryAt,durationSeconds:selectedExpirySeconds(),
+      entryPrice:intent.entryPrice,markerTime:intent.markerTime,markerTimeExact:intent.markerTimeExact,markerLogicalIndex:intent.markerLogicalIndex,markerPrice:intent.markerPrice,asset:{label:intent.asset,flag:selectedAssetFlag().flag},
       side:intent.side,source:intent.source,amount:intent.amount,raw:{},completed:false,pending:true
     };
     expiryTrades.push(intent.marker);
+    persistExpiryTrades();
     renderExpiryMarkers();
     pendingTradeIntents.push(intent);
     while(pendingTradeIntents.length>20)pendingTradeIntents.shift();
@@ -1026,6 +1072,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     const t=normalizeServerTrade(raw);
     if(!t)return null;
     if(!expiryTrades.includes(t))expiryTrades.push(t);
+    persistExpiryTrades();
     return t;
   }
   function onServerSync(event){
@@ -1047,15 +1094,38 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     renderExpiryMarkers();
   }
   function coordinateForTimestamp(timestampMs){
-    if(!state.chart||!state.candles.length)return null;
-    const ts=timestampMs/1000, scale=state.chart.timeScale();
-    const exact=scale.timeToCoordinate(Math.floor(ts));
-    if(exact!==null&&exact!==undefined)return exact;
-    const lastIndex=state.candles.length-1;
-    const last=state.candles[lastIndex];
-    const lastTime=Math.floor(Number(last.t)/1000);
-    const logical=lastIndex+(ts-lastTime)/(Number(state.sec)||300);
-    return scale.logicalToCoordinate(logical);
+    if(!state.chart||!state.candles.length||!Number.isFinite(Number(timestampMs)))return null;
+    const ts=Number(timestampMs)/1000, scale=state.chart.timeScale();
+    const interval=Math.max(1,Number(state.sec)||300);
+    // Map timestamps to fractional candle positions, not just candle centres.
+    // This preserves the actual click-time entry position and places expiry on
+    // the exact duration boundary (e.g. five M1 intervals for a five-minute trade).
+    let baseIndex=-1,baseTime=0;
+    for(let i=state.candles.length-1;i>=0;i--){
+      const candleTime=Math.floor(Number(state.candles[i].t)/1000);
+      if(Number.isFinite(candleTime)&&candleTime<=ts){
+        baseIndex=i;baseTime=candleTime;break;
+      }
+    }
+    if(baseIndex<0){
+      const firstTime=Math.floor(Number(state.candles[0].t)/1000);
+      if(!Number.isFinite(firstTime))return null;
+      return scale.logicalToCoordinate((ts-firstTime)/interval);
+    }
+    const logical=baseIndex+(ts-baseTime)/interval;
+    const mapped=scale.logicalToCoordinate(logical);
+    if(mapped!==null&&mapped!==undefined&&Number.isFinite(mapped))return mapped;
+    // Future expiry candles often have no data point yet, so Lightweight Charts
+    // can return null for their logical coordinate. Project from the last real
+    // candle using the current bar spacing; do not substitute the price-scale edge.
+    const last=state.candles[state.candles.length-1];
+    const lastTime=last?Math.floor(Number(last.t)/1000):NaN;
+    const lastX=Number.isFinite(lastTime)?scale.timeToCoordinate(lastTime):null;
+    const spacing=Number(scale.options().barSpacing)||9;
+    if(ts>lastTime&&lastX!==null&&lastX!==undefined&&Number.isFinite(lastX)){
+      return lastX+((ts-lastTime)/interval)*spacing;
+    }
+    return null;
   }
   function formatRemaining(ms){
     const s=Math.max(0,Math.ceil(ms/1000));
@@ -1095,6 +1165,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   function renderExpiryMarkers(){
     const layer=document.getElementById("gtxLWCExpiryLayer");
     if(!layer)return;
+    restoreExpiryTrades();
     const now=marketNow();
     // Keep the entry marker pinned to its original candle and exact entry price throughout the trade,
     // then leave it visible for 3 more seconds.
@@ -1104,6 +1175,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       if(now>=Number(t.expiryAt)+3000){
         if(t.markerNode&&t.markerNode.parentNode)t.markerNode.parentNode.removeChild(t.markerNode);
         expiryTrades.splice(i,1);
+        persistExpiryTrades();
       }
     }
     const plotRight=Math.max(20,layer.clientWidth-70);
@@ -1133,7 +1205,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
         const label=document.createElement("span");label.className="gtxTradeAssetLabel";label.style.cssText="display:block;text-align:right;color:#f8fafc;font:800 10px/1.2 system-ui;text-shadow:0 1px 3px #00101e;";
         label.textContent=(t.asset.flag||"")+" "+t.asset.label;
         const countdown=document.createElement("span");countdown.className="gtxTradeCountdown";countdown.style.cssText="display:block;text-align:right;color:#ffd84d;font:900 12px/1.2 system-ui;text-shadow:0 1px 3px #00101e;margin-top:7px;";
-        const dots=document.createElement("span");dots.className="gtxTradeEndDots";dots.textContent="•••";
+        const dots=document.createElement("span");dots.className="gtxTradeEndDots";dots.textContent="••••";
         dots.style.cssText="position:absolute;color:#ffd84d;font:900 10px/1 system-ui;letter-spacing:2px;white-space:nowrap;";
         tag.append(flag,label,countdown);
         node.append(line,dots,tag);
@@ -1179,7 +1251,21 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       }
       let x=null,y=null;
       try{
-        if(Number.isFinite(anchorTime))x=coordinateForTimestamp(anchorTime*1000);
+        // Use the active candle's native time coordinate (its centre), not the
+        // provider tick's fractional timestamp. That pins the line to the candle
+        // itself and keeps the attachment stable through zoom and horizontal scroll.
+        const timeScale=state.chart&&state.chart.timeScale();
+        if(Number.isFinite(anchorTime)&&timeScale){
+          x=timeScale.timeToCoordinate(anchorTime);
+        }
+        // Fallback to the captured active-candle logical index if the library
+        // cannot resolve the timestamp after a range/zoom transition.
+        if((x===null||x===undefined||!Number.isFinite(x))&&timeScale&&Number.isFinite(Number(t.markerLogicalIndex))){
+          x=timeScale.logicalToCoordinate(Number(t.markerLogicalIndex));
+        }
+        if((x===null||x===undefined||!Number.isFinite(x))&&Number.isFinite(anchorTime)){
+          x=coordinateForTimestamp(anchorTime*1000);
+        }
         // Recalculate the vertical coordinate from the fixed entry price on every
         // render. This keeps the marker aligned through price-scale changes, zoom,
         // resize, and timeframe changes instead of preserving a stale screen pixel.
@@ -1188,33 +1274,54 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
           if(priceY!==null&&priceY!==undefined&&Number.isFinite(priceY))y=priceY;
         }
       }catch(_){}
-      // Lightweight Charts returns null coordinates when the anchored candle
-      // is outside the visible range. Hide the whole marker with that candle.
-      if(y===null||y===undefined||!Number.isFinite(y)||x===null||x===undefined||!Number.isFinite(x)||x<0||x>layer.clientWidth){
+      // Never silently suppress a user-requested marker because a chart coordinate
+      // is temporarily unavailable during load, timeframe switches, or live reconnects.
+      const chartHost=document.getElementById("gtxLWC");
+      const layerWidth=Number(layer.clientWidth)||Number(chartHost&&chartHost.clientWidth)||320;
+      const layerHeight=Number(layer.clientHeight)||Number(chartHost&&chartHost.clientHeight)||260;
+      const fallbackSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
+      if(x===null||x===undefined||!Number.isFinite(x)){
+        const last=state.candles&&state.candles.length?state.candles[state.candles.length-1]:null;
+        const lastTime=last?Math.floor(Number(last.t)/1000):NaN;
+        try{x=Number.isFinite(lastTime)&&state.chart?state.chart.timeScale().timeToCoordinate(lastTime):null;}catch(_){}
+      }
+      if(x===null||x===undefined||!Number.isFinite(x))x=Math.max(12,layerWidth-100);
+      if(y===null||y===undefined||!Number.isFinite(y))y=Math.max(30,Math.min(layerHeight-30,layerHeight*0.52));
+      // A marker anchored just beyond the right edge remains visible at the edge
+      // until the chart can resolve its active candle coordinate again.
+      if(x>layerWidth)x=Math.max(12,layerWidth-fallbackSpacing*2);
+      node.style.display=""; 
+      const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
+      // timeToCoordinate returns the candle centre. Start at its right edge so
+      // the yellow guide visibly grows out of the latest candle, left-to-right.
+      const bodyCenterX=x+Math.max(2,barSpacing*0.48);
+      // Stop at the actual expiry timestamp converted through the candle interval.
+      // Never substitute the chart's right edge/price scale for the expiry candle.
+      // A 5m trade on M1 ends after 5 candles; 15m on M1 after 15; 1h on M15 after 4.
+      const expiryX=coordinateForTimestamp(Number(t.expiryAt));
+      // Future timestamps often have no coordinate in Lightweight Charts because
+      // the visible logical range ends at the latest candle. Never hide the marker
+      // for that reason: project the full selected duration using candle spacing.
+      const intervalSeconds=Math.max(1,Number(state.sec)||60);
+      const durationSeconds=Math.max(1,Number(t.durationSeconds)||selectedExpirySeconds());
+      const projectedEndX=bodyCenterX+(durationSeconds/intervalSeconds)*barSpacing;
+      const endX=Number.isFinite(expiryX)&&expiryX>bodyCenterX+2?expiryX:projectedEndX;
+      if(!Number.isFinite(endX)){
         node.style.display="none";
         return;
       }
       node.style.display="";
-      const barSpacing=state.chart?Number(state.chart.timeScale().options().barSpacing)||9:9;
-      // The yellow entry line starts at the exact live entry-price coordinate
-      // at the original candle timestamp and runs toward the expiry endpoint. The expiry flag,
-      // pair label and countdown share that same price level/endpoint.
-      const bodyCenterX=x;
-      // Use the selected trade's real expiry timestamp to place the endpoint in
-      // chart time coordinates. This makes a 5-minute expiry span five 1-minute
-      // candles (or the corresponding duration on another chart timeframe).
-      const expiryX=coordinateForTimestamp(Number(t.expiryAt));
-      const desiredEnd=Number.isFinite(expiryX)?expiryX:plotRight;
-      // Do not force a minimum candle-width span: short expiries must end at their real time coordinate.
-      const endX=Math.max(bodyCenterX+1,Math.min(plotRight-6,desiredEnd));
       const tagWidth=116;
       // Center the expiry label/countdown on the actual endpoint, including short expiries.
       const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
       line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
-      line.style.background="#ffd84d";line.style.height="2px";line.style.opacity=".98";
-      // Three small dots sit at the expiry end; the pair/flag sits above and
-      // the live countdown sits below the same line level.
-      if(dots){dots.style.left=(endX+3)+"px";dots.style.top=(y-4)+"px";}
+      // Solid directional trade guide. Preserve the approved active-candle
+      // anchor, wick attachment, and left-to-right projection geometry.
+      const tradeLineColor=t.side==="SELL"?"#ef4444":"#22c55e";
+      line.style.background=tradeLineColor;line.style.height="2px";line.style.opacity=".98";
+      // Dots identify the expiry endpoint; pair flag and countdown stay grouped there.
+      if(dots){dots.style.left=(endX+3)+"px";dots.style.top=(y-4)+"px";dots.style.color=tradeLineColor;}
+      if(expiryFlag)expiryFlag.style.color=tradeLineColor;
       tag.style.left=tagLeft+"px";tag.style.top=(y-14)+"px";tag.style.background="transparent";tag.style.width=tagWidth+"px";tag.style.textAlign="center";
       if(expiryFlag){expiryFlag.style.top="-16px";expiryFlag.style.right="50%";expiryFlag.style.transform="translateX(50%)";}
       const label=tag.querySelector(".gtxTradeAssetLabel");
