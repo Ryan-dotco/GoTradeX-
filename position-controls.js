@@ -16,20 +16,26 @@
  function currentPrice(){const s=chart();return Number(s&&s.price)||Number(active&&active.entryPrice)||0}
  function fmt(n){return money(n)}
  function ensure(){
-  const chartBox=$("gtxLiveChart");if(!chartBox)return false;
+  const chartBox=$("gtxLiveChart");
+  /* The control panel must exist even before the chart mounts. */
   layer=$("gtxLWCExpiryLayer");
-  /* Create the overlay if an older chart shell does not provide it. */
-  if(!layer){layer=document.createElement("div");layer.id="gtxLWCExpiryLayer";chartBox.appendChild(layer);}
-  chartBox.style.setProperty("position","relative","important");
-  layer.style.setProperty("display","block","important");
-  layer.style.setProperty("position","absolute","important");
-  layer.style.setProperty("inset","0","important");
-  layer.style.setProperty("z-index","2147483000","important");
-  layer.style.setProperty("overflow","hidden","important");
-  layer.style.setProperty("pointer-events","none","important");
-  layer.style.setProperty("visibility","visible","important");
-  layer.style.setProperty("opacity","1","important");
-  layer.setAttribute("aria-hidden","false");
+  if(chartBox){
+   if(!layer){layer=document.createElement("div");layer.id="gtxLWCExpiryLayer";chartBox.appendChild(layer);}
+   chartBox.style.setProperty("position","relative","important");
+   layer.style.setProperty("display","block","important");
+   layer.style.setProperty("position","absolute","important");
+   layer.style.setProperty("inset","0","important");
+   layer.style.setProperty("z-index","2147483000","important");
+   layer.style.setProperty("overflow","hidden","important");
+   layer.style.setProperty("pointer-events","none","important");
+   layer.style.setProperty("visibility","visible","important");
+   layer.style.setProperty("opacity","1","important");
+   layer.setAttribute("aria-hidden","false");
+   if(!document.getElementById("gtxpc-line-sl")){
+    ["sl","tp"].forEach(k=>{const el=document.createElement("div");el.className="gtxpc-line "+k;el.id="gtxpc-line-"+k;el.innerHTML='<span></span>';layer.appendChild(el);el.addEventListener("pointerdown",e=>startDrag(e,k));});
+    candidateLine=document.createElement("div");candidateLine.className="gtxpc-candidate";candidateLine.id="gtxpc-candidate";candidateLine.innerHTML="<span></span>";layer.appendChild(candidateLine);
+   }
+  }
   if(root&&root.isConnected){if(root.parentElement!==document.body)document.body.appendChild(root);root.style.setProperty("display","block","important");root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");return true;}
   root=document.createElement("div");root.id="gtxPositionControls";
   root.innerHTML='<div class="gtxpc-head"><div><b>POSITION LEVELS</b><small id="gtxpc-mode">DEMO • SETUP</small></div><button type="button" id="gtxpc-hide" aria-label="Hide position controls">−</button></div><div class="gtxpc-row"><button type="button" data-level="sl" class="gtxpc-level sl"><span>STOP LOSS</span><b id="gtxpc-sl-value">Not set</b></button><button type="button" data-level="tp" class="gtxpc-level tp"><span>TAKE PROFIT</span><b id="gtxpc-tp-value">Not set</b></button></div><div id="gtxpc-live" class="gtxpc-live">BYBIT PRICE · waiting for verified tick</div><div class="gtxpc-actions"><button type="button" id="gtxpc-auto">AUTO SET</button><button type="button" id="gtxpc-manual">MANUAL DRAG</button><button type="button" id="gtxpc-edit">ENTER PRICE</button><button type="button" id="gtxpc-close">CLOSE</button></div><div class="gtxpc-note" id="gtxpc-note">Drag either line on the chart or enter an exact price. Levels are saved as setup only; Bybit Demo position engine is active while this page is connected.</div>';
@@ -49,8 +55,6 @@
   '.gtxpc-candidate span{position:absolute;right:0;top:-13px;min-width:84px;text-align:center;padding:3px 4px;border-radius:4px;background:#aeb7c2;color:#101b28;border:1px solid #eef2f6;font:900 10px system-ui;white-space:nowrap}'+
   '@media(max-width:420px){#gtxPositionControls{left:6px;top:6px;width:220px;padding:6px}.gtxpc-note{font-size:7px}.gtxpc-actions button{font-size:7px}}';
   document.head.appendChild(style);
-  ["sl","tp"].forEach(k=>{const el=document.createElement("div");el.className="gtxpc-line "+k;el.id="gtxpc-line-"+k;el.innerHTML='<span></span>';layer.appendChild(el);el.addEventListener("pointerdown",e=>startDrag(e,k));});
-  candidateLine=document.createElement("div");candidateLine.className="gtxpc-candidate";candidateLine.id="gtxpc-candidate";candidateLine.innerHTML="<span></span>";layer.appendChild(candidateLine);
   $("gtxpc-hide").addEventListener("click",()=>{root.style.display="none";});
   root.querySelectorAll("[data-level]").forEach(b=>b.addEventListener("click",()=>edit(b.dataset.level)));
   $("gtxpc-auto").addEventListener("click",autoSet);
