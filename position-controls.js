@@ -6,7 +6,7 @@
  "use strict";
  if(window.GoTradeXPositionControls)return;
  const KEY="gotradex_position_levels_v1";
- let active=null, dragging=null, root=null, layer=null, candidateLine=null, restoreTab=null, confirmedLevels={sl:null,tp:null}, autoArmed=false, panelHidden=false, panelCollapsed=false, panelDrag=null;
+ let active=null, dragging=null, root=null, layer=null, candidateLine=null, restoreTab=null, confirmedLevels={sl:null,tp:null}, autoArmed=false, panelHidden=true, panelCollapsed=false, panelDrag=null;
  const $=id=>document.getElementById(id);
  const money=n=>Number.isFinite(Number(n))?Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:6}):"—";
  function mode(){return String(localStorage.getItem("gotradex_account_mode")||"DEMO").toUpperCase();}
@@ -156,14 +156,14 @@
   if(!(entry>0))return;
   const saved=read()[id]||{};
   active={...t,id,side:String(t.direction||t.side||"BUY").toUpperCase(),entryPrice:entry,provider_symbol:t.provider_symbol||t.providerSymbol||"",amount:Number(t.amount||0),last_price:Number(t.last_price||t.last_price===0?t.last_price:entry),sl:t.stop_loss??null,tp:t.take_profit??null,asset:t.asset||$("bottomAssetPair")?.textContent||"BTC/USD",createdAt:Date.now()};confirmedLevels={sl:active.sl,tp:active.tp};
-  save();if(ensure()){panelHidden=false;root.style.setProperty("display","block","important");render();note("BYBIT DEMO POSITION: set SL and TP with the grey cursor. Confirmed levels are monitored against Bybit Spot prices while connected.");}
+  save();if(ensure()){panelHidden=true;root.style.setProperty("display","none","important");if(restoreTab)restoreTab.style.display="none";render();note("Position opened. Drag the grey chart line to bring up Stop Loss and Take Profit controls.");}
  }
  window.addEventListener("gotradex:trade-opened",opened);
  window.addEventListener("gotradex:autobot-trade-opened",opened);
- window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id))||(!active?(j.open||[])[0]:null);if(p){active={...p,entryPrice:Number(p.entry_price),side:p.direction,sl:p.stop_loss??null,tp:p.take_profit??null};confirmedLevels={sl:active.sl,tp:active.tp};save();if(ensure()&&!panelHidden)root.style.setProperty("display","block","important");render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
+ window.addEventListener("gotradex:server-sync",e=>{const j=e.detail||{},p=(j.open||[]).find(x=>String(x.id)===String(active?.id))||(!active?(j.open||[])[0]:null);if(p){active={...p,entryPrice:Number(p.entry_price),side:p.direction,sl:p.stop_loss??null,tp:p.take_profit??null};confirmedLevels={sl:active.sl,tp:active.tp};save();if(ensure())root.style.setProperty("display",panelHidden?"none":"block","important");render();}const h=(j.history||[]).find(x=>String(x.id)===String(active?.id));if(h&&h.result!=="OPEN"){active={...active,...h};render();note("Position closed: "+h.close_reason+" · "+h.result+" · Net P/L "+fmt(h.pnl));}});
  window.addEventListener("resize",render);
  window.addEventListener("gotradex:asset-changed",()=>setTimeout(render,100));
- const timer=setInterval(()=>{if(!root||!root.isConnected){if(ensure()&&!panelHidden){root.style.setProperty("display","block","important");if(!active)note("No open position detected. Open a Demo position to enable Stop Loss and Take Profit controls.");}}if(root){if(!panelHidden)root.style.setProperty("display","block","important");else root.style.setProperty("display","none","important");if(restoreTab)restoreTab.style.display=panelHidden?"block":"none";root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");}if(active)render()},500);
+ const timer=setInterval(()=>{if(!root||!root.isConnected){if(ensure()&&panelHidden)root.style.setProperty("display","none","important");}if(root){if(!panelHidden)root.style.setProperty("display","block","important");else root.style.setProperty("display","none","important");if(restoreTab)restoreTab.style.display=panelHidden?"block":"none";root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");}if(active)render()},500);
 
  /* Use the chart's own horizontal price/crosshair position as the SL/TP placement tool. */
  let candidate=null, chooser=null, gesture=null, placementInstalled=false;
@@ -181,6 +181,7 @@
  function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.querySelectorAll("[data-pick]").forEach(b=>{if(b.dataset.pick==="cancel")return;const k=b.dataset.pick,kind=k==="sl"?"STOP LOSS":"TAKE PROFIT";b.textContent=(active?.[k]!=null?"MODIFY ":"PLACE ")+kind;});el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(y-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(price);}note("Selected "+fmt(price)+". Choose Place or Modify for one level; the other level will not change.");}
  function chartDown(e){
   if(!active||e.button!==0)return;
+  panelHidden=false;if(ensure()){root.style.setProperty("display","block","important");if(restoreTab)restoreTab.style.display="none";}
   if(!sameInstrument(chart())){note("Select the same market as the open position before placing SL/TP.");return;}
   if(e.target.closest?.("#gtxPositionControls,#gtxpc-choice"))return;
   if(e.target.closest?.(".gtxpc-line"))return; // Confirmed levels use their own drag handler.
