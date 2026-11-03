@@ -24,8 +24,8 @@ async function price(symbol:string){
   const url="https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(symbol);
   const r=await fetch(url,{cache:"no-store"}); if(!r.ok)throw new Error("Bybit market price request failed.");
   const j=await r.json(); const p=Number(j?.result?.list?.[0]?.lastPrice);
-  if(j?.retCode!==0||!Number.isFinite(p)||p<=0)throw new Error("Bybit has no verified Spot ticker for "+symbol+".");
-  return {price:p,at:new Date().toISOString()};
+  const exchangeMs=Number(j?.time); if(j?.retCode!==0||!Number.isFinite(p)||p<=0||!Number.isFinite(exchangeMs)||exchangeMs<=0)throw new Error("Bybit has no verified Spot ticker/time for "+symbol+".");
+  return {price:p,at:new Date(exchangeMs).toISOString()};
 }
 function validLevels(side:string,entry:number,sl:number|null,tp:number|null){
   if(sl!==null&&(!(sl>0)||(side==="BUY"?sl>=entry:sl<=entry)))throw new Error("Stop Loss must be below entry for BUY and above entry for SELL.");
@@ -73,6 +73,7 @@ Deno.serve(async(req)=>{
       const id=String(body.position_id||""); if(!id)return reply({ok:false,error:"Position ID is required."},400);
       const rows=await db("gotradex_testing_positions?id=eq."+encodeURIComponent(id)+"&user_id=eq."+encodeURIComponent(user.id)+"&result=eq.OPEN&select=*");
       const t=rows?.[0]; if(!t)return reply({ok:false,error:"Open Demo position not found."},404);
+      const approved=await db("gotradex_market_registry?provider=eq.BYBIT&enabled=eq.true&provider_symbol=eq."+encodeURIComponent(t.provider_symbol)+"&select=symbol&limit=1"); if(!Array.isArray(approved)||!approved.length)return reply({ok:false,error:"This symbol is not approved for Bybit Spot monitoring. Manual settlement is blocked until it is reviewed."},409);
       const q=await price(t.provider_symbol),v=pnl(t,q.price),now=q.at;
       const updated=await db("gotradex_testing_positions?id=eq."+encodeURIComponent(id)+"&user_id=eq."+encodeURIComponent(user.id)+"&result=eq.OPEN",{method:"PATCH",body:JSON.stringify({result:v.net>=0?"WON":"LOST",close_reason:"MANUAL",exit_price:q.price,last_price:q.price,last_tick_at:now,gross_pnl:v.gross,opening_fee:v.openFee,closing_fee:v.closeFee,pnl:v.net,closed_at:now,updated_at:now})});
       return reply({ok:true,position:updated?.[0]||null});
