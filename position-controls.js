@@ -175,10 +175,11 @@
  }
  function normSymbol(v){return String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/USD$/,"USDT");}
  function sameInstrument(s){return !s?.symbol||!active?.provider_symbol||normSymbol(s.symbol)===normSymbol(active.provider_symbol);}
- function priceAt(y){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host||!sameInstrument(s))return null;const r=host.getBoundingClientRect(),p=s.candleSeries.coordinateToPrice(y-r.top);return Number.isFinite(p)&&p>0?p:null;}
+ function priceAt(clientY){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host||!sameInstrument(s))return null;const r=host.getBoundingClientRect(),localY=clientY-r.top;if(localY<0||localY>r.height)return null;const p=s.candleSeries.coordinateToPrice(localY);return Number.isFinite(p)&&p>0?p:null;}
  function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.querySelectorAll("[data-pick]").forEach(b=>{if(b.dataset.pick==="cancel")return;const k=b.dataset.pick,kind=k==="sl"?"STOP LOSS":"TAKE PROFIT";b.textContent=(active?.[k]!=null?"MODIFY ":"PLACE ")+kind;});el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(y-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(price);}note("Selected "+fmt(price)+". Choose Place or Modify for one level; the other level will not change.");}
  function chartDown(e){
   if(!active||e.button!==0)return;
+  if(!sameInstrument(chart())){note("Select the same market as the open position before placing SL/TP.");return;}
   if(e.target.closest?.("#gtxPositionControls,#gtxpc-choice"))return;
   if(e.target.closest?.(".gtxpc-line"))return; // Confirmed levels use their own drag handler.
   const kind="candidate",p=priceAt(e.clientY);if(!(p>0))return;
@@ -188,7 +189,7 @@
   const r=layer.getBoundingClientRect();if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(e.clientY-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(p);}
   render();
  }
- function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;e.preventDefault?.();const r=layer.getBoundingClientRect(),y=e.clientY-r.top;candidate=p;if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=y+"px";candidateLine.querySelector("span").textContent=fmt(p);}render();}
+ function chartMove(e){if(!gesture)return;const p=priceAt(e.clientY);if(!(p>0))return;e.preventDefault?.();const r=layer.getBoundingClientRect(),y=e.clientY-r.top;candidate=p;if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=y+"px";candidateLine.querySelector("span").textContent=fmt(p);}note("Selected chart price "+fmt(p)+". Release to choose Stop Loss or Take Profit.");}
  function chartUp(e){if(!gesture)return;const kind=gesture.kind;gesture=null;if(kind==="candidate"){const finalPrice=priceAt(e.clientY);if(finalPrice>0)candidate=finalPrice;if(candidate){const r=layer.getBoundingClientRect();const y=Number.isFinite(e.clientY)?e.clientY:r.top+(candidateLine?parseFloat(candidateLine.style.top)||0:0);showChoice(candidate,y);}}else{save();render();persistLevels();note((kind==="sl"?"Stop Loss":"Take Profit")+" moved to "+fmt(active[kind])+". Updating engine…");}}
  function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
  const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
