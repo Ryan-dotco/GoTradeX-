@@ -38,7 +38,7 @@
   }
   if(root&&root.isConnected){if(chartBox&&root.parentElement!==chartBox)chartBox.appendChild(root);root.style.setProperty("display","block","important");root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");return true;}
   root=document.createElement("div");root.id="gtxPositionControls";
-  root.innerHTML='<div class="gtxpc-head"><div><b>POSITION LEVELS</b><small id="gtxpc-mode">DEMO • SETUP</small></div><button type="button" id="gtxpc-hide" aria-label="Hide position controls">−</button></div><div class="gtxpc-row"><button type="button" data-level="sl" class="gtxpc-level sl"><span>STOP LOSS</span><b id="gtxpc-sl-value">Not set</b></button><button type="button" data-level="tp" class="gtxpc-level tp"><span>TAKE PROFIT</span><b id="gtxpc-tp-value">Not set</b></button></div><div id="gtxpc-live" class="gtxpc-live">BYBIT PRICE · waiting for verified tick</div><div class="gtxpc-actions"><button type="button" id="gtxpc-auto">AUTO SET</button><button type="button" id="gtxpc-manual">MANUAL DRAG</button><button type="button" id="gtxpc-edit">ENTER PRICE</button><button type="button" id="gtxpc-close">CLOSE</button></div><div class="gtxpc-note" id="gtxpc-note">Drag either line on the chart or enter an exact price. Levels are saved as setup only; Bybit Demo position engine is active while this page is connected.</div>';
+  root.innerHTML='<div class="gtxpc-head"><div><b>POSITION LEVELS</b><small id="gtxpc-mode">DEMO • SETUP</small></div><button type="button" id="gtxpc-hide" aria-label="Hide position controls">−</button></div><div class="gtxpc-row"><button type="button" data-level="sl" class="gtxpc-level sl"><span>STOP LOSS</span><b id="gtxpc-sl-value">Not set</b></button><button type="button" data-level="tp" class="gtxpc-level tp"><span>TAKE PROFIT</span><b id="gtxpc-tp-value">Not set</b></button></div><div id="gtxpc-live" class="gtxpc-live">BYBIT PRICE · waiting for verified tick</div><div class="gtxpc-actions"><button type="button" id="gtxpc-auto">AUTO SET</button><button type="button" id="gtxpc-manual">MANUAL DRAG</button><button type="button" id="gtxpc-edit">ENTER PRICE</button><button type="button" id="gtxpc-close">CLOSE</button></div><div class="gtxpc-note" id="gtxpc-note">Drag either line on the chart or enter an exact price. Server confirmation is required for active SL/TP.</div>';
   (chartBox||document.body).appendChild(root);
   const style=document.createElement("style");style.id="gtxpc-style";style.textContent=
   '#gtxPositionControls{position:absolute!important;z-index:2147483647!important;left:8px;top:8px;width:min(260px,calc(100% - 16px));max-width:calc(100% - 16px);pointer-events:auto;background:rgba(5,19,35,.94);border:1px solid #294765;border-radius:10px;padding:8px;box-shadow:0 4px 16px #0006;color:#eaf3fb;font:11px system-ui}'+
@@ -64,7 +64,7 @@
   return true;
  }
  function note(s){const el=$("gtxpc-note");if(el)el.textContent=s}
- async function persistLevels(){if(!active?.id||String(active.id).startsWith("local-"))return;const rt=window.GoTradeXServerRuntime;if(!rt?.call)return;try{await rt.call("levels",{position_id:active.id,stop_loss:active.sl||null,take_profit:active.tp||null});note("SL/TP saved to the Bybit Demo position engine.");}catch(e){note("Could not save levels to server: "+(e?.message||"request failed"));}}
+ async function persistLevels(){if(!active?.id||String(active.id).startsWith("local-")){note("No server-backed position selected. SL/TP are not protected.");return false;}const rt=window.GoTradeXServerRuntime;if(!rt?.call){note("Position engine unavailable. SL/TP are not protected.");return false;}try{const j=await rt.call("levels",{position_id:active.id,stop_loss:active.sl??null,take_profit:active.tp??null});if(j.position){active={...active,...j.position,sl:j.position.stop_loss??null,tp:j.position.take_profit??null};save();render();}note("SL/TP confirmed by server.");return true;}catch(e){note("SERVER REJECTED SL/TP: "+(e?.message||"request failed")+". These levels are not active.");return false;}}
  async function closePosition(){if(!active?.id)return;const rt=window.GoTradeXServerRuntime;if(!rt?.call){note("Position engine is not available.");return;}try{const j=await rt.call("close",{position_id:active.id});if(j.position){active=j.position;save();render();note("Position manually closed. Result: "+j.position.result+". Net P/L: "+fmt(j.position.pnl));window.dispatchEvent(new CustomEvent("gotradex:position-closed",{detail:j.position}));}}catch(e){note(e?.message||"Position could not be closed.");}}
  function edit(which){
   if(!active)return;
@@ -72,13 +72,13 @@
   const ask=(label,val)=>{const x=window.prompt(label,val?String(val):"");if(x===null)return null;const n=Number(x);return Number.isFinite(n)&&n>0?n:NaN};
   if(which==="sl"||which==="both"){const n=ask("Stop Loss price",sl);if(n===null)return;if(!Number.isFinite(n)){note("Enter a valid positive price.");return}sl=n}
   if(which==="tp"||which==="both"){const n=ask("Take Profit price",tp);if(n===null)return;if(!Number.isFinite(n)){note("Enter a valid positive price.");return}tp=n}
-  active.sl=sl;active.tp=tp;save();render();persistLevels();note("Saving SL/TP to the Bybit Demo engine…");
+  const buy=active.side!=="SELL",entry=Number(active.entryPrice);if((sl!=null&&(!(sl>0)||(buy?sl>=entry:sl<=entry)))||(tp!=null&&(!(tp>0)||(buy?tp<=entry:tp>=entry)))){note("Invalid levels: BUY needs SL below and TP above entry; SELL needs SL above and TP below entry.");return;}active.sl=sl;active.tp=tp;save();render();note("Saving SL/TP to the server…");persistLevels();
  }
  function autoSet(){
   if(!active)return;const p=Number(active.entryPrice);if(!(p>0))return;
   const buy=active.side!=="SELL";
   active.sl=buy?p*.99:p*1.01;active.tp=buy?p*1.02:p*.98;
-  save();render();persistLevels();note("Automatic levels set and sent to the Bybit Demo engine.");
+  save();render();note("Automatic levels calculated. Saving to server…");persistLevels();
  }
  function startDrag(e,k){
   if(!active)return;e.preventDefault();dragging=k;
@@ -117,7 +117,7 @@
   const entry=Number(t.entry_price||t.entryPrice||t.open_price||t.openPrice||t.price||currentPrice());
   if(!(entry>0))return;
   const saved=read()[id]||{};
-  active={id,side:String(t.direction||t.side||"BUY").toUpperCase(),entryPrice:entry,sl:saved.sl||null,tp:saved.tp||null,asset:t.asset||$("bottomAssetPair")?.textContent||"BTC/USD",createdAt:Date.now()};
+  active={...t,id,side:String(t.direction||t.side||"BUY").toUpperCase(),entryPrice:entry,provider_symbol:t.provider_symbol||t.providerSymbol||"",amount:Number(t.amount||0),last_price:Number(t.last_price||t.last_price===0?t.last_price:entry),sl:t.stop_loss??saved.sl??null,tp:t.take_profit??saved.tp??null,asset:t.asset||$("bottomAssetPair")?.textContent||"BTC/USD",createdAt:Date.now()};
   save();if(ensure()){root.style.display="block";render();note("BYBIT DEMO POSITION: set SL and TP with the grey cursor. Confirmed levels are monitored against Bybit Spot prices while connected.");}
  }
  window.addEventListener("gotradex:trade-opened",opened);
