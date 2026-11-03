@@ -96,7 +96,7 @@
  function placeAt(k,price,source){
   if(!active||!(price>0))return;
   if(!validLevel(k,price)){note((k==="sl"?"Stop Loss":"Take Profit")+" price "+fmt(price)+" is on the wrong side of entry. "+(active.side==="SELL"?"SELL needs SL above and TP below entry.":"BUY needs SL below and TP above entry."));return;}
-  const hadExisting=Number(active[k])>0;active[k]=price;selectedLevel=k;candidate=price;save();render();note((hadExisting?"Modify ":"Place ")+(k==="sl"?"Stop Loss":"Take Profit")+" at "+fmt(price)+" — waiting for server confirmation…");
+  const hadExisting=Number(active[k])>0;active[k]=price;selectedLevel=k;candidate=price;if(candidateLine)candidateLine.querySelector("span").textContent=(k==="sl"?"SL ":"TP ")+fmt(price);save();render();note((hadExisting?"Modify ":"Place ")+(k==="sl"?"Stop Loss":"Take Profit")+" at "+fmt(price)+" — waiting for server confirmation…");
   persistLevels();
  }
  function placeAuto(k){
@@ -138,16 +138,17 @@
   const live=$("gtxpc-live"),cs=chart(),priceMarketMatch=!cs?.symbol||!active.provider_symbol||String(cs.symbol)===String(active.provider_symbol),last=Number(priceMarketMatch?currentPrice():active.last_price||active.entryPrice);if(live&&last>0){const gross=Number(active.amount||0)*((active.side==="SELL"?Number(active.entryPrice)-last:last-Number(active.entryPrice))/Number(active.entryPrice));const fee=Number(active.amount||0)*.001+(gross>0?gross*.10:gross<0?Number(active.amount||0)*.001:0);const net=gross-fee;live.textContent="BYBIT "+fmt(last)+"  ·  NET P/L "+(net>=0?"+":"")+fmt(net);}
   const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return;
   const sameMarket=sameInstrument(s);
-  ["sl","tp"].forEach(k=>{if(!sameMarket){const el=$("gtxpc-line-"+k);if(el)el.style.display="none";return;}
-   const el=$("gtxpc-line-"+k),v=Number(active[k]);
-   if(!v){el.style.display="none";return}
-   const y=s.candleSeries.priceToCoordinate(v);
-   if(y===null||!Number.isFinite(y)){el.style.display="none";return}
-   const chartHost=$("gtxLWC")||host;
-   const offset=chartHost.getBoundingClientRect().top-layer.getBoundingClientRect().top;
-   el.style.display="block";el.style.top=(y+offset)+"px";
-   el.querySelector("span").textContent=(k==="sl"?"SL ":"TP ")+fmt(v);
-  });
+  ["sl","tp"].forEach(k=>{const el=$("gtxpc-line-"+k);if(el)el.style.display="none";});
+  if(!sameMarket){if(candidateLine)candidateLine.style.display="none";return;}
+  if(selectedLevel&&Number(active[selectedLevel])>0&&candidateLine){
+   const y=s.candleSeries.priceToCoordinate(Number(active[selectedLevel]));
+   if(Number.isFinite(y)){
+    const offset=host.getBoundingClientRect().top-layer.getBoundingClientRect().top;
+    candidateLine.style.display="block";
+    candidateLine.style.top=(y+offset)+"px";
+    candidateLine.querySelector("span").textContent=(selectedLevel==="sl"?"SL ":"TP ")+fmt(active[selectedLevel]);
+   }
+  }
  }
  function opened(event){
   const t=event&&event.detail&&(event.detail.trade||event.detail);if(!t)return;
