@@ -99,7 +99,7 @@
   $("gtxpc-mode").textContent=mode()+" • "+(active.side||"POSITION")+" • SETUP";
   $("gtxpc-sl-value").textContent=active.sl?fmt(active.sl):"Not set";
   $("gtxpc-tp-value").textContent=active.tp?fmt(active.tp):"Not set";
-  const live=$("gtxpc-live"),cs=chart(),sameMarket=!cs?.symbol||!active.provider_symbol||String(cs.symbol)===String(active.provider_symbol),last=Number(sameMarket?currentPrice():active.last_price||active.entryPrice);if(live&&last>0){const gross=Number(active.amount||0)*((active.side==="SELL"?Number(active.entryPrice)-last:last-Number(active.entryPrice))/Number(active.entryPrice));const fee=Number(active.amount||0)*.001+(gross>0?gross*.10:gross<0?Number(active.amount||0)*.001:0);const net=gross-fee;live.textContent="BYBIT "+fmt(last)+"  ·  NET P/L "+(net>=0?"+":"")+fmt(net);}
+  const live=$("gtxpc-live"),cs=chart(),priceMarketMatch=!cs?.symbol||!active.provider_symbol||String(cs.symbol)===String(active.provider_symbol),last=Number(priceMarketMatch?currentPrice():active.last_price||active.entryPrice);if(live&&last>0){const gross=Number(active.amount||0)*((active.side==="SELL"?Number(active.entryPrice)-last:last-Number(active.entryPrice))/Number(active.entryPrice));const fee=Number(active.amount||0)*.001+(gross>0?gross*.10:gross<0?Number(active.amount||0)*.001:0);const net=gross-fee;live.textContent="BYBIT "+fmt(last)+"  ·  NET P/L "+(net>=0?"+":"")+fmt(net);}
   const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host)return;
   const sameMarket=sameInstrument(s);
   ["sl","tp"].forEach(k=>{if(!sameMarket){const el=$("gtxpc-line-"+k);if(el)el.style.display="none";return;}
