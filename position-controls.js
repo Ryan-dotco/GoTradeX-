@@ -143,7 +143,9 @@
    if(!v){el.style.display="none";return}
    const y=s.candleSeries.priceToCoordinate(v);
    if(y===null||!Number.isFinite(y)){el.style.display="none";return}
-   el.style.display="block";el.style.top=y+"px";
+   const chartHost=$("gtxLWC")||host;
+   const offset=chartHost.getBoundingClientRect().top-layer.getBoundingClientRect().top;
+   el.style.display="block";el.style.top=(y+offset)+"px";
    el.querySelector("span").textContent=(k==="sl"?"SL ":"TP ")+fmt(v);
   });
  }
