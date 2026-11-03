@@ -6,7 +6,7 @@
  "use strict";
  if(window.GoTradeXPositionControls)return;
  const KEY="gotradex_position_levels_v1";
- let active=null, dragging=null, root=null, layer=null, candidateLine=null, restoreTab=null, confirmedLevels={sl:null,tp:null}, autoArmed=false, panelHidden=true, panelCollapsed=false, panelDrag=null;
+ let active=null, dragging=null, root=null, layer=null, candidateLine=null, restoreTab=null, confirmedLevels={sl:null,tp:null}, autoArmed=false, panelHidden=true, panelCollapsed=false, panelDrag=null, selectedLevel=null;
  const $=id=>document.getElementById(id);
  const money=n=>Number.isFinite(Number(n))?Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:6}):"—";
  function mode(){return String(localStorage.getItem("gotradex_account_mode")||"DEMO").toUpperCase();}
@@ -33,7 +33,7 @@
    layer.setAttribute("aria-hidden","false");
    if(!document.getElementById("gtxpc-line-sl")){
     ["sl","tp"].forEach(k=>{const el=document.createElement("div");el.className="gtxpc-line "+k;el.id="gtxpc-line-"+k;el.innerHTML='<span></span>';layer.appendChild(el);el.addEventListener("pointerdown",e=>startDrag(e,k));});
-    candidateLine=document.createElement("div");candidateLine.className="gtxpc-candidate";candidateLine.id="gtxpc-candidate";candidateLine.innerHTML="<span></span>";layer.appendChild(candidateLine);
+    candidateLine=document.createElement("div");candidateLine.className="gtxpc-candidate";candidateLine.id="gtxpc-candidate";candidateLine.innerHTML="<span></span>";layer.appendChild(candidateLine);candidateLine.addEventListener("pointerdown",candidateDown);
    }
   }
   if(root&&root.isConnected){if(chartBox&&root.parentElement!==chartBox)chartBox.appendChild(root);root.style.setProperty("display",panelHidden?"none":"block","important");root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");if(restoreTab&&chartBox&&restoreTab.parentElement!==chartBox)chartBox.appendChild(restoreTab);if(restoreTab)restoreTab.style.display=panelHidden?"block":"none";return true;}
@@ -52,7 +52,7 @@
   '.gtxpc-line.sl{background:#ef626b;box-shadow:0 0 7px #ef626b77}.gtxpc-line.tp{background:#25c783;box-shadow:0 0 7px #25c78377}'+
   '.gtxpc-line span{position:absolute;right:-70px;top:-12px;width:68px;text-align:center;padding:3px 2px;border-radius:4px;background:#07182b;color:#fff;font:900 9px system-ui;white-space:nowrap;pointer-events:none;border:1px solid currentColor}'+
   '.gtxpc-line.sl span{color:#ff8990;border-color:#ef626b}.gtxpc-line.tp span{color:#58e8ae;border-color:#25c783}'+
-  '.gtxpc-candidate{position:absolute;left:0;right:0;height:2px;z-index:2147483003;background:#c5cbd3;box-shadow:0 0 7px #d5dce588;pointer-events:none;display:none}'+
+  '.gtxpc-candidate{position:absolute;left:0;right:0;height:3px;z-index:2147483003;border-top:2px dotted #c5cbd3;box-shadow:0 0 7px #d5dce588;pointer-events:auto;touch-action:none;cursor:ns-resize;display:none}'+
   '.gtxpc-candidate span{position:absolute;right:0;top:-13px;min-width:84px;text-align:center;padding:3px 4px;border-radius:4px;background:#aeb7c2;color:#101b28;border:1px solid #eef2f6;font:900 10px system-ui;white-space:nowrap}'+
   '@media(max-width:420px){#gtxPositionControls{left:6px;top:6px;width:min(220px,calc(100% - 12px));padding:6px}.gtxpc-note{font-size:7px}.gtxpc-actions button{font-size:7px}}';
   document.head.appendChild(style);
@@ -96,7 +96,7 @@
  function placeAt(k,price,source){
   if(!active||!(price>0))return;
   if(!validLevel(k,price)){note((k==="sl"?"Stop Loss":"Take Profit")+" price "+fmt(price)+" is on the wrong side of entry. "+(active.side==="SELL"?"SELL needs SL above and TP below entry.":"BUY needs SL below and TP above entry."));return;}
-  const hadExisting=Number(active[k])>0;active[k]=price;save();render();note((hadExisting?"Modify ":"Place ")+(k==="sl"?"Stop Loss":"Take Profit")+" at "+fmt(price)+" — waiting for server confirmation…");
+  const hadExisting=Number(active[k])>0;active[k]=price;selectedLevel=k;candidate=price;save();render();note((hadExisting?"Modify ":"Place ")+(k==="sl"?"Stop Loss":"Take Profit")+" at "+fmt(price)+" — waiting for server confirmation…");
   persistLevels();
  }
  function placeAuto(k){
@@ -151,7 +151,7 @@
  }
  function opened(event){
   const t=event&&event.detail&&(event.detail.trade||event.detail);if(!t)return;
-  const id=String(t.id||t.trade_id||t.order_id||("local-"+Date.now()));
+  const id=String(t.id||t.trade_id||t.order_id||("local-"+Date.now()));selectedLevel=null;
   const entry=Number(t.entry_price||t.entryPrice||t.open_price||t.openPrice||t.price||currentPrice());
   if(!(entry>0))return;
   const saved=read()[id]||{};
@@ -170,24 +170,25 @@
  function ensureChooser(){
   if(chooser&&chooser.isConnected)return chooser;
   chooser=document.createElement("div");chooser.id="gtxpc-choice";
-  chooser.innerHTML='<button type="button" data-pick="sl">PLACE STOP LOSS</button><button type="button" data-pick="tp">PLACE TAKE PROFIT</button><button type="button" data-pick="cancel">CANCEL</button>';
+  chooser.innerHTML='<button type="button" data-pick="auto">PLACE / MODIFY</button><button type="button" data-pick="cancel">CANCEL</button>';
   chooser.style.cssText="position:absolute;z-index:2147483646;display:none;gap:5px;padding:5px;background:#07182b;border:1px solid #36516d;border-radius:7px;pointer-events:auto;box-shadow:0 4px 14px #0008";
-  chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";return;}if(!active||!candidate)return;const price=candidate;candidate=null;chooser.style.display="none";if(candidateLine)candidateLine.style.display="none";placeAt(pick,price,"manual");});});
+  chooser.querySelectorAll("button").forEach(b=>{b.style.cssText="border:0;border-radius:5px;padding:7px 9px;font:900 10px system-ui;color:white;background:#173858";b.addEventListener("click",()=>{const pick=b.dataset.pick;if(pick==="cancel"){candidate=null;chooser.style.display="none";return;}if(!active||!candidate)return;const price=candidate,k=levelForPrice(price);if(!k){note("Move the grey line above or below the entry line to choose SL or TP.");return;}candidate=null;chooser.style.display="none";placeAt(k,price,"manual");});});
   layer.appendChild(chooser);return chooser;
  }
  function normSymbol(v){return String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/USD$/,"USDT");}
  function sameInstrument(s){return !s?.symbol||!active?.provider_symbol||normSymbol(s.symbol)===normSymbol(active.provider_symbol);}
  function priceAt(clientY){const s=chart(),host=$("gtxLWC");if(!s||!s.candleSeries||!host||!sameInstrument(s))return null;const r=host.getBoundingClientRect(),localY=clientY-r.top;if(localY<0||localY>r.height)return null;const p=s.candleSeries.coordinateToPrice(localY);return Number.isFinite(p)&&p>0?p:null;}
- function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect();el.querySelectorAll("[data-pick]").forEach(b=>{if(b.dataset.pick==="cancel")return;const k=b.dataset.pick,kind=k==="sl"?"STOP LOSS":"TAKE PROFIT";b.textContent=(active?.[k]!=null?"MODIFY ":"PLACE ")+kind;});el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(y-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(price);}note("Selected "+fmt(price)+". Choose Place or Modify for one level; the other level will not change.");}
+ function levelForPrice(price){const entry=Number(active?.entryPrice);if(!(entry>0)||!Number.isFinite(price)||price===entry)return null;const above=price>entry,buy=String(active?.side||"BUY").toUpperCase()!=="SELL";return buy?(above?"tp":"sl"):(above?"sl":"tp");}
+ function candidateDown(e){if(!active||e.button!==0)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();gesture={kind:"candidate"};try{candidateLine.setPointerCapture(e.pointerId)}catch(_){}const p=priceAt(e.clientY);if(p>0){candidate=p;const r=layer.getBoundingClientRect();candidateLine.style.top=(e.clientY-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(p);}}
+ function showChoice(price,y){candidate=price;const el=ensureChooser(),r=layer.getBoundingClientRect(),k=levelForPrice(price),kind=k==="sl"?"STOP LOSS":"TAKE PROFIT";el.querySelector("[data-pick=auto]").textContent=(Number(active?.[k])>0?"MODIFY ":"PLACE ")+kind;el.style.display="flex";el.style.left="10px";el.style.top=Math.max(8,Math.min(r.height-48,y-r.top-24))+"px";if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(y-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(price);}note("Selected "+fmt(price)+". Choose Place or Modify for one level; the other level will not change.");}
  function chartDown(e){
   if(!active||e.button!==0)return;
-  panelHidden=false;if(ensure()){root.style.setProperty("display","block","important");if(restoreTab)restoreTab.style.display="none";}
   if(!sameInstrument(chart())){note("Select the same market as the open position before placing SL/TP.");return;}
   if(e.target.closest?.("#gtxPositionControls,#gtxpc-choice"))return;
-  if(e.target.closest?.(".gtxpc-line"))return; // Confirmed levels use their own drag handler.
+  if(e.target.closest?.(".gtxpc-line,#gtxpc-candidate"))return;
   const kind="candidate",p=priceAt(e.clientY);if(!(p>0))return;
   e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-  gesture={kind};candidate=p;
+  gesture={kind};candidate=p;selectedLevel=null;
   try{e.target.setPointerCapture?.(e.pointerId)}catch(_){}
   const r=layer.getBoundingClientRect();if(candidateLine){candidateLine.style.display="block";candidateLine.style.top=(e.clientY-r.top)+"px";candidateLine.querySelector("span").textContent=fmt(p);}
   render();
@@ -196,6 +197,6 @@
  function chartUp(e){if(!gesture)return;const kind=gesture.kind;gesture=null;if(kind==="candidate"){const finalPrice=priceAt(e.clientY);if(finalPrice>0)candidate=finalPrice;if(candidate){const r=layer.getBoundingClientRect();const y=Number.isFinite(e.clientY)?e.clientY:r.top+(candidateLine?parseFloat(candidateLine.style.top)||0:0);showChoice(candidate,y);}}else{save();render();persistLevels();note((kind==="sl"?"Stop Loss":"Take Profit")+" moved to "+fmt(active[kind])+". Updating engine…");}}
  function installPlacement(){const host=$("gtxLWC");if(!host||placementInstalled)return;placementInstalled=true;host.addEventListener("pointerdown",chartDown,true);window.addEventListener("pointermove",chartMove,true);window.addEventListener("pointerup",chartUp,true);window.addEventListener("pointercancel",chartUp,true);}
  const ensureBase=ensure;ensure=function(){const ok=ensureBase();if(ok)installPlacement();return ok;};
- window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,placeAuto,version:"0.9-transparent-manual-place-confirm"};
+ window.GoTradeXPositionControls={get active(){return active},render,autoSet,edit,placeAuto,version:"1.0-single-grey-dotted-line-directional-sl-tp"};
  document.addEventListener("DOMContentLoaded",()=>{const init=()=>{if(ensure()){root.style.setProperty("display","block","important");if(!active)note("No open position detected. Open a Demo position to enable Stop Loss and Take Profit controls.");}};init();window.addEventListener("load",init,{once:true});});
 })();
