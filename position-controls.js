@@ -88,7 +88,7 @@
  function placeAt(k,price,source){
   if(!active||!(price>0))return;
   if(!validLevel(k,price)){note((k==="sl"?"Stop Loss":"Take Profit")+" price "+fmt(price)+" is on the wrong side of entry. "+(active.side==="SELL"?"SELL needs SL above and TP below entry.":"BUY needs SL below and TP above entry."));return;}
-  active[k]=price;save();render();note((active[k]?"Modify ":"Place ")+(k==="sl"?"Stop Loss":"Take Profit")+" at "+fmt(price)+" — waiting for server confirmation…");
+  const hadExisting=Number(active[k])>0;active[k]=price;save();render();note((hadExisting?"Modify ":"Place ")+(k==="sl"?"Stop Loss":"Take Profit")+" at "+fmt(price)+" — waiting for server confirmation…");
   persistLevels();
  }
  function placeAuto(k){
