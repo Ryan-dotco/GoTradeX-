@@ -82,11 +82,13 @@ Deno.serve(async(req)=>{
       const changed=[];
       for(const t of open||[]){
         try{
-          const q=await price(t.provider_symbol),hit=crossed(t,q.price);
-          if(hit){
+          const approved=await db("gotradex_market_registry?provider=eq.BYBIT&enabled=eq.true&provider_symbol=eq."+encodeURIComponent(t.provider_symbol)+"&select=symbol&limit=1");
+          if(!Array.isArray(approved)||!approved.length){changed.push({id:t.id,error:"Asset is not approved in the Bybit registry; no price action taken."});continue;}
+          const q=await price(t.provider_symbol),expired=Number.isFinite(Date.parse(t.expires_at))&&Date.now()>=Date.parse(t.expires_at),hit=crossed(t,q.price),reason=hit||(expired?"EXPIRED":null);
+          if(reason){
             const v=pnl(t,q.price),result=v.net>=0?"WON":"LOST";
-            const rows=await db("gotradex_testing_positions?id=eq."+encodeURIComponent(t.id)+"&user_id=eq."+encodeURIComponent(user.id)+"&result=eq.OPEN",{method:"PATCH",body:JSON.stringify({result,close_reason:hit,exit_price:q.price,last_price:q.price,last_tick_at:q.at,gross_pnl:v.gross,opening_fee:v.openFee,closing_fee:v.closeFee,pnl:v.net,closed_at:q.at,updated_at:q.at})});
-            changed.push(rows?.[0]||{id:t.id,result,close_reason:hit});
+            const rows=await db("gotradex_testing_positions?id=eq."+encodeURIComponent(t.id)+"&user_id=eq."+encodeURIComponent(user.id)+"&result=eq.OPEN",{method:"PATCH",body:JSON.stringify({result,close_reason:reason,exit_price:q.price,last_price:q.price,last_tick_at:q.at,gross_pnl:v.gross,opening_fee:v.openFee,closing_fee:v.closeFee,pnl:v.net,closed_at:q.at,updated_at:q.at})});
+            changed.push(rows?.[0]||{id:t.id,result,close_reason:reason});
           }else{
             const rows=await db("gotradex_testing_positions?id=eq."+encodeURIComponent(t.id)+"&user_id=eq."+encodeURIComponent(user.id)+"&result=eq.OPEN",{method:"PATCH",body:JSON.stringify({last_price:q.price,last_tick_at:q.at,updated_at:q.at})});
             changed.push(rows?.[0]||{id:t.id,last_price:q.price});
