@@ -5,8 +5,8 @@ async function bybitPrice(symbol:string){
  const r=await fetch("https://api.bybit.com/v5/market/tickers?category=spot&symbol="+encodeURIComponent(symbol),{cache:"no-store"});
  if(!r.ok)throw new Error("Bybit ticker HTTP "+r.status);
  const d=await r.json(),p=Number(d?.result?.list?.[0]?.lastPrice);
- if(d?.retCode!==0||!Number.isFinite(p)||p<=0)throw new Error("No verified Bybit Spot tick for "+symbol);
- return {price:p,time:new Date().toISOString()};
+ const exchangeMs=Number(d?.time);if(d?.retCode!==0||!Number.isFinite(p)||p<=0||!Number.isFinite(exchangeMs)||exchangeMs<=0)throw new Error("No verified Bybit Spot tick/time for "+symbol);
+ return {price:p,time:new Date(exchangeMs).toISOString()};
 }
 function hit(t:any,p:number){const buy=t.direction==="BUY";if(t.stop_loss!=null&&(buy?p<=Number(t.stop_loss):p>=Number(t.stop_loss)))return "STOP_LOSS";if(t.take_profit!=null&&(buy?p>=Number(t.take_profit):p<=Number(t.take_profit)))return "TAKE_PROFIT";if(Number.isFinite(Date.parse(t.expires_at))&&Date.now()>=Date.parse(t.expires_at))return "EXPIRED";return null;}
 function calc(t:any,exit:number){const amount=Number(t.amount),entry=Number(t.entry_price),gross=amount*((t.direction==="BUY"?exit-entry:entry-exit)/entry),opening=amount*.001,closing=gross>0?gross*.10:gross<0?amount*.001:0;return {gross,opening,closing,net:gross-opening-closing};}
