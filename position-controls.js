@@ -36,12 +36,12 @@
     candidateLine=document.createElement("div");candidateLine.className="gtxpc-candidate";candidateLine.id="gtxpc-candidate";candidateLine.innerHTML="<span></span>";layer.appendChild(candidateLine);
    }
   }
-  if(root&&root.isConnected){if(root.parentElement!==document.body)document.body.appendChild(root);root.style.setProperty("display","block","important");root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");return true;}
+  if(root&&root.isConnected){if(chartBox&&root.parentElement!==chartBox)chartBox.appendChild(root);root.style.setProperty("display","block","important");root.style.setProperty("visibility","visible","important");root.style.setProperty("opacity","1","important");return true;}
   root=document.createElement("div");root.id="gtxPositionControls";
   root.innerHTML='<div class="gtxpc-head"><div><b>POSITION LEVELS</b><small id="gtxpc-mode">DEMO • SETUP</small></div><button type="button" id="gtxpc-hide" aria-label="Hide position controls">−</button></div><div class="gtxpc-row"><button type="button" data-level="sl" class="gtxpc-level sl"><span>STOP LOSS</span><b id="gtxpc-sl-value">Not set</b></button><button type="button" data-level="tp" class="gtxpc-level tp"><span>TAKE PROFIT</span><b id="gtxpc-tp-value">Not set</b></button></div><div id="gtxpc-live" class="gtxpc-live">BYBIT PRICE · waiting for verified tick</div><div class="gtxpc-actions"><button type="button" id="gtxpc-auto">AUTO SET</button><button type="button" id="gtxpc-manual">MANUAL DRAG</button><button type="button" id="gtxpc-edit">ENTER PRICE</button><button type="button" id="gtxpc-close">CLOSE</button></div><div class="gtxpc-note" id="gtxpc-note">Drag either line on the chart or enter an exact price. Levels are saved as setup only; Bybit Demo position engine is active while this page is connected.</div>';
-  document.body.appendChild(root);
+  (chartBox||document.body).appendChild(root);
   const style=document.createElement("style");style.id="gtxpc-style";style.textContent=
-  '#gtxPositionControls{position:fixed!important;z-index:2147483647!important;left:10px;top:170px;width:min(260px,calc(100vw - 24px));pointer-events:auto;background:rgba(5,19,35,.94);border:1px solid #294765;border-radius:10px;padding:8px;box-shadow:0 4px 16px #0006;color:#eaf3fb;font:11px system-ui}'+
+  '#gtxPositionControls{position:absolute!important;z-index:2147483647!important;left:8px;top:8px;width:min(260px,calc(100% - 16px));max-width:calc(100% - 16px);pointer-events:auto;background:rgba(5,19,35,.94);border:1px solid #294765;border-radius:10px;padding:8px;box-shadow:0 4px 16px #0006;color:#eaf3fb;font:11px system-ui}'+
   '.gtxpc-head{display:flex;align-items:center;justify-content:space-between}.gtxpc-head b{font-size:10px;letter-spacing:.7px}.gtxpc-head small{display:block;color:#91a9c2;font-size:8px;margin-top:2px}#gtxpc-hide{background:#1a3552;color:#dce9f7;border-radius:5px;width:24px;height:22px}'+
   '.gtxpc-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.gtxpc-level{min-width:0;text-align:left;border-radius:7px;padding:6px;background:#122b45;color:#fff;border:1px solid #34516d}.gtxpc-level span{display:block;font-size:8px;font-weight:900;color:#a9bdd0}.gtxpc-level b{display:block;font-size:11px;margin-top:3px}.gtxpc-level.sl{border-left:3px solid #ef626b}.gtxpc-level.tp{border-left:3px solid #25c783}'+
   '.gtxpc-actions{display:flex;gap:5px;margin-top:7px}.gtxpc-actions button{flex:1;background:#173858;color:#eaf3fb;border:1px solid #315271;border-radius:6px;padding:6px 3px;font-size:8px;font-weight:900}'+
@@ -53,7 +53,7 @@
   '.gtxpc-line.sl span{color:#ff8990;border-color:#ef626b}.gtxpc-line.tp span{color:#58e8ae;border-color:#25c783}'+
   '.gtxpc-candidate{position:absolute;left:0;right:0;height:2px;z-index:2147483003;background:#c5cbd3;box-shadow:0 0 7px #d5dce588;pointer-events:none;display:none}'+
   '.gtxpc-candidate span{position:absolute;right:0;top:-13px;min-width:84px;text-align:center;padding:3px 4px;border-radius:4px;background:#aeb7c2;color:#101b28;border:1px solid #eef2f6;font:900 10px system-ui;white-space:nowrap}'+
-  '@media(max-width:420px){#gtxPositionControls{left:6px;top:6px;width:220px;padding:6px}.gtxpc-note{font-size:7px}.gtxpc-actions button{font-size:7px}}';
+  '@media(max-width:420px){#gtxPositionControls{left:6px;top:6px;width:min(220px,calc(100% - 12px));padding:6px}.gtxpc-note{font-size:7px}.gtxpc-actions button{font-size:7px}}';
   document.head.appendChild(style);
   $("gtxpc-hide").addEventListener("click",()=>{root.style.display="none";});
   root.querySelectorAll("[data-level]").forEach(b=>b.addEventListener("click",()=>edit(b.dataset.level)));
