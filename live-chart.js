@@ -41,6 +41,11 @@
                 const anchorTime=Number(t.markerTime);
                 const anchorPrice=Number(t.markerPrice||t.entryPrice);
                 if(!Number.isFinite(anchorTime)||!Number.isFinite(anchorPrice))return;
+                // Lightweight Charts maps a candle's timestamp to the
+                // horizontal centre of that candle, exactly where its vertical
+                // wick is drawn. Start the trade line there, at the exact entry
+                // price, so it physically meets the wick rather than floating
+                // beside the candle.
                 let x=scale.timeToCoordinate(anchorTime);
                 if((x===null||x===undefined||!Number.isFinite(x))&&Number.isFinite(Number(t.markerLogicalIndex))){
                   x=scale.logicalToCoordinate(Number(t.markerLogicalIndex));
@@ -751,12 +756,6 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   function buildChart(){
     if(state.chart)return;
     observeTradeMarkers();
-    if(state.candleSeries&&state.candleSeries.attachPrimitive){
-      try{
-        tradeLinePrimitive=makeTradeLinePrimitive();
-        state.candleSeries.attachPrimitive(tradeLinePrimitive);
-      }catch(_){tradeLinePrimitive=null;}
-    }
     const C=window.LightweightCharts;
     const host=document.getElementById("gtxLWC");
     if(!C||!host)throw new Error("Lightweight Charts library did not load.");
@@ -781,6 +780,16 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       priceLineVisible:false,lastValueVisible:false,
       priceFormat:{type:"price",precision:state.type==="forex"?5:state.type==="metals"?3:4,minMove:state.type==="forex"?0.00001:state.type==="metals"?0.001:0.0001}
     });
+    // Attach the trade-line primitive to the actual candlestick series.
+    // This is intentionally after addCandlestickSeries(): attaching before the
+    // series exists silently did nothing, which is why the line was not visually
+    // connected to the candle wick in the previous build.
+    if(state.candleSeries&&state.candleSeries.attachPrimitive){
+      try{
+        tradeLinePrimitive=makeTradeLinePrimitive();
+        state.candleSeries.attachPrimitive(tradeLinePrimitive);
+      }catch(_){tradeLinePrimitive=null;}
+    }
     // Live-price line colour follows the currently forming candle direction.
     state.currentPriceLine=state.candleSeries.createPriceLine({
       price:Number(state.price)||0,color:activeCandleDirectionColor(),lineWidth:1,lineStyle:C.LineStyle.Solid,
