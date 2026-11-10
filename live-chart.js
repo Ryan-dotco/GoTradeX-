@@ -18,6 +18,61 @@
   const CHART_KEY="gotradex_chart_timeframe";
   const TYPE_KEY="gotradex_chart_type";
 
+  let tradeLinePrimitive=null;
+  function makeTradeLinePrimitive(){
+    let requestUpdate=()=>{};
+    const view={
+      zOrder:()=> "bottom",
+      renderer:()=>({
+        draw:(target)=>{
+          target.useMediaCoordinateSpace(scope=>{
+            const ctx=scope.context;
+            const trades=expiryTrades||[];
+            if(!state.chart||!state.candleSeries||!trades.length)return;
+            const scale=state.chart.timeScale();
+            const spacing=Math.max(2,Number(scale.options().barSpacing)||9);
+            const now=marketNow();
+            ctx.save();
+            try{
+              ctx.lineWidth=2;
+              ctx.lineCap="butt";
+              trades.forEach(t=>{
+                if(!t||t.completed||now>=Number(t.expiryAt))return;
+                const anchorTime=Number(t.markerTime);
+                const anchorPrice=Number(t.markerPrice||t.entryPrice);
+                if(!Number.isFinite(anchorTime)||!Number.isFinite(anchorPrice))return;
+                let x=scale.timeToCoordinate(anchorTime);
+                if((x===null||x===undefined||!Number.isFinite(x))&&Number.isFinite(Number(t.markerLogicalIndex))){
+                  x=scale.logicalToCoordinate(Number(t.markerLogicalIndex));
+                }
+                const y=state.candleSeries.priceToCoordinate(anchorPrice);
+                if(x===null||x===undefined||!Number.isFinite(x)||y===null||y===undefined||!Number.isFinite(y))return;
+                const expiryX=coordinateForTimestamp(Number(t.expiryAt));
+                const durationSeconds=Math.max(1,Number(t.durationSeconds)||selectedExpirySeconds());
+                const intervalSeconds=Math.max(1,Number(state.sec)||60);
+                const projectedEnd=x+(durationSeconds/intervalSeconds)*spacing;
+                const endX=Number.isFinite(expiryX)&&expiryX>x+2?expiryX:projectedEnd;
+                if(!Number.isFinite(endX)||endX<=x+1)return;
+                ctx.strokeStyle=t.side==="SELL"?"#ef4444":"#22c55e";
+                ctx.beginPath();
+                ctx.moveTo(x,y);
+                ctx.lineTo(endX,y);
+                ctx.stroke();
+              });
+            }finally{ctx.restore();}
+          });
+        }
+      })
+    };
+    const primitive={
+      attached:(param)=>{requestUpdate=param.requestUpdate||(()=>{});},
+      detached:()=>{requestUpdate=()=>{};},
+      paneViews:()=>[view],
+      updateAllViews:()=>{},
+      requestUpdate:()=>requestUpdate()
+    };
+    return primitive;
+  }
   let state={
     tf:"5 Minutes",sec:300,candles:[],price:null,prev:null,ws:null,
     provider:"",symbol:"",assetLabel:"BTC/USDT",mode:"LIVE",type:"crypto",
@@ -103,8 +158,8 @@
       ".pairbar .pairbarLeft{display:flex;align-items:center;gap:8px;min-width:0}"+
       "#gtxLWCExpiryLayer{display:block!important;position:absolute!important;inset:0!important;z-index:2147483000!important;overflow:hidden!important;pointer-events:none!important;visibility:visible!important;opacity:1!important}"+
       ".gtxTradeEntryLine{position:absolute;height:2px;min-width:1px;transform:translateY(-50%);opacity:.96}"+
-      ".gtxTradeEntryLine.buy{background:#22c58b;box-shadow:0 0 5px rgba(34,197,139,.28)}"+
-      ".gtxTradeEntryLine.sell{background:#f16b70;box-shadow:0 0 5px rgba(241,107,112,.28)}"+
+      ".gtxTradeEntryLine.buy{background:#22c58b;box-shadow:0 0 5px rgba(34,197,139,.28);display:none!important}"+
+      ".gtxTradeEntryLine.sell{background:#f16b70;box-shadow:0 0 5px rgba(241,107,112,.28);display:none!important}"+
       ".gtxTradeTag{position:absolute;transform:translateY(-50%);padding:0;border-radius:0;color:#fff;font:800 9px/1.25 system-ui;white-space:nowrap;background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;text-shadow:none!important}"+
       ".gtxTradeTag.buy{background:transparent!important;border:0!important;box-shadow:none!important}"+
       ".gtxTradeTag.sell{background:transparent!important;border:0!important;box-shadow:none!important}"+
@@ -696,6 +751,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   function buildChart(){
     if(state.chart)return;
     observeTradeMarkers();
+    if(state.candleSeries&&state.candleSeries.attachPrimitive){
+      try{
+        tradeLinePrimitive=makeTradeLinePrimitive();
+        state.candleSeries.attachPrimitive(tradeLinePrimitive);
+      }catch(_){tradeLinePrimitive=null;}
+    }
     const C=window.LightweightCharts;
     const host=document.getElementById("gtxLWC");
     if(!C||!host)throw new Error("Lightweight Charts library did not load.");
@@ -1089,7 +1150,12 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     completed.forEach(raw=>{
       const id=String(raw&&(raw.id||raw.trade_id||raw.tradeId)||"");
       const trade=expiryTrades.find(t=>t.serverId===id||t.id===id);
-      if(trade)trade.raw=raw;
+      if(trade){
+        trade.raw=raw;
+        if(!trade.completedAt)trade.completedAt=Date.now();
+        trade.completed=true;
+        addResultCard(trade,trade.completedAt);
+      }
     });
     renderExpiryMarkers();
   }
@@ -1146,7 +1212,8 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     let amount=null;
     for(const v of valueCandidates){const n=Number(v);if(v!==null&&v!==undefined&&v!==""&&Number.isFinite(n)){amount=n;break;}}
     const status=String(raw.result||raw.status||raw.outcome||"").toUpperCase();
-    const card={id:"gtx-result-"+trade.id,trade,amount,status,showAt:(trade.completedAt||now)+3000,removeAt:(trade.completedAt||now)+8000};
+    const completedAt=Number(trade.completedAt||now);
+    const card={id:"gtx-result-"+trade.id,trade,amount,status,showAt:completedAt,removeAt:completedAt+3000};
     resultCards.push(card);
   }
   function renderResultCard(layer,card){
@@ -1172,15 +1239,29 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     // Never rebuild the layer on each tick: that caused visible flashing.
     for(let i=expiryTrades.length-1;i>=0;i--){
       const t=expiryTrades[i];
+      if(t.completed){
+        if(t.markerNode&&t.markerNode.parentNode)t.markerNode.parentNode.removeChild(t.markerNode);
+        continue;
+      }
       if(now>=Number(t.expiryAt)+3000){
         if(t.markerNode&&t.markerNode.parentNode)t.markerNode.parentNode.removeChild(t.markerNode);
         expiryTrades.splice(i,1);
         persistExpiryTrades();
       }
     }
+    Array.from(layer.querySelectorAll(".gtxTradeResultCard")).forEach(el=>el.remove());
+    for(let i=resultCards.length-1;i>=0;i--){
+      const card=resultCards[i];
+      if(now>=Number(card.removeAt)){
+        resultCards.splice(i,1);
+        continue;
+      }
+      if(now>=Number(card.showAt))renderResultCard(layer,card);
+    }
+    if(tradeLinePrimitive?.requestUpdate)tradeLinePrimitive.requestUpdate();
     const plotRight=Math.max(20,layer.clientWidth-70);
     const liveIds=new Set();
-    expiryTrades.forEach(t=>{
+    expiryTrades.filter(t=>!t.completed).forEach(t=>{
       const key=String(t.markerKey||(t.markerKey="marker-"+t.entryAt+"-"+(++expiryTradeCounter)));
       liveIds.add(key);
       let node=t.markerNode;
@@ -1213,6 +1294,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
         t.markerNode=node;
       }
       const line=node.querySelector(".gtxTradeEntryLine");
+      if(line)line.style.display="none";
       const tag=node.querySelector(".gtxTradeTag");
       const countdown=node.querySelector(".gtxTradeCountdown");
       const dots=node.querySelector(".gtxTradeEndDots");
@@ -1314,7 +1396,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       const tagWidth=116;
       // Center the expiry label/countdown on the actual endpoint, including short expiries.
       const tagLeft=Math.max(2,Math.min(layer.clientWidth-tagWidth-2,endX-tagWidth/2));
-      line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";
+      if(line){line.style.left=bodyCenterX+"px";line.style.top=y+"px";line.style.width=Math.max(1,endX-bodyCenterX)+"px";}
       // Solid directional trade guide. Preserve the approved active-candle
       // anchor, wick attachment, and left-to-right projection geometry.
       const tradeLineColor=t.side==="SELL"?"#ef4444":"#22c55e";
