@@ -7,7 +7,7 @@
   if(window.GoTradeXServerRuntime) return;
   const URL="https://glffecggusetzklmyukv.supabase.co";
   const KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
-  const ENGINE=URL+"/functions/v1/gotradex-trade-engine";
+  const ENGINE=URL+"/functions/v1/gotradex-testing-position-engine";
   let sb=null, syncTimer=null, syncing=false, realtimeChannel=null, realtimeUserId=null;
 
   function client(){
@@ -31,7 +31,10 @@
     return Number.isFinite(n)&&n>0?n:10;
   }
   function asset(){
-    return String(document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"BTC/USD").replace(/\s+(LIVE|OTC)$/i,"").trim();
+    const stored=String(localStorage.getItem("gotradex_asset_display")||"").trim();
+    const visible=String(document.getElementById("bottomAssetPair")?.textContent||document.getElementById("pairName")?.textContent||"BTC/USD")
+      .replace(/^[A-Z]+\s+/i,"").replace(/\s+(LIVE|OTC)$/i,"").replace(/[▾▼].*$/,"").trim();
+    return (stored||visible||"BTC/USD").replace(/\s+OTC$/i,"").trim();
   }
   async function call(action,extra={}){
     const s=client(); if(!s)throw new Error("Supabase client unavailable.");
@@ -49,10 +52,10 @@
     try{
       const mode=String(localStorage.getItem("gotradex_account_mode")||"DEMO").toUpperCase();
       const j=await call("open",{account_mode:mode,market_mode:String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase(),asset:asset(),direction,amount:amount(),expiry_seconds:secondsFromUi()});
-      if(j.trade){
+      if(j.position){
         const el=document.getElementById("status");
         if(el)el.textContent="";
-        window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.trade}}));
+        window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.position}}));
       }
       await sync();
     }catch(e){
@@ -140,6 +143,18 @@
     window.addEventListener("pageshow",()=>{setupRealtime();sync()});
     window.addEventListener("online",()=>{setupRealtime();sync()});
   }
-  window.GoTradeXServerRuntime={call,sync,open,marketState,last:null};
+  async function history(){
+    const s=client();if(!s)throw new Error("Supabase client unavailable.");
+    const {data:session}=await s.auth.getSession();if(!session?.session)throw new Error("Please sign in to view your account history.");
+    const cutoff=new Date(Date.now()-86400000).toISOString();
+    const [demo,legacy]=await Promise.all([
+      call("sync"),
+      s.from("gotradex_user_trades").select("id,account_mode,market_mode,asset,provider,provider_symbol,direction,amount,opened_at,entry_price,exit_price,result,pnl,settled_at,created_at,metadata").gte("opened_at",cutoff).order("opened_at",{ascending:false}).limit(100)
+    ]);
+    if(legacy.error)throw legacy.error;
+    const normalize=(r,mode)=>({...r,account_mode:mode,opened_at:r.opened_at||r.created_at,close_reason:r.close_reason||r.metadata?.close_reason||""});
+    return [...(demo.history||[]).map(r=>normalize(r,"DEMO")),...(legacy.data||[]).map(r=>normalize(r,r.account_mode==="REAL"?"LIVE":"DEMO"))];
+  }
+  window.GoTradeXServerRuntime={call,sync,open,marketState,history,last:null};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 })();
