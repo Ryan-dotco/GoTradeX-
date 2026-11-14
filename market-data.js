@@ -223,10 +223,41 @@
   async function bybitHistory(symbol,sec){
     const tf=timeframeName(sec);
     if(!tf) return [];
-    const requestTf=sec>2592000?"1 Month":tf;
-    const d=await serverInvoke({action:"chart",marketMode:"LIVE",assetType:"crypto",symbol,timeframe:requestTf});
-    const candles=normalizeCandles(Array.isArray(d.candles)?d.candles:[]);
-    if(sec>2592000)return aggregateMonths(candles,sec===7776000?3:sec===15552000?6:12);
+
+    // Testing crypto history must not depend on the Supabase Edge Function
+    // market-data quota. Bybit Spot public market-data endpoints are used
+    // directly here; no account/auth secret is involved.
+    const supported = {
+      60:"1", 300:"5", 900:"15", 1800:"30", 3600:"60",
+      14400:"240", 86400:"D", 2592000:"M"
+    };
+    const directInterval = supported[sec] || (sec < 60 ? "1" : null);
+    const requestSec = directInterval ? sec : 60;
+    const interval = directInterval || "1";
+    const url = "https://api.bybit.com/v5/market/kline?category=spot&symbol="
+      + encodeURIComponent(symbol) + "&interval=" + interval + "&limit=200";
+    const res = await fetch(url,{cache:"no-store"});
+    if(!res.ok) throw new Error("Bybit Spot history HTTP "+res.status);
+    const d = await res.json();
+    if(d?.retCode!==0) throw new Error(d?.retMsg || "Bybit Spot history request failed.");
+    const rows = Array.isArray(d?.result?.list) ? d.result.list : [];
+    if(!rows.length) throw new Error("No verified Bybit Spot candles returned for "+symbol+".");
+
+    // Bybit returns reverse chronological kline rows. Normalize and sort them.
+    const candles = rows.map(x=>({
+      t:Number(x[0]), o:Number(x[1]), h:Number(x[2]), l:Number(x[3]),
+      c:Number(x[4]), v:Number(x[5]||0)
+    })).map(x=>({...x,t:x.t})).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite))
+      .sort((a,b)=>a.t-b.t);
+
+    // 3-minute (and sub-minute) Testing chart intervals are built only from
+    // real 1-minute Bybit candles. Never invent or interpolate prices.
+    if(sec!==requestSec){
+      return aggregateSeconds(candles,sec);
+    }
+    if(sec>2592000){
+      return aggregateMonths(candles,sec===7776000?3:sec===15552000?6:12);
+    }
     return candles;
   }
   async function twelveHistory(symbol,sec,assetType){
