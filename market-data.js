@@ -252,9 +252,12 @@
 
     // 3-minute (and sub-minute) Testing chart intervals are built only from
     // real 1-minute Bybit candles. Never invent or interpolate prices.
-    if(sec!==requestSec){
-      return aggregateSeconds(candles,sec);
+    if(sec===180){
+      return aggregateSeconds(candles,180);
     }
+    // Bybit Spot REST does not provide genuine sub-minute historical OHLC
+    // bars here. Do not manufacture them from 1-minute candles.
+    if(sec<60) return [];
     if(sec>2592000){
       return aggregateMonths(candles,sec===7776000?3:sec===15552000?6:12);
     }
