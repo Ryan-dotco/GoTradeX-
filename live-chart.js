@@ -384,12 +384,37 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
   }
 
   async function loadBybitHistory(){
-    // Fetch history independently from the live stream. Never let a slow history
-    // request delay verified real-time trades.
+    // Fetch enough real Bybit history to populate the chart before/alongside
+    // the live stream. This is the same verified Bybit provider, not synthetic
+    // data and not a different-market fallback.
     if(!feed()||typeof feed().bybitHistory!=="function"){
       throw new Error("Verified crypto market-data adapter is not loaded.");
     }
-    const rows=await feed().bybitHistory(state.symbol,state.sec);
+    let rows=[];
+    try{ rows=await feed().bybitHistory(state.symbol,state.sec); }catch(e){ rows=[]; }
+
+    // Do not let the chart open with only the one/two live candles that happen
+    // to arrive while the historical request is slow. If the trusted
+    // market-data function returns too few candles, request the same Bybit Spot
+    // history directly from the public Bybit market endpoint.
+    const minimumVisibleCandles=30;
+    if(rows.length<minimumVisibleCandles && state.provider==="BYBIT"){
+      const intervalMap={60:"1",180:"3",300:"5",900:"15",1800:"30",3600:"60",14400:"240",86400:"D"};
+      const interval=intervalMap[state.sec];
+      if(interval){
+        const u="https://api.bybit.com/v5/market/kline?category=spot&symbol="+
+          encodeURIComponent(state.symbol)+"&interval="+interval+"&limit=200";
+        const response=await fetch(u,{cache:"no-store"});
+        const data=await response.json().catch(()=>({}));
+        if(response.ok && Number(data?.retCode)===0 && Array.isArray(data?.result?.list)){
+          rows=data.result.list.slice().reverse().map(x=>({
+            t:Number(x[0]),o:Number(x[1]),h:Number(x[2]),l:Number(x[3]),
+            c:Number(x[4]),v:Number(x[5]||0)
+          }));
+        }
+      }
+    }
+
     return (Array.isArray(rows)?rows:[])
       .map(x=>({t:Number(x.t),o:Number(x.o),h:Number(x.h),l:Number(x.l),c:Number(x.c),v:Number(x.v||0)}))
       .filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite))
@@ -839,7 +864,7 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
       const centerIndex=candles.length-1;
       const halfWindow=30;
       const from=Math.max(0,centerIndex-halfWindow);
-      const to=centerIndex+halfWindow;
+      const to=centerIndex+10;
       state.chart.timeScale().setVisibleLogicalRange({from,to});
       state.initialRangeSet=true;
     }
