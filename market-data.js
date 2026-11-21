@@ -162,6 +162,7 @@
     }
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
     if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
+    if(t==="forex") return {available:false,provider:"NONE",reason:"No verified Deriv Forex feed is configured for "+l+".",label:l,type:t};
     // Use the selected asset native symbol through the verified Twelve Data adapter.
     // Do not substitute BTC candles for another market.
     if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};

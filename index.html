@@ -231,7 +231,17 @@ body.gtx-nav-visible .chatBody{padding-bottom:calc(var(--gtx-nav-height) + 10px)
 .gsp-settings-entry .gsp-entry-copy strong{display:block!important;margin:0!important;white-space:nowrap!important;font-size:inherit!important;}
 .gsp-settings-entry .gsp-entry-copy small{display:none!important;}
 </style>
-</head>
+<style>
+.gtx-history-shortcut{display:flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:0 10px;border:1px solid #294765;border-radius:9px;background:#0b2036;color:#cfe4f8;font:800 9px/1 system-ui;letter-spacing:.45px;white-space:nowrap}
+.gtx-history-shortcut-icon{font-size:15px;color:#4ade80}
+.gtxTradeHistoryList{display:grid;gap:8px;max-height:58vh;overflow:auto}
+.gtxTradeHistoryRow{padding:11px;border:1px solid #203e5d;border-radius:9px;background:#0b1d31;display:grid;gap:5px}
+.gtxTradeHistoryRow strong{font-size:12px;color:#e6f2ff}
+.gtxTradeHistoryRow span{font-size:10px;line-height:1.45;color:#9db5cd}
+.gtxTradeHistoryRow .gtx-history-state{font-weight:800;color:#75dba0}
+.gtxTradeHistoryMeta{font-size:10px;color:#8fa8c4;line-height:1.5;margin:9px 0}
+@media(max-width:380px){.gtx-history-shortcut{padding:0 7px;font-size:8px}.gtx-history-shortcut-icon{display:none}}
+</style></head>
 <body>
 <div class="app"><section class="page" id="identityVerificationPage">
 <div class="pageHead"><div><strong>Facial Verification</strong><span>Identity &amp; liveness verification</span></div><button class="backBtn" id="identityVerificationClose" type="button">Close</button></div>
@@ -1084,61 +1094,46 @@ syncGtxKenglyVisibility();
   function gtxHistoryMoney(v){return "$"+(Number(v)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
   setInterval(()=>gtxHistorySave(gtxHistoryRead()),60000);
   function openGtxTradingHistory(mode){
-    const active=/^(LIVE|REAL)$/i.test(String(mode||""))?"LIVE":"DEMO";
-    const rows=gtxHistoryMerge([]);
+    let active=/^(LIVE|REAL)$/i.test(String(mode||""))?"LIVE":"DEMO";
     const renderRows=()=>{
       const selected=gtxHistoryRead().filter(r=>gtxHistoryMode(r)===active);
       const list=selected.map(r=>{
-        const t=new Date(gtxHistoryStamp(r));
-        const when=Number.isFinite(t.getTime())?t.toLocaleString():"—";
-        const side=gtxHistoryEsc(r.direction||r.side||r.action||"TRADE");
-        const asset=gtxHistoryEsc(r.asset||r.symbol||r.pair||"—");
-        const result=gtxHistoryEsc(r.result||r.status||r.outcome||"RECORDED");
-        const amount=gtxHistoryMoney(r.amount??r.stake??r.trade_amount);
-        const pnl=Number(r.pnl??r.profit??r.net_profit??0)||0;
-        return '<div class="adminTransaction"><strong>'+side+' • '+asset+'</strong><span>'+gtxHistoryEsc(when)+' • Amount: '+amount+' • P/L: '+gtxHistoryMoney(pnl)+'</span><span>Status: '+result+'</span></div>';
+        const t=new Date(gtxHistoryStamp(r)),when=Number.isFinite(t.getTime())?t.toLocaleString():"—";
+        const side=gtxHistoryEsc(r.direction||r.side||"TRADE"),asset=gtxHistoryEsc(r.asset||r.provider_symbol||r.symbol||"—");
+        const state=gtxHistoryEsc(r.result||r.status||"OPEN"),amount=gtxHistoryMoney(r.amount??r.stake??0);
+        const pnl=gtxHistoryMoney(r.pnl??0),entry=Number(r.entry_price||0),exit=Number(r.exit_price||0);
+        const prices=entry>0?("Entry "+gtxHistoryEsc(entry.toLocaleString())+(exit>0?" · Exit "+gtxHistoryEsc(exit.toLocaleString()):" · Exit pending")):"";
+        return '<article class="gtxTradeHistoryRow"><strong>'+side+' · '+asset+'</strong><span>'+when+' · Amount '+amount+'</span><span>'+prices+'</span><span class="gtx-history-state">'+state+' · Net P/L '+pnl+'</span><span>'+gtxHistoryEsc(r.close_reason||r.market_mode||"")+'</span></article>';
       }).join("");
       const body=document.getElementById("gtxTradeHistoryRows");
       if(body)body.innerHTML=list||'<div class="gtxTradeHistoryEmpty">No '+active+' trades recorded in the last 24 hours.</div>';
     };
-    const tab=(name)=>'<button type="button" data-gtx-history-mode="'+name+'" style="flex:1;padding:10px;border:1px solid '+(name===active?"#16a34a":"#23466d")+';border-radius:8px;background:'+(name===active?"#16a34a":"#102944")+';color:'+(name===active?"#04120b":"#d9e8fa")+';font:800 12px system-ui">'+name+'</button>';
+    const tab=name=>'<button type="button" data-gtx-history-mode="'+name+'" style="flex:1;padding:10px;border:1px solid '+(name===active?"#16a34a":"#23466d")+';border-radius:8px;background:'+(name===active?"#16a34a":"#102944")+';color:'+(name===active?"#04120b":"#d9e8fa")+';font:800 12px system-ui">'+name+'</button>';
     openSimplePanel("Trading History",
-      '<style>.gtxTradeHistoryTabs{display:flex;gap:8px;margin:0 0 12px}.gtxTradeHistoryList{display:grid;gap:8px}.gtxTradeHistoryEmpty{padding:18px 12px;text-align:center;color:#8fa8c4;border:1px dashed #23466d;border-radius:8px;font-size:12px;line-height:1.5}.gtxTradeHistoryMeta{font-size:11px;color:#8fa8c4;line-height:1.5;margin:10px 0}</style>'+
-      '<div class="gtxTradeHistoryTabs">'+tab("DEMO")+tab("LIVE")+'</div>'+
-      '<div class="gtxTradeHistoryMeta">Separate '+active+' trade records. History expires after 24 hours and is removed from this device.</div>'+
+      '<div class="gtxTradeHistoryTabs" style="display:flex;gap:8px;margin:0 0 12px">'+tab("DEMO")+tab("LIVE")+'</div>'+
+      '<div class="gtxTradeHistoryMeta">Your own records only. Demo and Live are separated. Records are retained for 24 hours in this view.</div>'+
       '<div class="gtxTradeHistoryList" id="gtxTradeHistoryRows"></div>'+
       '<div style="margin-top:12px"><button class="adminReferralAction" type="button" id="gtxTradeHistoryRefresh">Refresh history</button></div>'+
-      '<div class="gtxTradeHistoryMeta" id="gtxTradeHistoryStatus">'+(active==="LIVE"?"Real-money execution remains disabled; only genuine live records will appear here.":"Demo trades are virtual and kept separate from live records.")+'</div>');
-    renderRows();
-    document.querySelectorAll("[data-gtx-history-mode]").forEach(b=>b.onclick=()=>openGtxTradingHistory(b.getAttribute("data-gtx-history-mode")));
-    const refresh=document.getElementById("gtxTradeHistoryRefresh");
-    if(refresh)refresh.onclick=async()=>{
-      refresh.disabled=true;refresh.textContent="Refreshing…";
+      '<div class="gtxTradeHistoryMeta" id="gtxTradeHistoryStatus">Loading account records…</div>');
+    const load=async()=>{
+      const status=document.getElementById("gtxTradeHistoryStatus");
       try{
         const runtime=window.GoTradeXServerRuntime;
-        if(runtime&&typeof runtime.call==="function"){
-          const response=await runtime.call("sync");
-          gtxHistoryMerge(Array.isArray(response.history)?response.history:[]);
-          renderRows();
-          const status=document.getElementById("gtxTradeHistoryStatus");
-          if(status)status.textContent="History refreshed. Records older than 24 hours are excluded from this view.";
-        }else{
-          renderRows();
-          const status=document.getElementById("gtxTradeHistoryStatus");
-          if(status)status.textContent="Showing saved records on this device. Sign in to load server-recorded demo trades.";
-        }
-      }catch(e){
-        const status=document.getElementById("gtxTradeHistoryStatus");
-        if(status)status.textContent="Server history could not be refreshed. Saved records are still shown where available.";
-      }finally{
-        const b=document.getElementById("gtxTradeHistoryRefresh");
-        if(b){b.disabled=false;b.textContent="Refresh history";}
-      }
+        if(runtime&&typeof runtime.history==="function"){
+          const rows=await runtime.history();
+          gtxHistoryMerge(rows);
+          if(status)status.textContent="Loaded from your account history. Only records from the last 24 hours are shown.";
+        }else if(runtime&&typeof runtime.call==="function"){
+          const response=await runtime.call("sync");gtxHistoryMerge(response.history||[]);
+          if(status)status.textContent="Loaded available Demo server records. Live history is shown only when recorded by the account.";
+        }else if(status)status.textContent="Sign in to load account records. Saved device records are shown where available.";
+      }catch(e){if(status)status.textContent="Could not load server records: "+(e?.message||"connection unavailable");}
+      renderRows();
     };
-    const runtime=window.GoTradeXServerRuntime;
-    if(runtime&&typeof runtime.call==="function"){
-      runtime.call("sync").then(response=>{gtxHistoryMerge(Array.isArray(response.history)?response.history:[]);renderRows()}).catch(()=>{});
-    }
+    document.querySelectorAll("[data-gtx-history-mode]").forEach(b=>b.onclick=()=>{active=b.getAttribute("data-gtx-history-mode");document.querySelectorAll("[data-gtx-history-mode]").forEach(x=>{const on=x.getAttribute("data-gtx-history-mode")===active;x.style.background=on?"#16a34a":"#102944";x.style.color=on?"#04120b":"#d9e8fa";x.style.borderColor=on?"#16a34a":"#23466d"});renderRows();});
+    const refresh=document.getElementById("gtxTradeHistoryRefresh");
+    if(refresh)refresh.onclick=async()=>{refresh.disabled=true;refresh.textContent="Refreshing…";await load();refresh.disabled=false;refresh.textContent="Refresh history";};
+    renderRows();load();
   }
 
   function gtxPrefBool(key,def=true){const v=localStorage.getItem(key);return v===null?def:v==="true"}
@@ -1154,6 +1149,7 @@ syncGtxKenglyVisibility();
     const bind=(id,key)=>byId(id).onclick=()=>{const v=!gtxPrefBool(key,true);localStorage.setItem(key,String(v));openGtxNotifications()};
     bind("gtxNotifyTrades","gotradex_notify_trades");bind("gtxNotifyMarket","gotradex_notify_market");bind("gtxNotifySystem","gotradex_notify_system");
   }
+  document.getElementById("gtxHistoryShortcut")?.addEventListener("click",()=>openGtxTradingHistory(localStorage.getItem("gotradex_account_mode")==="REAL"?"LIVE":"DEMO"));
   document.body.classList.toggle("gtxCompactMode",gtxPrefBool("gotradex_compact_ui",true));
 
   /* Make every Close / Back button deterministic, including buttons added later. */
@@ -2511,8 +2507,8 @@ async function loadAdminIdentityVerification(){
  try{if(window.supabase&&typeof window.supabase.createClient==="function"){const sb=window.supabase.createClient("https://glffecggusetzklmyukv.supabase.co","sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5");const {data,error}=await sb.from("gotradex_identity_verifications").select("status,consented_at,provider,user_id,updated_at").order("updated_at",{ascending:false}).limit(1).maybeSingle();if(error)throw error;if(data){status.textContent=String(data.status||"NOT STARTED").replace("_"," ").toUpperCase();consent.textContent=data.consented_at?"YES":"NO";provider.textContent=data.provider||"PENDING";document.getElementById("identityAdminUser").textContent=data.user_id||"Unknown";return}}status.textContent="NO RECORD";}catch(e){status.textContent="UNAVAILABLE";document.getElementById("identityAdminNote").textContent="Could not load verification records: "+(e?.message||"")}
 }
 document.addEventListener("DOMContentLoaded",()=>{document.getElementById("identityAdminClose")?.addEventListener("click",()=>document.getElementById("adminIdentityVerification")?.classList.remove("open"));document.getElementById("identityAdminBack")?.addEventListener("click",()=>document.getElementById("adminIdentityVerification")?.classList.remove("open"));});
-</script><script src="market-data.js?v=20261011expiry-3min1"></script><script src="gotradex-otc-adapter.js?v=20261022-engine-stall-fix3"></script><script src="live-chart.js?v=20261023-market-clock-entry-anchor3"></script><script src="chart-tools-menu.js?v=20261015portal-order1"></script>
-<script src="gotradex-pro-engine.js?v=gtx-asset-sync-20261009a"></script><script src="trade-preferences.js?v=20261011expiry-3min1"></script><script src="server-trade-runtime.js?v=20261015-trade-line-ab4"></script>
+</script><script src="market-data.js?v=20261011expiry-3min1"></script><script src="gotradex-otc-adapter.js?v=20261022-engine-stall-fix3"></script><script src="live-chart.js?v=20261101-fixed-entry-anchor-refresh1"></script><script src="chart-tools-menu.js?v=20261015portal-order1"></script>
+<script src="gotradex-pro-engine.js?v=gtx-asset-sync-20261009a"></script><script src="trade-preferences.js?v=20261011expiry-3min1"></script><script src="server-trade-runtime.js?v=20261102-history-portal1"></script><script src="position-controls.js?v=20261103-chart-mounted-controls1"></script>
 <script id="gtx-admin-portal-runtime-guard">
 (function(){
   "use strict";
