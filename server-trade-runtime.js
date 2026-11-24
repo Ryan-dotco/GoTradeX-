@@ -209,14 +209,17 @@
     const d=event?.detail||{},price=Number(d.price);
     if(!Number.isFinite(price))return;
     const open=(window.GoTradeXServerRuntime.last?.open||[]).filter(x=>x.result==="OPEN");
+    let expiredPositionId=null;
     const crossed=open.some(t=>{
       if(t.expiry_enforced!==true||t.provider!=="BYBIT"||String(t.provider_symbol)!==String(d.symbol))return false;
       const buy=t.direction==="BUY";
       const expired=Number.isFinite(Date.parse(t.expires_at))&&Date.parse(t.expires_at)<=Date.now()&&!expiryTriggered.has(String(t.id));
+      if(expired)expiredPositionId=String(t.id);
       return expired||(t.stop_loss!=null&&(buy?price<=Number(t.stop_loss):price>=Number(t.stop_loss)))||
         (t.take_profit!=null&&(buy?price>=Number(t.take_profit):price<=Number(t.take_profit)));
     });
     if(!crossed)return;
+    if(expiredPositionId)expiryTriggered.add(expiredPositionId);
     settleInFlight=true;
     void sync().finally(()=>{settleInFlight=false});
   }
