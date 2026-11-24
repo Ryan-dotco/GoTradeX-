@@ -51,8 +51,12 @@
   }
   async function open(direction){
     try{
+      const selected=window.GoTradeXMarketFeeds?.resolve?.();
+      if(!selected?.available||selected.provider!=="BYBIT"||selected.type!=="crypto"||String(selected.mode||"LIVE").toUpperCase()==="OTC"){
+        throw new Error("Testing positions currently support verified Bybit Spot crypto only. Forex and OTC Buy/Sell remain IN REVIEW until their provider-specific trade engine is verified.");
+      }
       const mode=String(localStorage.getItem("gotradex_account_mode")||"DEMO").toUpperCase();
-      const j=await call("open",{account_mode:mode,market_mode:String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase(),asset:asset(),direction,amount:amount(),expiry_seconds:secondsFromUi()});
+      const j=await call("open",{account_mode:mode,market_mode:String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase(),asset:asset(),provider:"BYBIT",provider_symbol:selected.symbol,direction,amount:amount(),expiry_seconds:secondsFromUi()});
       if(j.position){
         const el=document.getElementById("status");
         if(el)el.textContent="";
