@@ -38,8 +38,8 @@
   }
   async function call(action,extra={}){
     const s=client(); if(!s)throw new Error("Supabase client unavailable.");
-    const {data}=await s.auth.getSession(); const token=data?.session?.access_token;
-    if(!token)throw new Error("Please sign in before trading.");
+    const {data}=await s.auth.getSession(); const session=data?.session,token=session?.access_token;
+    if(!token||!session?.user?.email_confirmed_at)throw new Error("A verified GoTradeX sign-in is required before trading.");
     const r=await fetch(ENGINE,{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json",apikey:KEY},body:JSON.stringify({action,...extra})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok||j.ok===false)throw new Error(j.error||"Server trade runtime failed.");
@@ -76,6 +76,13 @@
   async function sync(){
     if(syncing)return; syncing=true;
     try{
+      const s=client();
+      if(!s)return;
+      const {data:authData,error:authError}=await s.auth.getSession();
+      if(authError||!authData?.session?.user?.email_confirmed_at){
+        window.GoTradeXServerRuntime.last=null;
+        return;
+      }
       // Keep the selected asset registered server-side before doing anything else.
       // This survives phone sleep/backgrounding and lets the server worker continue.
       await touchMarketSubscription();
@@ -106,9 +113,10 @@
   async function setupRealtime(){
     const s=client(); if(!s?.channel)return;
     try{
-      const {data}=await s.auth.getSession();
-      const uid=data?.session?.user?.id;
-      if(!uid || uid===realtimeUserId) return;
+      const {data,error}=await s.auth.getSession();
+      const session=data?.session;
+      const uid=session?.user?.id;
+      if(error||!session?.user?.email_confirmed_at||!uid || uid===realtimeUserId) return;
       if(realtimeChannel) await s.removeChannel(realtimeChannel);
       realtimeUserId=uid;
       realtimeChannel=s.channel("gotradex-server-trades-"+uid)
