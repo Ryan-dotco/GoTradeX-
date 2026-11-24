@@ -43,56 +43,30 @@
       .select("candle_time,open,high,low,close,volume")
       .eq("pair",p).eq("timeframe",tf).order("candle_time",{ascending:true}).limit(500);
     if(error) throw new Error("OTC history read failed: "+error.message);
-    return (data||[]).map(x=>({
+    const candles=(data||[]).map(x=>({
       t:Date.parse(x.candle_time),o:Number(x.open),h:Number(x.high),l:Number(x.low),
       c:Number(x.close),v:Number(x.volume||0)
     })).filter(x=>[x.t,x.o,x.h,x.l,x.c].every(Number.isFinite));
+    const latest=candles[candles.length-1];
+    const maxAge=Math.max(Number(sec)*2000,120000);
+    if(!latest||Date.now()-latest.t>maxAge) throw new Error("Stored OTC history is stale. Waiting for a verified live OTC feed.");
+    return candles;
   }
   async function price(pair){
     const p=PAIRS[pair]||pair;
     const {data,error}=await client().from("otc_prices")
       .select("price,updated_at").eq("pair",p).maybeSingle();
     if(error) throw new Error("OTC price read failed: "+error.message);
-    if(!data||!Number.isFinite(Number(data.price))) throw new Error("No OTC price is available for "+p+".");
-    return {price:Number(data.price),time:Date.parse(data.updated_at)||Date.now()};
-  }
-  function withTimeout(promise,ms,message){
-    return new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>reject(new Error(message||"OTC market request timed out")),ms);
-      Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)});
-    });
+    const updatedAt=Date.parse(data?.updated_at);
+    if(!data||!Number.isFinite(Number(data.price))||!Number.isFinite(updatedAt)||Date.now()-updatedAt>30000){
+      throw new Error("No fresh verified OTC price is available for "+p+".");
+    }
+    return {price:Number(data.price),time:updatedAt};
   }
   function socket(pair,onTick,onStatus){
-    let stopped=false,timer=null,inFlight=false;
-    const endpoint=SUPABASE_URL+"/functions/v1/gotradex-otc-engine";
-    const poll=async()=>{
-      if(stopped||inFlight)return;
-      inFlight=true;
-      try{
-        try{
-          const res=await withTimeout(fetch(endpoint,{
-            method:"POST",cache:"no-store",
-            headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY},
-            body:JSON.stringify({action:"chart",pair,timeframe:60,tf:60,limit:20})
-          }),2500,"OTC engine request timed out");
-          const data=await withTimeout(res.json().catch(()=>null),1000,"OTC engine response timed out");
-          const p=Number(data?.price),t=Number(data?.serverTime||Date.now()/1000)*1000;
-          if(!res.ok||!Number.isFinite(p))throw new Error(data?.error||"OTC price unavailable");
-          if(stopped)return;
-          onTick({price:p,time:t});onStatus("OTC • LIVE ENGINE",true);
-        }catch(engineError){
-          try{
-            const p=await withTimeout(price(pair),2000,"OTC stored-price request timed out");
-            if(stopped)return;
-            onTick(p);onStatus("OTC • DATA CATCH-UP",true);
-          }catch(_){if(!stopped)onStatus("OTC • WAITING",false)}
-        }
-      }finally{inFlight=false}
-    };
-    // Return the close handle immediately; a slow request cannot block chart setup.
-    timer=setInterval(()=>{void poll()},1000);
-    void poll();
-    return {close(){stopped=true;if(timer)clearInterval(timer)}};
+    if(typeof onStatus==="function")onStatus("OTC • LIVE FEED NOT VERIFIED",false);
+    // Do not poll a disabled Edge Function or replay stale stored prices.
+    return {close(){}};
   }
   const feeds=window.GoTradeXMarketFeeds;
   if(!feeds||typeof feeds.resolve!=="function"){
@@ -101,28 +75,9 @@
   }
 
   const originalResolve=feeds.resolve.bind(feeds);
-  feeds.resolve=function(){
-    let mode="LIVE";
-    try{mode=String(localStorage.getItem("gotradex_market_mode")||"LIVE").toUpperCase()}catch(_){}
-    if(mode==="OTC"){
-      // Only route pairs explicitly supported by the isolated OTC table adapter.
-      // Read the visible dashboard selection first; a stale legacy gtx_pair must
-      // never turn an OTC index such as US 500 into EUR/USD.
-      let display="";
-      try{display=String(localStorage.getItem("gotradex_asset_display")||"").trim()}catch(_){}
-      if(!display){
-        try{display=String(document.getElementById("bottomAssetPair")?.textContent||"").trim()}catch(_){}
-      }
-      const requested=display.replace(/\s+OTC$/i,"").trim()+" OTC";
-      if(PAIRS[requested]){
-        const base=requested.replace(/\s+OTC$/i,"");
-        return {available:true,provider:"GOTRADEX_OTC",symbol:requested,label:base,type:"forex",mode:"OTC",short:false};
-      }
-    }
-    // Let the main verified resolver handle Deriv OTC indices and any other
-    // provider-specific OTC asset; unsupported pairs remain unavailable.
-    return originalResolve();
-  };
+  // OTC Forex pairs remain IN REVIEW until a fresh provider-backed OTC stream exists.
+  // Verified Deriv OTC indices continue through the main resolver without polling this adapter.
+  feeds.resolve=function(){return originalResolve()};
   feeds.otcHistory=history;
   feeds.otcPrice=price;
   feeds.otcSocket=socket;
