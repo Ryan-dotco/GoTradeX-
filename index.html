@@ -1705,6 +1705,15 @@ setTimeout(syncAccountPages,300);
         el("gtxBybitCodeWrap")?.classList.add("open");
         return;
       }
+      const {data:securityData,error:securityError}=await ensureClient().rpc("gotradex_security_status");
+      if(securityError)throw securityError;
+      const security=Array.isArray(securityData)?securityData[0]:securityData;
+      if(security?.account_frozen_at){
+        verifiedSession=false;
+        await ensureClient().auth.signOut({scope:"local"});
+        status("This account is emergency-frozen. Contact GoTradeX Admin for review.","error");
+        return;
+      }
       verifiedSession=true;
       close();
       if(localStorage.getItem("gotradex_account_mode")==="REAL"){
@@ -2145,8 +2154,8 @@ setTimeout(syncAccountPages,300);
     const wrap=document.createElement("div");
     wrap.id="gtxBybitAuthOverlay";
     wrap.innerHTML='<div class="gtxBybitAuthCard" role="dialog" aria-modal="true" aria-labelledby="gtxBybitAuthTitle">'+
-      '<div class="gtxBybitAuthHead"><h3 id="gtxBybitAuthTitle">Secure LIVE Connection</h3><button class="gtxBybitAuthClose" id="gtxBybitAuthClose" type="button">Close</button></div>'+
-      '<p class="gtxBybitAuthText">GoTradeX uses Supabase Auth to protect access to the private Bybit account. Your Bybit API secret stays on the backend and is never entered here.</p>'+
+      '<div class="gtxBybitAuthHead"><h3 id="gtxBybitAuthTitle">Secure GoTradeX Account</h3><button class="gtxBybitAuthClose" id="gtxBybitAuthClose" type="button">Close</button></div>'+
+      '<p class="gtxBybitAuthText">GoTradeX uses secure account verification to protect dashboard access. Your Bybit API secret stays on the backend and is never entered here.</p>'+
       '<label class="gtxBybitAuthField"><span>Email</span><input id="gtxBybitAuthEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>'+
       '<label class="gtxBybitAuthField"><span>Password</span><div class="gtxPasswordWrap"><input id="gtxBybitAuthPassword" type="password" autocomplete="current-password" placeholder="Your secure password"><button class="gtxPasswordToggle" id="gtxBybitPasswordToggle" type="button" aria-label="Show password">👁</button></div></label><div class="gtxRegistrationFields" id="gtxRegistrationFields"><label class="gtxBybitAuthField"><span>Display name (optional)</span><input id="gtxBybitAuthName" type="text" autocomplete="name" maxlength="40" placeholder="Your trading name"></label><label class="gtxBybitAuthField"><span>Referral code (optional)</span><input id="gtxBybitAuthReferral" type="text" autocomplete="off" maxlength="24" placeholder="GTX-REF"></label></div>'+
       '<button class="gtxForgotLink" id="gtxForgotPassword" type="button">Forgot password?</button>'+
