@@ -1653,6 +1653,7 @@ setTimeout(syncAccountPages,300);
   const BYBIT_LIVE_URL=SUPABASE_URL+"/functions/v1/gotradex-bybit-live";
   let client=null;
   let busy=false;
+  let verifiedSession=false;
 
   function ensureClient(){
     if(client)return client;
@@ -1681,23 +1682,41 @@ setTimeout(syncAccountPages,300);
     el("gtxBybitRecoveryRequest")?.classList.add("open");
     el("gtxBybitRecoverySet")?.classList.remove("open");
     const email=el("gtxBybitAuthEmail"); if(email)email.focus();
-    checkExistingSession();
+    void checkExistingSession();
   }
-  function close(){el("gtxBybitAuthOverlay")?.classList.remove("open")}
+  function close(){
+    if(!verifiedSession)return;
+    el("gtxBybitAuthOverlay")?.classList.remove("open");
+  }
   async function checkExistingSession(){
     try{
-      const {data}=await ensureClient().auth.getSession();
-      if(data?.session){
-        if(localStorage.getItem("gotradex_account_mode")==="REAL"){
-          status("Secure GoTradeX session found. Checking Bybit LIVE balance…","ok");
-          await loadLiveBalance(data.session);
-        }else{
-          status("Secure GoTradeX session found. Your account is active.","ok");
-        }
-      }else{
-        status("Sign in or create a GoTradeX account. New accounts are activated with the 6-digit email code.");
+      const {data,error}=await ensureClient().auth.getSession();
+      if(error)throw error;
+      const session=data?.session;
+      if(!session){
+        verifiedSession=false;
+        status("Sign in or create a GoTradeX account. Email verification is required before dashboard access.");
+        return;
       }
-    }catch(e){status(e?.message||"Secure authentication is unavailable.","error")}
+      if(!session.user?.email_confirmed_at){
+        verifiedSession=false;
+        await ensureClient().auth.signOut({scope:"local"});
+        status("Your email is not verified. Enter the 6-digit email code before accessing GoTradeX.","error");
+        el("gtxBybitCodeWrap")?.classList.add("open");
+        return;
+      }
+      verifiedSession=true;
+      close();
+      if(localStorage.getItem("gotradex_account_mode")==="REAL"){
+        status("Secure GoTradeX session found. Checking Bybit LIVE balance…","ok");
+        await loadLiveBalance(session);
+      }else{
+        status("Secure GoTradeX session verified. Your account is active.","ok");
+      }
+    }catch(e){
+      verifiedSession=false;
+      status(e?.message||"Secure authentication is unavailable. Dashboard access remains locked.","error");
+    }
   }
   function toggleFieldVisibility(inputId,buttonId){
     const input=el(inputId),btn=el(buttonId);
@@ -1776,6 +1795,10 @@ setTimeout(syncAccountPages,300);
     if(window.__gtxRecoveryListenerInstalled)return;
     window.__gtxRecoveryListenerInstalled=true;
     ensureClient().auth.onAuthStateChange((event)=>{
+      if(event==="SIGNED_OUT" && verifiedSession){
+        verifiedSession=false;
+        open();
+      }
       if(event==="PASSWORD_RECOVERY"){
         const o=el("gtxBybitAuthOverlay");
         if(o)o.classList.add("open");
@@ -1802,6 +1825,14 @@ setTimeout(syncAccountPages,300);
         }
         throw error;
       }
+      if(!data?.user?.email_confirmed_at){
+        await ensureClient().auth.signOut({scope:"local"});
+        const {error:otpError}=await ensureClient().auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+        if(otpError)throw new Error("Email verification is required, but an OTP could not be sent: "+otpError.message);
+        el("gtxBybitCodeWrap")?.classList.add("open");
+        status("Your email is not verified yet. Enter the 6-digit code sent to your email, then tap VERIFY & ACTIVATE.","ok");
+        el("gtxBybitAuthCode")?.focus();return;
+      }
       // Phase 4 enforcement: check only the signed-in user's server-side row.
       let security=null;
       try{
@@ -1824,6 +1855,7 @@ setTimeout(syncAccountPages,300);
         status("Password accepted. Email OTP is required. Enter the 6-digit code sent to your registered email, then tap VERIFY & ACTIVATE.","ok");
         el("gtxBybitAuthCode")?.focus();return;
       }
+      verifiedSession=true;
       if(localStorage.getItem("gotradex_account_mode")==="REAL"){
         await loadLiveBalance(data.session);
       }else{
@@ -1843,10 +1875,14 @@ setTimeout(syncAccountPages,300);
     try{
       const {data,error}=await ensureClient().auth.verifyOtp({email,token,type:"email"});
       if(error)throw error;
+      if(!data?.session || !data?.user?.email_confirmed_at){
+        throw new Error("Email verification did not return a confirmed session. Dashboard access remains locked.");
+      }
 
       try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
       const profileResult=await ensureRegisteredProfile(data?.user);
       if(!profileResult.ok){status("Email verified, but your account profile could not be completed: "+profileResult.message,"error");return}
+      verifiedSession=true;
       status("✓ Email verified. Your GoTradeX account is now ACTIVE.","ok");
 
       if(data?.session){
@@ -1920,10 +1956,20 @@ setTimeout(syncAccountPages,300);
         return;
       }
 
+      if(data.session && !data?.user?.email_confirmed_at){
+        await ensureClient().auth.signOut({scope:"local"});
+        const {error:otpError}=await ensureClient().auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+        if(otpError)throw new Error("Account created, but email OTP could not be sent: "+otpError.message);
+        el("gtxBybitCodeWrap")?.classList.add("open");
+        status("Account created. Email verification is required. Enter the 6-digit code sent to your email, then tap VERIFY & ACTIVATE.","ok");
+        el("gtxBybitAuthCode")?.focus();
+        return;
+      }
       if(data.session){
         const profileResult=await ensureRegisteredProfile(data.user||data.session.user);
         if(!profileResult.ok)throw new Error("Account was created, but the profile could not be completed: "+profileResult.message);
         try{localStorage.setItem("gotradex_email_verified","true")}catch(e){}
+        verifiedSession=true;
         status("✓ Account created and email already verified. Your GoTradeX account is ACTIVE.","ok");
         if(localStorage.getItem("gotradex_account_mode")==="REAL"){
           await loadLiveBalance(data.session);
@@ -2134,6 +2180,7 @@ setTimeout(syncAccountPages,300);
         if(picker.dataset.mode==="REAL")setTimeout(checkExistingSession,0);
       });
     }
+    open();
   }
 
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",hook,{once:true});
