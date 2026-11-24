@@ -1674,6 +1674,7 @@ setTimeout(syncAccountPages,300);
     if(e){e.textContent=msg;e.className="gtxBybitAuthStatus "+(type||"")}
   }
   function open(){
+    verifiedSession=false;
     const o=el("gtxBybitAuthOverlay"); if(o)o.classList.add("open");
     const codeWrap=el("gtxBybitCodeWrap");
     if(codeWrap)codeWrap.classList.remove("open");
