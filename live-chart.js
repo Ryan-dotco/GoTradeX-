@@ -373,6 +373,9 @@ document.addEventListener("click",event=>{const menu=document.getElementById("gt
     }
     state.prev=state.price;
     state.price=Number(price);
+    window.dispatchEvent(new CustomEvent("gotradex:live-tick",{detail:{
+      provider:state.provider,symbol:state.symbol,price:Number(price),time:timestamp,mode:state.mode
+    }}));
     const updateStart=performance.now();
     try{updateLiveSeries(c);state.diag.updates++;}
     catch(err){state.diag.errors++;throw err;}
