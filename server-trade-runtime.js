@@ -9,6 +9,7 @@
   const KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
   const ENGINE=URL+"/functions/v1/gotradex-testing-position-engine";
   let sb=null, syncing=false, settleInFlight=false, realtimeChannel=null, realtimeUserId=null;
+  const expiryTimers=new Map(), expiryTriggered=new Set();
 
   function client(){
     if(!sb && window.supabase?.createClient) sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -56,11 +57,13 @@
         const el=document.getElementById("status");
         if(el)el.textContent="";
         window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.position}}));
+        const current=window.GoTradeXServerRuntime.last||{open:[],history:[]};
+        const history=[j.position,...(current.history||[]).filter(x=>String(x.id)!==String(j.position.id))]
+          .sort((a,b)=>Date.parse(b.opened_at||b.created_at||0)-Date.parse(a.opened_at||a.created_at||0)).slice(0,50);
+        const open=history.filter(x=>x.result==="OPEN");
+        window.GoTradeXServerRuntime.last={...current,ok:true,open,history};
+        refreshExpiryTimers(open);
       }
-      const current=window.GoTradeXServerRuntime.last||{open:[],history:[]};
-      const history=[j.position,...(current.history||[]).filter(x=>String(x.id)!==String(j.position.id))].sort((a,b)=>Date.parse(b.opened_at||b.created_at||0)-Date.parse(a.opened_at||a.created_at||0)).slice(0,50);
-      const open=history.filter(x=>x.result==="OPEN");
-      window.GoTradeXServerRuntime.last={...current,ok:true,open,history};
     }catch(e){
       window.dispatchEvent(new CustomEvent("gotradex:trade-open-failed",{detail:{direction:String(direction||"").toUpperCase(),message:e?.message||"Trade could not be opened."}}));
       status(e?.message||"Trade could not be opened.");
@@ -75,6 +78,32 @@
     const s=client(); if(!s) return null;
     const {data}=await s.from("gotradex_market_state").select("*").eq("symbol",String(assetName||asset()).toUpperCase()).maybeSingle();
     return data||null;
+  }
+  function scheduleExpiry(position){
+    if(!position||position.expiry_enforced!==true||!position.id)return;
+    const id=String(position.id),expires=Date.parse(position.expires_at);
+    if(!Number.isFinite(expires)||expiryTriggered.has(id))return;
+    if(expiryTimers.has(id))clearTimeout(expiryTimers.get(id));
+    const wait=Math.max(0,Math.min(expires-Date.now(),2147483647));
+    const timer=setTimeout(()=>{
+      expiryTimers.delete(id);
+      if(Date.now()<expires){scheduleExpiry(position);return;}
+      if(expiryTriggered.has(id))return;
+      expiryTriggered.add(id);
+      if(!settleInFlight){
+        settleInFlight=true;
+        void sync().finally(()=>{settleInFlight=false});
+      }
+    },wait);
+    expiryTimers.set(id,timer);
+  }
+  function refreshExpiryTimers(positions){
+    const open=(Array.isArray(positions)?positions:[]).filter(x=>x.result==="OPEN");
+    const active=new Set(open.filter(x=>x.expiry_enforced===true).map(x=>String(x.id)));
+    for(const [id,timer] of expiryTimers){
+      if(!active.has(id)){clearTimeout(timer);expiryTimers.delete(id);expiryTriggered.delete(id);}
+    }
+    open.forEach(scheduleExpiry);
   }
   async function sync(){
     if(syncing)return; syncing=true;
@@ -107,6 +136,7 @@
       window.GoTradeXServerRuntime.last=j;
 
       const open=(j.open||[]).filter(x=>x.result==="OPEN");
+      refreshExpiryTimers(open);
       // Running trade state is displayed on the chart, not as a sentence below the controls.
       if(!open.length){
         const el=document.getElementById("status");
@@ -151,6 +181,7 @@
             .sort((a,b)=>Date.parse(b.opened_at||b.created_at||0)-Date.parse(a.opened_at||a.created_at||0)).slice(0,50);
           const next={...current,ok:true,open:history.filter(x=>x.result==="OPEN"),history};
           window.GoTradeXServerRuntime.last=next;
+          refreshExpiryTimers(next.open);
           window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:next}));
         })
         .on("postgres_changes",{
@@ -175,9 +206,10 @@
     if(!Number.isFinite(price))return;
     const open=(window.GoTradeXServerRuntime.last?.open||[]).filter(x=>x.result==="OPEN");
     const crossed=open.some(t=>{
-      if(t.provider!=="BYBIT"||String(t.provider_symbol)!==String(d.symbol))return false;
+      if(t.expiry_enforced!==true||t.provider!=="BYBIT"||String(t.provider_symbol)!==String(d.symbol))return false;
       const buy=t.direction==="BUY";
-      return (t.stop_loss!=null&&(buy?price<=Number(t.stop_loss):price>=Number(t.stop_loss)))||
+      const expired=Number.isFinite(Date.parse(t.expires_at))&&Date.parse(t.expires_at)<=Date.now()&&!expiryTriggered.has(String(t.id));
+      return expired||(t.stop_loss!=null&&(buy?price<=Number(t.stop_loss):price>=Number(t.stop_loss)))||
         (t.take_profit!=null&&(buy?price>=Number(t.take_profit):price<=Number(t.take_profit)));
     });
     if(!crossed)return;
@@ -196,9 +228,10 @@
       if(event==="SIGNED_IN"){void setupRealtime();void sync();}
       else if(event==="SIGNED_OUT"){void setupRealtime();window.GoTradeXServerRuntime.last=null;}
     });
-    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){setupRealtime();sync()}});
-    window.addEventListener("pageshow",()=>{setupRealtime();sync()});
-    window.addEventListener("online",()=>{setupRealtime();sync()});
+    const resume=()=>{expiryTriggered.clear();setupRealtime();sync();};
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")resume()});
+    window.addEventListener("pageshow",resume);
+    window.addEventListener("online",resume);
   }
   async function history(){
     const s=client();if(!s)throw new Error("Supabase client unavailable.");
