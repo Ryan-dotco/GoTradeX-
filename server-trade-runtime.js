@@ -8,7 +8,7 @@
   const URL="https://glffecggusetzklmyukv.supabase.co";
   const KEY="sb_publishable_I5HYnrxveFXIrvj0NvL1eA_GHIWEDe5";
   const ENGINE=URL+"/functions/v1/gotradex-testing-position-engine";
-  let sb=null, syncTimer=null, syncing=false, realtimeChannel=null, realtimeUserId=null;
+  let sb=null, syncing=false, settleInFlight=false, realtimeChannel=null, realtimeUserId=null;
 
   function client(){
     if(!sb && window.supabase?.createClient) sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true}});
@@ -57,7 +57,10 @@
         if(el)el.textContent="";
         window.dispatchEvent(new CustomEvent("gotradex:trade-opened",{detail:{trade:j.position}}));
       }
-      await sync();
+      const current=window.GoTradeXServerRuntime.last||{open:[],history:[]};
+      const history=[j.position,...(current.history||[]).filter(x=>String(x.id)!==String(j.position.id))].sort((a,b)=>Date.parse(b.opened_at||b.created_at||0)-Date.parse(a.opened_at||a.created_at||0)).slice(0,50);
+      const open=history.filter(x=>x.result==="OPEN");
+      window.GoTradeXServerRuntime.last={...current,ok:true,open,history};
     }catch(e){
       window.dispatchEvent(new CustomEvent("gotradex:trade-open-failed",{detail:{direction:String(direction||"").toUpperCase(),message:e?.message||"Trade could not be opened."}}));
       status(e?.message||"Trade could not be opened.");
@@ -83,16 +86,20 @@
         window.GoTradeXServerRuntime.last=null;
         return;
       }
-      // Keep the selected asset registered server-side before doing anything else.
-      // This survives phone sleep/backgrounding and lets the server worker continue.
-      await touchMarketSubscription();
+      const uid=authData.session.user.id;
+      const {data:positions,error:positionsError}=await s.from("gotradex_testing_positions")
+        .select("*").eq("user_id",uid).order("opened_at",{ascending:false}).limit(50);
+      if(positionsError)throw positionsError;
+      const existingHistory=positions||[];
+      const existingOpen=existingHistory.filter(x=>x.result==="OPEN");
+      let j={ok:true,open:existingOpen,history:existingHistory};
 
-      let j={ok:true,open:[]};
-      try{
-        j=await call("sync");
-      }catch(_){
-        // A missing/expired trade must never prevent market-state recovery.
-        // The chart can still synchronize directly from the authoritative market table.
+      // Only call the Edge Function when this user actually has an open Testing position.
+      // No five-second polling: live ticks and Realtime updates drive the position UI.
+      if(existingOpen.length){
+        await touchMarketSubscription();
+        try{j=await call("sync");}
+        catch(e){j={ok:false,open:existingOpen,history:existingHistory,error:e?.message||"Position sync is temporarily unavailable."};}
       }
 
       const market=await marketState(asset());
@@ -107,7 +114,7 @@
       }
       window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:j}));
     }catch(e){
-      // Recovery remains on the next five-second sync/realtime reconnect.
+      // The next verified live tick, Realtime update, or page-resume event can retry.
     }finally{syncing=false;}
   }
   async function setupRealtime(){
@@ -116,7 +123,12 @@
       const {data,error}=await s.auth.getSession();
       const session=data?.session;
       const uid=session?.user?.id;
-      if(error||!session?.user?.email_confirmed_at||!uid || uid===realtimeUserId) return;
+      if(error||!session?.user?.email_confirmed_at||!uid){
+        if(realtimeChannel)await s.removeChannel(realtimeChannel);
+        realtimeChannel=null;realtimeUserId=null;
+        return;
+      }
+      if(uid===realtimeUserId)return;
       if(realtimeChannel) await s.removeChannel(realtimeChannel);
       realtimeUserId=uid;
       realtimeChannel=s.channel("gotradex-server-trades-"+uid)
@@ -129,15 +141,48 @@
         .on("postgres_changes",{
           event:"*",
           schema:"public",
+          table:"gotradex_testing_positions",
+          filter:"user_id=eq."+uid
+        },payload=>{
+          const row=payload?.new||payload?.old;
+          if(!row?.id)return;
+          const current=window.GoTradeXServerRuntime.last||{open:[],history:[]};
+          const history=[row,...(current.history||[]).filter(x=>String(x.id)!==String(row.id))]
+            .sort((a,b)=>Date.parse(b.opened_at||b.created_at||0)-Date.parse(a.opened_at||a.created_at||0)).slice(0,50);
+          const next={...current,ok:true,open:history.filter(x=>x.result==="OPEN"),history};
+          window.GoTradeXServerRuntime.last=next;
+          window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:next}));
+        })
+        .on("postgres_changes",{
+          event:"*",
+          schema:"public",
           table:"gotradex_market_state"
         },payload=>{
           const m=payload?.new;
           if(m?.symbol){
-            window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:{market_state:m,open:[]}}));
+            const current=window.GoTradeXServerRuntime.last||{open:[],history:[]};
+            const next={...current,market_state:m,open:current.open||[],history:current.history||[]};
+            window.GoTradeXServerRuntime.last=next;
+            window.dispatchEvent(new CustomEvent("gotradex:server-sync",{detail:next}));
           }
         })
         .subscribe();
     }catch(e){ /* five-second sync remains the recovery path */ }
+  }
+  function onLiveTick(event){
+    if(settleInFlight)return;
+    const d=event?.detail||{},price=Number(d.price);
+    if(!Number.isFinite(price))return;
+    const open=(window.GoTradeXServerRuntime.last?.open||[]).filter(x=>x.result==="OPEN");
+    const crossed=open.some(t=>{
+      if(t.provider!=="BYBIT"||String(t.provider_symbol)!==String(d.symbol))return false;
+      const buy=t.direction==="BUY";
+      return (t.stop_loss!=null&&(buy?price<=Number(t.stop_loss):price>=Number(t.stop_loss)))||
+        (t.take_profit!=null&&(buy?price>=Number(t.take_profit):price<=Number(t.take_profit)));
+    });
+    if(!crossed)return;
+    settleInFlight=true;
+    void sync().finally(()=>{settleInFlight=false});
   }
   function install(){
     const buy=document.getElementById("buy"),sell=document.getElementById("sell");
@@ -145,23 +190,29 @@
     if(sell)sell.onclick=()=>open("SELL");
     setupRealtime();
     sync();
-    if(syncTimer)clearInterval(syncTimer);
-    syncTimer=setInterval(sync,5000);
+    window.addEventListener("gotradex:live-tick",onLiveTick);
+    const s=client();
+    s?.auth.onAuthStateChange(event=>{
+      if(event==="SIGNED_IN"){void setupRealtime();void sync();}
+      else if(event==="SIGNED_OUT"){void setupRealtime();window.GoTradeXServerRuntime.last=null;}
+    });
     document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){setupRealtime();sync()}});
     window.addEventListener("pageshow",()=>{setupRealtime();sync()});
     window.addEventListener("online",()=>{setupRealtime();sync()});
   }
   async function history(){
     const s=client();if(!s)throw new Error("Supabase client unavailable.");
-    const {data:session}=await s.auth.getSession();if(!session?.session)throw new Error("Please sign in to view your account history.");
+    const {data:session}=await s.auth.getSession(),user=session?.session?.user;
+    if(!user?.email_confirmed_at)throw new Error("Please sign in with a verified email to view your account history.");
     const cutoff=new Date(Date.now()-86400000).toISOString();
     const [demo,legacy]=await Promise.all([
-      call("sync"),
+      s.from("gotradex_testing_positions").select("*").eq("user_id",user.id).gte("opened_at",cutoff).order("opened_at",{ascending:false}).limit(100),
       s.from("gotradex_user_trades").select("id,account_mode,market_mode,asset,provider,provider_symbol,direction,amount,opened_at,entry_price,exit_price,result,pnl,settled_at,created_at,metadata").gte("opened_at",cutoff).order("opened_at",{ascending:false}).limit(100)
     ]);
+    if(demo.error)throw demo.error;
     if(legacy.error)throw legacy.error;
     const normalize=(r,mode)=>({...r,account_mode:mode,opened_at:r.opened_at||r.created_at,close_reason:r.close_reason||r.metadata?.close_reason||""});
-    return [...(demo.history||[]).map(r=>normalize(r,"DEMO")),...(legacy.data||[]).map(r=>normalize(r,r.account_mode==="REAL"?"LIVE":"DEMO"))];
+    return [...(demo.data||[]).map(r=>normalize(r,"DEMO")),...(legacy.data||[]).map(r=>normalize(r,r.account_mode==="REAL"?"LIVE":"DEMO"))];
   }
   window.GoTradeXServerRuntime={call,sync,open,marketState,history,last:null};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
