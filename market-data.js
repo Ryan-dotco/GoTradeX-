@@ -1,8 +1,8 @@
 /* GoTradeX verified market-feed registry.
- * No synthetic prices. A feed is marked LIVE only after its provider confirms
- * the selected symbol/stream is available. Bybit Spot is the native crypto feed.
- * Twelve Data is the verified non-crypto adapter when a valid API key/feed access
- * is configured. Short candles are built only from real provider ticks.
+ * No synthetic prices and no Twelve Data fallback.
+ * Crypto uses Bybit Spot; normal Forex uses Deriv only; supported OTC indices
+ * use Deriv OTC. Unsupported assets remain unavailable until independently verified.
+ * Short candles are built only from real provider ticks.
  */
 (function(){
   "use strict";
@@ -107,7 +107,7 @@
     "UK 100":"OTC_FTSE"
   };
 
-  const directTwelve = {
+  const knownNonCryptoAssetMap = {
     "EUR/USD":"EUR/USD","GBP/USD":"GBP/USD","USD/JPY":"USD/JPY","USD/CHF":"USD/CHF",
     "AUD/USD":"AUD/USD","USD/CAD":"USD/CAD","NZD/USD":"NZD/USD","EUR/GBP":"EUR/GBP",
     "EUR/JPY":"EUR/JPY","GBP/JPY":"GBP/JPY","EUR/CHF":"EUR/CHF","AUD/JPY":"AUD/JPY",
@@ -150,7 +150,7 @@
     const raw=label(); const l=({BTCUSD:"BTC/USD","BTC/USDT":"BTC/USD"}[raw]||raw);
     const storedType=type();
     const inferredCrypto=!!cryptoMap[l];
-    const inferredTwelve=!!directTwelve[l];
+    const inferredTwelve=!!knownNonCryptoAssetMap[l];
     const inferredType=inferredCrypto ? "crypto" : inferredTwelve ? (
       /^(XAU|XAG)\//.test(l) ? "metals" :
       /^(WTI|Brent|Natural Gas|Copper|Platinum|Palladium)/.test(l) ? "commodities" : "forex"
@@ -161,15 +161,13 @@
       return {available:false,provider:"NONE",reason:"No verified Deriv OTC feed is configured for "+l+".",label:l,type:t,mode:"OTC"};
     }
     if(t==="crypto" && cryptoMap[l]) return {available:true,provider:"BYBIT",symbol:cryptoMap[l],label:l,type:t,short:true};
-    if(t==="forex" && derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
-    // Use the selected asset native symbol through the verified Twelve Data adapter.
-    // Do not substitute BTC candles for another market.
-    if(directTwelve[l]) return {available:true,provider:"TWELVE_DATA",symbol:directTwelve[l],label:l,type:t};
-    if(t==="forex" && /^[A-Z]{3}\/[A-Z]{3}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    if(t==="stocks" && /^[A-Z]{1,6}$/.test(l)) return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
-    // All listed non-crypto assets are candidates for verified Twelve Data discovery.
-    // The chart layer will confirm the exact provider symbol before rendering.
-    if(t==="commodities" || t==="metals" || t==="indices") return {available:true,provider:"TWELVE_DATA",symbol:l,label:l,type:t};
+    if(t==="forex"){
+      if(derivMap[l]) return {available:true,provider:"DERIV",symbol:derivMap[l],label:l,type:t};
+      return {available:false,provider:"NONE",reason:"IN REVIEW — no verified Deriv symbol is configured for "+l+".",label:l,type:t};
+    }
+    if(t==="stocks" || t==="commodities" || t==="metals" || t==="indices"){
+      return {available:false,provider:"NONE",reason:"IN REVIEW — no verified Bybit or Deriv feed is configured for "+l+".",label:l,type:t};
+    }
     return {available:false,provider:"NONE",reason:"No verified native feed is configured for "+l+".",label:l,type:t};
   }
 
