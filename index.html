@@ -2125,7 +2125,20 @@ setTimeout(syncAccountPages,300);
     open();
   }
 
-  window.GTXBybitAuth={open,close,signIn,signUp,loadLiveBalance,ensureClient};
+  async function signOut(){
+    try{
+      await ensureClient().auth.signOut({scope:"local"});
+      verifiedSession=false;
+      open();
+      status("You have signed out. Sign in again to access GoTradeX.","ok");
+    }catch(e){
+      status(e?.message||"Could not sign out securely.","error");
+    }
+  }
+
+  window.GTXBybitAuth={open,close,signIn,signUp,signOut,loadLiveBalance,ensureClient};
+  window.logout=signOut;
+  window.logoutAccount=signOut;
 
   function buildModal(){
     if(el("gtxBybitAuthOverlay"))return;
